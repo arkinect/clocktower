@@ -1,0 +1,25 @@
+# HTTPS front door for Clocktower. Caddy obtains and renews the certificate automatically.
+# Caddy runs unprivileged, so it listens on high ports inside the container (see docker-compose.yml).
+{
+	http_port 8080
+	https_port 8443
+}
+
+{$CLOCKTOWER_DOMAIN} {
+	# If you cannot forward external port 80, uncomment to obtain certificates over port 443 only:
+	# tls {
+	# 	issuer acme {
+	# 		disable_http_challenge
+	# 	}
+	# }
+	encode gzip
+	header {
+		# No Strict-Transport-Security on purpose: HSTS applies to the whole host name (every port),
+		# which would break other plain-HTTP services you may run on the same name. Add it if that's not a concern.
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+	reverse_proxy clocktower:8080
+}

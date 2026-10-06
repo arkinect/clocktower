@@ -1,0 +1,24 @@
+{
+  "name": "clocktower",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Unofficial Blood on the Clocktower night assistant: players join from their phones, the Storyteller reviews and publishes each night.",
+  "license": "MIT",
+  "author": "arkinect",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/arkinect/clocktower.git"
+  },
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "build": "npm run build -w client && npm run build -w server",
+    "test": "npm test -w server",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w client"
+  }
+}

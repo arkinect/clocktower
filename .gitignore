@@ -1,0 +1,9 @@
+node_modules
+dist
+data
+data-public
+logs
+caddy/data
+caddy/config
+.env
+*.log
