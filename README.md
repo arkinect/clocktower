@@ -110,7 +110,8 @@ npm run dev:client     # Vite dev server, proxies /api and /ws to :8080
 | `client/src/player/*`, `client/src/admin/*` | Player screens and mini-games; Storyteller console |
 
 Pushes to `main` publish `ghcr.io/arkinect/clocktower:edge`; tags like `v1.0.0` publish `:1.0.0` and `:latest`
-(amd64 and arm64).
+(amd64 and arm64). A weekly workflow rebuilds the newest release on fresh base images so `:latest` picks up
+security patches without a new release.
 
 ## License
 
