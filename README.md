@@ -1,3 +1,7 @@
+# Note on security
+This project was built almost entirely with AI, and I'm not a web security expert. The repo includes instructions for exposing the app beyond your local network, but I don't recommend it unless you're comfortable securing a self-hosted web app.
+It's sped up my nights a lot. I hope others find it useful too.
+
 # Clocktower Night Assistant
 
 A self-hosted web app that runs the **night** of *Blood on the Clocktower* for an in-person group. Players join from
