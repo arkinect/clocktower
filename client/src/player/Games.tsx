@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { SliceGame } from './MiniGame';
 import { Game2048 } from './Game2048';
+import { loadToken } from '../api';
 
 type Game = 'slice' | '2048';
 const KEY = 'ct_night_game';
@@ -11,7 +12,7 @@ function load(): Game {
   try { return localStorage.getItem(KEY) === '2048' ? '2048' : 'slice'; } catch { return 'slice'; }
 }
 
-export function NightGames() {
+export function NightGames({ code }: { code: string }) {
   const [game, setGame] = useState<Game>(load);
   const pick = (g: Game) => {
     setGame(g);
@@ -23,7 +24,7 @@ export function NightGames() {
         <button className={game === 'slice' ? 'on' : ''} onClick={() => pick('slice')}>Lantern Slice</button>
         <button className={game === '2048' ? 'on' : ''} onClick={() => pick('2048')}>2048</button>
       </div>
-      {game === 'slice' ? <SliceGame key="slice" /> : <Game2048 key="2048" />}
+      {game === 'slice' ? <SliceGame key="slice" /> : <Game2048 key="2048" owner={loadToken(code)} />}
     </div>
   );
 }

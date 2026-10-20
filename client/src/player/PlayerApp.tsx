@@ -114,7 +114,7 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
         <button onClick={() => setRoleOpen(true)}>My role</button>
       </header>
       {/* Owner rule: games unlock only after the player has finished their night action (or the night has closed). */}
-      {view.me.submitted || !collecting ? <NightGames /> : (
+      {view.me.submitted || !collecting ? <NightGames code={view.gameCode} /> : (
         <div className="gamelock">
           <div className="gamelock-icon">☾</div>
           <p>{real.length ? 'Make your night choice and submit it.' : 'Press Continue below.'}</p>

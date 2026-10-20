@@ -1,9 +1,12 @@
 // 2048: slide tiles, merge equal numbers. Swipe or use arrow keys. Local only, nothing sent anywhere.
+// The board, score and best are saved on the device under the player's login token, so they survive tab switches,
+// nights and "Play again" (same token) but start over after "New game (erase)" (everyone rejoins with a new token).
 // Tiles keep an id so they slide (CSS transform transition) and pop when they merge or appear.
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 const N = 4;
-const BEST_KEY = 'ct_2048_best';
+const SAVE_KEY = 'ct_2048_save';
+const LEGACY_BEST_KEY = 'ct_2048_best';
 const SLIDE_MS = 110;
 
 interface Tile { id: number; v: number; r: number; c: number; isNew?: boolean; merged?: boolean; dying?: boolean }
@@ -70,14 +73,29 @@ function canMove(tiles: Tile[]): boolean {
   return (['left', 'right', 'up', 'down'] as Dir[]).some((d) => move(tiles, d).moved);
 }
 
-function loadBest(): number {
-  try { return Number(localStorage.getItem(BEST_KEY)) || 0; } catch { return 0; }
+interface Save { owner: string; tiles: { v: number; r: number; c: number }[]; score: number; best: number }
+
+function loadSave(owner: string | null): { tiles: Tile[]; score: number; best: number } {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    const s = raw ? (JSON.parse(raw) as Save) : null;
+    if (owner && s?.owner === owner && Array.isArray(s.tiles) && s.tiles.length) {
+      return { tiles: s.tiles.map((t) => ({ id: nextId++, v: t.v, r: t.r, c: t.c })), score: s.score || 0, best: s.best || 0 };
+    }
+    // Before saves existed the best score was kept on its own; carry it over once.
+    const best = raw ? 0 : Number(localStorage.getItem(LEGACY_BEST_KEY)) || 0;
+    localStorage.removeItem(LEGACY_BEST_KEY);
+    return { tiles: newGame(), score: 0, best };
+  } catch {
+    return { tiles: newGame(), score: 0, best: 0 };
+  }
 }
 
-export function Game2048() {
-  const [tiles, setTiles] = useState<Tile[]>(newGame);
-  const [score, setScore] = useState(0);
-  const [best, setBest] = useState(loadBest);
+export function Game2048({ owner }: { owner: string | null }) {
+  const [initial] = useState(() => loadSave(owner));
+  const [tiles, setTiles] = useState<Tile[]>(initial.tiles);
+  const [score, setScore] = useState(initial.score);
+  const [best, setBest] = useState(initial.best);
   const busy = useRef(false);
   const start = useRef<{ x: number; y: number } | null>(null);
   const live = tiles.filter((t) => !t.dying);
@@ -90,17 +108,7 @@ export function Game2048() {
       const r = move(cur, dir);
       if (!r.moved) return cur;
       busy.current = true;
-      if (r.gained) {
-        setScore((s) => {
-          const ns = s + r.gained;
-          setBest((b) => {
-            const nb = Math.max(b, ns);
-            try { localStorage.setItem(BEST_KEY, String(nb)); } catch { /* private mode */ }
-            return nb;
-          });
-          return ns;
-        });
-      }
+      if (r.gained) setScore((s) => s + r.gained);
       // After the slide finishes: drop merged-away tiles and add a new one.
       window.setTimeout(() => {
         setTiles((after) => addTile(after.filter((t) => !t.dying)));
@@ -109,6 +117,14 @@ export function Game2048() {
       return r.tiles;
     });
   }, []);
+
+  useEffect(() => { setBest((b) => Math.max(b, score)); }, [score]);
+
+  useEffect(() => {
+    if (!owner) return;
+    const save: Save = { owner, tiles: tiles.filter((t) => !t.dying).map(({ v, r, c }) => ({ v, r, c })), score, best };
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch { /* private mode */ }
+  }, [owner, tiles, score, best]);
 
   useEffect(() => {
     const keys: Record<string, Dir> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
