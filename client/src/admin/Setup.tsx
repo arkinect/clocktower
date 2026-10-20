@@ -5,7 +5,7 @@ import { TimedButton, TYPE_LABEL, TYPE_ORDER } from '../common';
 import { VigoScarletWarning, Who, type AdminCtx } from './AdminApp';
 
 export function SetupPanel({ ctx }: { ctx: AdminCtx }) {
-  const { s, view } = ctx;
+  const { s } = ctx;
   const live = s.phase !== 'LOBBY' && s.phase !== 'SETUP';
   return (
     <div>
@@ -22,7 +22,6 @@ export function SetupPanel({ ctx }: { ctx: AdminCtx }) {
           <RoleChecklist ctx={ctx} />
         </div>
       </div>
-      {view.state.phase === 'SETUP' && <Briefing ctx={ctx} />}
     </div>
   );
 }
@@ -38,7 +37,7 @@ function Checklist({ ctx }: { ctx: AdminCtx }) {
       </ul>
       {view.warnings.map((w, i) => <div key={i} className="warnline">⚠ {w}</div>)}
       {s.phase === 'SETUP' && (
-        <div className="row">
+        <div className="row actions">
           <TimedButton className="primary big" disabled={!ready} onConfirm={() => send({ type: 'begin_night0' })}>Begin Night 0</TimedButton>
           {!ready && <TimedButton className="danger" onConfirm={() => send({ type: 'begin_night0', force: true })}>Force</TimedButton>}
         </div>

@@ -133,7 +133,7 @@ Players never see other players' roles, choices, statuses or results.
 ### 3.2 Admin (Storyteller)
 Same app, Admin console. Before the game starts the tab bar shows **Lobby, Setup, Night, Review, Day, Grimoire, Circle, Reference, Story, Log**. Once Night 0 begins it shows **Night, Review, Day, Grimoire, Circle, Reference**, and **Lobby, Setup, Story, Log** move into a **More ▾** drop-down menu (the button shows the open page's name when one of them is selected). Capabilities:
 - Lobby: player list with online dots, rename or remove a player (allowed in Lobby **and Setup**), the join URL and a QR code.
-- Setup: role checklist, seating, role assignment, type counts, setup decisions, the checklist that gates Night 0, and the Storyteller briefing (section 7).
+- Setup: role checklist, seating, role assignment, type counts, setup decisions, and the checklist that gates Night 0.
 - Night: start collecting, watch submissions, set or extend the countdown, submit on a player's behalf, mark "no action", flip the Godfather trigger, resolve (section 9).
 - Review: decisions (review items), every result with true/suggested/final values, the night walk, publish (section 9.3).
 - Day: record deaths, execution, day facts, day abilities (Slayer, Witch curse, Damsel guess), the Ability tracker, Scarlet Woman prompts, start the next night (section 12).
@@ -354,7 +354,7 @@ Required items appear as roles are assigned; **Begin Night 0** is enabled when a
 8. **Godfather:** Outsiders −1 or +1 (must be pressed once).
 9. **Huntsman:** needs the Damsel in play.
 
-The **Storyteller briefing** (Setup and Grimoire) lists: the Drunk and Marionette with believed roles, Lil' Monsta details, the red herring, bluffs, the Mezepheles word, the Damsel (and any Huntsman conversion), the Outsiders the Godfather will learn, the evil team, and the reminder that Minions learn each other but not the Demon.
+The **Storyteller briefing** (Grimoire) lists: the Drunk and Marionette with believed roles, Lil' Monsta details, the red herring, bluffs, the Mezepheles word, the Damsel (and any Huntsman conversion), the Outsiders the Godfather will learn, the evil team, and the reminder that Minions learn each other but not the Demon.
 
 ---
 
@@ -815,7 +815,7 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 | Night | Player | Countdown, real picker or "No night action" + Continue, games after submitting, Ravenkeeper prompt |
 | Day | Player | Dawn banner, own information, "You have died" |
 | Admin: Lobby | Admin | Players, presence, rename/remove, QR join |
-| Admin: Setup | Admin | Checklist, seating, assignment, decisions, counts, role checklist, briefing |
+| Admin: Setup | Admin | Checklist, seating, assignment, decisions, counts, role checklist |
 | Admin: Night | Admin | Submission board, countdown, submit-for, Godfather trigger, resolve |
 | Admin: Review | Admin | Decisions, results, Mathematician, night walk, publish |
 | Admin: Day | Admin | Deaths, execution, facts, day abilities, Ability tracker, start night |

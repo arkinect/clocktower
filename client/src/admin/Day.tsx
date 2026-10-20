@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ROLE_BY_ID } from '@ct/shared';
 import { send } from '../api';
 import { ImpairmentTags, TimedButton } from '../common';
-import { Who, type AdminCtx } from './AdminApp';
+import { InactiveNote, Who, type AdminCtx } from './AdminApp';
 
 export const TRACKED: Record<string, string> = { virgin: 'virgin_used', golem: 'golem_used', artist: 'artist_used', fool: 'fool_used', slayer: 'slayer_used' };
 export const AUTO_TRACKED: Record<string, string> = { assassin: 'assassin_used', seamstress: 'seamstress_used', philosopher: 'philosopher_used', huntsman: 'huntsman_used', professor: 'professor_used' };
@@ -10,7 +10,7 @@ export const AUTO_TRACKED: Record<string, string> = { assassin: 'assassin_used',
 export function DayPanel({ ctx }: { ctx: AdminCtx }) {
   const { s, names, seated, roleOf, label } = ctx;
   if (s.phase !== 'DAY') {
-    return <div className="card"><p>The Day panel is used during the day. Current phase: {s.phase}.</p></div>;
+    return <InactiveNote s={s} what="No day in progress." />;
   }
   const d = s.days[s.dayNumber] ?? { executedPlayerId: null, demonVoted: null, jugglerCorrect: null, moonchildTargetId: null, mezephelesSayer: null, gossipStatement: 'none' as const, notes: '' };
   const alive = seated.filter((id) => s.players.find((p) => p.id === id)!.alive);

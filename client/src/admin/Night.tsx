@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ROLE_BY_ID, type ActionChoice, type ResultRow } from '@ct/shared';
 import { send } from '../api';
 import { ActionPicker, Countdown, ImpairmentTags, TimedButton, choiceComplete, useNow } from '../common';
-import { Who, type AdminCtx } from './AdminApp';
+import { InactiveNote, Who, type AdminCtx } from './AdminApp';
 
 function describe(ctx: AdminCtx, actions: Record<string, ActionChoice> | undefined): string {
   if (!actions || !Object.keys(actions).length) return 'acknowledged';
@@ -18,12 +18,7 @@ export function NightPanel({ ctx }: { ctx: AdminCtx }) {
   const offset = useMemo(() => view.serverNow - Date.now(), [view.serverNow]);
   const nowLocal = useNow(1000);
   if (!s.phase.startsWith('NIGHT') || !s.night) {
-    return (
-      <div className="card">
-        <p>No night in progress.</p>
-        {s.phase === 'DAY' && <TimedButton className="primary big" onConfirm={() => send({ type: 'start_night' })}>Start Night {s.nightNumber + 1}</TimedButton>}
-      </div>
-    );
+    return <InactiveNote s={s} what="No night in progress." />;
   }
   const night = s.night;
   const expected = new Set(view.expectedActors);
@@ -127,7 +122,7 @@ function ProxySubmit({ ctx, pid, onClose }: { ctx: AdminCtx; pid: string; onClos
 export function ReviewPanel({ ctx }: { ctx: AdminCtx }) {
   const { s, names, label } = ctx;
   const res = s.night?.resolution;
-  if (s.phase !== 'NIGHT_RESOLVING' || !res || !s.night) return <div className="card"><p>Nothing to review. Resolve the night from the Night tab.</p></div>;
+  if (s.phase !== 'NIGHT_RESOLVING' || !res || !s.night) return <InactiveNote s={s} what="No night to review." />;
   const night = s.night;
   const open = res.reviewItems.filter((i) => i.chosen === null).length;
   return (

@@ -64,6 +64,15 @@ export function useAdminCtx(view: AdminView): AdminCtx {
   }, [view]);
 }
 
+export function phaseName(s: GameState): string {
+  return s.phase.startsWith('NIGHT') ? `Night ${s.nightNumber} — ${PHASE_LABEL[s.phase]}` : s.phase === 'DAY' ? `Day ${s.dayNumber}` : PHASE_LABEL[s.phase];
+}
+
+/** What the Night, Review and Day tabs show when their phase isn't active. */
+export function InactiveNote({ s, what }: { s: GameState; what: string }) {
+  return <div className="card"><p>{what} Current phase: {phaseName(s)}.</p></div>;
+}
+
 function defaultTab(phase: GameState['phase']): Tab {
   switch (phase) {
     case 'LOBBY': return 'lobby';
@@ -85,7 +94,7 @@ export function AdminApp({ view, code }: { view: AdminView; code: string }) {
   const [tab, setTab] = useState<Tab>(defaultTab(s.phase));
   const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => { setTab(defaultTab(s.phase)); }, [s.phase]);
-  const phaseText = s.phase.startsWith('NIGHT') ? `Night ${s.nightNumber} — ${PHASE_LABEL[s.phase]}` : s.phase === 'DAY' ? `Day ${s.dayNumber}` : PHASE_LABEL[s.phase];
+  const phaseText = phaseName(s);
 
   const tabs: [Tab, string][] = [
     ['lobby', 'Lobby'], ['setup', 'Setup'], ['night', 'Night'], ['review', 'Review'], ['day', 'Day'], ['grimoire', 'Grimoire'], ['circle', 'Circle'], ['ref', 'Reference'], ['story', 'Story'], ['log', 'Log'],
