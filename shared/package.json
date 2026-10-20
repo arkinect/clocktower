@@ -1,1 +1,1 @@
-{ "name": "@ct/shared", "version": "0.2.1", "private": true, "type": "module", "main": "src/index.ts", "types": "src/index.ts" }
+{ "name": "@ct/shared", "version": "0.2.2", "private": true, "type": "module", "main": "src/index.ts", "types": "src/index.ts" }
