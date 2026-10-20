@@ -32,6 +32,11 @@ COPY --from=build /app/server/dist/index.js ./server/index.js
 COPY --from=build /app/client/dist ./client
 RUN mkdir -p /data && chown node:node /data
 # docker-compose.yml runs this as uid 1000 (the image's 'node' user); plain `docker run` also works as root.
+# Build info shown on the Storyteller's Log page; set by the GitHub workflows.
+ARG APP_VERSION=dev
+ARG GIT_SHA=
+ARG BUILD_DATE=
+ENV APP_VERSION=$APP_VERSION GIT_SHA=$GIT_SHA BUILD_DATE=$BUILD_DATE
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s CMD node -e "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "server/index.js"]

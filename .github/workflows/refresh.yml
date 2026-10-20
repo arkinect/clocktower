@@ -26,7 +26,10 @@ jobs:
           if [ -z "$tag" ]; then echo "No release tag yet, nothing to refresh."; fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - if: steps.tag.outputs.tag != ''
-        run: git checkout "${{ steps.tag.outputs.tag }}"
+        id: checkout
+        run: |
+          git checkout "${{ steps.tag.outputs.tag }}"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - if: steps.tag.outputs.tag != ''
         uses: docker/setup-qemu-action@v3
       - if: steps.tag.outputs.tag != ''
@@ -55,5 +58,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
+            GIT_SHA=${{ steps.checkout.outputs.sha }}
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

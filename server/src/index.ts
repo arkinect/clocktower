@@ -89,6 +89,14 @@ function gameOr404(code: string, reply: FastifyReply): LiveGame | undefined {
 
 app.get('/healthz', async () => ({ ok: true }));
 
+// Which build is running (baked into the image by the GitHub workflows). Storyteller-only: see /events.
+const BUILD = {
+  version: process.env.APP_VERSION || 'dev',
+  commit: process.env.GIT_SHA || null,
+  builtAt: process.env.BUILD_DATE || null,
+  startedAt: Date.now(),
+};
+
 app.get('/api/config', async () => ({ publicUrl: PUBLIC_URL, defaultGame: DEFAULT_GAME_CODE, passwordRequired: !!PASSWORD_DIGEST }));
 
 app.get<{ Params: { code: string } }>('/api/g/:code/names', async (req, reply) => {
@@ -160,7 +168,7 @@ app.get<{ Params: { code: string } }>('/api/g/:code/events', async (req, reply) 
   if (!g) return;
   const p = games.playerByToken(g, tokenFrom(req, req.params.code));
   if (!p || !p.isAdmin) return reply.code(403).send({ ok: false, error: 'Storyteller only.' });
-  return { ok: true, events: store.events(g.state.id) };
+  return { ok: true, events: store.events(g.state.id), build: BUILD };
 });
 
 app.post<{ Params: { code: string } }>('/api/g/:code/reset', async (req, reply) => {
