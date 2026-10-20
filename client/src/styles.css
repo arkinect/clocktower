@@ -94,7 +94,8 @@ label.check input { width: auto; min-height: 0; }
 .tabs button.on { color: var(--gold); }
 .names { padding-left: 20px; }
 .rolegroup h3 { border-bottom: 1px solid var(--line); padding-bottom: 4px; }
-.roleitem { margin: 8px 0 12px; }
+.roleitem { margin: 8px 0 12px; display: flex; gap: 10px; align-items: flex-start; }
+.roleicon { width: 44px; height: 44px; flex: none; object-fit: contain; }
 .roleitem p { margin: 2px 0; color: #cfc8e3; font-size: 0.95rem; }
 .nightorder ol { padding-left: 24px; }
 .seating { padding-left: 24px; font-size: 1.1rem; }

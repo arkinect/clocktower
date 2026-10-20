@@ -15,8 +15,11 @@ export function RoleList({ enabled }: { enabled: string[] }) {
             <h3 className={`type-${t}`}>{TYPE_LABEL[t]}</h3>
             {rs.map((r) => (
               <div key={r.id} className="roleitem">
-                <b className={`type-${t}`}>{r.name}</b>
-                <p>{r.abilityText}</p>
+                <img className="roleicon" src={`/icons/${r.id}.png`} alt="" loading="lazy" />
+                <div>
+                  <b className={`type-${t}`}>{r.name}</b>
+                  <p>{r.abilityText}</p>
+                </div>
               </div>
             ))}
           </section>
