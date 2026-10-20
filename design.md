@@ -137,7 +137,7 @@ Same app, Admin console. Before the game starts the tab bar shows **Lobby, Setup
 - Night: start collecting, watch submissions, set or extend the countdown, submit on a player's behalf, mark "no action", flip the Godfather trigger, resolve (section 9).
 - Review: decisions (review items), every result with true/suggested/final values, the night walk, publish (section 9.3).
 - Day: record deaths, execution, day facts, day abilities (Slayer, Witch curse, Damsel guess), the Ability tracker, Scarlet Woman prompts, start the next night (section 12).
-- Grimoire: every player's real role, ghost vote (Vote available/used chip on dead players), believed role, alignment (toggle), alive status (dead players' names in red), impairment and its cause, effects (removable), flags, reminders; change role, add poison/drunk, kill/revive; game facts; settings; end game; new game; force phase.
+- Grimoire: every player's real role, ghost vote (Vote available/used chip on dead players), believed role, alignment (toggle), alive status (dead players' names in red), impairment and its cause, effects (removable), flags, reminders; change role, add poison/drunk, kill/revive; game facts; settings; end game; play again; new game; force phase.
 - Circle: the table drawn as a circle (section 13.2).
 - Story: per-night record of roles, impairment, targets and information received (section 13.3).
 - Log: the event log.
@@ -146,7 +146,7 @@ Same app, Admin console. Before the game starts the tab bar shows **Lobby, Setup
 - **Dead players' names are red everywhere in the Admin console** (tables, grimoire, dropdown options, circle, story), and the Admin sees deaths immediately.
 
 ### 3.2.1 Confirmations and navigation
-- There are no confirmation pop-ups (owner decision). Consequential buttons are **3-second timed buttons** instead: the first click arms a countdown (a fill wipes across the button and its text becomes **Cancel**); clicking again cancels; when the fill completes the action runs. Used for: Begin Night 0 (and Force), Start collecting, Start Night, Force resolve, Publish and send to Day, Remove player, Change role (Grimoire), End game, New game (erase), Force phase. Everything else acts immediately.
+- There are no confirmation pop-ups (owner decision). Consequential buttons are **3-second timed buttons** instead: the first click arms a countdown (a fill wipes across the button and its text becomes **Cancel**); clicking again cancels; when the fill completes the action runs. Used for: Begin Night 0 (and Force), Start collecting, Start Night, Force resolve, Publish and send to Day, Remove player, Change role (Grimoire), End game, Play again, New game (erase), Force phase. Everything else acts immediately.
 - Impairment is shown as one chip per cause (e.g. "Poisoned by the Poisoner", "Drunk by the Sailor", "Drunk/Marionette (own role)") in Review, the Grimoire and the Story.
 - The tab for the game's current phase (Lobby, Setup, Night, Review or Day) is highlighted in gold with a pulsing dot whenever the Admin is on a different tab.
 
@@ -187,7 +187,7 @@ LOBBY -> SETUP -> NIGHT_COLLECTING(0) -> NIGHT_RESOLVING(0) -> DAY(1)
 | DAY | Admin | Players see dawn info. Admin records day facts. |
 | ENDED | Admin | Players see "Game over". |
 
-Phase changes are Admin-only and rejected if preconditions fail. Every phase has a "force" path with a warning (Begin Night 0 force, Force resolve, publish without the Ravenkeeper, Grimoire → Settings → Force phase to Lobby/Setup/Day/Ended) so the game can never get stuck. "New game (erase)" wipes the game and everyone rejoins.
+Phase changes are Admin-only and rejected if preconditions fail. Every phase has a "force" path with a warning (Begin Night 0 force, Force resolve, publish without the Ravenkeeper, Grimoire → Settings → Force phase to Lobby/Setup/Day/Ended) so the game can never get stuck. "New game (erase)" wipes the game and everyone rejoins. "Play again (same players)", available in any phase, starts a new game in Setup that keeps the players, their seats, the enabled roles and the settings; roles, setup choices, deaths, messages, nights, days and the story are cleared (the event log carries on).
 
 ---
 

@@ -156,6 +156,7 @@ function Settings({ ctx, code }: { ctx: AdminCtx; code: string }) {
       {num('ravenkeeperExtensionSeconds', 'Ravenkeeper extension (seconds)')}
       <div className="row wrap">
         {s.phase !== 'ENDED' && <TimedButton className="danger" onConfirm={() => send({ type: 'end_game' })}>End game</TimedButton>}
+        <TimedButton className="danger" onConfirm={() => send({ type: 'play_again' })}>Play again (same players)</TimedButton>
         <TimedButton className="danger" onConfirm={async () => {
           await api(code, '/reset', {}, localStorage.getItem(`ct_token_${code}`));
           location.reload();

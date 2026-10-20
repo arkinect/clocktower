@@ -62,6 +62,7 @@ export type AdminIntent =
   | { type: 'add_effect'; targetId: string; effectType: 'poisoned' | 'drunk' }
   | { type: 'set_lil_monsta_holder'; playerId: string | null }
   | { type: 'end_game' }
+  | { type: 'play_again' }
   | { type: 'force_phase'; phase: 'LOBBY' | 'SETUP' | 'DAY' | 'ENDED' };
 
 export type Intent = PlayerIntent | AdminIntent;

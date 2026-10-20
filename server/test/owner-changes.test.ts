@@ -128,4 +128,24 @@ describe('owner change: players record their own ghost vote', () => {
     act(g, { type: 'set_ghost_vote', playerId: g.p.empath, used: false });
     expect(playerView(g.s, g.p.empath, 0).me.ghostVoteUsed).toBe(false);
   });
+
+  it('play again (from any phase) keeps players, seats and the role pool and resets the rest', () => {
+    const g = build(['imp', 'poisoner', 'empath', 'butler', 'sailor']);
+    act(g, { type: 'set_role_enabled', roleId: 'gambler', enabled: false });
+    runNight(g, { [g.p.sailor]: { sailor: [g.p.sailor] } });
+    act(g, { type: 'mark_alive', playerId: g.p.empath, alive: false });
+    act(g, { type: 'set_ghost_vote', playerId: g.p.empath, used: true });
+    const before = g.s;
+    act(g, { type: 'play_again' }); // mid-game, without ending first
+    const s = g.s;
+    expect(s.phase).toBe('SETUP');
+    expect(s.adminId).toBe(before.adminId);
+    expect(s.enabledRoles.gambler).toBe(false);
+    expect(s.players.map((p) => [p.id, p.name, p.seat, p.tokens])).toEqual(before.players.map((p) => [p.id, p.name, p.seat, p.tokens]));
+    expect(s.players.every((p) => p.alive && !p.ghostVoteUsed && !p.deadAt && !p.hasSeenRole)).toBe(true);
+    expect(s.assignments).toEqual({});
+    expect(s.setup.demonBluffs).toEqual([]);
+    expect([s.nightNumber, s.dayNumber, s.night, s.story, s.messages, s.effects]).toEqual([-1, 0, null, [], {}, []]);
+    expect(playerView(s, g.p.empath, 0).me.messages).toEqual([]);
+  });
 });

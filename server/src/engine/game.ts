@@ -739,6 +739,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       s.nightEndsAt = null;
       return ok(s);
     }
+    case 'play_again': return ok(playAgain(s, ctx.now));
     case 'force_phase': {
       if (!['LOBBY', 'SETUP', 'DAY', 'ENDED'].includes(i.phase)) return err('Invalid phase.');
       if (i.phase === 'DAY' && s.nightNumber < 0) return err('Begin Night 0 first.');
@@ -790,6 +791,22 @@ function recordDayStory(s: GameState) {
   const d = s.days[s.dayNumber];
   const deaths = s.players.filter((p) => !p.alive && p.deadAt?.phase === 'day' && p.deadAt.number === s.dayNumber).map((p) => ({ playerId: p.id, cause: p.deathCause }));
   s.story.push({ kind: 'day', day: s.dayNumber, at: Date.now(), executedPlayerId: d?.executedPlayerId ?? null, deaths, notes: d?.notes ?? '' });
+}
+
+/** A fresh game in Setup that keeps the players, their seats, the enabled roles and the settings. */
+function playAgain(s: GameState, now: number): GameState {
+  const next = createGame(s.code, now);
+  next.adminId = s.adminId;
+  next.enabledRoles = s.enabledRoles;
+  next.settings = s.settings;
+  next.seatingPublished = s.seatingPublished;
+  next.publishedSeating = s.publishedSeating;
+  next.idSeq = s.idSeq;
+  next.players = s.players.map((p) => ({
+    ...p, alive: true, deadAt: null, deathCause: null, ghostVoteUsed: false, hasSeenRole: false,
+  }));
+  next.phase = 'SETUP';
+  return next;
 }
 
 function renumberSeats(s: GameState, order: string[]) {
