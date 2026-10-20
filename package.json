@@ -1,7 +1,7 @@
 {
   "name": "clocktower",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Unofficial Blood on the Clocktower night assistant: players join from their phones, the Storyteller reviews and publishes each night.",
   "license": "MIT",
   "author": "arkinect",
