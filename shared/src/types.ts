@@ -21,7 +21,8 @@ export interface Effect {
 
 export interface Settings {
   countdownSeconds: number;
-  ravenkeeperExtensionSeconds: number;
+  /** Extra night time when follow-up questions first appear. */
+  followUpExtensionSeconds: number;
   announceDeaths: boolean;
   notifyOnRoleChange: boolean;
 }
@@ -94,7 +95,8 @@ export interface PlayerView {
     submitted: boolean;
     submission: Submission | null;
     actions: ActionSpec[];
-    ravenkeeperPrompt: boolean;
+    /** This player's unanswered follow-up questions (each spec's key is the question key). */
+    followUps?: ActionSpec[];
     messages: PrivateMessage[];
   };
   players: PublicPlayer[];

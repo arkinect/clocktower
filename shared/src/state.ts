@@ -1,6 +1,6 @@
 // Full game state. Only the server and the Admin view ever see this.
 import type { Alignment } from './roles';
-import type { Effect, Phase, PrivateMessage, RolePreference, Settings, Submission } from './types';
+import type { ActionChoice, ActionSpec, Effect, Phase, PrivateMessage, RolePreference, Settings, Submission } from './types';
 
 export interface PlayerRec {
   id: string;
@@ -97,6 +97,18 @@ export interface ActorRow {
 
 export interface AbnormalEvent { playerId: string; cause: string; detail: string }
 
+/** A question a role asks a player while the night is being reviewed, answered by them or by the Storyteller. */
+export interface FollowUp {
+  /** Unique within the night, e.g. "ravenkeeper:p3". Also the key of `spec`. */
+  key: string;
+  playerId: string;
+  roleId: string;
+  spec: ActionSpec;
+  answered: boolean;
+}
+
+export interface FollowUpAnswer { choice: ActionChoice; byAdmin: boolean; at: number }
+
 export interface Resolution {
   computedAt: number;
   actors: ActorRow[];
@@ -106,7 +118,8 @@ export interface Resolution {
   deaths: string[];
   revived: string[];
   abnormal: AbnormalEvent[];
-  awaitingRavenkeeper: string[];
+  /** Questions asked during resolution (NightRun.askFollowUp), e.g. the Ravenkeeper's choice after dying. */
+  followUps: FollowUp[];
   notices: { playerId: string; title: string; lines: string[] }[];
   /** The world after the night, committed on publish. */
   after: WorldState;
@@ -116,7 +129,8 @@ export interface NightState {
   number: number;
   collectingOpen: boolean;
   submissions: Record<string, Submission>;
-  ravenSubmissions: Record<string, Submission>;
+  /** Answers to follow-up questions, by question key. Cleared when collecting is re-opened. */
+  followUpAnswers: Record<string, FollowUpAnswer>;
   seed: number;
   reviewChoices: Record<string, string>;
   overrides: Record<string, string[]>;
@@ -136,7 +150,7 @@ export interface WorldState {
   setup: SetupState;
 }
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /** Admin-only story log (owner request): one entry per night and per day. */
 export interface StoryPlayer {

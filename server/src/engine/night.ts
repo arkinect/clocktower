@@ -3,8 +3,8 @@
 // Admin review choices are inputs (night.reviewChoices), so changing one simply re-runs resolution.
 import {
   FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID,
-  type ActionChoice, type Alignment, type Cause, type Effect, type EffectExpiry, type EffectType, type GameState,
-  type ReviewItem, type ReviewOption, type Resolution, type ResultRow, type ActorRow, type AbnormalEvent, type WorldState,
+  type ActionChoice, type ActionSpec, type Alignment, type Cause, type Effect, type EffectExpiry, type EffectType, type GameState,
+  type FollowUp, type ReviewItem, type ReviewOption, type Resolution, type ResultRow, type ActorRow, type AbnormalEvent, type WorldState,
 } from '@ct/shared';
 import { activeImpairingEffects, computeImpairment, type Impairment } from './impairment';
 import { subRng, type Rng } from './rng';
@@ -37,7 +37,8 @@ export class NightRun {
   readonly deaths: string[] = [];
   readonly revived: string[] = [];
   readonly abnormal: AbnormalEvent[] = [];
-  readonly awaitingRavenkeeper: string[] = [];
+  /** Questions asked tonight (askFollowUp), answered or not. */
+  readonly followUps: FollowUp[] = [];
   readonly notices: { playerId: string; title: string; lines: string[] }[] = [];
   readonly impairAtDeath: Record<string, Impairment> = {};
   /** Cause of each death tonight (Grandmother link needs demon_attack). */
@@ -115,6 +116,19 @@ export class NightRun {
 
   notice(pid: string, title: string, lines: string[]) {
     this.notices.push({ playerId: pid, title, lines });
+  }
+
+  // ---- follow-up questions --------------------------------------------------------------------
+  /**
+   * Ask a player a question during review (the Ravenkeeper's choice after dying, for example). Returns the answer
+   * once the player or the Storyteller has given one, else null. Publishing waits for every question unless forced,
+   * the night timer is extended when questions first appear, and "Accept all defaults" never answers one.
+   */
+  askFollowUp(q: { key: string; playerId: string; roleId: string; spec: ActionSpec }): ActionChoice | null {
+    const a = this.night.followUpAnswers[q.key];
+    this.followUps.push({ key: q.key, playerId: q.playerId, roleId: q.roleId, spec: { ...q.spec, key: q.key }, answered: !!a });
+    if (a && this.currentActorRow) this.currentActorRow.input = describeChoice(this.w, a.choice);
+    return a?.choice ?? null;
   }
 
   // ---- results --------------------------------------------------------------------------------
@@ -349,7 +363,7 @@ export class NightRun {
     return {
       computedAt: Date.now(),
       actors: this.actors, results: this.results, reviewItems: this.items, log: this.log,
-      deaths: this.deaths, revived: this.revived, abnormal: this.abnormal, awaitingRavenkeeper: this.awaitingRavenkeeper,
+      deaths: this.deaths, revived: this.revived, abnormal: this.abnormal, followUps: this.followUps,
       notices: this.notices, after,
     };
   }
@@ -364,7 +378,8 @@ export class NightRun {
         if (!this.deaths.includes(pid)) continue;
       } else if (!canAct(this.w, pid) && !b.actsWhileDead) continue;
       if (b.wakes && !b.wakes({ w: this.w, pid, night: this.n, state: this.state })) continue;
-      const sub = slotId === 'ravenkeeper' ? this.night.ravenSubmissions[pid] : this.night.submissions[pid];
+      // The Ravenkeeper's choice comes later, as a follow-up question (askFollowUp).
+      const sub = slotId === 'ravenkeeper' ? undefined : this.night.submissions[pid];
       out.push({ pid, roleId, slot: slotId, choice: sub?.actions[roleId] ?? null });
     }
     return out;

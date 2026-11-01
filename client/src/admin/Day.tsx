@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ROLE_BY_ID } from '@ct/shared';
+import { abilitiesOf, ROLE_BY_ID } from '@ct/shared';
 import { send } from '../api';
 import { ImpairmentTags, TimedButton } from '../common';
 import { InactiveNote, Who, type AdminCtx } from './AdminApp';
@@ -175,7 +175,8 @@ function DayAbilities({ ctx }: { ctx: AdminCtx }) {
   const [guess, setGuess] = useState('');
   const [dialog, setDialog] = useState<{ req: KillReq; preview: { wouldDie: boolean; reason: string } } | null>(null);
   const [result, setResult] = useState<string | null>(null);
-  const slayers = seated.filter((id) => roleOf(id) === 'slayer' || s.assignments[id]?.grantedAbility?.roleId === 'slayer');
+  // Anyone with the Slayer's ability, now or from a coming night (a Philosopher who chose it).
+  const slayers = seated.filter((id) => abilitiesOf(s, id, Infinity).some((x) => x.real && x.roleId === 'slayer'));
   const curses = s.effects.filter((e) => e.type === 'witched');
   const damselEver = seated.some((id) => roleOf(id) === 'damsel' || s.assignments[id]?.history.some((h) => h.from === 'damsel'));
   const isAlive = (id: string) => !!s.players.find((p) => p.id === id)?.alive;

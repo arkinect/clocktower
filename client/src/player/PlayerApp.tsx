@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ActionChoice, PlayerView } from '@ct/shared';
+import type { ActionChoice, ActionSpec, PlayerView } from '@ct/shared';
 import { send } from '../api';
 import { ActionPicker, Countdown, EndedReason, Messages, NightOrder, RoleCardView, RoleList, Seating, choiceComplete } from '../common';
 import { NightGames } from './Games';
@@ -121,7 +121,7 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
           <p className="muted small">The games unlock once you're done.</p>
         </div>
       )}
-      {view.me.ravenkeeperPrompt && <RavenkeeperPrompt view={view} names={names} dead={dead} />}
+      {!!view.me.followUps?.length && <FollowUpSheet specs={view.me.followUps} names={names} dead={dead} />}
       <footer className="nightbar">
         {submitted || !collecting ? (
           <div className="waiting">
@@ -164,19 +164,18 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
   );
 }
 
-function RavenkeeperPrompt({ view, names, dead }: { view: PlayerView; names: Record<string, string>; dead: Set<string> }) {
-  const [target, setTarget] = useState('');
-  const options = view.seating.length ? view.seating : view.players.filter((p) => !p.isAdmin).map((p) => p.id);
+/** Questions a role asks while the Storyteller reviews the night (e.g. the Ravenkeeper's choice after dying). */
+function FollowUpSheet({ specs, names, dead }: { specs: ActionSpec[]; names: Record<string, string>; dead: Set<string> }) {
+  const [choice, setChoice] = useState<Record<string, ActionChoice>>({});
+  const complete = specs.every((s) => choiceComplete(s, choice[s.key]));
+  const submit = async () => {
+    for (const s of specs) await send({ type: 'answer_follow_up', key: s.key, choice: choice[s.key] });
+  };
   return (
     <div className="sheet">
       <div className="sheetbody">
-        <h3>You have died.</h3>
-        <p>Choose a player: you learn their character.</p>
-        <select value={target} onChange={(e) => setTarget(e.target.value)}>
-          <option value="">Choose…</option>
-          {options.map((o) => <option key={o} value={o} style={dead.has(o) ? { color: '#ff6b6b' } : undefined}>{names[o]}</option>)}
-        </select>
-        <button className="primary big" disabled={!target} onClick={() => send({ type: 'submit_ravenkeeper', targetId: target })}>Submit</button>
+        <ActionPicker specs={specs} names={names} value={choice} onChange={setChoice} dead={dead} />
+        <button className="primary big" disabled={!complete} onClick={submit}>Submit</button>
       </div>
     </div>
   );

@@ -27,7 +27,7 @@ export const INTENT_SHAPES: Record<Intent['type'], Record<string, Check>> = {
   seen_role: {},
   use_ghost_vote: {},
   submit_night: { actions: record(choice) },
-  submit_ravenkeeper: { targetId: player },
+  answer_follow_up: { key: str, choice },
   claim_admin: {},
   // Storyteller
   rename_player: { playerId: player, name: str },
@@ -66,7 +66,7 @@ export const INTENT_SHAPES: Record<Intent['type'], Record<string, Check>> = {
   accept_all_defaults: {},
   override_result: { key: str, lines: orNull(strings) },
   math_adjust: { add: strings, remove: strings },
-  ravenkeeper_for: { playerId: player, targetId: player },
+  answer_follow_up_for: { key: str, choice },
   publish_night: { force: optional(bool) },
   mark_alive: { playerId: player, alive: bool },
   record_execution: { playerId: orNull(player), died: bool },

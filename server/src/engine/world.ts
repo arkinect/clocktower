@@ -1,5 +1,5 @@
 // Read helpers over the world state. Pure functions, no mutation.
-import { ROLE_BY_ID, type Alignment, type RoleType, type WorldState, type PlayerRec } from '@ct/shared';
+import { abilitiesOf, ROLE_BY_ID, type Alignment, type RoleType, type WorldState, type PlayerRec } from '@ct/shared';
 
 export function seated(w: WorldState): PlayerRec[] {
   return w.players.filter((p) => !p.isAdmin && p.seat !== null).sort((a, b) => (a.seat! - b.seat!));
@@ -70,14 +70,12 @@ export function rs<T = unknown>(w: WorldState, id: string, key: string): T | und
 }
 
 /**
- * Whether a player has the ability of `roleId` in the engine's eyes: their actual role, or a Philosopher-gained
- * ability that is active by `night`. Drunk/Marionette never "have" their believed role's ability.
+ * Whether a player has the ability of `roleId` in the engine's eyes: their actual role (which always counts, even
+ * for a Drunk or Marionette, whom abilitiesOf lists only as their believed role), or a real ability from abilitiesOf,
+ * such as a Philosopher's gained ability once it is active. A believed role's ability never counts.
  */
 export function hasAbility(w: WorldState, id: string, roleId: string, night: number): boolean {
-  const a = w.assignments[id];
-  if (!a) return false;
-  if (a.roleId === roleId) return true;
-  return !!a.grantedAbility && a.grantedAbility.roleId === roleId && a.grantedAbility.fromNight <= night;
+  return roleIdOf(w, id) === roleId || abilitiesOf(w, id, night).some((x) => x.real && x.roleId === roleId);
 }
 
 export function playersWithAbility(w: WorldState, roleId: string, night: number): string[] {
@@ -86,14 +84,7 @@ export function playersWithAbility(w: WorldState, roleId: string, night: number)
 
 /** Role ids this player wakes as (believed role for Drunk/Marionette, gained ability, Lil' Monsta token). */
 export function actingRoles(w: WorldState, id: string, night: number): string[] {
-  const a = w.assignments[id];
-  if (!a || !a.roleId) return [];
-  const out: string[] = [];
-  if ((a.roleId === 'drunk' || a.roleId === 'marionette') && a.believedRoleId) out.push(a.believedRoleId);
-  else out.push(a.roleId);
-  if (a.grantedAbility && a.grantedAbility.fromNight <= night) out.push(a.grantedAbility.roleId);
-  if (night >= 1 && w.setup.lilMonstaTokenHolderId === id && !out.includes('lil_monsta')) out.push('lil_monsta');
-  return out;
+  return abilitiesOf(w, id, night).map((x) => x.roleId);
 }
 
 export function canAct(w: WorldState, id: string): boolean {

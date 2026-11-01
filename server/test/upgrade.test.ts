@@ -83,7 +83,9 @@ describe('startup upgrade', () => {
     expect(upgradeSavedGames(store, release)!.games).toEqual([{ code: 'done', from: 4, endedReason: null }]);
     const s = loaded('done');
     expect(s.endedReason).toBeNull();
-    for (const k of ['players', 'assignments', 'story', 'settings', 'days', 'messages'] as const) expect(s[k]).toEqual(before[k]);
+    for (const k of ['players', 'assignments', 'story', 'days', 'messages'] as const) expect(s[k]).toEqual(before[k]);
+    const { ravenkeeperExtensionSeconds, ...settings } = before.settings as typeof before.settings & { ravenkeeperExtensionSeconds: number };
+    expect(s.settings).toEqual({ ...settings, followUpExtensionSeconds: ravenkeeperExtensionSeconds }); // renamed in v6
     const r = applyIntent(s, s.adminId!, { type: 'play_again' }, { now: NOW + 1 });
     if (!r.ok) throw new Error(r.error);
     expect(r.state.phase).toBe('SETUP');

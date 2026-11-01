@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ROLE_BY_ID, type ActionChoice, type ResultRow } from '@ct/shared';
+import { abilitiesOf, ROLE_BY_ID, type ActionChoice, type FollowUp, type ResultRow } from '@ct/shared';
 import { send } from '../api';
 import { ActionPicker, Countdown, ImpairmentTags, TimedButton, choiceComplete, useNow } from '../common';
 import { InactiveNote, Who, type AdminCtx } from './AdminApp';
@@ -53,7 +53,7 @@ export function NightPanel({ ctx }: { ctx: AdminCtx }) {
             {pending.length > 0 && !timeUp && <TimedButton className="danger" onConfirm={() => send({ type: 'resolve_night', force: true })}>Force resolve</TimedButton>}
           </div>
         )}
-        {night.number >= 1 && seated.some((id) => ctx.roleOf(id) === 'godfather' || s.assignments[id]?.grantedAbility?.roleId === 'godfather') && (
+        {night.number >= 1 && seated.some((id) => abilitiesOf(s, id, Infinity).some((x) => x.real && x.roleId === 'godfather')) && (
           <div className="row wrap">
             <span>Godfather may kill tonight: <b>{view.godfatherTriggered ? 'yes' : 'no'}</b>{night.reviewChoices['godfather_trigger'] ? ' (your choice)' : ' (an Outsider died today?)'}</span>
             <button onClick={() => send({ type: 'set_godfather_trigger', value: !view.godfatherTriggered })}>Flip</button>
@@ -132,14 +132,14 @@ export function ReviewPanel({ ctx }: { ctx: AdminCtx }) {
           <h2>Review Night {night.number}</h2>
           <button onClick={() => send({ type: 'accept_all_defaults' })}>Accept all defaults{open ? ` (${open})` : ''}</button>
           <button onClick={() => send({ type: 'reopen_collecting' })}>Reopen collecting</button>
-          {/* Publishing while the Ravenkeeper has not chosen sends them no information. */}
-          <TimedButton className="primary big" onConfirm={() => send({ type: 'publish_night', force: res.awaitingRavenkeeper.length > 0 })}>Publish and send to Day</TimedButton>
+          {/* Publishing with a follow-up question unanswered (e.g. the Ravenkeeper's) sends that player no information. */}
+          <TimedButton className="primary big" onConfirm={() => send({ type: 'publish_night', force: res.followUps.some((f) => !f.answered) })}>Publish and send to Day</TimedButton>
         </div>
         {res.deaths.length > 0 ? <p>Deaths tonight: <b className="dead-name">{res.deaths.map((d) => names[d]).join(', ')}</b></p> : <p>No deaths tonight.</p>}
         {res.revived.length > 0 && <p>Revived: {res.revived.map((d) => names[d]).join(', ')}</p>}
       </section>
 
-      {res.awaitingRavenkeeper.map((rk) => <RavenWait key={rk} ctx={ctx} pid={rk} />)}
+      {res.followUps.filter((f) => !f.answered).map((f) => <FollowUpCard key={f.key} ctx={ctx} q={f} />)}
 
       {res.reviewItems.length > 0 && (
         <section className="card">
@@ -220,19 +220,15 @@ function ResultEditor({ ctx, r }: { ctx: AdminCtx; r: ResultRow }) {
   );
 }
 
-function RavenWait({ ctx, pid }: { ctx: AdminCtx; pid: string }) {
-  const [t, setT] = useState('');
+/** An unanswered follow-up question: the player's phone is showing it; the Storyteller can answer for them. */
+function FollowUpCard({ ctx, q }: { ctx: AdminCtx; q: FollowUp }) {
+  const [value, setValue] = useState<Record<string, ActionChoice>>({});
   return (
     <section className="card warn">
-      <h3>Waiting for Ravenkeeper <Who ctx={ctx} id={pid} /></h3>
-      <p>Their phone is showing "You have died. Choose a player". Or choose for them:</p>
-      <div className="row">
-        <select value={t} onChange={(e) => setT(e.target.value)}>
-          <option value="">Choose…</option>
-          {ctx.seated.map((id) => <option key={id} value={id} style={ctx.optStyle(id)}>{ctx.names[id]}</option>)}
-        </select>
-        <button disabled={!t} onClick={() => send({ type: 'ravenkeeper_for', playerId: pid, targetId: t })}>Submit for them</button>
-      </div>
+      <h3>Waiting for {ROLE_BY_ID[q.roleId]?.name ?? q.roleId} <Who ctx={ctx} id={q.playerId} /></h3>
+      <p>Their phone is showing this question. Or answer for them:</p>
+      <ActionPicker specs={[q.spec]} names={ctx.names} value={value} onChange={setValue} dead={new Set(ctx.seated.filter(ctx.isDead))} />
+      <button disabled={!choiceComplete(q.spec, value[q.key])} onClick={() => send({ type: 'answer_follow_up_for', key: q.key, choice: value[q.key] })}>Answer for them</button>
     </section>
   );
 }

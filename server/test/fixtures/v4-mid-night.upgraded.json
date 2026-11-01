@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "id": "game-fixture-mid-night",
   "code": "fixture-mid-night",
   "phase": "ENDED",
@@ -8,9 +8,9 @@
   "scriptId": "all-39",
   "settings": {
     "countdownSeconds": 300,
-    "ravenkeeperExtensionSeconds": 120,
     "announceDeaths": false,
-    "notifyOnRoleChange": true
+    "notifyOnRoleChange": true,
+    "followUpExtensionSeconds": 120
   },
   "nightEndsAt": null,
   "createdAt": 1000000,

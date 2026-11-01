@@ -211,7 +211,7 @@ Append-only `events` table (game_id, seq, timestamp, actor, type, payload). Ever
 
 ### 5.5 Persistence and schema versions
 - Each game is stored as **one JSON document** (`games.state`), rewritten on every change, plus the event log. This keeps "persist every change" atomic and the engine a pure function. The data model below is logical.
-- `GameState.schemaVersion` (currently **5**; every public release up to v0.2.2 wrote v4, the oldest this release upgrades: `MIN_SUPPORTED_SCHEMA` in `server/src/engine/migrations/`). Saved games are upgraded once, at startup, before any game loads (`server/src/upgrade.ts`):
+- `GameState.schemaVersion` (currently **6**; every public release up to v0.2.2 wrote v4, the oldest this release upgrades: `MIN_SUPPORTED_SCHEMA` in `server/src/engine/migrations/`). Saved games are upgraded once, at startup, before any game loads (`server/src/upgrade.ts`):
   1. Versions are checked first, changing nothing. A game newer than this release, or older than `MIN_SUPPORTED_SCHEMA` (missing = v1: "Run v0.2.2 once to bring them to v4, then upgrade"), stops startup.
   2. If any game is older than `SCHEMA_VERSION`, the whole database is copied once to `clocktower.db.pre-v<SCHEMA_VERSION>` (a timestamp is appended rather than overwrite an existing copy).
   3. In one transaction, each older game is **ended** if it isn't already (`phase = ENDED`, `night = null`, `nightEndsAt = null`, `endedReason = 'abandoned'` after 4 hours without progress, else `'update'`), run through the migration steps from its version up, and saved with a `schema_migrated` event `{ from, to, endedReason }`. Any failure rolls everything back and stops startup, naming the game and step.
@@ -219,7 +219,7 @@ Append-only `events` table (game_id, seq, timestamp, actor, type, payload). Ever
   4. Games load, and each must be at `SCHEMA_VERSION`.
 - **Upgrade log.** Every startup that upgrades anything leaves three records: a row in the `migrations` table (`applied_at`, `app_version` = APP_VERSION and GIT_SHA, `to_schema`, `games_migrated`, `games_ended`, `backup_file`, `details` JSON of code, from-version and `endedReason` per game), written in the same transaction as the games; the `schema_migrated` event in each game (shown on the Storyteller's Log page); and one line in the server output, e.g. `Upgraded 2 games to schema v5 (1 ended: abandoned). Backup: clocktower.db.pre-v5.` Nothing is printed or written when no game needed upgrading. Deferred updates are logged by `scripts/update.sh` to its own output (`update.log` in the documented cron line).
 - Database tables (as opposed to the saved-game JSON) are only ever added, with `CREATE TABLE IF NOT EXISTS`. A release that has to alter an existing table should track that with SQLite's `PRAGMA user_version`, separately from `SCHEMA_VERSION`.
-- Steps: v4 → v5 turns `enabledRoles` (an on/off entry for every known role) into `script`, the list of role ids that were on, and adds `endedReason`.
+- Steps: v4 → v5 turns `enabledRoles` (an on/off entry for every known role) into `script`, the list of role ids that were on, and adds `endedReason`. v5 → v6 drops the night (it held the old Ravenkeeper fields) and renames the setting `ravenkeeperExtensionSeconds` to `followUpExtensionSeconds`.
 - **The script is a list of role ids** (`script: string[]`). A role added by a later release is absent from every existing game's script, so it is off there without a migration step, while new games start with every role on. It is read only through `onScript` and `enabledRoles` (`server/src/engine/setup.ts`), which ignore ids this release doesn't know (for example after a rollback) and return roles in `ROLES` order. Player views keep the field `enabledRoles: string[]`.
 - Because only ended games are migrated, steps never deal with night state. There is one file per step in `server/src/engine/migrations/`; steps read only the saved JSON and never import live code such as `ROLES`.
 - Rollback: stop the container, copy `clocktower.db.pre-v<N>` over `clocktower.db`, run the older image.
@@ -234,13 +234,14 @@ Append-only `events` table (game_id, seq, timestamp, actor, type, payload). Ever
 - `Game(id, code, phase, endedReason, nightNumber, dayNumber, settings, nightEndsAt, script[], adminId, seatingPublished, publishedSeating[], publicDead[], story[], schemaVersion)`
 - `Player(id, name, rolePreference, isAdmin, seat, tokens[], alive, deadAt {phase: night|day, number} | null, deathCause, ghostVoteUsed, hasSeenRole, lastSeenAt)`
 - `Assignment(playerId, roleId, believedRoleId, alignment, retainsAbilityWhenDead, grantedAbility {roleId, fromNight} | null, history[])`
+- **Abilities** are derived, never stored: `abilitiesOf(world, playerId, night)` (`shared/src/abilities.ts`, used by server and client) lists each ability as `{roleId, source, real, fromNight}`, with `source` one of `role`, `believed` (Drunk/Marionette: wakes as it, `real: false`), `philosopher` (from `grantedAbility.fromNight`) and `lil_monsta` (the token holder, from night 1). `hasAbility` is the player's actual role (which always counts, including the Drunk's and Marionette's own) or some real entry; `actingRoles` is every entry, in that order. A new source of abilities is added there only.
 - `Flags(playerId, key)`: `philosopher_used, seamstress_used, assassin_used, huntsman_used, professor_used, slayer_used, fool_used, virgin_used, golem_used, artist_used`
 - `RoleState(playerId, ...)`: per-role memory such as `lastTarget` (Devil's Advocate), `lastChoiceNone` (Po), `shownTypes` (Balloonist), `grandchildId` and `grandmotherInfoPending` (Grandmother), `soberAtDeath` and `moonchildUsed` (Moonchild)
 - `Effect(id, type, cause, sourcePlayerId, targetPlayerId, startNight, expiry)`; `type` in `poisoned | drunk | protected | devils_advocate | butler_master | witched`; `expiry` in `until_dusk | until_source_acts_again | while_source_alive_and_sober | until_removed`; `cause` in `poisoner | sailor | innkeeper | goon | philosopher | pukka | no_dashii | vigormortis | witch | admin` (used by the Mathematician).
 - `Setup(demonBluffs[3], redHerringId, lilMonstaMinionRole, lilMonstaTokenHolderId, mezephelesWord, mezephelesSpent, typeCountsOverride?, shabalothKills[], godfatherOutsiders (1 | -1 | null), damselGuessUsed, damselGuessResult)`
 - `DayRecord(dayNumber, executedPlayerId, demonVoted, jugglerCorrect, moonchildTargetId, mezephelesSayer, gossipStatement (none|true|false), notes)`
-- `NightState(number, collectingOpen, submissions{}, ravenSubmissions{}, seed, reviewChoices{}, overrides{}, mathAdjust, resolution)`
-- `Resolution(actors[], results[], reviewItems[], log[], deaths[], revived[], abnormal[], awaitingRavenkeeper[], notices[], after: World)`
+- `NightState(number, collectingOpen, submissions{}, followUpAnswers{key: {choice, byAdmin, at}}, seed, reviewChoices{}, overrides{}, mathAdjust, resolution)`
+- `Resolution(actors[], results[], reviewItems[], log[], deaths[], revived[], abnormal[], followUps[{key, playerId, roleId, spec, answered}], notices[], after: World)`
 - `Messages(playerId -> [{title, lines, night, kind: result|notice|starting}])`, `PendingNotices` (delivered when the next night starts), `DayPrompts` (Scarlet Woman day prompt)
 - `Story`: see section 13.3.
 
@@ -410,8 +411,10 @@ The Review tab shows:
 - **Night walk**: every actor in order with input, impairment and outcome. Deaths and revivals.
 - **Reopen collecting** and **Publish and send to Day**.
 
-### 9.4 Ravenkeeper second round
-If a Ravenkeeper (or a Drunk/Marionette who believes they are one) dies tonight, their phone shows "You have died. Choose a player" with every player listed; the countdown is extended by `ravenkeeperExtensionSeconds` (default 120) and the Admin sees "Waiting for Ravenkeeper" with Submit-for. Their result uses their impairment at the moment of death. Publishing without their choice sends them no information.
+### 9.4 Follow-up questions (the Ravenkeeper's second round)
+A role can ask a player a question while the night is reviewed: its behaviour calls `NightRun.askFollowUp({ key, playerId, roleId, spec })`, which returns the answer if there is one, else null, and records the question in `resolution.followUps`. The player's phone shows each unanswered question (`PlayerView.me.followUps`) with the usual picker; the Storyteller sees one card per unanswered question with a picker to answer for them (`answer_follow_up` / `answer_follow_up_for`, both checked against the question's spec). Built-in rules: publishing is refused while a question is unanswered, unless forced (the player then gets no information); the countdown is extended by `followUpExtensionSeconds` (default 120) when questions appear on resolving; "Accept all defaults" never answers a question; re-opening collecting clears all answers.
+
+The Ravenkeeper uses it: if a Ravenkeeper (or a Drunk/Marionette who believes they are one) dies tonight, they are asked (key `ravenkeeper:<playerId>`) to choose a player. Their result uses their impairment at the moment of death.
 
 ### 9.5 Publish and send to Day
 One atomic step: the night's world is committed, the story is recorded, every result and notice is delivered, dead players get "You have died", revived players get "You are alive again", Lil' Monsta's Night 0 role change happens, the **dawn snapshot of deaths** (`publicDead`) is taken, and all phones switch to the Day screen.
@@ -442,7 +445,7 @@ The server validates every intent; the client pre-filters options but is never t
 General:
 - Only the Admin can change phase, assign roles, edit state, resolve and publish.
 - A player may only submit for their own player id and their own acting roles. A Drunk or Marionette submits against the believed role's input rules; the server stores it under their real player.
-- Submissions are accepted only while collecting (or for the Ravenkeeper second round) and only for roles that act on this night number. A player without a real action can only acknowledge (any content is discarded, with an identical response).
+- Submissions are accepted only while collecting (answers to follow-up questions only while their question is open) and only for roles that act on this night number. A player without a real action can only acknowledge (any content is discarded, with an identical response).
 - **Dead players appear in night pickers.** Abilities can be wasted on dead players ("already dead" for kills). Exceptions: Lil' Monsta's "pass the token to" lists only living Minions; the Professor lists only players dead at the start of the night. The Admin's own pickers (Moonchild target, Gossip victim, Mayor redirect) list alive players.
 - An action with no legal choice (an empty option list, or more distinct players needed than are eligible) becomes declinable ("No legal choice").
 - Once-per-game abilities cannot be used when their flag is set.
@@ -826,7 +829,7 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 | Lobby | Player | Names, waiting message, Become Storyteller (if none) |
 | Roles / Order / Seats | Player | Enabled roles; role night order; seat order with dead in red (dawn snapshot) |
 | My role | Player | Tap-to-reveal card and starting information |
-| Night | Player | Countdown, real picker or "No night action" + Continue, games after submitting, Ravenkeeper prompt |
+| Night | Player | Countdown, real picker or "No night action" + Continue, games after submitting, follow-up questions (Ravenkeeper) |
 | Day | Player | Dawn banner, own information, "You have died" |
 | Admin: Lobby | Admin | Players, presence, rename/remove, QR join |
 | Admin: Setup | Admin | Checklist, seating, assignment, decisions, counts, role checklist |
@@ -909,9 +912,11 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 
 ## 18. Tests
 
-157 automated tests (`./dev.sh npm test`: 153 server, 4 client), all passing:
+168 automated tests (`./dev.sh npm test`: 164 server, 4 client), all passing:
 - **Original worked examples:** poison makes false info; sober Sailor survives, poisoned Sailor dies; Innkeeper protects but not from the Assassin; Mayor tails redirect (may land on a protected player); Clockmaker 7 seats Demon 1 Minion 5 → 3; Goon; Po none then three; starpass suggests the Scarlet Woman and the Admin picks another; Shabaloth regurgitation; Lil' Monsta flow and the Fortune Teller reading the new holder; reconnect and rebind.
 - **Per-role tests** for every role with a night effect (true, impaired, registration cases), setup blocking, role reassignment, Ravenkeeper second round, Scarlet Woman night and day.
+- **Follow-up questions:** the question's key and spec and the timer extension, "Accept all defaults" leaves a question unanswered, re-opening collecting clears answers, the Storyteller answering for a player, only the asked player answering once with a legal choice, the v6 step.
+- **Abilities:** one test per source (own role; a Drunk or Marionette has their actual role's ability but not the believed one's; a Drunk believing the Empath wakes as it without the ability; a Philosopher's ability from `fromNight`; the Lil' Monsta token from night 1).
 - **New-role worked examples:** Oracle (and after a Professor revive), Gossip (True/False/poisoned/killed earlier), Huntsman, Professor (Townsfolk only, not tonight's victims, Shabaloth list cleared), Slayer (kill, poisoned, red herring), Damsel (notices, banner, single guess), Godfather (info, trigger, counts ±1), Witch (curse, 3 alive, poisoned), Huntsman setup guard, Mathematician cap, Grandmother (link, Assassin no link, poisoned no grandchild), identical revives.
 - **Owner changes:** dead players in pickers, Vigormortis + Scarlet Woman, Balloonist names only, story contents (impairment, targets, information received) and Admin-only, Minions knowing each other, dawn snapshot of deaths.
 - **Updates:** last progress ignores joins and rebinds, the 4-hour abandoned rule, when a restart is safe, the status reply has no player details, the loopback check; the startup upgrade (in-progress games ended as abandoned or by the update, ended games kept and playable again, one backup, a second startup changes nothing, a failing step rolls back, too-new and too-old saves refused; one `migrations` row per upgrade and none otherwise; the startup line; each v4 fixture upgrades to a stored expected state), using v4 fixtures built by the v0.2.2 engine (`server/test/fixtures/`).

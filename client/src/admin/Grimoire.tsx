@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ROLES, ROLE_BY_ID } from '@ct/shared';
+import { abilitiesOf, ROLES, ROLE_BY_ID } from '@ct/shared';
 import { api, send } from '../api';
 import { ImpairmentTags, TimedButton, TYPE_LABEL, TYPE_ORDER } from '../common';
 import { VigoScarletWarning, Who, type AdminCtx } from './AdminApp';
@@ -34,8 +34,11 @@ export function Grimoire({ ctx, code }: { ctx: AdminCtx; code: string }) {
                 <b className="grow">{p.seat !== null ? `${p.seat + 1}. ` : ''}<Who ctx={ctx} id={id} /></b>
               </div>
               <div className={`grimrole type-${r?.type ?? ''}`}>{r?.name ?? 'No role'}</div>
-              {a?.believedRoleId && <div className="small">believes: {ROLE_BY_ID[a.believedRoleId].name}</div>}
-              {a?.grantedAbility && <div className="small">gained: {ROLE_BY_ID[a.grantedAbility.roleId].name} (from night {a.grantedAbility.fromNight})</div>}
+              {abilitiesOf(s, id, Infinity).filter((x) => x.source === 'believed' || x.source === 'philosopher').map((x) => (
+                <div key={x.source} className="small">
+                  {x.source === 'believed' ? `believes: ${ROLE_BY_ID[x.roleId].name}` : `gained: ${ROLE_BY_ID[x.roleId].name} (from night ${x.fromNight})`}
+                </div>
+              ))}
               {s.setup.lilMonstaTokenHolderId === id && <div className="tag evil">Lil' Monsta token</div>}
               {s.setup.redHerringId === id && <div className="tag">red herring</div>}
               {a?.retainsAbilityWhenDead && <div className="tag">keeps ability when dead</div>}
@@ -153,7 +156,7 @@ function Settings({ ctx, code }: { ctx: AdminCtx; code: string }) {
       <h2>Settings</h2>
       {bool('notifyOnRoleChange', 'Tell players when you change their role')}
       {num('countdownSeconds', 'Night countdown (seconds)')}
-      {num('ravenkeeperExtensionSeconds', 'Ravenkeeper extension (seconds)')}
+      {num('followUpExtensionSeconds', 'Extra time for follow-up questions (seconds)')}
       <div className="row wrap">
         {s.phase !== 'ENDED' && <TimedButton className="danger" onConfirm={() => send({ type: 'end_game' })}>End game</TimedButton>}
         <TimedButton className="danger" onConfirm={() => send({ type: 'play_again' })}>Play again (same players)</TimedButton>

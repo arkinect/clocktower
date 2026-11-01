@@ -5,7 +5,7 @@ export type PlayerIntent =
   | { type: 'seen_role' }
   | { type: 'use_ghost_vote' }
   | { type: 'submit_night'; actions: Record<string, ActionChoice> }
-  | { type: 'submit_ravenkeeper'; targetId: string }
+  | { type: 'answer_follow_up'; key: string; choice: ActionChoice }
   | { type: 'claim_admin' };
 
 export type AdminIntent =
@@ -45,7 +45,7 @@ export type AdminIntent =
   | { type: 'accept_all_defaults' }
   | { type: 'override_result'; key: string; lines: string[] | null }
   | { type: 'math_adjust'; add: string[]; remove: string[] }
-  | { type: 'ravenkeeper_for'; playerId: string; targetId: string }
+  | { type: 'answer_follow_up_for'; key: string; choice: ActionChoice }
   | { type: 'publish_night'; force?: boolean }
   | { type: 'mark_alive'; playerId: string; alive: boolean }
   | { type: 'record_execution'; playerId: string | null; died: boolean }

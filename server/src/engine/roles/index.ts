@@ -23,6 +23,14 @@ export interface RoleBehaviour {
 
 const enabled = enabledRoles;
 
+/** The Ravenkeeper's follow-up question when they die at night. */
+export function ravenkeeperSpec(state: GameState): ActionSpec {
+  return {
+    key: 'ravenkeeper', roleId: 'ravenkeeper', title: 'Ravenkeeper', prompt: 'You have died. Choose a player: you learn their character.',
+    fields: [{ kind: 'player', label: 'Player', options: seatedIds(state) }], distinct: false, allowDecline: false,
+  };
+}
+
 function players(key: string, title: string, prompt: string, count: number, options: string[], distinct = true, decline?: string): ActionSpec {
   return {
     key, roleId: key, title, prompt,
@@ -252,12 +260,12 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
   ravenkeeper: {
     actsWhileDead: true,
     resolve(run, a) {
-      if (!a.choice) {
-        run.awaitingRavenkeeper.push(a.pid);
+      const choice = run.askFollowUp({ key: `ravenkeeper:${a.pid}`, playerId: a.pid, roleId: 'ravenkeeper', spec: ravenkeeperSpec(run.state) });
+      if (!choice) {
         run.outcome('died tonight: waiting for the Ravenkeeper\'s choice');
         return;
       }
-      const [t] = target(a);
+      const [t] = choice.decline ? [] : choice.values;
       if (!t) return;
       const truth = run.regRole(`ravenkeeper:${a.pid}`, t);
       const opts = enabled(run.state).filter((r) => r !== truth);

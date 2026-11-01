@@ -41,13 +41,6 @@ export function actionSpecs(state: GameState, pid: string): ActionSpec[] {
   return out;
 }
 
-export function ravenkeeperSpec(state: GameState): ActionSpec {
-  return {
-    key: 'ravenkeeper', roleId: 'ravenkeeper', title: 'Ravenkeeper', prompt: 'You have died. Choose a player: you learn their character.',
-    fields: [{ kind: 'player', label: 'Player', options: seatedIds(state) }], distinct: false, allowDecline: false,
-  };
-}
-
 export function validateChoice(spec: ActionSpec, choice: ActionChoice | undefined): string | null {
   if (!choice) return `${spec.title}: make a choice before submitting.`;
   if (choice.decline) return spec.allowDecline ? null : `${spec.title}: you must choose.`;

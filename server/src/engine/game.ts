@@ -4,7 +4,7 @@ import {
   type AdminIntent, type GameState, type Intent, type JoinRequest, type NightState, type PlayerIntent,
   type PlayerRec, type PrivateMessage, type RolePreference, type Settings, type StoryPlayer,
 } from '@ct/shared';
-import { actionSpecs, ravenkeeperSpec, validateChoice, validateSubmission } from './actions';
+import { actionSpecs, validateChoice, validateSubmission } from './actions';
 import { becomeDemon, demonInfoLines } from './demon';
 import { computeImpairment } from './impairment';
 import { previewDayKill, revivePlayer } from './lifecycle';
@@ -23,7 +23,7 @@ export type ApplyResult = { ok: true; state: GameState; events: GameEvent[]; dat
 
 export const DEFAULT_SETTINGS: Settings = {
   countdownSeconds: 300,
-  ravenkeeperExtensionSeconds: 120,
+  followUpExtensionSeconds: 120,
   announceDeaths: false,
   notifyOnRoleChange: true,
 };
@@ -136,7 +136,7 @@ function damselMsg(s: GameState): PrivateMessage {
 // ---- helpers ------------------------------------------------------------------------------------
 function newNight(number: number, seed: number, collectingOpen: boolean): NightState {
   return {
-    number, collectingOpen, submissions: {}, ravenSubmissions: {}, seed, reviewChoices: {}, overrides: {},
+    number, collectingOpen, submissions: {}, followUpAnswers: {}, seed, reviewChoices: {}, overrides: {},
     mathAdjust: { add: [], remove: [] }, resolution: null,
   };
 }
@@ -198,7 +198,7 @@ function markDead(s: GameState, pid: string, alive: boolean, cause: string) {
 }
 
 function isAdminIntent(i: Intent): i is AdminIntent {
-  return !['seen_role', 'use_ghost_vote', 'submit_night', 'submit_ravenkeeper', 'claim_admin'].includes(i.type);
+  return !['seen_role', 'use_ghost_vote', 'submit_night', 'answer_follow_up', 'claim_admin'].includes(i.type);
 }
 
 // ---- reducer ------------------------------------------------------------------------------------
@@ -222,6 +222,12 @@ export function applyIntent(state: GameState, actorId: string, intent: Intent, c
   if (intent.type !== 'publish_night') reresolve(res.state);
   // The event log is Storyteller-only, so it records the full intent.
   return { ...res, events: [{ type: intent.type, actor: actorId, payload: intent }, ...res.events] };
+}
+
+/** An unanswered follow-up question asked in the current review. */
+function openFollowUp(s: GameState, key: string) {
+  if (s.phase !== 'NIGHT_RESOLVING') return undefined;
+  return s.night?.resolution?.followUps.find((f) => f.key === key && !f.answered);
 }
 
 function ok(s: GameState, data?: unknown): ApplyResult {
@@ -263,11 +269,12 @@ function playerIntent(s: GameState, pid: string, intent: PlayerIntent, ctx: Ctx)
       s.night.submissions[pid] = { actions: v.actions, submittedAt: ctx.now };
       return ok(s);
     }
-    case 'submit_ravenkeeper': {
-      if (s.phase !== 'NIGHT_RESOLVING' || !s.night?.resolution?.awaitingRavenkeeper.includes(pid)) return err('You cannot do that now.');
-      const e = validateChoice(ravenkeeperSpec(s), { values: [intent.targetId] });
+    case 'answer_follow_up': {
+      const q = openFollowUp(s, intent.key);
+      if (!q || q.playerId !== pid) return err('You cannot do that now.');
+      const e = validateChoice(q.spec, intent.choice);
       if (e) return err(e);
-      s.night.ravenSubmissions[pid] = { actions: { ravenkeeper: { values: [intent.targetId] } }, submittedAt: ctx.now };
+      s.night!.followUpAnswers[q.key] = { choice: intent.choice, byAdmin: false, at: ctx.now };
       return ok(s);
     }
   }
@@ -540,13 +547,14 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       s.night.collectingOpen = true;
       s.phase = 'NIGHT_RESOLVING';
       s.night.resolution = resolveNight(s);
-      if (s.night.resolution.awaitingRavenkeeper.length) s.nightEndsAt = Math.max(s.nightEndsAt ?? now, now) + s.settings.ravenkeeperExtensionSeconds * 1000;
+      if (s.night.resolution.followUps.length) s.nightEndsAt = Math.max(s.nightEndsAt ?? now, now) + s.settings.followUpExtensionSeconds * 1000;
       return ok(s);
     }
     case 'reopen_collecting': {
       if (s.phase !== 'NIGHT_RESOLVING' || !s.night) return err('Not resolving.');
       s.phase = 'NIGHT_COLLECTING';
       s.night.resolution = null;
+      s.night.followUpAnswers = {};
       return ok(s);
     }
     case 'choose_review': {
@@ -577,17 +585,19 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       s.night.mathAdjust = { add: (i.add ?? []).filter(seatedPlayer), remove: (i.remove ?? []).filter(seatedPlayer) };
       return ok(s);
     }
-    case 'ravenkeeper_for': {
+    case 'answer_follow_up_for': {
       if (s.phase !== 'NIGHT_RESOLVING' || !s.night?.resolution) return err('Not resolving.');
-      const e = validateChoice(ravenkeeperSpec(s), { values: [i.targetId] });
+      const q = s.night.resolution.followUps.find((f) => f.key === i.key);
+      if (!q) return err('No such question.');
+      const e = validateChoice(q.spec, i.choice);
       if (e) return err(e);
-      s.night.ravenSubmissions[i.playerId] = { actions: { ravenkeeper: { values: [i.targetId] } }, submittedAt: now, byAdmin: true };
+      s.night.followUpAnswers[q.key] = { choice: i.choice, byAdmin: true, at: now };
       return ok(s);
     }
     case 'publish_night': {
       if (s.phase !== 'NIGHT_RESOLVING' || !s.night) return err('Not resolving.');
       const res = resolveNight(s);
-      if (res.awaitingRavenkeeper.length && !i.force) return err('Waiting for the Ravenkeeper. Submit for them or force.');
+      if (res.followUps.some((f) => !f.answered) && !i.force) return err('Waiting for an answer to a follow-up question. Answer for them or force.');
       publish(s, res);
       return ok(s);
     }
