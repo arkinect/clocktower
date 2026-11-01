@@ -4,9 +4,6 @@ import { send } from '../api';
 import { ImpairmentTags, TimedButton } from '../common';
 import { InactiveNote, Who, type AdminCtx } from './AdminApp';
 
-export const TRACKED: Record<string, string> = { virgin: 'virgin_used', golem: 'golem_used', artist: 'artist_used', fool: 'fool_used', slayer: 'slayer_used' };
-export const AUTO_TRACKED: Record<string, string> = { assassin: 'assassin_used', seamstress: 'seamstress_used', philosopher: 'philosopher_used', huntsman: 'huntsman_used', professor: 'professor_used' };
-
 export function DayPanel({ ctx }: { ctx: AdminCtx }) {
   const { s, names, seated, roleOf, label } = ctx;
   if (s.phase !== 'DAY') {
@@ -137,8 +134,8 @@ export function AbilityTracker({ ctx }: { ctx: AdminCtx }) {
   const rows = seated.flatMap((id) => {
     const r = roleOf(id);
     if (!r) return [];
-    const k = TRACKED[r] ?? AUTO_TRACKED[r];
-    return k ? [{ id, r, k, manual: !!TRACKED[r] }] : [];
+    const f = ROLE_BY_ID[r]?.usedFlag;
+    return f ? [{ id, r, k: f.key, manual: !f.auto }] : [];
   });
   const damsel = seated.some((id) => roleOf(id) === 'damsel');
   if (!rows.length && !damsel) return null;
@@ -279,7 +276,7 @@ function Reminders({ ctx }: { ctx: AdminCtx }) {
   for (const id of ctx.seated) {
     const r = ctx.roleOf(id);
     if (r === 'fool' && !s.flags[id]?.fool_used) out.push(`${label(id)}: the first time they die (including execution), they don't.`);
-    if (r && ROLE_BY_ID[r].reminder && ['virgin', 'golem', 'mastermind', 'psychopath', 'mayor', 'tea_lady'].includes(r)) out.push(`${label(id)}: ${ROLE_BY_ID[r].reminder}`);
+    if (r && ROLE_BY_ID[r].reminder && ROLE_BY_ID[r].dayReminder) out.push(`${label(id)}: ${ROLE_BY_ID[r].reminder}`);
   }
   if (!out.length) return null;
   return <ul className="reminders">{out.map((x, i) => <li key={i}>{x}</li>)}</ul>;

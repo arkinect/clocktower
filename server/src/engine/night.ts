@@ -49,7 +49,7 @@ export class NightRun {
   private currentActorRow: ActorRow | null = null;
   private killSeq = 0;
 
-  constructor(readonly state: GameState) {
+  constructor(readonly state: GameState, readonly now: number) {
     this.w = structuredClone({
       players: state.players, assignments: state.assignments, flags: state.flags,
       effects: state.effects, roleState: state.roleState, setup: state.setup,
@@ -305,7 +305,7 @@ export class NightRun {
         [{ id: 'yes', label: 'Yes, she becomes the Demon' }, { id: 'no', label: 'No' }], 'yes',
       );
       if (chosen !== 'yes') return;
-      becomeDemon(this.w, sw, demonId, (pid, title, lines) => this.notice(pid, title, lines));
+      becomeDemon(this.w, sw, demonId, this.now, (pid, title, lines) => this.notice(pid, title, lines));
       this.outcome(`${this.name(sw)} (Scarlet Woman) becomes the Demon`);
       return;
     }
@@ -361,7 +361,7 @@ export class NightRun {
     }
     const after = this.w;
     return {
-      computedAt: Date.now(),
+      computedAt: this.now,
       actors: this.actors, results: this.results, reviewItems: this.items, log: this.log,
       deaths: this.deaths, revived: this.revived, abnormal: this.abnormal, followUps: this.followUps,
       notices: this.notices, after,
@@ -392,6 +392,6 @@ export function describeChoice(w: WorldState, c: ActionChoice | null): string {
   return c.values.map((v) => (findPlayer(w, v) ? nameOf(w, v) : roleName(v))).join(', ');
 }
 
-export function resolveNight(state: GameState): Resolution {
-  return new NightRun(state).run();
+export function resolveNight(state: GameState, now: number): Resolution {
+  return new NightRun(state, now).run();
 }

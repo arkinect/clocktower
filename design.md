@@ -246,7 +246,7 @@ Append-only `events` table (game_id, seq, timestamp, actor, type, payload). Ever
 - `Story`: see section 13.3.
 
 ### 5.7 Role definitions
-Static data in `shared/src/roles.ts` (`id, name, type, alignment, abilityText, setupModifier?, reminder?`) and both night orders as editable tables. Behaviour in `server/src/engine/roles/index.ts`, one module per role:
+Static data in `shared/src/roles.ts` (`id, name, type, alignment, abilityText, setupModifier?, reminder?, usedFlag?, dayReminder?`) and both night orders as editable tables. `usedFlag: {key, auto}` puts a once-per-game ability in the Day panel's Ability tracker (`auto`: the engine sets it); `dayReminder` shows the role's `reminder` in the Day panel's reminders. Behaviour in `server/src/engine/roles/index.ts`, one module per role:
 
 ```ts
 interface RoleBehaviour {
@@ -254,8 +254,12 @@ interface RoleBehaviour {
   spec?(ctx): ActionSpec | null;   // the player's input tonight (null = wakes without input)
   resolve?(run, actor): void;      // effects, kills, results, review items
   actsWhileDead?: boolean;         // Ravenkeeper, Moonchild, Gossip
+  onExecution?(ctx: { s, executeeId, holderId, now }): void;
+                                   // after an execution kills, once per seated player with a real ability of this role
 }
 ```
+
+Every role change goes through `changeRole(w, pid, roleId, reason, now, opts)` in `server/src/engine/world.ts`: new role, its alignment, no believed role, one history entry. By default it also clears the player's gained ability, dead-ability flag, role memory and the effects they caused; `keepAbilities` keeps the first two (a Demon change, the Huntsman's Damsel), `keepTies` keeps the last two (setup, a new Demon, the Huntsman's Damsel), and `clearFlags` also clears their used flags (a live reassignment).
 
 The night-order reference shown to players is generated from the order tables, never hand-written separately.
 
@@ -294,7 +298,7 @@ All night deaths go through `attemptKill(target, cause, attacker, options)`. Cau
 ```
 resolveNight(state):                      // pure; clones the world
   if a Godfather can act on Night 1+: review item "godfather_trigger"
-  for slot in nightOrder(night):          // 14.1 or 14.2
+  for slot in nightOrder(night):          // 14.1
     for actor in actors(slot):            // acting role = believed role (Drunk/Marionette),
                                           // actual role, Philosopher-gained role (from the next
                                           // night), Lil' Monsta token; dead actors only if they
@@ -504,69 +508,18 @@ Ability texts are verbatim from the owner. `*` means "not on Night 0". Shared co
 - "Reminder only" roles never wake; the grimoire shows their reminder.
 - Players who only confirm a choice ("You chose X.") get the same text whether or not they were impaired.
 
-### 14.1 Night 0 order (enabled and in-play roles only)
+### 14.1 Night order
 
-| # | Slot | Notes |
-|---|---|---|
-| 1 | Philosopher | |
-| 2 | Demon Info | Delivered up front (section 8). Minions learn each other. |
-| 3 | Sailor | |
-| 4 | Poisoner | |
-| 5 | Godfather | Learns the Outsiders in play (delivered at publish) |
-| 6 | Devil's Advocate | |
-| 7 | Witch | |
-| 8 | Mezepheles | Word delivered up front |
-| 9 | Pukka | |
-| 10 | Huntsman | |
-| 11 | Damsel | Minions' "A Damsel is in play" notice, delivered up front |
-| 12 | Clockmaker | |
-| 13 | Empath | |
-| 14 | Fortune Teller | |
-| 15 | Seamstress | |
-| 16 | Balloonist | |
-| 17 | Butler | |
-| 18 | Grandmother | Learns her grandchild (delivered at publish) |
-| 19 | Mathematician | |
+Both orders (night 0, and night 1 and later) are the editable `FIRST_NIGHT_ORDER` and `OTHER_NIGHT_ORDER` in `shared/src/roles.ts`; only enabled, in-play roles wake. A slot's `note` says when it is skipped (the Witch while fewer than 4 are alive, the Ravenkeeper unless killed tonight, the Juggler after night 1, and so on). Demon Info, the Mezepheles word and the Damsel notice are delivered up front; the Godfather's Outsiders and the Grandmother's grandchild at publish.
 
-### 14.2 Night 1 and later order
-
-| # | Slot | Notes |
-|---|---|---|
-| 1 | Philosopher | |
-| 2 | Sailor | |
-| 3 | Poisoner | |
-| 4 | Innkeeper | |
-| 5 | Gambler | |
-| 6 | Devil's Advocate | |
-| 7 | Witch | Only while 4 or more players are alive |
-| 8 | Mezepheles | Only if a good player said the word |
-| 9 | Scarlet Woman | No action of its own (she transforms when the Demon dies) |
-| 10 | Imp | |
-| 11 | Pukka | |
-| 12 | Shabaloth | |
-| 13 | Po | |
-| 14 | No Dashii | |
-| 15 | Vigormortis | |
-| 16 | Lil' Monsta | Token holder passes the token and chooses the victim |
-| 17 | Assassin | |
-| 18 | Godfather | Only if triggered (an Outsider died in the day) |
-| 19 | Gossip | Only if the statement was True. No picker. |
-| 20 | Professor | |
-| 21 | Huntsman | |
-| 22 | Moonchild | Only if the Admin recorded a target |
-| 23 | Grandmother | Only acts if the grandchild was killed by the Demon tonight |
-| 24 | Ravenkeeper | Only if killed tonight (9.4) |
-| 25 | Empath | |
-| 26 | Fortune Teller | |
-| 27 | Flowergirl | |
-| 28 | Oracle | |
-| 29 | Seamstress | |
-| 30 | Juggler | Night 1 only |
-| 31 | Balloonist | |
-| 32 | Butler | |
-| 33 | Mathematician | |
-
-Constraints that must hold: Philosopher, Sailor, Poisoner and Innkeeper before everything they affect; every kill before the Professor, Ravenkeeper and information roles; the Professor before the Empath and Oracle; the Grandmother after every Demon kill; the Mathematician last. The orders are editable data in `shared/src/roles.ts`.
+Constraints that must hold, checked by `server/test/night-order.test.ts` (its role groups are written out, so a new role is placed on purpose):
+- The Philosopher, Sailor, Poisoner and Innkeeper come first, in that order.
+- Every kill comes before the Ravenkeeper and the information roles.
+- Every kill comes before the Professor, except the Moonchild's. This is harmless: the Professor can choose only players dead at the start of the night, so a kill's place relative to the Professor only decides whether a Professor it kills has already acted.
+- The Professor comes before the Empath and Oracle.
+- The Grandmother comes after every Demon.
+- The Mathematician is last.
+- Every role that resolves at night has a slot, and every slot names a real role.
 
 ### 14.3 Input summary
 
@@ -912,17 +865,20 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 
 ## 18. Tests
 
-168 automated tests (`./dev.sh npm test`: 164 server, 4 client), all passing:
+200 automated tests (`./dev.sh npm test`: 193 server, 7 client), all passing:
 - **Original worked examples:** poison makes false info; sober Sailor survives, poisoned Sailor dies; Innkeeper protects but not from the Assassin; Mayor tails redirect (may land on a protected player); Clockmaker 7 seats Demon 1 Minion 5 → 3; Goon; Po none then three; starpass suggests the Scarlet Woman and the Admin picks another; Shabaloth regurgitation; Lil' Monsta flow and the Fortune Teller reading the new holder; reconnect and rebind.
 - **Per-role tests** for every role with a night effect (true, impaired, registration cases), setup blocking, role reassignment, Ravenkeeper second round, Scarlet Woman night and day.
 - **Follow-up questions:** the question's key and spec and the timer extension, "Accept all defaults" leaves a question unanswered, re-opening collecting clears answers, the Storyteller answering for a player, only the asked player answering once with a legal choice, the v6 step.
 - **Abilities:** one test per source (own role; a Drunk or Marionette has their actual role's ability but not the believed one's; a Drunk believing the Empath wakes as it without the ability; a Philosopher's ability from `fromNight`; the Lil' Monsta token from night 1).
+- **Role changes and hooks:** `changeRole` for every combination of its options, to no role and for a player with no assignment; the `onExecution` hook runs once per holder of the real ability (including the executee) only when an execution kills.
+- **Night order:** the constraints in 14.1 on both orders, every resolving role has a slot, every slot's role exists once.
 - **New-role worked examples:** Oracle (and after a Professor revive), Gossip (True/False/poisoned/killed earlier), Huntsman, Professor (Townsfolk only, not tonight's victims, Shabaloth list cleared), Slayer (kill, poisoned, red herring), Damsel (notices, banner, single guess), Godfather (info, trigger, counts ±1), Witch (curse, 3 alive, poisoned), Huntsman setup guard, Mathematician cap, Grandmother (link, Assassin no link, poisoned no grandchild), identical revives.
 - **Owner changes:** dead players in pickers, Vigormortis + Scarlet Woman, Balloonist names only, story contents (impairment, targets, information received) and Admin-only, Minions knowing each other, dawn snapshot of deaths.
 - **Updates:** last progress ignores joins and rebinds, the 4-hour abandoned rule, when a restart is safe, the status reply has no player details, the loopback check; the startup upgrade (in-progress games ended as abandoned or by the update, ended games kept and playable again, one backup, a second startup changes nothing, a failing step rolls back, too-new and too-old saves refused; one `migrations` row per upgrade and none otherwise; the startup line; each v4 fixture upgrades to a stored expected state), using v4 fixtures built by the v0.2.2 engine (`server/test/fixtures/`).
 - **Script:** the v5 step, a new game has every role on, toggles and All/None, Play again keeps the script, an unknown id is left out of views, assignment, bluffs and the Setup checklist.
 - **Intent shapes:** for every intent type, each field with the wrong type is rejected as `Bad request.` with no state change or event; missing fields, unknown players, unknown types and non-objects are rejected; every intent the test helpers send must be well-formed.
 - **Ended screen** (client, rendered with `react-dom/server`): each `endedReason` message, and none when the Storyteller ended the game or an older server sends no reason; the update bar offers a reload and a dismiss button.
+- **Day panel role data** (client): the Ability tracker's used flags, the day reminders and the impairment-cause names derived from `shared/src/roles.ts` match the lists the Day panel used to hard-code.
 - **Randomised games:** 60 random 5–15 player games of 5 nights each with random legal choices, checking no crashes and no hidden information in any player view (a one-off 400-game run was also clean).
 - **End-to-end:** `scripts/smoke.mjs` over HTTP and WebSocket against a running container.
 

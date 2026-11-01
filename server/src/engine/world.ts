@@ -82,6 +82,37 @@ export function playersWithAbility(w: WorldState, roleId: string, night: number)
   return seatedIds(w).filter((id) => hasAbility(w, id, roleId, night));
 }
 
+export interface ChangeRoleOpts {
+  /** Keep a Philosopher's gained ability and "keeps ability when dead" (the Demon hand-over, the Huntsman's Damsel). */
+  keepAbilities?: boolean;
+  /** Keep the player's role memory (roleState) and the effects they caused. */
+  keepTies?: boolean;
+  /** Also clear the player's used-ability flags (the Storyteller reassigning a role mid-game). */
+  clearFlags?: boolean;
+}
+
+/**
+ * The one way to change a player's role (null = no role): appends to their history, sets the role and its natural
+ * alignment, and clears their believed role. Unless `opts` keeps them, it also clears their gained ability,
+ * "keeps ability when dead", role memory and the effects they caused.
+ */
+export function changeRole(w: WorldState, pid: string, newRoleId: string | null, reason: string, now: number, opts: ChangeRoleOpts = {}) {
+  const prev = w.assignments[pid];
+  w.assignments[pid] = {
+    roleId: newRoleId,
+    believedRoleId: null,
+    alignment: newRoleId ? ROLE_BY_ID[newRoleId].alignment : 'good',
+    retainsAbilityWhenDead: opts.keepAbilities ? !!prev?.retainsAbilityWhenDead : false,
+    grantedAbility: opts.keepAbilities ? prev?.grantedAbility ?? null : null,
+    history: [...(prev?.history ?? []), { at: now, from: prev?.roleId ?? null, to: newRoleId, reason }],
+  };
+  if (!opts.keepTies) {
+    delete w.roleState[pid];
+    w.effects = w.effects.filter((e) => e.sourcePlayerId !== pid);
+  }
+  if (opts.clearFlags) delete w.flags[pid];
+}
+
 /** Role ids this player wakes as (believed role for Drunk/Marionette, gained ability, Lil' Monsta token). */
 export function actingRoles(w: WorldState, id: string, night: number): string[] {
   return abilitiesOf(w, id, night).map((x) => x.roleId);

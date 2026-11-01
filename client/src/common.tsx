@@ -213,10 +213,6 @@ export function TimedButton({ onConfirm, children, className, disabled, seconds 
   );
 }
 
-const CAUSE_SOURCE: Record<string, string> = {
-  poisoner: 'Poisoner', sailor: 'Sailor', innkeeper: 'Innkeeper', goon: 'Goon', philosopher: 'Philosopher', pukka: 'Pukka',
-  no_dashii: 'No Dashii', vigormortis: 'Vigormortis', witch: 'Witch', admin: 'Storyteller',
-};
 
 /** "poisoned:poisoner" -> "Poisoned by the Poisoner"; "own_character" -> "Drunk/Marionette (own role)". */
 export function causeLabel(c: string): string {
@@ -224,7 +220,7 @@ export function causeLabel(c: string): string {
   const [kind, src] = c.split(':');
   const what = kind === 'poisoned' ? 'Poisoned' : kind === 'drunk' ? 'Drunk' : kind.replace(/_/g, ' ');
   if (!src) return what;
-  return src === 'admin' ? `${what} (set by you)` : `${what} by the ${CAUSE_SOURCE[src] ?? src.replace(/_/g, ' ')}`;
+  return src === 'admin' ? `${what} (set by you)` : `${what} by the ${ROLE_BY_ID[src]?.name ?? src.replace(/_/g, ' ')}`;
 }
 
 /** One tidy chip per impairment cause, wrapping cleanly when there are several. */

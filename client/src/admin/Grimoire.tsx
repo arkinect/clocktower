@@ -3,7 +3,6 @@ import { abilitiesOf, ROLES, ROLE_BY_ID } from '@ct/shared';
 import { api, send } from '../api';
 import { ImpairmentTags, TimedButton, TYPE_LABEL, TYPE_ORDER } from '../common';
 import { VigoScarletWarning, Who, type AdminCtx } from './AdminApp';
-import { AUTO_TRACKED, TRACKED } from './Day';
 import { Briefing } from './Setup';
 
 const CAUSE_LABEL: Record<string, string> = {
@@ -26,7 +25,7 @@ export function Grimoire({ ctx, code }: { ctx: AdminCtx; code: string }) {
           const imp = view.impairment[id];
           const effects = s.effects.filter((e) => e.targetPlayerId === id);
           const flags = Object.entries(s.flags[id] ?? {}).filter(([, v]) => v).map(([k]) => k);
-          const trackKey = r ? TRACKED[r.id] ?? AUTO_TRACKED[r.id] : undefined;
+          const trackKey = r?.usedFlag?.key;
           return (
             <div key={id} className={`grimcard ${p.alive ? '' : 'dead'} ${a?.alignment === 'evil' ? 'evil' : 'good'}`}>
               <div className="row">
