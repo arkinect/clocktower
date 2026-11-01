@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID, ROLES, type ActionChoice, type ActionSpec, type PrivateMessage, type RoleCard as RC, type RoleType } from '@ct/shared';
+import { ENDED_REASON_TEXT, FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID, ROLES, type ActionChoice, type ActionSpec, type PrivateMessage, type RoleCard as RC, type RoleType } from '@ct/shared';
 
 export const TYPE_LABEL: Record<RoleType, string> = { townsfolk: 'Townsfolk', outsider: 'Outsiders', minion: 'Minions', demon: 'Demons' };
 export const TYPE_ORDER: RoleType[] = ['townsfolk', 'outsider', 'minion', 'demon'];
@@ -74,6 +74,11 @@ export function RoleCardView({ role, hiddenByDefault = true }: { role: RC | null
       )}
     </div>
   );
+}
+
+/** Why an app update ended the game, if it did (absent from older servers' views). */
+export function EndedReason({ reason }: { reason?: 'abandoned' | 'update' | null }) {
+  return reason ? <div className="card notice"><p>{ENDED_REASON_TEXT[reason]}</p></div> : null;
 }
 
 export function Messages({ messages, emptyText }: { messages: PrivateMessage[]; emptyText?: string }) {

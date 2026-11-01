@@ -36,7 +36,7 @@ export function App() {
 
   if (token) setSession(code, token);
   const logout = useCallback(() => { saveToken(code, null); setToken(null); }, [code]);
-  const { view, connected } = useGameSocket(code, token, logout);
+  const { view, connected, updated } = useGameSocket(code, token, logout);
 
   let body;
   if (!checked) body = <div className="center muted">Loading…</div>;
@@ -48,6 +48,7 @@ export function App() {
   return (
     <>
       {token && !connected && view && <div className="offline">Reconnecting…</div>}
+      {updated && connected && <button className="updated" onClick={() => location.reload()}>The app was updated. Tap to reload.</button>}
       {body}
       {toastMsg && <div className="toast" onClick={() => setToastMsg(null)}>{toastMsg}</div>}
     </>

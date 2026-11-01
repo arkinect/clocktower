@@ -73,6 +73,7 @@ label.check input { width: auto; min-height: 0; }
 .type-demon { color: var(--demon); }
 .toast { position: fixed; left: 16px; right: 16px; bottom: 84px; background: #5a2531; color: #fff; padding: 12px 16px; border-radius: 10px; z-index: 100; box-shadow: 0 6px 24px #0008; }
 .offline { position: fixed; top: 0; left: 0; right: 0; background: var(--warn); color: #1b1408; text-align: center; font-size: 0.85rem; padding: 2px; z-index: 90; }
+.updated { position: fixed; top: 0; left: 0; right: 0; z-index: 91; width: 100%; margin: 0; border: 0; border-radius: 0; background: var(--gold); color: #1b1408; padding: 10px 16px; font-weight: 650; font-size: 0.9rem; text-align: center; cursor: pointer; }
 .seg { display: flex; gap: 0; margin: 12px 0; }
 .seg button { flex: 1; border-radius: 0; }
 .seg button:first-child { border-radius: 8px 0 0 8px; }

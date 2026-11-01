@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { ROLES, ROLE_BY_ID, type AdminView, type GameState } from '@ct/shared';
 import { send } from '../api';
-import { NightOrder, RoleList, TimedButton } from '../common';
+import { EndedReason, NightOrder, RoleList, TimedButton } from '../common';
 import { SetupPanel } from './Setup';
 import { NightPanel, ReviewPanel } from './Night';
 import { DayPanel } from './Day';
@@ -143,6 +143,7 @@ export function AdminApp({ view, code }: { view: AdminView; code: string }) {
         )}
       </div>
       <main className="adminmain">
+        {s.phase === 'ENDED' && <EndedReason reason={s.endedReason} />}
         {tab === 'lobby' && <LobbyPanel ctx={ctx} code={code} />}
         {tab === 'setup' && <SetupPanel ctx={ctx} />}
         {tab === 'night' && <NightPanel ctx={ctx} />}

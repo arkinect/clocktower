@@ -188,6 +188,13 @@ export interface GameState extends WorldState {
   idSeq: number;
 }
 
+/** The line on the ended screen (players and Storyteller) when an app update ended the game. */
+export const ENDED_REASON_TEXT: Record<'abandoned' | 'update', string> = {
+  update: 'This game was ended by an app update.',
+  abandoned: 'This game was ended for an app update after 4 hours without progress.',
+};
+
+/** Fields added from schema v5 on are optional (?), like PlayerView's. */
 export interface AdminView {
   kind: 'admin';
   serverNow: number;

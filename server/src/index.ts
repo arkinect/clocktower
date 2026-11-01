@@ -114,7 +114,10 @@ const BUILD = {
   startedAt: Date.now(),
 };
 
-app.get('/api/config', async () => ({ publicUrl: PUBLIC_URL, defaultGame: DEFAULT_GAME_CODE, passwordRequired: !!PASSWORD_DIGEST }));
+// An opaque id of this build for every client: a phone that sees it change on reconnect offers to reload.
+const BUILD_ID = createHash('sha256').update(`${BUILD.version}|${BUILD.commit ?? ''}|${BUILD.builtAt ?? ''}`).digest('hex').slice(0, 12);
+
+app.get('/api/config', async () => ({ publicUrl: PUBLIC_URL, defaultGame: DEFAULT_GAME_CODE, passwordRequired: !!PASSWORD_DIGEST, buildId: BUILD_ID }));
 
 app.get<{ Params: { code: string } }>('/api/g/:code/names', async (req, reply) => {
   if (!passwordGate(req, reply)) return;

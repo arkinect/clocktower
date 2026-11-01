@@ -33,6 +33,7 @@ export function playerView(s: GameState, pid: string, now: number): PlayerView {
     kind: 'player',
     gameCode: s.code,
     phase: s.phase,
+    endedReason: s.endedReason ?? null,
     nightNumber: s.nightNumber,
     dayNumber: s.dayNumber,
     nightEndsAt: s.phase === 'NIGHT_COLLECTING' || s.phase === 'NIGHT_RESOLVING' ? s.nightEndsAt : null,

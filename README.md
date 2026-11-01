@@ -43,11 +43,47 @@ yourself before sharing the address and password. Caddy fetches and renews the c
 
 - **Ports 80/443 already in use?** Change the host side in `docker-compose.yml` (e.g. `"8444:8443"`), forward your
   router's external 443 to it, and enable the port-443-only certificate option in `caddy/Caddyfile`.
-- **Updating:** `./scripts/update.sh` pulls the latest images and restarts what changed (or run it from cron).
-  Game state is kept. It never restarts the app in the middle of a game: it defers (and the next run tries again)
-  until every game has ended or gone 4 hours without progress. `--force` skips that check.
+- **Updating:** `./scripts/update.sh` (or run it from cron). See [Updating](#updating) below.
 - **Stopping:** `docker compose stop`. **Starting over:** the Storyteller's *New game (erase)* button, or stop and
   delete `data/clocktower.db*`.
+
+## Updating
+
+`./scripts/update.sh` pulls the latest images and restarts what changed. Run it by hand, or from cron:
+
+```sh
+30 4 * * 3 /path/to/clocktower/scripts/update.sh >> /path/to/update.log 2>&1
+```
+
+It never restarts the app in the middle of a game:
+
+| Game state when the update runs | What happens |
+|---|---|
+| Ended | Restarts. |
+| Any other phase, progress in the last 4 hours | **Deferred**: prints `Update deferred: game in progress` and exits. The next run tries again. |
+| Any other phase, no progress for 4 hours | Treated as abandoned. Restarts, and the game is ended. |
+
+"Progress" is anything except players joining or reconnecting. A new image that keeps the saved-game schema (for
+example a weekly security rebuild) restarts straight away even mid-game, since nothing is lost. `--force` restarts
+without checking.
+
+**Releases that change the saved-game schema** are marked in their release notes. On the first start of such a
+release the server copies the database to `data/clocktower.db.pre-v<N>`, then ends any game still in progress
+(players and the Storyteller see "This game was ended by an app update.") and upgrades every saved game. The
+Storyteller's *Play again* starts a new game with the same players. Phones still running the old page show "The app
+was updated. Tap to reload." The server log has one line per upgrade, e.g.
+`Upgraded 1 game to schema v5 (1 ended: update). Backup: clocktower.db.pre-v5.`
+
+If the server refuses to start, `docker logs clocktower` says why (`Not starting: …`).
+
+**Rolling back** after a schema change: `docker compose stop clocktower`, copy `data/clocktower.db.pre-v<N>` over
+`data/clocktower.db` (and delete `data/clocktower.db-wal` and `data/clocktower.db-shm`), then run the older image
+(set its version tag in `docker-compose.yml`) and `docker compose up -d`.
+
+**Updating from v0.2.2 or earlier:** those servers can't report whether a game is in progress, so the new
+`update.sh` defers until you run it once by hand with `--force`, at a time no game is running. The game-in-progress
+check lives in `scripts/update.sh`, so you get it by updating your checkout of this repository (`git pull`); the
+startup upgrade ships in the image.
 
 ## Run it on your LAN (no HTTPS, no password)
 

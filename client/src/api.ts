@@ -58,10 +58,27 @@ export async function send(intent: Intent): Promise<{ ok: boolean; error?: strin
   return r;
 }
 
-/** WebSocket with automatic reconnect. The server sends a full view on connect and after every change. */
+/** The server build this page first talked to (opaque id from /api/config). */
+let firstBuildId: string | null = null;
+
+/** Whether the server now runs a different build than when this page loaded. Older servers send no id. */
+async function serverUpdated(): Promise<boolean> {
+  const c = await fetch('/api/config').then((r) => r.json()).catch(() => null);
+  const id = typeof c?.buildId === 'string' ? c.buildId : null;
+  if (!id) return false;
+  firstBuildId ??= id;
+  return id !== firstBuildId;
+}
+
+/**
+ * WebSocket with automatic reconnect. The server sends a full view on connect and after every change.
+ * `updated` turns true when a reconnect finds a new server build; the page offers a reload rather than reloading
+ * itself, which could lose an unsent night choice.
+ */
 export function useGameSocket(code: string, token: string | null, onUnauthorized: () => void) {
   const [view, setView] = useState<View | null>(null);
   const [connected, setConnected] = useState(false);
+  const [updated, setUpdated] = useState(false);
   useEffect(() => {
     if (!token) return;
     let ws: WebSocket | null = null;
@@ -72,7 +89,11 @@ export function useGameSocket(code: string, token: string | null, onUnauthorized
       if (stopped) return;
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
       ws = new WebSocket(`${proto}://${location.host}/ws/g/${encodeURIComponent(code)}?token=${encodeURIComponent(token)}`);
-      ws.onopen = () => { retry = 0; setConnected(true); };
+      ws.onopen = () => {
+        retry = 0;
+        setConnected(true);
+        serverUpdated().then((u) => { if (u) setUpdated(true); });
+      };
       ws.onmessage = (ev) => {
         const msg = JSON.parse(ev.data);
         if (msg.type === 'view') setView(msg.view);
@@ -99,5 +120,5 @@ export function useGameSocket(code: string, token: string | null, onUnauthorized
       ws?.close();
     };
   }, [code, token]);
-  return { view, connected };
+  return { view, connected, updated };
 }

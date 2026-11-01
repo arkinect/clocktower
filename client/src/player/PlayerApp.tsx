@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ActionChoice, PlayerView } from '@ct/shared';
 import { send } from '../api';
-import { ActionPicker, Countdown, Messages, NightOrder, RoleCardView, RoleList, Seating, choiceComplete } from '../common';
+import { ActionPicker, Countdown, EndedReason, Messages, NightOrder, RoleCardView, RoleList, Seating, choiceComplete } from '../common';
 import { NightGames } from './Games';
 
 type Tab = 'home' | 'role' | 'roles' | 'order' | 'seats';
@@ -208,10 +208,11 @@ function DayScreen({ view, names }: { view: PlayerView; names: Record<string, st
   );
 }
 
-function GameOver({ view }: { view: PlayerView }) {
+export function GameOver({ view }: { view: PlayerView }) {
   return (
     <div className="pad center">
       <h2>Game over</h2>
+      <EndedReason reason={view.endedReason} />
       <p>Thanks for playing, {view.me.name}.</p>
       <Messages messages={view.me.messages} />
     </div>

@@ -7,6 +7,7 @@ import path from 'path';
 import { SCHEMA_VERSION, type GameState } from '@ct/shared';
 import { Store } from '../src/db';
 import { applyIntent, createGame } from '../src/engine/game';
+import { adminView, playerView } from '../src/engine/views';
 import { STEPS, type MigrationStep } from '../src/engine/migrations';
 import { UpgradeRefused, upgradeSavedGames, upgradeSummary } from '../src/upgrade';
 
@@ -70,7 +71,11 @@ describe('startup upgrade', () => {
   it('ends a mid-night game with progress an hour ago as ended by the update', () => {
     seed('v4-mid-night', 'live', NOW - HOUR);
     upgradeSavedGames(store, release);
-    expect(loaded('live')).toMatchObject({ phase: 'ENDED', endedReason: 'update', night: null });
+    const s = loaded('live');
+    expect(s).toMatchObject({ phase: 'ENDED', endedReason: 'update', night: null });
+    const pid = s.players.find((p) => !p.isAdmin)!.id;
+    expect(playerView(s, pid, NOW).endedReason).toBe('update');
+    expect(adminView(s, s.adminId!, NOW, {}).state.endedReason).toBe('update');
   });
 
   it('keeps an ended game as it was, and Play again works on it afterwards', () => {
