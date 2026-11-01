@@ -5,10 +5,10 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createHash, timingSafeEqual } from 'crypto';
-import type { Intent, JoinRequest } from '@ct/shared';
+import { SCHEMA_VERSION, type Intent, type JoinRequest } from '@ct/shared';
 import { Store } from './db';
 import { GameManager, type LiveGame } from './manager';
-import { isLoopback, upgradeSavedGames, UpgradeRefused, upgradeStatus } from './upgrade';
+import { isLoopback, upgradeSavedGames, upgradeSummary, UpgradeRefused, upgradeStatus } from './upgrade';
 
 const PORT = Number(process.env.PORT ?? 8080);
 const DATA_DIR = process.env.DATA_DIR ?? path.resolve('data');
@@ -25,7 +25,9 @@ const CLIENT_DIR = [process.env.CLIENT_DIR, path.resolve(here, '../../client/dis
 
 const store = new Store(DATA_DIR);
 try {
-  upgradeSavedGames(store, { now: Date.now() });
+  const appVersion = [process.env.APP_VERSION || 'dev', process.env.GIT_SHA].filter(Boolean).join(' ');
+  const upgraded = upgradeSavedGames(store, { now: Date.now(), appVersion });
+  if (upgraded) console.log(upgradeSummary(upgraded, SCHEMA_VERSION));
 } catch (e) {
   if (!(e instanceof UpgradeRefused)) throw e;
   console.error(`Not starting: ${e.message}`);

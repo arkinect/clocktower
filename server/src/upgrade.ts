@@ -40,6 +40,8 @@ export class UpgradeRefused extends Error {}
 
 export interface UpgradeOptions {
   now: number;
+  /** APP_VERSION and GIT_SHA of this build, for the migrations table. */
+  appVersion: string;
   /** Overridable for tests; default to this release's values. */
   schemaVersion?: number;
   minSupported?: number;
@@ -111,8 +113,22 @@ export function upgradeSavedGames(store: Store, opts: UpgradeOptions): UpgradeRe
       store.save(s as GameState, [{ seq: store.nextSeq(gameId), ts: opts.now, actor: null, type: 'schema_migrated', payload: { from, to: target, endedReason } }]);
       result.games.push({ code, from, endedReason });
     }
+    store.recordMigration({
+      appliedAt: opts.now, appVersion: opts.appVersion, toSchema: target, gamesMigrated: result.games.length,
+      gamesEnded: result.games.filter((g) => g.endedReason).length, backupFile: result.backupFile, details: result.games,
+    });
   });
   return result;
+}
+
+/** The startup line, e.g. "Upgraded 2 games to schema v5 (1 ended: abandoned). Backup: clocktower.db.pre-v5." */
+export function upgradeSummary(r: UpgradeResult, toSchema: number): string {
+  const n = r.games.length;
+  const reasons = r.games.map((g) => g.endedReason).filter((x) => x !== null);
+  const kinds = [...new Set(reasons)];
+  const ended = reasons.length === 0 ? ''
+    : ` (${reasons.length} ended: ${kinds.length === 1 ? kinds[0] : kinds.map((k) => `${reasons.filter((x) => x === k).length} ${k}`).join(', ')})`;
+  return `Upgraded ${n} game${n === 1 ? '' : 's'} to schema v${toSchema}${ended}. Backup: ${r.backupFile}.`;
 }
 
 /** The connection's own address (never X-Forwarded-For) is the loopback interface. */

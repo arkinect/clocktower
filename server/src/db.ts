@@ -7,6 +7,17 @@ import type { GameState } from '@ct/shared';
 
 export interface StoredEvent { seq: number; ts: number; actor: string | null; type: string; payload: unknown }
 
+export interface MigrationRecord {
+  appliedAt: number;
+  /** APP_VERSION and GIT_SHA of the build that ran the upgrade. */
+  appVersion: string;
+  toSchema: number;
+  gamesMigrated: number;
+  gamesEnded: number;
+  backupFile: string;
+  details: { code: string; from: number; endedReason: 'abandoned' | 'update' | null }[];
+}
+
 export class Store {
   private db: Database.Database;
   readonly file: string;
@@ -32,7 +43,33 @@ export class Store {
         payload TEXT NOT NULL,
         PRIMARY KEY (game_id, seq)
       );
+      CREATE TABLE IF NOT EXISTS migrations (
+        id INTEGER PRIMARY KEY,
+        applied_at INTEGER NOT NULL,
+        app_version TEXT NOT NULL,
+        to_schema INTEGER NOT NULL,
+        games_migrated INTEGER NOT NULL,
+        games_ended INTEGER NOT NULL,
+        backup_file TEXT NOT NULL,
+        details TEXT NOT NULL
+      );
     `);
+    // Tables are only ever added (CREATE TABLE IF NOT EXISTS). A release that has to alter an existing table
+    // should track that with PRAGMA user_version, separately from the saved-game SCHEMA_VERSION.
+  }
+
+  /** One row per startup that upgraded saved games (server/src/upgrade.ts). */
+  recordMigration(m: MigrationRecord) {
+    this.db.prepare(`INSERT INTO migrations (applied_at, app_version, to_schema, games_migrated, games_ended, backup_file, details)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run(m.appliedAt, m.appVersion, m.toSchema, m.gamesMigrated, m.gamesEnded, m.backupFile, JSON.stringify(m.details));
+  }
+
+  migrations(): (MigrationRecord & { id: number })[] {
+    return (this.db.prepare(`SELECT id, applied_at AS appliedAt, app_version AS appVersion, to_schema AS toSchema,
+      games_migrated AS gamesMigrated, games_ended AS gamesEnded, backup_file AS backupFile, details FROM migrations ORDER BY id`)
+      .all() as (Omit<MigrationRecord, 'details'> & { id: number; details: string })[])
+      .map((r) => ({ ...r, details: JSON.parse(r.details) }));
   }
 
   loadAll(): GameState[] {

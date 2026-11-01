@@ -9,13 +9,13 @@ import type { GameState } from '@ct/shared';
 import { Store } from '../src/db';
 import { applyIntent } from '../src/engine/game';
 import type { MigrationStep } from '../src/engine/migrations';
-import { UpgradeRefused, upgradeSavedGames } from '../src/upgrade';
+import { UpgradeRefused, upgradeSavedGames, upgradeSummary } from '../src/upgrade';
 
 const HOUR = 60 * 60 * 1000;
 const NOW = 100 * HOUR;
 const fixture = (name: string): GameState => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', `${name}.json`), 'utf8'));
 const testStep: MigrationStep = (s) => { s.testFieldV5 = true; };
-const toV5 = { now: NOW, schemaVersion: 5, minSupported: 4, steps: { 5: testStep } };
+const toV5 = { now: NOW, appVersion: '9.9.9 abc123', schemaVersion: 5, minSupported: 4, steps: { 5: testStep } };
 
 let dir: string;
 let store: Store;
@@ -38,7 +38,9 @@ function seed(name: string, code: string, progressAt: number, edit?: (s: GameSta
 }
 
 const loaded = (code: string) => store.loadAll().find((s) => s.code === code)! as GameState & { testFieldV5?: boolean };
-const snapshot = () => JSON.stringify({ games: store.savedGames(), events: store.savedGames().map((g) => store.events(g.gameId)) });
+const snapshot = () => JSON.stringify({
+  games: store.savedGames(), events: store.savedGames().map((g) => store.events(g.gameId)), migrations: store.migrations(),
+});
 const backups = () => fs.readdirSync(dir).filter((f) => f.includes('.pre-v'));
 
 describe('startup upgrade', () => {
@@ -132,8 +134,41 @@ describe('startup upgrade', () => {
   it('does nothing when every game is current (as in this release)', () => {
     seed('v4-mid-night', 'b', 0);
     const before = snapshot();
-    expect(upgradeSavedGames(store, { now: NOW })).toBeNull();
+    expect(upgradeSavedGames(store, { now: NOW, appVersion: 'x' })).toBeNull();
     expect(snapshot()).toBe(before);
     expect(backups()).toEqual([]);
+  });
+});
+
+describe('upgrade log', () => {
+  it('an upgrade writes one migrations row with the counts and backup name', () => {
+    seed('v4-ended', 'a', 0);
+    seed('v4-mid-night', 'b', NOW - 5 * HOUR);
+    seed('v4-mid-night', 'c', NOW - HOUR);
+    upgradeSavedGames(store, toV5);
+    expect(store.migrations()).toEqual([{
+      id: 1, appliedAt: NOW, appVersion: '9.9.9 abc123', toSchema: 5, gamesMigrated: 3, gamesEnded: 2, backupFile: 'clocktower.db.pre-v5',
+      details: [
+        { code: 'a', from: 4, endedReason: null },
+        { code: 'b', from: 4, endedReason: 'abandoned' },
+        { code: 'c', from: 4, endedReason: 'update' },
+      ],
+    }]);
+  });
+
+  it('a startup with nothing to upgrade, or a failed one, writes no row', () => {
+    seed('v4-ended', 'a', 0);
+    upgradeSavedGames(store, { now: NOW, appVersion: 'x' });
+    expect(() => upgradeSavedGames(store, { ...toV5, steps: { 5: () => { throw new Error('boom'); } } })).toThrow();
+    expect(store.migrations()).toEqual([]);
+  });
+
+  it('summarises the upgrade in one startup line', () => {
+    const r = (...reasons: ('abandoned' | 'update' | null)[]) =>
+      ({ backupFile: 'clocktower.db.pre-v5', games: reasons.map((endedReason, i) => ({ code: `g${i}`, from: 4, endedReason })) });
+    expect(upgradeSummary(r(null, 'abandoned'), 5)).toBe('Upgraded 2 games to schema v5 (1 ended: abandoned). Backup: clocktower.db.pre-v5.');
+    expect(upgradeSummary(r(null), 5)).toBe('Upgraded 1 game to schema v5. Backup: clocktower.db.pre-v5.');
+    expect(upgradeSummary(r('abandoned', 'update', 'abandoned'), 5))
+      .toBe('Upgraded 3 games to schema v5 (3 ended: 2 abandoned, 1 update). Backup: clocktower.db.pre-v5.');
   });
 });
