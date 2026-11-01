@@ -78,6 +78,14 @@ export function hasAbility(w: WorldState, id: string, roleId: string, night: num
   return roleIdOf(w, id) === roleId || abilitiesOf(w, id, night).some((x) => x.real && x.roleId === roleId);
 }
 
+/**
+ * The night to check abilities against during the day, given the last night: the next one, since an ability gained
+ * last night (a Philosopher's, from the next night) already works today. Impairment stays at the last night.
+ */
+export function abilityNightToday(lastNight: number): number {
+  return lastNight + 1;
+}
+
 export function playersWithAbility(w: WorldState, roleId: string, night: number): string[] {
   return seatedIds(w).filter((id) => hasAbility(w, id, roleId, night));
 }

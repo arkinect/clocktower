@@ -15,7 +15,7 @@ import {
   bluffCandidates, enabledRoles, onScript, redHerringCandidates, setupChecklist, suggestBluffs, suggestDistribution,
 } from './setup';
 import {
-  aliveIds, canAct, changeRole, findPlayer, flag, hasAbility, inPlayRoleIds, isDemon, playersWithAbility, roleIdOf, roleName, seatedIds,
+  abilityNightToday, aliveIds, canAct, changeRole, findPlayer, flag, hasAbility, inPlayRoleIds, isDemon, playersWithAbility, roleIdOf, roleName, seatedIds,
 } from './world';
 
 export interface Ctx { now: number; seed?: number }
@@ -171,7 +171,8 @@ function markDead(s: GameState, pid: string, alive: boolean, cause: string) {
   const aliveBefore = aliveIds(s).length;
   const night = s.nightNumber < 0 ? 0 : s.nightNumber;
   const imp = computeImpairment(s, night)[pid];
-  if (hasAbility(s, pid, 'moonchild', night)) (s.roleState[pid] ??= {}).soberAtDeath = !imp?.impaired;
+  const atNight = s.phase === 'NIGHT_COLLECTING' || s.phase === 'NIGHT_RESOLVING';
+  if (hasAbility(s, pid, 'moonchild', atNight ? night : abilityNightToday(night))) (s.roleState[pid] ??= {}).soberAtDeath = !imp?.impaired;
   p.alive = false;
   p.deadAt = s.phase === 'NIGHT_COLLECTING' || s.phase === 'NIGHT_RESOLVING' ? { phase: 'night', number: s.nightNumber } : { phase: 'day', number: s.dayNumber };
   p.deathCause = cause;
@@ -699,10 +700,10 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       let effect: { wouldDie: boolean; reason: string; usesFool: boolean };
       let witchedId: string | null = null;
       if (i.kind === 'slayer') {
-        if (!hasAbility(s, i.sourceId, 'slayer', night)) return err('That player is not the Slayer.');
+        if (!hasAbility(s, i.sourceId, 'slayer', abilityNightToday(night))) return err('That player is not the Slayer.');
         if (flag(s, i.sourceId, 'slayer_used')) return err('The Slayer has already used their shot.');
         if (!findPlayer(s, i.sourceId)!.alive) return err('The Slayer must be alive.');
-        const isRecluse = hasAbility(s, i.targetId, 'recluse', night) && !imp[i.targetId]?.impaired;
+        const isRecluse = hasAbility(s, i.targetId, 'recluse', abilityNightToday(night)) && !imp[i.targetId]?.impaired;
         const regDemon = isRecluse && i.recluseAs ? i.recluseAs === 'demon' : isDemon(s, i.targetId);
         if (imp[i.sourceId]?.impaired) effect = { wouldDie: false, reason: 'The Slayer is drunk or poisoned: nothing happens.', usesFool: false };
         else if (!regDemon) effect = { wouldDie: false, reason: `${tname} is not the Demon: nothing happens.`, usesFool: false };
