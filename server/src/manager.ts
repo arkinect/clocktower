@@ -37,6 +37,10 @@ export class GameManager {
     return this.games.get(code);
   }
 
+  all(): LiveGame[] {
+    return [...this.games.values()];
+  }
+
   playerByToken(g: LiveGame, token: string | undefined | null) {
     if (!token) return undefined;
     return g.state.players.find((p) => p.tokens.includes(token));

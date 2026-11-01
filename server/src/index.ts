@@ -8,6 +8,7 @@ import { createHash, timingSafeEqual } from 'crypto';
 import type { Intent, JoinRequest } from '@ct/shared';
 import { Store } from './db';
 import { GameManager, type LiveGame } from './manager';
+import { isLoopback, upgradeStatus } from './upgrade';
 
 const PORT = Number(process.env.PORT ?? 8080);
 const DATA_DIR = process.env.DATA_DIR ?? path.resolve('data');
@@ -88,6 +89,13 @@ function gameOr404(code: string, reply: FastifyReply): LiveGame | undefined {
 }
 
 app.get('/healthz', async () => ({ ok: true }));
+
+// For scripts/update.sh, run inside the container. Only the container itself may ask: Caddy connects over the
+// Docker network, and the socket address is checked rather than req.ip, which TRUST_PROXY takes from a header.
+app.get('/api/upgrade-status', async (req, reply) => {
+  if (!isLoopback(req.socket.remoteAddress)) return reply.code(404).send({ ok: false, error: 'Not found' });
+  return upgradeStatus(store, games.all().map((g) => g.state), Date.now());
+});
 
 // Which build is running (baked into the image by the GitHub workflows). Storyteller-only: see /events.
 const BUILD = {

@@ -44,7 +44,8 @@ yourself before sharing the address and password. Caddy fetches and renews the c
 - **Ports 80/443 already in use?** Change the host side in `docker-compose.yml` (e.g. `"8444:8443"`), forward your
   router's external 443 to it, and enable the port-443-only certificate option in `caddy/Caddyfile`.
 - **Updating:** `./scripts/update.sh` pulls the latest images and restarts what changed (or run it from cron).
-  Game state is kept.
+  Game state is kept. It never restarts the app in the middle of a game: it defers (and the next run tries again)
+  until every game has ended or gone 4 hours without progress. `--force` skips that check.
 - **Stopping:** `docker compose stop`. **Starting over:** the Storyteller's *New game (erase)* button, or stop and
   delete `data/clocktower.db*`.
 

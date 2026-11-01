@@ -42,6 +42,12 @@ export class Store {
     return (r.m ?? 0) + 1;
   }
 
+  /** Time of the game's latest event other than a join or rebind (a reconnect is not progress), or null. */
+  lastProgressAt(gameId: string): number | null {
+    const r = this.db.prepare("SELECT MAX(ts) AS m FROM events WHERE game_id = ? AND type NOT IN ('join', 'rebind')").get(gameId) as { m: number | null };
+    return r.m;
+  }
+
   save(state: GameState, events: { seq: number; ts: number; actor: string | null; type: string; payload: unknown }[]) {
     const tx = this.db.transaction(() => {
       this.db.prepare(`INSERT INTO games (game_id, code, state, updated_at) VALUES (?, ?, ?, ?)
@@ -57,6 +63,10 @@ export class Store {
     return (this.db.prepare('SELECT seq, ts, actor, type, payload FROM events WHERE game_id = ? ORDER BY seq DESC LIMIT ?').all(gameId, limit) as
       { seq: number; ts: number; actor: string | null; type: string; payload: string }[])
       .map((r) => ({ ...r, payload: JSON.parse(r.payload) }));
+  }
+
+  close() {
+    this.db.close();
   }
 
   deleteGame(gameId: string) {

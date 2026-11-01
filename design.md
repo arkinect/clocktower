@@ -215,6 +215,7 @@ Append-only `events` table (game_id, seq, timestamp, actor, type, payload). Ever
   - v1 → v2: add the 9 new roles as enabled; old string `deadAt` values become `null`; add `deathCause`, `gossipStatement`, Godfather/Damsel setup fields.
   - v2 → v3: drop the removed Balloonist setting; add an empty `story`.
   - v3 → v4: add `publicDead` (current dead if the game has started).
+- **Updates never interrupt a game.** `scripts/update.sh` restarts the app only when every game is `ENDED` or abandoned (not `ENDED`, no progress for 4 hours, `ABANDONED_AFTER_MS` in `server/src/upgrade.ts`); otherwise it prints `Update deferred: game in progress` and the next run tries again. A game's last progress is its latest event other than `join` or `rebind` (a reconnect is not progress), else its `createdAt`. The script asks `GET /api/upgrade-status` from inside the container; the endpoint answers only the loopback address (by socket address, never `X-Forwarded-For`), so Caddy can't reach it, and reports only game codes, phases and times. Images carry a `clocktower.schema` label; when it equals the running server's schema the restart goes ahead mid-game, so weekly base-image refreshes never wait. `--force` skips the check. A server too old to have the endpoint makes the script defer unless forced.
 
 ### 5.6 Data model (logical)
 - `Game(id, code, phase, nightNumber, dayNumber, settings, nightEndsAt, enabledRoles, adminId, seatingPublished, publishedSeating[], publicDead[], story[], schemaVersion)`
@@ -895,11 +896,12 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 
 ## 18. Tests
 
-122 automated tests (`./dev.sh npm test`), all passing:
+132 automated tests (`./dev.sh npm test`), all passing:
 - **Original worked examples:** poison makes false info; sober Sailor survives, poisoned Sailor dies; Innkeeper protects but not from the Assassin; Mayor tails redirect (may land on a protected player); Clockmaker 7 seats Demon 1 Minion 5 → 3; Goon; Po none then three; starpass suggests the Scarlet Woman and the Admin picks another; Shabaloth regurgitation; Lil' Monsta flow and the Fortune Teller reading the new holder; reconnect and rebind.
 - **Per-role tests** for every role with a night effect (true, impaired, registration cases), setup blocking, role reassignment, Ravenkeeper second round, Scarlet Woman night and day.
 - **New-role worked examples:** Oracle (and after a Professor revive), Gossip (True/False/poisoned/killed earlier), Huntsman, Professor (Townsfolk only, not tonight's victims, Shabaloth list cleared), Slayer (kill, poisoned, red herring), Damsel (notices, banner, single guess), Godfather (info, trigger, counts ±1), Witch (curse, 3 alive, poisoned), Huntsman setup guard, Mathematician cap, Grandmother (link, Assassin no link, poisoned no grandchild), identical revives, migration of an old save.
 - **Owner changes:** dead players in pickers, Vigormortis + Scarlet Woman, Balloonist names only, story contents (impairment, targets, information received) and Admin-only, Minions knowing each other, dawn snapshot of deaths.
+- **Updates:** last progress ignores joins and rebinds, the 4-hour abandoned rule, when a restart is safe, the status reply has no player details, the loopback check.
 - **Randomised games:** 60 random 5–15 player games of 5 nights each with random legal choices, checking no crashes and no hidden information in any player view (a one-off 400-game run was also clean).
 - **End-to-end:** `scripts/smoke.mjs` over HTTP and WebSocket against a running container.
 

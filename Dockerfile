@@ -37,6 +37,9 @@ ARG APP_VERSION=dev
 ARG GIT_SHA=
 ARG BUILD_DATE=
 ENV APP_VERSION=$APP_VERSION GIT_SHA=$GIT_SHA BUILD_DATE=$BUILD_DATE
+# Saved-game schema of this build (SCHEMA_VERSION). scripts/update.sh restarts mid-game only when it is unchanged.
+ARG SCHEMA_VERSION=
+LABEL clocktower.schema=$SCHEMA_VERSION
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s CMD node -e "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "server/index.js"]
