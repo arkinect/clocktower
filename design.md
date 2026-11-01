@@ -1,6 +1,6 @@
 # Blood on the Clocktower Night Assistant: Design Document
 
-Version: 4. Scope: the 48 roles listed in section 14.
+Version: 5. Scope: the 55 roles listed in section 14.
 Audience: implementers and contributors.
 
 This document describes the app **as built**: the rules it implements, every decision taken where the rules leave a choice to the Storyteller, and the project owner's later changes ("owner decision").
@@ -106,7 +106,7 @@ This document describes the app **as built**: the rules it implements, every dec
 
 ### Non-goals
 - Day automation (nominations, voting, executions, win checks). Room is left for it (section 13).
-- Roles other than the 48 in section 14. Roles are data, so more can be added later.
+- Roles other than the 55 in section 14. Roles are data, so more can be added later.
 - Authentication, accounts, internet hosting, TLS.
 - Using the role-type preference collected at signup for automatic assignment (it is shown to the Admin in Setup only).
 
@@ -212,6 +212,7 @@ Append-only `events` table (game_id, seq, timestamp, actor, type, payload). Ever
 ### 5.5 Persistence and schema versions
 - Each game is stored as **one JSON document** (`games.state`), rewritten on every change, plus the event log. This keeps "persist every change" atomic and the engine a pure function. The data model below is logical.
 - `GameState.schemaVersion` (currently **4**). On load, `migrate()` upgrades older saves:
+  - v4 → v5: add the 7 new roles (Fisherman, Cannibal, Farmer, Zealot, Organ Grinder, Baron, Al-Hadikhia) as enabled; an open night gets empty Al-Hadikhia answers.
   - v1 → v2: add the 9 new roles as enabled; old string `deadAt` values become `null`; add `deathCause`, `gossipStatement`, Godfather/Damsel setup fields.
   - v2 → v3: drop the removed Balloonist setting; add an empty `story`.
   - v3 → v4: add `publicDead` (current dead if the game has started).
@@ -300,7 +301,7 @@ resolveNight(state):                      // pure; clones the world
 ## 7. Setup phase
 
 ### 7.1 Role checklist
-- All 48 roles grouped by type with a checkbox each (default all enabled), plus All/None.
+- All 55 roles grouped by type with a checkbox each (default all enabled), plus All/None.
 - Unchecking a role removes it from the assignment dropdown, bluff candidates, the random suggestion and **the lists shown to players**.
 - Warnings (non-blocking): too few enabled roles of a type for the player count. No Demon enabled blocks Night 0 (unless forced).
 - After Night 0 the checklist can still be changed with a confirmation; player lists update live.
@@ -496,60 +497,64 @@ Ability texts are verbatim from the owner. `*` means "not on Night 0". Shared co
 | 3 | Sailor | |
 | 4 | Poisoner | |
 | 5 | Godfather | Learns the Outsiders in play (delivered at publish) |
-| 6 | Devil's Advocate | |
-| 7 | Witch | |
-| 8 | Mezepheles | Word delivered up front |
-| 9 | Pukka | |
-| 10 | Huntsman | |
-| 11 | Damsel | Minions' "A Damsel is in play" notice, delivered up front |
-| 12 | Clockmaker | |
-| 13 | Empath | |
-| 14 | Fortune Teller | |
-| 15 | Seamstress | |
-| 16 | Balloonist | |
-| 17 | Butler | |
-| 18 | Grandmother | Learns her grandchild (delivered at publish) |
-| 19 | Mathematician | |
+| 6 | Organ Grinder | Chooses whether to be drunk until dusk |
+| 7 | Devil's Advocate | |
+| 8 | Witch | |
+| 9 | Mezepheles | Word delivered up front |
+| 10 | Pukka | |
+| 11 | Huntsman | |
+| 12 | Damsel | Minions' "A Damsel is in play" notice, delivered up front |
+| 13 | Clockmaker | |
+| 14 | Empath | |
+| 15 | Fortune Teller | |
+| 16 | Seamstress | |
+| 17 | Balloonist | |
+| 18 | Butler | |
+| 19 | Grandmother | Learns her grandchild (delivered at publish) |
+| 20 | Mathematician | |
 
 ### 14.2 Night 1 and later order
 
 | # | Slot | Notes |
 |---|---|---|
-| 1 | Philosopher | |
-| 2 | Sailor | |
-| 3 | Poisoner | |
-| 4 | Innkeeper | |
-| 5 | Gambler | |
-| 6 | Devil's Advocate | |
-| 7 | Witch | Only while 4 or more players are alive |
-| 8 | Mezepheles | Only if a good player said the word |
-| 9 | Scarlet Woman | No action of its own (she transforms when the Demon dies) |
-| 10 | Imp | |
-| 11 | Pukka | |
-| 12 | Shabaloth | |
-| 13 | Po | |
-| 14 | No Dashii | |
-| 15 | Vigormortis | |
-| 16 | Lil' Monsta | Token holder passes the token and chooses the victim |
-| 17 | Assassin | |
-| 18 | Godfather | Only if triggered (an Outsider died in the day) |
-| 19 | Gossip | Only if the statement was True. No picker. |
-| 20 | Professor | |
-| 21 | Huntsman | |
-| 22 | Moonchild | Only if the Admin recorded a target |
-| 23 | Grandmother | Only acts if the grandchild was killed by the Demon tonight |
-| 24 | Ravenkeeper | Only if killed tonight (9.4) |
-| 25 | Empath | |
-| 26 | Fortune Teller | |
-| 27 | Flowergirl | |
-| 28 | Oracle | |
-| 29 | Seamstress | |
-| 30 | Juggler | Night 1 only |
-| 31 | Balloonist | |
-| 32 | Butler | |
-| 33 | Mathematician | |
+| 1 | Philosopher |  |
+| 2 | Sailor |  |
+| 3 | Poisoner |  |
+| 4 | Innkeeper |  |
+| 5 | Gambler |  |
+| 6 | Organ Grinder | Chooses whether to be drunk until dusk |
+| 7 | Devil's Advocate |  |
+| 8 | Witch | Only while 4 or more players are alive |
+| 9 | Mezepheles | Only if a good player said the word |
+| 10 | Scarlet Woman | No action of its own (she transforms when the Demon dies) |
+| 11 | Imp |  |
+| 12 | Pukka |  |
+| 13 | Shabaloth |  |
+| 14 | Po |  |
+| 15 | No Dashii |  |
+| 16 | Vigormortis |  |
+| 17 | Al-Hadikhia | The 3 chosen players answer live or die after resolve (second round, like the Ravenkeeper) |
+| 18 | Lil' Monsta | Token holder passes the token and chooses the victim |
+| 19 | Assassin |  |
+| 20 | Godfather | Only if triggered (an Outsider died in the day) |
+| 21 | Gossip | Only if the statement was True. No picker. |
+| 22 | Professor |  |
+| 23 | Huntsman |  |
+| 24 | Moonchild | Only if the Admin recorded a target |
+| 25 | Grandmother | Only acts if the grandchild was killed by the Demon tonight |
+| 26 | Farmer | Only if the Farmer died tonight. After every kill, so a Farmer killed by any role counts |
+| 27 | Ravenkeeper | Only if killed tonight (9.4) |
+| 28 | Empath |  |
+| 29 | Fortune Teller |  |
+| 30 | Flowergirl |  |
+| 31 | Oracle |  |
+| 32 | Seamstress |  |
+| 33 | Juggler | Night 1 only |
+| 34 | Balloonist |  |
+| 35 | Butler |  |
+| 36 | Mathematician |  |
 
-Constraints that must hold: Philosopher, Sailor, Poisoner and Innkeeper before everything they affect; every kill before the Professor, Ravenkeeper and information roles; the Professor before the Empath and Oracle; the Grandmother after every Demon kill; the Mathematician last. The orders are editable data in `shared/src/roles.ts`.
+Constraints that must hold: Philosopher, Sailor, Poisoner and Innkeeper before everything they affect; every kill before the Professor, Ravenkeeper and information roles; the Professor before the Empath and Oracle; the Grandmother after every Demon kill; the Farmer after every kill; the Mathematician last. The orders are editable data in `shared/src/roles.ts`.
 
 ### 14.3 Input summary
 
@@ -562,7 +567,10 @@ Constraints that must hold: Philosopher, Sailor, Poisoner and Innkeeper before e
 | Gambler | 1 player and 1 role | Any other player and any enabled role, Night 1+ |
 | Devil's Advocate | 1 player | Any player except last night's choice |
 | Witch | 1 player | Any player, self allowed; only while 4+ players are alive at the start of the night |
+| Organ Grinder | Self, or "Stay sober" | Choosing yourself means drunk until dusk. Every night |
 | Imp, Pukka, No Dashii, Vigormortis | 1 player | Any player, self allowed |
+| Al-Hadikhia | 3 players, or "No one" | Three different players, self allowed, Night 1+ |
+| Al-Hadikhia's chosen players | Live or Die | Second round only, on their phones |
 | Shabaloth | 2 players | Two different players |
 | Po | 0 or 1 player; 3 after choosing no one | See card |
 | Lil' Monsta (token holder) | 1 living Minion and 1 player | Pass-to: a living Minion (self = keep). Victim: any player. Night 1+ |
@@ -574,9 +582,10 @@ Constraints that must hold: Philosopher, Sailor, Poisoner and Innkeeper before e
 | Fortune Teller | 2 players | Two different players, self allowed |
 | Seamstress | 2 players, or "Not tonight" | Two different players, not the Seamstress, once per game |
 | Butler | 1 player | Any player but self |
+| A Cannibal | As the eaten role | The eaten role's picker, titled "Cannibal" |
 | All others | none | They see "No night action tonight" |
 
-### 14.4 Townsfolk (24)
+### 14.4 Townsfolk (27)
 
 #### Clockmaker
 - Ability: "You start knowing how many steps from the Demon to its nearest Minion."
@@ -689,7 +698,23 @@ Constraints that must hold: Philosopher, Sailor, Poisoner and Innkeeper before e
 - Ability: "Once per game, during the day, publicly choose a player: if they are the Demon, they die."
 - Resolved in the Day panel; the Slayer must be alive. Resolving spends the shot (except Cancel). If the Slayer is sober and the target registers as the Demon (the Lil' Monsta token holder does; a sober Recluse uses the "registers as" selector; the red herring does not), the day-kill dialog runs (5.12). Otherwise "nothing happens". A Demon death triggers the Scarlet Woman prompt. The app does not announce a win.
 
-### 14.5 Outsiders (7)
+#### Fisherman
+- Ability: "Once per game, during the day, visit the Storyteller for some advice to help your team win."
+- Day ability, given in person. Reminder only plus a used flag in the Ability tracker (`fisherman_used`).
+
+#### Cannibal
+- Ability: "You have the ability of the recently killed executee. If they are evil, you are poisoned until a good player dies by execution."
+- No slot of its own. When the Day panel records an execution that kills the player, every alive Cannibal (or Philosopher with the Cannibal ability) gets an `eatenAbility` from the next night, replacing the previous one. An execution that does not kill (or a body) changes nothing.
+- Good executee: the eaten ability is the executee's actual role, and any Cannibal poison ends. The Cannibal wakes at that role's slot with its picker; `hasAbility` counts it, so passives (Sailor, Tea Lady, Recluse…) apply.
+- Evil executee: the Cannibal is poisoned (cause `cannibal`, until removed) and the eaten ability is fake: none by default; the Admin picks what the Cannibal thinks they gained (e.g. the executee's bluff) in the Day panel's Cannibal card. A later good execution-death removes the poison.
+- Hidden information: the Cannibal's pickers and results are titled "Cannibal", never the eaten role's name. A Grandmother eaten learns a grandchild the next night.
+- The Cannibal's own poison is self-caused, so it is not abnormal for the Mathematician.
+
+#### Farmer
+- Ability: "When you die at night, an alive good player becomes a Farmer."
+- Night 1+, only if the Farmer died tonight (any night kill). Slot after the Grandmother, so it sees every kill. If the Farmer was sober at death, a review item recommends a random alive good player (non-Farmers first) and lists every alive good player plus "Nobody". That player's role becomes Farmer (alignment kept), their gained/eaten ability and every effect they were the source of end, they get "You are now a Farmer" at publish and do not act again tonight. A Farmer who dies by day does nothing. Impaired at death: nothing.
+
+### 14.5 Outsiders (8)
 
 #### Drunk
 - Ability: "You do not know you are the Drunk. You think you are a Townsfolk character, but you are not."
@@ -720,7 +745,11 @@ Constraints that must hold: Philosopher, Sailor, Poisoner and Innkeeper before e
 - Never wakes; an Outsider. Minions (not the Marionette) learn "A Damsel is in play." on Night 0 (section 8).
 - The Admin records the evil team's single guess in the Day panel. Correct, and the Damsel alive and sober: banner "The Damsel was guessed: the good team loses. Apply at the table." Damsel impaired or dead: "no effect" banner. Otherwise: "Wrong guess, nothing happens." The app does not end the game. After a Huntsman conversion, a guess at that player is wrong.
 
-### 14.6 Minions (10)
+#### Zealot
+- Ability: "If there are 5 or more players alive, you must vote for every nomination."
+- Reminder only (voting is not enforced). Shown in the Day panel reminders.
+
+### 14.6 Minions (12)
 
 #### Mezepheles
 - Ability: "You start knowing a secret word. The 1st good player to say this word becomes evil that night."
@@ -765,7 +794,16 @@ Constraints that must hold: Philosopher, Sailor, Poisoner and Innkeeper before e
 - Ability: "Each night, choose a player: if they nominate tomorrow, they die. If just 3 players live, you lose this ability."
 - Every night including Night 0, while 4+ players are alive at the start of the night (checked every night, nothing stored; revived players can bring it back from the next night). Any player, self allowed. At her slot, if 3 or fewer are alive she does nothing; otherwise, if sober, a `witched` effect (until dusk) on the target. The cursed player is not told; the curse persists if she dies. Day: the Admin presses "They nominated, apply curse" (day-kill dialog, once per curse). The Goon check applies. Told only "You chose X." Impaired: no curse.
 
-### 14.7 Demons (7)
+#### Organ Grinder
+- Ability: "All players keep their eyes closed when voting and the vote tally is secret. Each night, choose if you are drunk until dusk."
+- Every night including Night 0. The picker offers only the Organ Grinder; choosing it applies `drunk` (cause `organ_grinder`, until dusk); "Stay sober" does nothing. Self-caused, so not abnormal for the Mathematician.
+- Day: the Day panel says "everyone votes with eyes closed and the tally is secret" while the Organ Grinder is alive and sober, otherwise "vote normally". Voting is not enforced.
+
+#### Baron
+- Ability: "There are extra Outsiders in play. [+2 Outsiders]"
+- Setup only: +2 Outsiders (−2 Townsfolk) through `setupModifier`. Never wakes.
+
+### 14.7 Demons (8)
 
 Common: exactly one Demon at the start. Demon kills are `attemptKill(target, demon_attack)`. Kill roles marked `*` do not act on Night 0. An impaired Demon's kill silently does nothing. A new Demon (starpass, Scarlet Woman) receives Demon information.
 
@@ -793,6 +831,13 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 - Ability: "Each night*, choose a player: they die. Minions you kill keep their ability & poison 1 Townsfolk neighbour. [-1 Outsider]"
 - Night 1+, any player. If a Minion dies from its attack: `retainsAbilityWhenDead` (they keep acting while dead) and a review item picks one of the nearest alive Townsfolk on each side of that Minion to poison (cause `vigormortis`, while the Vigormortis is alive and sober). Impaired: no kill, no effect.
 - **Must not be in the same game as the Scarlet Woman** (7.3).
+
+#### Al-Hadikhia
+- Ability: "Each night*, you may choose 3 players (all players learn who): each silently chooses to live or die, but if all live, all die."
+- Night 1+: 3 different players (self and dead allowed) or "No one". Every seated player gets "The Al-Hadikhia chose A, B and C." at publish.
+- After resolve, each chosen player's phone asks "Do you choose to live?" (second round, like the Ravenkeeper, with the same countdown extension). Each answer is a review item (default: their phone answer, else "live"), so the Admin can answer for a player. Publishing with answers missing needs force and treats them as "live".
+- If sober, in order: "live" revives a dead player (`revivePlayer`, no act tonight); "die" is `attemptKill(target, demon_attack)` (protections and the Mayor apply). Then, if all three are alive (including anyone who chose to die but survived), each is attacked.
+- Impaired: the players are still asked, but nothing happens.
 
 #### Lil' Monsta
 - Ability: "Each night, Minions choose who babysits Lil' Monsta's token & "is the Demon". A player dies each night*. [+1 Minion]"
@@ -895,10 +940,11 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 
 ## 18. Tests
 
-122 automated tests (`./dev.sh npm test`), all passing:
+136 automated tests (`./dev.sh npm test`), all passing:
 - **Original worked examples:** poison makes false info; sober Sailor survives, poisoned Sailor dies; Innkeeper protects but not from the Assassin; Mayor tails redirect (may land on a protected player); Clockmaker 7 seats Demon 1 Minion 5 → 3; Goon; Po none then three; starpass suggests the Scarlet Woman and the Admin picks another; Shabaloth regurgitation; Lil' Monsta flow and the Fortune Teller reading the new holder; reconnect and rebind.
 - **Per-role tests** for every role with a night effect (true, impaired, registration cases), setup blocking, role reassignment, Ravenkeeper second round, Scarlet Woman night and day.
 - **New-role worked examples:** Oracle (and after a Professor revive), Gossip (True/False/poisoned/killed earlier), Huntsman, Professor (Townsfolk only, not tonight's victims, Shabaloth list cleared), Slayer (kill, poisoned, red herring), Damsel (notices, banner, single guess), Godfather (info, trigger, counts ±1), Witch (curse, 3 alive, poisoned), Huntsman setup guard, Mathematician cap, Grandmother (link, Assassin no link, poisoned no grandchild), identical revives, migration of an old save.
+- **v5 roles:** Baron counts, Organ Grinder (self-drunk, not abnormal, cleared at dusk), Farmer (night death converts, day or impaired death does not), Al-Hadikhia (phone answers, all-live kills all, one dies, dead player revived, impaired, publish guard), Cannibal (good executee ability titled "Cannibal", evil executee poison and fake ability, poison ended by a good execution, no gain from a survived execution or a dead Cannibal), migration of a v4 save.
 - **Owner changes:** dead players in pickers, Vigormortis + Scarlet Woman, Balloonist names only, story contents (impairment, targets, information received) and Admin-only, Minions knowing each other, dawn snapshot of deaths.
 - **Randomised games:** 60 random 5–15 player games of 5 nights each with random legal choices, checking no crashes and no hidden information in any player view (a one-off 400-game run was also clean).
 - **End-to-end:** `scripts/smoke.mjs` over HTTP and WebSocket against a running container.
@@ -929,6 +975,11 @@ Rule gaps (already folded into the cards above, listed here for review):
 - A dead Damsel being guessed counts as "no effect".
 - The Godfather ±1 choice must be made once (suggestions assume +1 until then).
 
+- Farmer: wakes after the Grandmother (not before the Moonchild as in the official order) so it sees every kill; candidates are alive good players by actual alignment.
+- Cannibal: the ability is gained whatever the Cannibal's sobriety at the execution (impairment is applied when it is used); an evil executee gives no fake ability until the Admin picks one.
+- Al-Hadikhia: chosen players answer at the same time on their phones (they are asleep, so this matches waking them one by one).
+- Organ Grinder: "drunk until dusk" is chosen by picking yourself, so no new picker type is needed.
+
 Interpretation and UX choices:
 - Game state persisted as one JSON document per game (logical data model in 5.6).
 - Role cards hidden until Night 0 begins.
@@ -940,4 +991,4 @@ Interpretation and UX choices:
 Known limits:
 - No undo or replay from the event log.
 - No per-option preview in review items (results update live after a choice).
-- Day abilities other than the Slayer, Witch curse and Damsel guess are reminders only.
+- Day abilities other than the Slayer, Witch curse and Damsel guess are reminders only (Fisherman, Zealot and Organ Grinder voting included).

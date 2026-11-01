@@ -70,21 +70,31 @@ export function rs<T = unknown>(w: WorldState, id: string, key: string): T | und
 }
 
 /**
- * Whether a player has the ability of `roleId` in the engine's eyes: their actual role, or a Philosopher-gained
- * ability that is active by `night`. Drunk/Marionette never "have" their believed role's ability.
+ * Whether a player has the ability of `roleId` in the engine's eyes: their actual role, a Philosopher-gained
+ * ability that is active by `night`, or a Cannibal's eaten ability. Drunk/Marionette never "have" their believed role's ability.
  */
 export function hasAbility(w: WorldState, id: string, roleId: string, night: number): boolean {
   const a = w.assignments[id];
   if (!a) return false;
   if (a.roleId === roleId) return true;
-  return !!a.grantedAbility && a.grantedAbility.roleId === roleId && a.grantedAbility.fromNight <= night;
+  if (a.grantedAbility && a.grantedAbility.roleId === roleId && a.grantedAbility.fromNight <= night) return true;
+  return eatenRole(w, id, night) === roleId;
+}
+
+/** The Cannibal's eaten ability active by `night` (only while the player still has the Cannibal ability). */
+export function eatenRole(w: WorldState, id: string, night: number): string | null {
+  const a = w.assignments[id];
+  const e = a?.eatenAbility;
+  if (!e || e.fromNight > night) return null;
+  const isCannibal = a.roleId === 'cannibal' || (a.grantedAbility?.roleId === 'cannibal' && a.grantedAbility.fromNight <= night);
+  return isCannibal ? e.roleId : null;
 }
 
 export function playersWithAbility(w: WorldState, roleId: string, night: number): string[] {
   return seatedIds(w).filter((id) => hasAbility(w, id, roleId, night));
 }
 
-/** Role ids this player wakes as (believed role for Drunk/Marionette, gained ability, Lil' Monsta token). */
+/** Role ids this player wakes as (believed role for Drunk/Marionette, gained or eaten ability, Lil' Monsta token). */
 export function actingRoles(w: WorldState, id: string, night: number): string[] {
   const a = w.assignments[id];
   if (!a || !a.roleId) return [];
@@ -92,6 +102,8 @@ export function actingRoles(w: WorldState, id: string, night: number): string[] 
   if ((a.roleId === 'drunk' || a.roleId === 'marionette') && a.believedRoleId) out.push(a.believedRoleId);
   else out.push(a.roleId);
   if (a.grantedAbility && a.grantedAbility.fromNight <= night) out.push(a.grantedAbility.roleId);
+  const eaten = eatenRole(w, id, night);
+  if (eaten && !out.includes(eaten)) out.push(eaten);
   if (night >= 1 && w.setup.lilMonstaTokenHolderId === id && !out.includes('lil_monsta')) out.push('lil_monsta');
   return out;
 }

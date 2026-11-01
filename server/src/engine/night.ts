@@ -9,7 +9,7 @@ import {
 import { activeImpairingEffects, computeImpairment, type Impairment } from './impairment';
 import { subRng, type Rng } from './rng';
 import {
-  actingRoles, aliveIds, aliveNeighbours, alignmentOf, canAct, findPlayer, flag, getPlayer, hasAbility, isAlive,
+  actingRoles, aliveIds, aliveNeighbours, alignmentOf, canAct, eatenRole, findPlayer, flag, getPlayer, hasAbility, isAlive,
   isDemon, nameOf, playersWithAbility, roleIdOf, roleName, seatedIds, typeOf,
 } from './world';
 import { BEHAVIOURS, godfatherTriggered } from './roles';
@@ -37,6 +37,7 @@ export class NightRun {
   readonly revived: string[] = [];
   readonly abnormal: AbnormalEvent[] = [];
   readonly awaitingRavenkeeper: string[] = [];
+  readonly awaitingAlHadikhia: string[] = [];
   readonly notices: { playerId: string; title: string; lines: string[] }[] = [];
   readonly impairAtDeath: Record<string, Impairment> = {};
   /** Cause of each death tonight (Grandmother link needs demon_attack). */
@@ -123,6 +124,8 @@ export class NightRun {
     const suggested = imp.impaired && falseLines ? falseLines : trueLines;
     const key = `${actor.pid}:${actor.roleId}`;
     const override = this.night.overrides[key];
+    // A Cannibal is not told which ability they ate.
+    if (isEatenAbility(this.w, actor.pid, actor.roleId, this.n)) title = 'Cannibal';
     this.results.push({
       key, playerId: actor.pid, roleId: actor.roleId, title, trueLines, suggestedLines: suggested,
       finalLines: override ?? suggested, impaired: imp.impaired, causes: imp.causes, overridden: !!override,
@@ -349,6 +352,7 @@ export class NightRun {
       computedAt: Date.now(),
       actors: this.actors, results: this.results, reviewItems: this.items, log: this.log,
       deaths: this.deaths, revived: this.revived, abnormal: this.abnormal, awaitingRavenkeeper: this.awaitingRavenkeeper,
+      awaitingAlHadikhia: this.awaitingAlHadikhia,
       notices: this.notices, after,
     };
   }
@@ -368,6 +372,14 @@ export class NightRun {
     }
     return out;
   }
+}
+
+/** Whether `roleId` reaches this player only through a Cannibal's eaten ability. */
+export function isEatenAbility(w: WorldState, pid: string, roleId: string, night: number): boolean {
+  const a = w.assignments[pid];
+  if (!a || a.roleId === roleId || a.believedRoleId === roleId) return false;
+  if (a.grantedAbility?.roleId === roleId && a.grantedAbility.fromNight <= night) return false;
+  return eatenRole(w, pid, night) === roleId;
 }
 
 export function describeChoice(w: WorldState, c: ActionChoice | null): string {

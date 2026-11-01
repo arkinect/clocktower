@@ -28,6 +28,7 @@ export function playerView(s: GameState, pid: string, now: number): PlayerView {
   const night = s.night;
   const collecting = s.phase === 'NIGHT_COLLECTING' && !!night?.collectingOpen;
   const ravenPrompt = s.phase === 'NIGHT_RESOLVING' && !!night?.resolution?.awaitingRavenkeeper.includes(pid) && !night.ravenSubmissions[pid];
+  const alAwaiting = s.phase === 'NIGHT_RESOLVING' && !!night?.resolution?.awaitingAlHadikhia?.includes(pid) && !night.alHadikhiaChoices?.[pid];
   const sub = night && (s.phase === 'NIGHT_COLLECTING' || s.phase === 'NIGHT_RESOLVING') ? night.submissions[pid] ?? null : null;
   return {
     kind: 'player',
@@ -45,6 +46,7 @@ export function playerView(s: GameState, pid: string, now: number): PlayerView {
       submission: sub,
       actions: collecting && me.seat !== null ? actionSpecs(s, pid) : [],
       ravenkeeperPrompt: ravenPrompt,
+      alHadikhiaPrompt: alAwaiting ? { chosen: alHadikhiaChosen(s, pid) } : null,
       messages: revealed ? (s.messages[pid] ?? []) : [],
     },
     players: s.players.map((p) => ({
@@ -58,6 +60,15 @@ export function playerView(s: GameState, pid: string, now: number): PlayerView {
     enabledRoles: Object.keys(s.enabledRoles).filter((r) => s.enabledRoles[r]),
     hasAdmin: !!s.adminId,
   };
+}
+
+/** The 3 players the Al-Hadikhia chose tonight, in order, as long as `pid` is one of them. */
+function alHadikhiaChosen(s: GameState, pid: string): string[] {
+  for (const sub of Object.values(s.night?.submissions ?? {})) {
+    const v = sub.actions.al_hadikhia?.values ?? [];
+    if (v.includes(pid)) return v.slice();
+  }
+  return [pid];
 }
 
 /** Ravenkeeper picker sent alongside the view when prompted. */

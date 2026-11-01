@@ -7,7 +7,7 @@ export type EffectType = 'poisoned' | 'drunk' | 'protected' | 'devils_advocate' 
 export type EffectExpiry = 'until_dusk' | 'until_source_acts_again' | 'while_source_alive_and_sober' | 'until_removed';
 export type Cause =
   | 'poisoner' | 'sailor' | 'innkeeper' | 'goon' | 'philosopher' | 'pukka' | 'no_dashii' | 'vigormortis'
-  | 'witch' | 'own_character' | 'admin';
+  | 'witch' | 'organ_grinder' | 'cannibal' | 'own_character' | 'admin';
 
 export interface Effect {
   id: string;
@@ -91,6 +91,8 @@ export interface PlayerView {
     submission: Submission | null;
     actions: ActionSpec[];
     ravenkeeperPrompt: boolean;
+    /** Set while the Al-Hadikhia chose this player and they have not answered: the 3 chosen players, in order. */
+    alHadikhiaPrompt: { chosen: string[] } | null;
     messages: PrivateMessage[];
   };
   players: PublicPlayer[];

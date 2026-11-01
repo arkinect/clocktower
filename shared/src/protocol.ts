@@ -6,6 +6,7 @@ export type PlayerIntent =
   | { type: 'use_ghost_vote' }
   | { type: 'submit_night'; actions: Record<string, ActionChoice> }
   | { type: 'submit_ravenkeeper'; targetId: string }
+  | { type: 'submit_alhadikhia'; live: boolean }
   | { type: 'claim_admin' };
 
 export type AdminIntent =
@@ -46,6 +47,7 @@ export type AdminIntent =
   | { type: 'override_result'; key: string; lines: string[] | null }
   | { type: 'math_adjust'; add: string[]; remove: string[] }
   | { type: 'ravenkeeper_for'; playerId: string; targetId: string }
+  | { type: 'set_cannibal_ability'; playerId: string; roleId: string | null }
   | { type: 'publish_night'; force?: boolean }
   | { type: 'mark_alive'; playerId: string; alive: boolean }
   | { type: 'record_execution'; playerId: string | null; died: boolean }

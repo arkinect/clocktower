@@ -29,6 +29,14 @@ export function migrate(raw: GameState): GameState {
   if (v < 4) {
     s.publicDead ??= s.phase === 'LOBBY' || s.phase === 'SETUP' ? [] : s.players.filter((p) => !p.isAdmin && !p.alive).map((p) => p.id);
   }
+  if (v < 5) {
+    // Seven roles added (Fisherman, Cannibal, Farmer, Zealot, Organ Grinder, Baron, Al-Hadikhia): enabled like the v2 roles.
+    for (const r of ROLES) if (!(r.id in s.enabledRoles)) s.enabledRoles[r.id] = true;
+    if (s.night) {
+      s.night.alHadikhiaChoices ??= {};
+      if (s.night.resolution) s.night.resolution.awaitingAlHadikhia ??= [];
+    }
+  }
   s.schemaVersion = SCHEMA_VERSION;
   return s;
 }

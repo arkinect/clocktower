@@ -28,6 +28,8 @@ export interface Assignment {
   retainsAbilityWhenDead: boolean;
   /** Philosopher-gained ability, active from `fromNight`. */
   grantedAbility: { roleId: string; fromNight: number } | null;
+  /** Cannibal: the ability of the last executee killed by execution, active from `fromNight`. When the executee was evil it is `fake` (the Admin picks what the Cannibal thinks they gained; null = nothing). */
+  eatenAbility?: { roleId: string | null; fromNight: number; executeeId: string; fake: boolean } | null;
   history: RoleHistoryEntry[];
 }
 
@@ -107,6 +109,8 @@ export interface Resolution {
   revived: string[];
   abnormal: AbnormalEvent[];
   awaitingRavenkeeper: string[];
+  /** Players chosen by the Al-Hadikhia who have not answered live or die. */
+  awaitingAlHadikhia: string[];
   notices: { playerId: string; title: string; lines: string[] }[];
   /** The world after the night, committed on publish. */
   after: WorldState;
@@ -117,6 +121,8 @@ export interface NightState {
   collectingOpen: boolean;
   submissions: Record<string, Submission>;
   ravenSubmissions: Record<string, Submission>;
+  /** Answers of players chosen by the Al-Hadikhia (from their phones). */
+  alHadikhiaChoices: Record<string, 'live' | 'die'>;
   seed: number;
   reviewChoices: Record<string, string>;
   overrides: Record<string, string[]>;
@@ -136,7 +142,7 @@ export interface WorldState {
   setup: SetupState;
 }
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /** Admin-only story log (owner request): one entry per night and per day. */
 export interface StoryPlayer {

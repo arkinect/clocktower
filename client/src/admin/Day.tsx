@@ -4,7 +4,7 @@ import { send } from '../api';
 import { ImpairmentTags, TimedButton } from '../common';
 import { InactiveNote, Who, type AdminCtx } from './AdminApp';
 
-export const TRACKED: Record<string, string> = { virgin: 'virgin_used', golem: 'golem_used', artist: 'artist_used', fool: 'fool_used', slayer: 'slayer_used' };
+export const TRACKED: Record<string, string> = { virgin: 'virgin_used', golem: 'golem_used', artist: 'artist_used', fool: 'fool_used', slayer: 'slayer_used', fisherman: 'fisherman_used' };
 export const AUTO_TRACKED: Record<string, string> = { assassin: 'assassin_used', seamstress: 'seamstress_used', philosopher: 'philosopher_used', huntsman: 'huntsman_used', professor: 'professor_used' };
 
 export function DayPanel({ ctx }: { ctx: AdminCtx }) {
@@ -123,6 +123,7 @@ export function DayPanel({ ctx }: { ctx: AdminCtx }) {
           </label>
         </section>
         <DayAbilities ctx={ctx} />
+        <CannibalPanel ctx={ctx} />
         <AbilityTracker ctx={ctx} />
         <section className="card">
           <TimedButton className="primary big" onConfirm={() => send({ type: 'start_night' })}>Start Night {s.nightNumber + 1}</TimedButton>
@@ -175,7 +176,7 @@ function DayAbilities({ ctx }: { ctx: AdminCtx }) {
   const [guess, setGuess] = useState('');
   const [dialog, setDialog] = useState<{ req: KillReq; preview: { wouldDie: boolean; reason: string } } | null>(null);
   const [result, setResult] = useState<string | null>(null);
-  const slayers = seated.filter((id) => roleOf(id) === 'slayer' || s.assignments[id]?.grantedAbility?.roleId === 'slayer');
+  const slayers = seated.filter((id) => roleOf(id) === 'slayer' || s.assignments[id]?.grantedAbility?.roleId === 'slayer' || s.assignments[id]?.eatenAbility?.roleId === 'slayer');
   const curses = s.effects.filter((e) => e.type === 'witched');
   const damselEver = seated.some((id) => roleOf(id) === 'damsel' || s.assignments[id]?.history.some((h) => h.from === 'damsel'));
   const isAlive = (id: string) => !!s.players.find((p) => p.id === id)?.alive;
@@ -267,6 +268,34 @@ function DayAbilities({ ctx }: { ctx: AdminCtx }) {
   );
 }
 
+/** Cannibal (design.md section 14.4): the ability gained from the last executee, editable by the Admin. */
+function CannibalPanel({ ctx }: { ctx: AdminCtx }) {
+  const { s, seated, names } = ctx;
+  const cannibals = seated.filter((id) => ctx.roleOf(id) === 'cannibal' || s.assignments[id]?.grantedAbility?.roleId === 'cannibal');
+  if (!cannibals.length) return null;
+  const roles = Object.keys(s.enabledRoles).filter((r) => s.enabledRoles[r] && ROLE_BY_ID[r]);
+  return (
+    <section className="card">
+      <h2>Cannibal</h2>
+      {cannibals.map((id) => {
+        const e = s.assignments[id]?.eatenAbility;
+        return (
+          <div key={id} className="field">
+            <span><Who ctx={ctx} id={id} role />{e ? ` ate ${names[e.executeeId] ?? '?'}${e.fake ? ' (evil: the Cannibal is poisoned)' : ''}` : ': nobody executed yet'}</span>
+            <div className="row wrap">
+              <select value={e?.roleId ?? ''} onChange={(ev) => send({ type: 'set_cannibal_ability', playerId: id, roleId: ev.target.value || null })}>
+                <option value="">No ability</option>
+                {roles.map((r) => <option key={r} value={r}>{ROLE_BY_ID[r].name}</option>)}
+              </select>
+            </div>
+            {e?.fake && <p className="muted small">Choose the ability the Cannibal thinks they gained (for example what the executee claimed). It works from night {e.fromNight}, poisoned.</p>}
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
 function Reminders({ ctx }: { ctx: AdminCtx }) {
   const { s, label } = ctx;
   const out: string[] = [];
@@ -278,7 +307,13 @@ function Reminders({ ctx }: { ctx: AdminCtx }) {
   for (const id of ctx.seated) {
     const r = ctx.roleOf(id);
     if (r === 'fool' && !s.flags[id]?.fool_used) out.push(`${label(id)}: the first time they die (including execution), they don't.`);
-    if (r && ROLE_BY_ID[r].reminder && ['virgin', 'golem', 'mastermind', 'psychopath', 'mayor', 'tea_lady'].includes(r)) out.push(`${label(id)}: ${ROLE_BY_ID[r].reminder}`);
+    if (r && ROLE_BY_ID[r].reminder && ['virgin', 'golem', 'mastermind', 'psychopath', 'mayor', 'tea_lady', 'zealot'].includes(r)) out.push(`${label(id)}: ${ROLE_BY_ID[r].reminder}`);
+    if (r === 'organ_grinder') {
+      const working = !!s.players.find((p) => p.id === id)?.alive && !ctx.view.impairment[id]?.impaired;
+      out.push(working
+        ? `Organ Grinder (${label(id)}): everyone votes with eyes closed and the tally is secret.`
+        : `Organ Grinder (${label(id)}) is drunk, poisoned or dead: vote normally.`);
+    }
   }
   if (!out.length) return null;
   return <ul className="reminders">{out.map((x, i) => <li key={i}>{x}</li>)}</ul>;

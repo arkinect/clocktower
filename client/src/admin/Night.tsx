@@ -132,14 +132,20 @@ export function ReviewPanel({ ctx }: { ctx: AdminCtx }) {
           <h2>Review Night {night.number}</h2>
           <button onClick={() => send({ type: 'accept_all_defaults' })}>Accept all defaults{open ? ` (${open})` : ''}</button>
           <button onClick={() => send({ type: 'reopen_collecting' })}>Reopen collecting</button>
-          {/* Publishing while the Ravenkeeper has not chosen sends them no information. */}
-          <TimedButton className="primary big" onConfirm={() => send({ type: 'publish_night', force: res.awaitingRavenkeeper.length > 0 })}>Publish and send to Day</TimedButton>
+          {/* Publishing while the Ravenkeeper has not chosen sends them no information; an unanswered Al-Hadikhia choice counts as "live". */}
+          <TimedButton className="primary big" onConfirm={() => send({ type: 'publish_night', force: res.awaitingRavenkeeper.length + res.awaitingAlHadikhia.length > 0 })}>Publish and send to Day</TimedButton>
         </div>
         {res.deaths.length > 0 ? <p>Deaths tonight: <b className="dead-name">{res.deaths.map((d) => names[d]).join(', ')}</b></p> : <p>No deaths tonight.</p>}
         {res.revived.length > 0 && <p>Revived: {res.revived.map((d) => names[d]).join(', ')}</p>}
       </section>
 
       {res.awaitingRavenkeeper.map((rk) => <RavenWait key={rk} ctx={ctx} pid={rk} />)}
+      {res.awaitingAlHadikhia.length > 0 && (
+        <section className="card warn">
+          <h3>Waiting for players chosen by the Al-Hadikhia</h3>
+          <p>{res.awaitingAlHadikhia.map((id) => names[id]).join(', ')}: their phones are asking "Do you choose to live?". Or answer for them under Decisions.</p>
+        </section>
+      )}
 
       {res.reviewItems.length > 0 && (
         <section className="card">

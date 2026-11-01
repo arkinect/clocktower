@@ -663,6 +663,87 @@ Object.assign(BEHAVIOURS, {
   },
 } satisfies Record<string, RoleBehaviour>);
 
+// ===================== Roles added in schema v5 (design.md section 14) =====================
+/** Farmer: `pid` becomes a Farmer and loses their old ability; its ongoing effects end. */
+function becomeFarmer(run: NightRun, pid: string) {
+  const as = run.w.assignments[pid];
+  as.history.push({ at: Date.now(), from: as.roleId, to: 'farmer', reason: 'became a Farmer' });
+  as.roleId = 'farmer';
+  as.believedRoleId = null;
+  as.grantedAbility = null;
+  as.eatenAbility = null;
+  as.retainsAbilityWhenDead = false;
+  run.w.effects = run.w.effects.filter((e) => e.sourcePlayerId !== pid);
+  run.noActTonight.add(pid);
+  run.notice(pid, 'You are now a Farmer', [ROLE_BY_ID.farmer.abilityText]);
+  run.outcome(`${run.name(pid)} becomes a Farmer`);
+}
+
+Object.assign(BEHAVIOURS, {
+  organ_grinder: {
+    // The Organ Grinder picks themselves to be drunk; declining keeps them sober (eyes-closed voting tomorrow).
+    spec: (c: SpecCtx) => players('organ_grinder', 'Organ Grinder', 'Choose yourself to be drunk until dusk (voting is then normal), or stay sober.', 1, [c.pid], true, 'Stay sober'),
+    resolve(run: NightRun, a: Actor) {
+      const [t] = target(a);
+      if (t !== a.pid) { run.outcome('stays sober: eyes-closed voting tomorrow'); return; }
+      run.addEffect('drunk', 'organ_grinder', a.pid, a.pid, 'until_dusk');
+      run.outcome('chooses to be drunk until dusk: normal voting tomorrow');
+    },
+  },
+
+  farmer: {
+    actsWhileDead: true,
+    wakes: (c: SpecCtx) => {
+      const p = c.w.players.find((x) => x.id === c.pid);
+      return !!p && !p.alive && p.deadAt?.phase === 'night' && p.deadAt.number === c.night;
+    },
+    resolve(run: NightRun, a: Actor) {
+      if ((run.impairAtDeath[a.pid] ?? run.imp(a.pid)).impaired) {
+        run.abnormalIfExternal(a.pid, 'Farmer had no effect');
+        run.outcome('impaired at death: nobody becomes a Farmer');
+        return;
+      }
+      const cands = aliveIds(run.w).filter((x) => alignmentOf(run.w, x) === 'good');
+      if (!cands.length) { run.outcome('no alive good player to become a Farmer'); return; }
+      const pool = cands.filter((x) => roleIdOf(run.w, x) !== 'farmer');
+      const def = run.rng(`farmer:${a.pid}`).pick(pool.length ? pool : cands);
+      const ch = run.review(`farmer:${a.pid}`, 'farmer', `Farmer ${run.name(a.pid)} died: who becomes a Farmer?`,
+        'Any alive good player. They lose their old ability and learn they are a Farmer.',
+        [...cands.map((x) => ({ id: x, label: `${run.name(x)} (${roleName(roleIdOf(run.w, x))})` })), { id: 'none', label: 'Nobody' }], def);
+      if (ch === 'none') { run.outcome('nobody becomes a Farmer (Admin choice)'); return; }
+      becomeFarmer(run, ch);
+    },
+  },
+
+  al_hadikhia: {
+    spec: (c: SpecCtx) => players('al_hadikhia', 'Al-Hadikhia', 'You may choose 3 players (everyone learns who): each chooses to live or die. If all 3 live, all 3 die.', 3, all(c), true, 'No one'),
+    resolve(run: NightRun, a: Actor) {
+      const ts = target(a);
+      if (ts.length !== 3) { run.outcome('chose no one'); return; }
+      const names = `${run.name(ts[0])}, ${run.name(ts[1])} and ${run.name(ts[2])}`;
+      for (const pid of seatedIds(run.w)) run.notice(pid, 'Al-Hadikhia', [`The Al-Hadikhia chose ${names}.`]);
+      // Chosen players answer on their phones after resolve (like the Ravenkeeper); the Admin can answer for them.
+      const choices = ts.map((t) => {
+        const phone = run.night.alHadikhiaChoices?.[t];
+        if (!phone && !run.night.reviewChoices[`alhadikhia:${t}`]) run.awaitingAlHadikhia.push(t);
+        return run.review(`alhadikhia:${t}`, 'alhadikhia_choice', `Al-Hadikhia: does ${run.name(t)} choose to live?`,
+          phone ? `Answered on their phone: ${phone === 'live' ? 'live' : 'die'}.` : 'Not answered yet: their phone is asking.',
+          [{ id: 'live', label: 'Chooses to live' }, { id: 'die', label: 'Chooses to die' }], phone ?? 'live');
+      });
+      run.outcome(`chose ${names}: ${ts.map((t, i) => `${run.name(t)} ${choices[i] === 'live' ? 'lives' : 'dies'}`).join(', ')}`);
+      if (!run.sober(a.pid)) { run.outcome('impaired: the choices have no effect'); return; }
+      ts.forEach((t, i) => {
+        if (choices[i] === 'live') { if (!isAlive(run.w, t)) run.revive(t, 'chose to live (Al-Hadikhia)'); }
+        else run.attemptKill(t, 'demon_attack', a.pid);
+      });
+      if (ts.every((t) => isAlive(run.w, t))) {
+        run.outcome('all three are alive: all three die');
+        for (const t of ts) run.attemptKill(t, 'demon_attack', a.pid);
+      }
+    },
+  },
+} satisfies Record<string, RoleBehaviour>);
+
 export function hasNightAbility(roleId: string): boolean {
   const b = BEHAVIOURS[roleId];
   return !!b && !!b.resolve;
