@@ -101,6 +101,7 @@ describe('v5 roles', () => {
     expect(res.deaths).toEqual([g.p.empath]);
     expect(res.revived).toEqual([g.p.butler]);
     expect(res.awaitingAlHadikhia).toEqual([]);
+    expect(res.reviewItems.find((i) => i.key === `alhadikhia:${g.p.butler}`)!.description).toBe('Answered by you.');
 
     const h = build(['al_hadikhia', 'poisoner', 'empath', 'clockmaker', 'butler', 'virgin', 'oracle']);
     runNight(h, {});

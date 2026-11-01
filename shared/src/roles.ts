@@ -60,7 +60,7 @@ export const ROLES: RoleData[] = [
   r('moonchild', 'Moonchild', O, 'When you learn that you died, publicly choose 1 alive player. Tonight, if it was a good player, they die.', { reminder: 'Record the chosen player in the Day panel after the Moonchild dies.' }),
   r('goon', 'Goon', O, 'Each night, the 1st player to choose you with their ability is drunk until dusk. You become their alignment.'),
   r('butler', 'Butler', O, 'Each night, choose a player (not yourself): tomorrow, you may only vote if they are voting too.', { reminder: 'Voting restriction is not enforced.' }),
-  r('zealot', 'Zealot', O, 'If there are 5 or more players alive, you must vote for every nomination.', { reminder: 'Voting rule is not enforced.' }),
+  r('zealot', 'Zealot', O, 'If there are 5 or more players alive, you must vote for every nomination.', { reminder: 'Must vote for every nomination while 5 or more players are alive (not enforced).' }),
   r('damsel', 'Damsel', O, 'All Minions know a Damsel is in play. If a Minion publicly guesses you (once), your team loses.', { reminder: 'Record a Minion\'s guess in the Day panel.' }),
   // Minions (12)
   r('mezepheles', 'Mezepheles', M, 'You start knowing a secret word. The 1st good player to say this word becomes evil that night.', { reminder: 'Record "Word said by X" in the Day panel.' }),

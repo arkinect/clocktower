@@ -725,9 +725,10 @@ Object.assign(BEHAVIOURS, {
       // Chosen players answer on their phones after resolve (like the Ravenkeeper); the Admin can answer for them.
       const choices = ts.map((t) => {
         const phone = run.night.alHadikhiaChoices?.[t];
-        if (!phone && !run.night.reviewChoices[`alhadikhia:${t}`]) run.awaitingAlHadikhia.push(t);
+        const byAdmin = !phone && !!run.night.reviewChoices[`alhadikhia:${t}`];
+        if (!phone && !byAdmin) run.awaitingAlHadikhia.push(t);
         return run.review(`alhadikhia:${t}`, 'alhadikhia_choice', `Al-Hadikhia: does ${run.name(t)} choose to live?`,
-          phone ? `Answered on their phone: ${phone === 'live' ? 'live' : 'die'}.` : 'Not answered yet: their phone is asking.',
+          phone ? `Answered on their phone: ${phone === 'live' ? 'live' : 'die'}.` : byAdmin ? 'Answered by you.' : 'Not answered yet: their phone is asking.',
           [{ id: 'live', label: 'Chooses to live' }, { id: 'die', label: 'Chooses to die' }], phone ?? 'live');
       });
       run.outcome(`chose ${names}: ${ts.map((t, i) => `${run.name(t)} ${choices[i] === 'live' ? 'lives' : 'dies'}`).join(', ')}`);

@@ -311,8 +311,8 @@ function Reminders({ ctx }: { ctx: AdminCtx }) {
     if (r === 'organ_grinder') {
       const working = !!s.players.find((p) => p.id === id)?.alive && !ctx.view.impairment[id]?.impaired;
       out.push(working
-        ? `Organ Grinder (${label(id)}): everyone votes with eyes closed and the tally is secret.`
-        : `Organ Grinder (${label(id)}) is drunk, poisoned or dead: vote normally.`);
+        ? `${label(id)}: everyone votes with eyes closed and the tally is secret.`
+        : `${label(id)} is drunk, poisoned or dead: vote normally.`);
     }
   }
   if (!out.length) return null;

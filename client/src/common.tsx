@@ -210,7 +210,7 @@ export function TimedButton({ onConfirm, children, className, disabled, seconds 
 
 const CAUSE_SOURCE: Record<string, string> = {
   poisoner: 'Poisoner', sailor: 'Sailor', innkeeper: 'Innkeeper', goon: 'Goon', philosopher: 'Philosopher', pukka: 'Pukka',
-  no_dashii: 'No Dashii', vigormortis: 'Vigormortis', witch: 'Witch', admin: 'Storyteller',
+  no_dashii: 'No Dashii', vigormortis: 'Vigormortis', witch: 'Witch', organ_grinder: 'Organ Grinder', cannibal: 'Cannibal', admin: 'Storyteller',
 };
 
 /** "poisoned:poisoner" -> "Poisoned by the Poisoner"; "own_character" -> "Drunk/Marionette (own role)". */
