@@ -189,6 +189,7 @@ describe('jinxes', () => {
     expect(res.after.assignments[g.p.scarlet_woman].roleId).toBe('scarlet_woman');
     expect(res.after.assignments[g.p.al_hadikhia].roleId).toBe('al_hadikhia');
     expect(res.notices.some((n) => n.playerId === g.p.scarlet_woman && n.title === 'You are the Scarlet Woman again')).toBe(true);
+    expect(res.jinxNotes).toEqual([expect.stringMatching(/^Jinx \(Scarlet Woman & Al-Hadikhia\): P0-al_hadikhia \(Al-Hadikhia\)/)]);
     expect(res.deaths).toEqual([g.p.empath]);
   });
 
@@ -232,7 +233,7 @@ describe('jinxes', () => {
       act(g, { type: 'set_believed_role', playerId: g.p.marionette, roleId: 'huntsman' });
       expect(setupChecklist(g.s).find((c) => c.id === 'huntsman')).toMatchObject({ done: false, blocking: true });
       act(g, { type: 'set_believed_role', playerId: g.p.marionette, roleId: 'balloonist' });
-      expect(setupWarnings(g.s).some((w) => w.startsWith('Jinx: the Marionette thinks they are the Balloonist'))).toBe(true);
+      expect(setupWarnings(g.s).some((w) => w.startsWith('Jinx (Marionette & Balloonist):'))).toBe(true);
     });
   });
 });

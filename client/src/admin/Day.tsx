@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ROLE_BY_ID } from '@ct/shared';
+import { CANNIBAL_LEARNS, ROLE_BY_ID } from '@ct/shared';
 import { send } from '../api';
 import { ImpairmentTags, TimedButton } from '../common';
 import { InactiveNote, Who, type AdminCtx } from './AdminApp';
@@ -288,6 +288,9 @@ function CannibalPanel({ ctx }: { ctx: AdminCtx }) {
                 {roles.map((r) => <option key={r} value={r}>{ROLE_BY_ID[r].name}</option>)}
               </select>
             </div>
+            {e?.roleId && CANNIBAL_LEARNS.includes(e.roleId) && <p className="small">Jinx (Cannibal &amp; {ROLE_BY_ID[e.roleId].name}): the Cannibal has been told they have the {ROLE_BY_ID[e.roleId].name} ability.</p>}
+            {e?.roleId === 'juggler' && !e.fake && e.fromNight === 1 && s.dayNumber === 1 && <p className="small">Jinx (Cannibal &amp; Juggler): tonight the Cannibal learns how many of the Juggler's Day 1 guesses were correct (enter the number above).</p>}
+            {e?.roleId === 'juggler' && !e.fake && e.fromNight !== 1 && <p className="small">Jinx (Cannibal &amp; Juggler): the Juggler was not executed on their first day, so the Cannibal learns nothing from it.</p>}
             {e?.fake && <p className="muted small">Choose the ability the Cannibal thinks they gained (for example what the executee claimed). It works from night {e.fromNight}, poisoned.</p>}
           </div>
         );
@@ -313,8 +316,11 @@ function Reminders({ ctx }: { ctx: AdminCtx }) {
       out.push(working
         ? `${label(id)}: everyone votes with eyes closed and the tally is secret.`
         : `${label(id)} is drunk, poisoned or dead: vote normally.`);
-      // Jinx (Butler + Organ Grinder).
-      if (working && s.effects.some((e) => e.type === 'butler_master')) out.push('Jinx: during eyes-closed voting a Butler may raise their hand, but their vote only counts if their master voted too.');
+      if (working) {
+        for (const e of s.effects.filter((x) => x.type === 'butler_master')) {
+          out.push(`Jinx (Butler & Organ Grinder): ${label(e.sourcePlayerId)} may raise their hand during eyes-closed votes, but it only counts if ${label(e.targetPlayerId)} voted too.`);
+        }
+      }
     }
     if (s.assignments[id]?.eatenAbility?.roleId === 'zealot' && r === 'cannibal') out.push(`${label(id)} has the Zealot ability: ${ROLE_BY_ID.zealot.reminder}`);
   }

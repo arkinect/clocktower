@@ -140,6 +140,12 @@ export function ReviewPanel({ ctx }: { ctx: AdminCtx }) {
       </section>
 
       {res.awaitingRavenkeeper.map((rk) => <RavenWait key={rk} ctx={ctx} pid={rk} />)}
+      {(res.jinxNotes ?? []).length > 0 && (
+        <section className="card warn">
+          <h3>Jinxes tonight</h3>
+          {res.jinxNotes!.map((n, i) => <p key={i}>{n}</p>)}
+        </section>
+      )}
       {res.awaitingAlHadikhia.length > 0 && (
         <section className="card warn">
           <h3>Waiting for players chosen by the Al-Hadikhia</h3>

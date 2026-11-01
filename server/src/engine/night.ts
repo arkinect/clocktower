@@ -38,6 +38,7 @@ export class NightRun {
   readonly abnormal: AbnormalEvent[] = [];
   readonly awaitingRavenkeeper: string[] = [];
   readonly awaitingAlHadikhia: string[] = [];
+  readonly jinxNotes: string[] = [];
   readonly notices: { playerId: string; title: string; lines: string[] }[] = [];
   readonly impairAtDeath: Record<string, Impairment> = {};
   /** Cause of each death tonight (Grandmother link needs demon_attack). */
@@ -299,6 +300,8 @@ export class NightRun {
       a.roleId = 'scarlet_woman';
       this.notice(id, 'You are the Scarlet Woman again', [ROLE_BY_ID.scarlet_woman.abilityText]);
       this.outcome(`two Demons: ${this.name(id)} becomes the Scarlet Woman again`);
+      const other = demons.find((d) => d !== id)!;
+      this.jinxNotes.push(`Jinx (Scarlet Woman & Al-Hadikhia): ${this.name(other)} (${roleName(roleIdOf(this.w, other))}) is alive again, so there would be two Demons. ${this.name(id)}, who became the Demon as the Scarlet Woman, is the Scarlet Woman again and is told so at dawn.`);
       return;
     }
   }
@@ -372,7 +375,7 @@ export class NightRun {
       computedAt: Date.now(),
       actors: this.actors, results: this.results, reviewItems: this.items, log: this.log,
       deaths: this.deaths, revived: this.revived, abnormal: this.abnormal, awaitingRavenkeeper: this.awaitingRavenkeeper,
-      awaitingAlHadikhia: this.awaitingAlHadikhia,
+      awaitingAlHadikhia: this.awaitingAlHadikhia, jinxNotes: this.jinxNotes,
       notices: this.notices, after,
     };
   }

@@ -849,12 +849,12 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 
 ### 14.8 Jinxes
 
-Official jinxes between roles in this app, as data (`JINXES` in `shared/src/roles.ts`). The role list (players' Roles tab and the Admin's Reference) shows a Jinxes section listing each one whose two roles are both enabled.
+Official jinxes between roles in this app, as data (`JINXES` in `shared/src/roles.ts`). The role list (players' Roles tab and the Admin's Reference) shows a Jinxes section listing each one whose two roles are both enabled. Every Admin-facing jinx message starts "Jinx (A & B):" so it can be matched to that list; jinxes that change something during a night are also listed in a "Jinxes tonight" card at the top of Review.
 
 | Roles | Jinx | How the app applies it |
 |---|---|---|
-| Butler & Organ Grinder | "If the Organ Grinder is causing eyes closed voting, the Butler may raise their hand to vote but their vote is only counted if their master voted too." | Day panel reminder while the Organ Grinder is alive and sober and a Butler has a master. Voting is not enforced. |
-| Cannibal & Butler | "If the Cannibal gains the Butler ability, the Cannibal learns this." | The Cannibal gets "You have the Butler ability" when it is gained (execution, or the Admin picking it), and their picker is titled "Butler", not "Cannibal". |
+| Butler & Organ Grinder | "If the Organ Grinder is causing eyes closed voting, the Butler may raise their hand to vote but their vote is only counted if their master voted too." | Day panel reminder naming the Butler and their master while the Organ Grinder is alive and sober. Voting is not enforced. |
+| Cannibal & Butler | "If the Cannibal gains the Butler ability, the Cannibal learns this." | The Cannibal gets "You have the Butler ability" when it is gained (execution, or the Admin picking it), and their picker is titled "Butler", not "Cannibal". The Day panel's Cannibal card says they were told. |
 | Cannibal & Zealot | "If the Cannibal gains the Zealot ability, the Cannibal learns this." | As for the Butler, plus a Day panel reminder. |
 | Cannibal & Juggler | "If the Juggler guesses on their first day and dies by execution, tonight the living Cannibal learns how many guesses the Juggler got correct." | Falls out of the rules: the Juggler only wakes on Night 1, so a Cannibal who ate a Juggler executed on Day 1 wakes that night and learns the Day 1 count; a later execution gives nothing. |
 | Marionette & Balloonist | "If the Marionette thinks that they are the Balloonist, an Outsider might have been added during setup." | Setup warning that the Admin may add 1 Outsider. |

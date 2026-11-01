@@ -111,6 +111,8 @@ export interface Resolution {
   awaitingRavenkeeper: string[];
   /** Players chosen by the Al-Hadikhia who have not answered live or die. */
   awaitingAlHadikhia: string[];
+  /** Jinxes that changed something tonight, for the Admin (absent in older resolutions). */
+  jinxNotes?: string[];
   notices: { playerId: string; title: string; lines: string[] }[];
   /** The world after the night, committed on publish. */
   after: WorldState;
