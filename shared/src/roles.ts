@@ -93,6 +93,43 @@ export function role(id: string): RoleData {
 
 export const ROLE_TYPES: RoleType[] = ['townsfolk', 'outsider', 'minion', 'demon'];
 
+/**
+ * An official jinx between two roles in the app. `text` is the official wording; `handling` says whether the app
+ * only shows it ('reminder') or also applies it ('engine', each with a test named after jinxLabel); `source` is the
+ * page it was checked against. A change that adds a role adds its jinxes with roles already here, in the same change.
+ */
+export interface Jinx { a: string; b: string; text: string; handling: 'reminder' | 'engine'; source: string }
+
+// Checked 2026-11-01 against the Djinn page (revision 3106) and each role's own page on the official wiki.
+const DJINN = 'https://wiki.bloodontheclocktower.com/Djinn';
+
+export const JINXES: Jinx[] = [
+  { a: 'mathematician', b: 'drunk', text: 'The Mathematician learns if the Drunk’s ability yielded false info or failed to work properly.', handling: 'reminder', source: DJINN },
+  { a: 'mathematician', b: 'marionette', text: 'The Mathematician learns if the Marionette\'s ability yielded false info or failed to work properly.', handling: 'reminder', source: DJINN },
+  { a: 'marionette', b: 'balloonist', text: 'If the Marionette thinks that they are the Balloonist, an Outsider might have been added during setup.', handling: 'engine', source: DJINN },
+  { a: 'marionette', b: 'huntsman', text: 'If the Marionette thinks that they are the Huntsman, the Damsel was added during setup.', handling: 'engine', source: DJINN },
+  { a: 'marionette', b: 'lil_monsta', text: 'If there would be a Marionette in play, they enter play after the Demon & must start as their neighbor.', handling: 'reminder', source: DJINN },
+  { a: 'mastermind', b: 'vigormortis', text: 'A Mastermind that has their ability keeps it if the Vigormortis dies.', handling: 'reminder', source: DJINN },
+  { a: 'lil_monsta', b: 'psychopath', text: 'If the Psychopath is babysitting Lil\' Monsta, they die when executed.', handling: 'reminder', source: DJINN },
+  { a: 'lil_monsta', b: 'scarlet_woman', text: 'If Lil\' Monsta dies with 5 or more players alive, the Scarlet Woman babysits Lil\' Monsta for the rest of the game.', handling: 'engine', source: DJINN },
+];
+
+/** "Jinx (Marionette & Huntsman)": the label on every jinx message in the app, and the start of its tests' names. */
+export function jinxLabel(j: Jinx): string {
+  return `Jinx (${role(j.a).name} & ${role(j.b).name})`;
+}
+
+/** The jinx between two roles, in either order. */
+export function jinxBetween(x: string, y: string): Jinx | undefined {
+  return JINXES.find((j) => (j.a === x && j.b === y) || (j.a === y && j.b === x));
+}
+
+/** Jinxes whose two roles are both in `roleIds` (e.g. the script), in JINXES order. */
+export function jinxesAmong(roleIds: readonly string[]): Jinx[] {
+  return JINXES.filter((j) => roleIds.includes(j.a) && roleIds.includes(j.b));
+}
+
+
 /** Night order slots. A slot is either a role id or a pseudo-slot. Editable data (section 14.1); constraints checked in server/test/night-order.test.ts. */
 export interface NightSlot { id: string; label: string; roleId?: string; note?: string }
 

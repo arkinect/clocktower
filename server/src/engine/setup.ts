@@ -1,5 +1,5 @@
 // Section 7: type counts, suggestions and the setup checklist.
-import { ROLE_BY_ID, ROLE_TYPES, ROLES, TYPE_CHART, type GameState, type RoleType } from '@ct/shared';
+import { jinxBetween, jinxLabel, ROLE_BY_ID, ROLE_TYPES, ROLES, TYPE_CHART, type GameState, type RoleType } from '@ct/shared';
 import type { Rng } from './rng';
 import { areNeighbours, demonIds, inPlayRoleIds, roleIdOf, seated, seatedIds, typeOf } from './world';
 
@@ -121,6 +121,14 @@ export function redHerringCandidates(state: GameState): string[] {
 
 export interface CheckItem { id: string; label: string; done: boolean; blocking: boolean }
 
+const JINX_HUNTSMAN = jinxBetween('marionette', 'huntsman')!;
+const JINX_BALLOONIST = jinxBetween('marionette', 'balloonist')!;
+
+/** Whether a seated Marionette believes they are `roleId` (the setup jinxes with the Marionette). */
+function marionetteBelieves(state: GameState, roleId: string): boolean {
+  return seatedIds(state).some((id) => roleIdOf(state, id) === 'marionette' && state.assignments[id].believedRoleId === roleId);
+}
+
 export function setupChecklist(state: GameState): CheckItem[] {
   const ids = seatedIds(state);
   const inPlay = inPlayRoleIds(state);
@@ -152,6 +160,12 @@ export function setupChecklist(state: GameState): CheckItem[] {
   if (inPlay.includes('huntsman')) {
     items.push({ id: 'huntsman', label: 'Huntsman needs the Damsel in play', done: inPlay.includes('damsel'), blocking: true });
   }
+  if (marionetteBelieves(state, 'huntsman')) {
+    items.push({
+      id: 'jinx:marionette:huntsman', label: `${jinxLabel(JINX_HUNTSMAN)}: the Marionette thinks they are the Huntsman, so the Damsel must be in play`,
+      done: inPlay.includes('damsel'), blocking: true,
+    });
+  }
   const bluffs = state.setup.demonBluffs;
   const cands = bluffCandidates(state);
   items.push({ id: 'bluffs', label: 'Choose 3 Demon bluffs (good roles not in play)', done: bluffs.length === 3 && new Set(bluffs).size === 3 && bluffs.every((b) => cands.includes(b)), blocking: true });
@@ -181,6 +195,9 @@ export function setupWarnings(state: GameState): string[] {
     if (roleIdOf(state, id) === 'marionette' && demons.length && !demons.some((d) => areNeighbours(state, d, id))) {
       out.push(`The Marionette (${state.players.find((p) => p.id === id)!.name}) does not sit next to the Demon.`);
     }
+  }
+  if (marionetteBelieves(state, 'balloonist')) {
+    out.push(`${jinxLabel(JINX_BALLOONIST)}: the Marionette thinks they are the Balloonist, so an Outsider may be added.`);
   }
   const inPlayNow = inPlayRoleIds(state);
   if (inPlayNow.includes('vigormortis') && inPlayNow.includes('scarlet_woman')) {

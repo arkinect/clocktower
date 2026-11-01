@@ -365,7 +365,7 @@ Modifiers (each applied when that role is assigned; Townsfolk absorb the differe
 Required items appear as roles are assigned; **Begin Night 0** is enabled when all are done (or forced with a warning):
 1. Everyone seated; every seated player has a role (exactly one Demon is a non-blocking check).
 2. **Drunk:** choose the believed role (an enabled Townsfolk not in play and not another player's believed role).
-3. **Marionette:** choose the believed role (an enabled good role not in play). The app warns if the Marionette does not sit next to the Demon.
+3. **Marionette:** choose the believed role (an enabled good role not in play). The app warns if the Marionette does not sit next to the Demon. Jinxes (14.8): believing the Huntsman adds a required "Jinx (Marionette & Huntsman)" item, done once the Damsel is in play; believing the Balloonist adds a "Jinx (Marionette & Balloonist)" warning that an Outsider may be added.
 4. **Fortune Teller:** the red herring. "Recommend" picks a random good player who is not the Fortune Teller, Recluse or Drunk; the Admin may choose any good player.
 5. **Demon bluffs:** exactly 3 good roles not in play and not anyone's believed role ("Suggest random" prefers Townsfolk).
 6. **Mezepheles:** the secret word (random from a built-in list of over 250 simple nouns, or typed).
@@ -561,7 +561,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 
 #### Mathematician
 - Ability: "Each night, you learn how many players' abilities worked abnormally (since dawn) due to another character's ability."
-- Every night, last, no input. Counts the distinct players with an abnormal event tonight: an ability used while impaired by **another** character's effect, a protection or passive (Sailor, Tea Lady, Fool, Mayor, Goon, Grandmother link) that failed because of such impairment, or a Recluse misregistered by the Admin. Not counted: the player's own ability (e.g. a self-drunk Sailor), the Drunk or Marionette's own character, Storyteller-added poison/drunk, a declined action, a Ravenkeeper's second-round pick, and day events. The Admin can add or remove players and override the number.
+- Every night, last, no input. Counts the distinct players with an abnormal event tonight: an ability used while impaired by **another** character's effect, a protection or passive (Sailor, Tea Lady, Fool, Mayor, Goon, Grandmother link) that failed because of such impairment, or a Recluse misregistered by the Admin. Not counted: the player's own ability (e.g. a self-drunk Sailor), the Drunk or Marionette's own character, Storyteller-added poison/drunk, a declined action, a Ravenkeeper's second-round pick, and day events. The Admin can add or remove players and override the number. The official jinxes with the Drunk and the Marionette (14.8) say the Mathematician does learn of their abilities working abnormally; the count above does not apply them yet, so they are shown as reminders and the Admin adds those players by hand.
 - Impaired: a number different from the truth, from 0 to N, where N is the number of in-play players other than the Mathematician, the Drunk and the Marionette whose role has a night ability or a tracked passive (Sailor, Tea Lady, Fool, Mayor, Goon, Recluse). The Slayer and Damsel are not counted.
 
 #### Flowergirl
@@ -770,7 +770,17 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 - Setup: +1 Minion; the Admin chooses the Minion role the Lil' Monsta player becomes.
 - Night 0: the Lil' Monsta player gets the Demon's information; at publish they become the chosen Minion ("Your role is now X") and hold the token.
 - Night 1+: the token holder alone chooses a living Minion to pass the token to (self = keep) and a victim (any player). If sober: the victim is attacked, then the token moves; a new holder is told "You hold Lil' Monsta's token". Impaired: no kill, token stays.
-- If the holder dies, the Scarlet Woman check runs; if she takes over she gets the token. Otherwise the token stays with the dead holder; the Admin can move it in Grimoire → Game facts.
+- If the holder dies, the Scarlet Woman check runs; if she takes over she gets the token and keeps her role (the "Lil' Monsta & Scarlet Woman" jinx, 14.8). Otherwise the token stays with the dead holder; the Admin can move it in Grimoire → Game facts.
+
+### 14.8 Jinxes
+The official jinxes between roles in the app are the `JINXES` data in `shared/src/roles.ts`: the two roles, the official wording, how the app handles it and the page it was checked against. A change that adds a role adds its jinxes with roles already in the app, in the same change. Every message about a jinx is labelled `Jinx (A & B): …`. The role list (players' Roles tab, Storyteller reference) has a Jinxes section listing each jinx whose two roles are both on the script.
+
+`handling: 'engine'` jinxes are applied by the app, each with a test whose name starts with its label (`server/test/jinxes.test.ts` checks this):
+- **Marionette & Huntsman:** a Marionette who believes they are the Huntsman needs the Damsel in play (blocking Setup item, 7.5).
+- **Marionette & Balloonist:** a Marionette who believes they are the Balloonist gets a Setup warning that an Outsider may be added.
+- **Lil' Monsta & Scarlet Woman:** already how the Scarlet Woman check works (14.7, Lil' Monsta).
+
+The rest are `'reminder'`: shown in the role list only, applied by the Admin at the table.
 
 ---
 
@@ -865,11 +875,12 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 
 ## 18. Tests
 
-208 automated tests (`./dev.sh npm test`: 201 server, 7 client), all passing:
+218 automated tests (`./dev.sh npm test`: 209 server, 9 client), all passing:
 - **Original worked examples:** poison makes false info; sober Sailor survives, poisoned Sailor dies; Innkeeper protects but not from the Assassin; Mayor tails redirect (may land on a protected player); Clockmaker 7 seats Demon 1 Minion 5 → 3; Goon; Po none then three; starpass suggests the Scarlet Woman and the Admin picks another; Shabaloth regurgitation; Lil' Monsta flow and the Fortune Teller reading the new holder; reconnect and rebind.
 - **Per-role tests** for every role with a night effect (true, impaired, registration cases), setup blocking, role reassignment, Ravenkeeper second round, Scarlet Woman night and day.
 - **Follow-up questions:** the question's key and spec and the timer extension, "Accept all defaults" leaves a question unanswered, re-opening collecting clears answers, the Storyteller answering for a player, only the asked player answering once with a legal choice, the v6 step.
 - **Abilities:** one test per source (own role; a Drunk or Marionette has their actual role's ability but not the believed one's; a Drunk believing the Empath wakes as it without the ability; a Philosopher's ability from `fromNight`; the Lil' Monsta token from night 1).
+- **Jinxes:** every jinx names two roles in the app and no pair twice; every `engine` jinx has a test named after its label; label and lookup helpers; the Marionette & Huntsman Setup item, the Marionette & Balloonist warning, and the Scarlet Woman taking Lil' Monsta's token; the role list's Jinxes section (client).
 - **Philosopher day abilities:** a Philosopher who chose the Slayer can shoot on the very next day (and only once), not before choosing, and the real Slayer is drunk that day; choosing another ability does not make them a Slayer. The day after choosing, a Philosopher-Sailor or -Fool survives the Witch's curse, a Philosopher-Tea Lady protects a good neighbour, a Philosopher-Recluse can register as the Demon to the Slayer, and a Philosopher-Moonchild executed by day has their sobriety recorded.
 - **Role changes and hooks:** `changeRole` for every combination of its options, to no role and for a player with no assignment; the `onExecution` hook runs once per holder of the real ability (including the executee) only when an execution kills.
 - **Night order:** the constraints in 14.1 on both orders, every resolving role has a slot, every slot's role exists once.
