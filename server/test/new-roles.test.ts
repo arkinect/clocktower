@@ -1,6 +1,6 @@
 // Worked examples for the nine roles added in schema v2 (design.md section 18).
 import { describe, expect, it } from 'vitest';
-import type { GameState } from '@ct/shared';
+import { SCHEMA_VERSION, type GameState } from '@ct/shared';
 import { act, alive, build, nextNight, publishAndDay, resolve, resultFor, runNight, submit, tryAct } from './helpers';
 import { playerView } from '../src/engine/views';
 import { actionSpecs } from '../src/engine/actions';
@@ -218,7 +218,7 @@ describe('new roles', () => {
     v1.players.push({ id: 'p9', name: 'X', rolePreference: 'none', isAdmin: false, seat: 0, tokens: [], alive: false, deadAt: 'night 2' as never, ghostVoteUsed: false, lastSeenAt: 0, hasSeenRole: true, joinedAt: 0 } as never);
     v1.days[1] = { dayNumber: 1, executedPlayerId: null, demonVoted: null, jugglerCorrect: null, moonchildTargetId: null, mezephelesSayer: null, notes: '' } as never;
     const s = migrate(JSON.parse(JSON.stringify(v1)));
-    expect(s.schemaVersion).toBe(4);
+    expect(s.schemaVersion).toBe(SCHEMA_VERSION);
     expect(s.story).toEqual([]);
     expect(s.enabledRoles.oracle && s.enabledRoles.witch && s.enabledRoles.damsel).toBe(true);
     expect(s.players[0].deadAt).toBeNull();

@@ -4,7 +4,7 @@ import { send } from '../api';
 import { ImpairmentTags, TimedButton } from '../common';
 import { InactiveNote, Who, type AdminCtx } from './AdminApp';
 
-export const TRACKED: Record<string, string> = { virgin: 'virgin_used', golem: 'golem_used', artist: 'artist_used', fool: 'fool_used', slayer: 'slayer_used' };
+export const TRACKED: Record<string, string> = { virgin: 'virgin_used', golem: 'golem_used', artist: 'artist_used', fool: 'fool_used', slayer: 'slayer_used', fisherman: 'fisherman_used' };
 export const AUTO_TRACKED: Record<string, string> = { assassin: 'assassin_used', seamstress: 'seamstress_used', philosopher: 'philosopher_used', huntsman: 'huntsman_used', professor: 'professor_used' };
 
 export function DayPanel({ ctx }: { ctx: AdminCtx }) {
@@ -278,7 +278,18 @@ function Reminders({ ctx }: { ctx: AdminCtx }) {
   for (const id of ctx.seated) {
     const r = ctx.roleOf(id);
     if (r === 'fool' && !s.flags[id]?.fool_used) out.push(`${label(id)}: the first time they die (including execution), they don't.`);
-    if (r && ROLE_BY_ID[r].reminder && ['virgin', 'golem', 'mastermind', 'psychopath', 'mayor', 'tea_lady'].includes(r)) out.push(`${label(id)}: ${ROLE_BY_ID[r].reminder}`);
+    if (r && ROLE_BY_ID[r].reminder && ['virgin', 'golem', 'mastermind', 'psychopath', 'mayor', 'tea_lady', 'zealot'].includes(r)) out.push(`${label(id)}: ${ROLE_BY_ID[r].reminder}`);
+    if (r === 'organ_grinder') {
+      const working = !!s.players.find((p) => p.id === id)?.alive && !ctx.view.impairment[id]?.impaired;
+      out.push(working
+        ? `${label(id)}: everyone votes with eyes closed and the tally is secret.`
+        : `${label(id)} is drunk, poisoned or dead: vote normally.`);
+      if (working) {
+        for (const e of s.effects.filter((x) => x.type === 'butler_master')) {
+          out.push(`Jinx (Butler & Organ Grinder): ${label(e.sourcePlayerId)} may raise their hand during eyes-closed votes, but it only counts if ${label(e.targetPlayerId)} voted too.`);
+        }
+      }
+    }
   }
   if (!out.length) return null;
   return <ul className="reminders">{out.map((x, i) => <li key={i}>{x}</li>)}</ul>;
