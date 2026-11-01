@@ -4,6 +4,7 @@
 import { ROLE_BY_ID, type ActionSpec, type GameState, type WorldState } from '@ct/shared';
 import type { Actor, NightRun } from '../night';
 import { becomeDemon, demonInfoLines } from '../demon';
+import { enabledRoles } from '../setup';
 import {
   aliveIds, aliveNeighbours, alignmentOf, findPlayer, flag, isAlive, isDemon, nameOf, nearestAliveMatching, roleIdOf,
   roleName, rs, seatDistance, seatedIds, typeOf,
@@ -20,7 +21,7 @@ export interface RoleBehaviour {
   actsWhileDead?: boolean;
 }
 
-const enabled = (s: GameState) => Object.keys(s.enabledRoles).filter((r) => s.enabledRoles[r] && ROLE_BY_ID[r]);
+const enabled = enabledRoles;
 
 function players(key: string, title: string, prompt: string, count: number, options: string[], distinct = true, decline?: string): ActionSpec {
   return {

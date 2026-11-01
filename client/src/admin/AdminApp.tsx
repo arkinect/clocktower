@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
-import { ROLE_BY_ID, type AdminView, type GameState } from '@ct/shared';
+import { ROLES, ROLE_BY_ID, type AdminView, type GameState } from '@ct/shared';
 import { send } from '../api';
 import { NightOrder, RoleList, TimedButton } from '../common';
 import { SetupPanel } from './Setup';
@@ -71,6 +71,11 @@ export function phaseName(s: GameState): string {
 /** What the Night, Review and Day tabs show when their phase isn't active. */
 export function InactiveNote({ s, what }: { s: GameState; what: string }) {
   return <div className="card"><p>{what} Current phase: {phaseName(s)}.</p></div>;
+}
+
+/** Ids of the roles on the script, in ROLES order (an id this build doesn't know is left out). */
+function scriptRoles(s: GameState): string[] {
+  return ROLES.filter((r) => s.script.includes(r.id)).map((r) => r.id);
 }
 
 function defaultTab(phase: GameState['phase']): Tab {
@@ -149,8 +154,8 @@ export function AdminApp({ view, code }: { view: AdminView; code: string }) {
         {tab === 'log' && <LogPanel ctx={ctx} code={code} />}
         {tab === 'ref' && (
           <div className="cols">
-            <div><h2>Enabled roles</h2><RoleList enabled={Object.keys(s.enabledRoles).filter((r) => s.enabledRoles[r])} /></div>
-            <div><h2>Night order</h2><NightOrder enabled={Object.keys(s.enabledRoles).filter((r) => s.enabledRoles[r])} /></div>
+            <div><h2>Enabled roles</h2><RoleList enabled={scriptRoles(s)} /></div>
+            <div><h2>Night order</h2><NightOrder enabled={scriptRoles(s)} /></div>
           </div>
         )}
       </main>

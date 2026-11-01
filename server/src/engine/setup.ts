@@ -1,12 +1,18 @@
 // Section 7: type counts, suggestions and the setup checklist.
-import { ROLE_BY_ID, ROLE_TYPES, TYPE_CHART, type GameState, type RoleType } from '@ct/shared';
+import { ROLE_BY_ID, ROLE_TYPES, ROLES, TYPE_CHART, type GameState, type RoleType } from '@ct/shared';
 import type { Rng } from './rng';
 import { areNeighbours, demonIds, inPlayRoleIds, roleIdOf, seated, seatedIds, typeOf } from './world';
 
 export type Counts = [number, number, number, number];
 
+/** Whether a role is on the game's script. An id this release doesn't know (e.g. after a rollback) is never on it. */
+export function onScript(state: GameState, roleId: string): boolean {
+  return !!ROLE_BY_ID[roleId] && state.script.includes(roleId);
+}
+
+/** The roles on the game's script, in ROLES order, ignoring unknown ids: the single way to read the script. */
 export function enabledRoles(state: GameState): string[] {
-  return Object.keys(state.enabledRoles).filter((r) => state.enabledRoles[r] && ROLE_BY_ID[r]);
+  return ROLES.filter((r) => state.script.includes(r.id)).map((r) => r.id);
 }
 
 export function enabledOfType(state: GameState, t: RoleType): string[] {
@@ -72,7 +78,7 @@ export function suggestDistribution(state: GameState, rng: Rng): Record<string, 
     const outsiders = rng.shuffle(enabledOfType(state, 'outsider')).slice(0, counts[1]);
     // The Huntsman needs the Damsel in play.
     if (towns.includes('huntsman') && !outsiders.includes('damsel')) {
-      if (outsiders.length && state.enabledRoles.damsel) outsiders[0] = 'damsel';
+      if (outsiders.length && onScript(state, 'damsel')) outsiders[0] = 'damsel';
       else {
         const spare = townPool.find((r) => !towns.includes(r));
         if (!spare) continue;

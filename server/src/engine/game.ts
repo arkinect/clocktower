@@ -11,7 +11,7 @@ import { previewDayKill, revivePlayer } from './lifecycle';
 import { resolveNight } from './night';
 import { makeRng, randomSeed } from './rng';
 import {
-  bluffCandidates, enabledRoles, redHerringCandidates, setupChecklist, suggestBluffs, suggestDistribution,
+  bluffCandidates, enabledRoles, onScript, redHerringCandidates, setupChecklist, suggestBluffs, suggestDistribution,
 } from './setup';
 import {
   aliveIds, canAct, findPlayer, flag, hasAbility, inPlayRoleIds, isDemon, playersWithAbility, roleIdOf, roleName, seatedIds,
@@ -32,7 +32,7 @@ export function createGame(code: string, now: number): GameState {
   return {
     schemaVersion: SCHEMA_VERSION, id: `game-${code}`, code, phase: 'LOBBY', nightNumber: -1, dayNumber: 0, scriptId: 'all-39',
     settings: { ...DEFAULT_SETTINGS }, nightEndsAt: null, createdAt: now,
-    enabledRoles: Object.fromEntries(ROLES.map((r) => [r.id, true])),
+    script: ROLES.map((r) => r.id),
     adminId: null, seatingPublished: false, publishedSeating: [], days: {}, night: null,
     messages: {}, pendingNotices: {}, dayPrompts: [], story: [], publicDead: [], idSeq: 1,
     players: [], assignments: {}, flags: {}, effects: [], roleState: {},
@@ -310,11 +310,12 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
     // ---------- setup ----------
     case 'set_role_enabled': {
       if (!ROLE_BY_ID[i.roleId]) return err('Unknown role.');
-      s.enabledRoles[i.roleId] = !!i.enabled;
+      s.script = s.script.filter((r) => r !== i.roleId);
+      if (i.enabled) s.script.push(i.roleId);
       return ok(s);
     }
     case 'set_all_roles_enabled': {
-      for (const r of ROLES) s.enabledRoles[r.id] = !!i.enabled;
+      s.script = i.enabled ? ROLES.map((r) => r.id) : [];
       return ok(s);
     }
     case 'set_seating': {
@@ -337,7 +338,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       if (!seatedPlayer(i.playerId)) return err('Seat the player first.');
       if (i.roleId !== null) {
         if (!ROLE_BY_ID[i.roleId]) return err('Unknown role.');
-        if (!s.enabledRoles[i.roleId]) return err('That role is disabled.');
+        if (!onScript(s, i.roleId)) return err('That role is disabled.');
         if (seatedIds(s).some((id) => id !== i.playerId && roleIdOf(s, id) === i.roleId)) return err('That role is already assigned.');
       }
       const old = roleIdOf(s, i.playerId);
@@ -356,7 +357,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       const roles = entries.map(([, r]) => r);
       if (new Set(roles).size !== roles.length) return err('Duplicate roles.');
       for (const [pid, r] of entries) {
-        if (!seatedPlayer(pid) || !ROLE_BY_ID[r] || !s.enabledRoles[r]) return err('Invalid assignment.');
+        if (!seatedPlayer(pid) || !ROLE_BY_ID[r] || !onScript(s, r)) return err('Invalid assignment.');
       }
       const touched = new Set(entries.map(([pid]) => pid));
       for (const id of seatedIds(s)) if (!touched.has(id) && roles.includes(roleIdOf(s, id) ?? '')) setRole(s, id, null, 'setup', now);
@@ -378,7 +379,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       if (!a || (a.roleId !== 'drunk' && a.roleId !== 'marionette')) return err('Only the Drunk or Marionette has a believed role.');
       if (i.roleId !== null) {
         const r = ROLE_BY_ID[i.roleId];
-        if (!r || !s.enabledRoles[i.roleId]) return err('Unknown or disabled role.');
+        if (!r || !onScript(s, i.roleId)) return err('Unknown or disabled role.');
         if (inPlayRoleIds(s).includes(i.roleId)) return err('That role is in play.');
         if (a.roleId === 'drunk' && r.type !== 'townsfolk') return err('The Drunk must believe a Townsfolk.');
         if (a.roleId === 'marionette' && r.alignment !== 'good') return err('The Marionette must believe a good role.');
@@ -434,7 +435,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
     case 'set_lil_monsta_minion': {
       if (i.roleId !== null) {
         const r = ROLE_BY_ID[i.roleId];
-        if (!r || r.type !== 'minion' || !s.enabledRoles[i.roleId] || inPlayRoleIds(s).includes(i.roleId)) return err('Choose an enabled Minion that is not in play.');
+        if (!r || r.type !== 'minion' || !onScript(s, i.roleId) || inPlayRoleIds(s).includes(i.roleId)) return err('Choose an enabled Minion that is not in play.');
       }
       s.setup.lilMonstaMinionRole = i.roleId;
       return ok(s);
@@ -797,7 +798,7 @@ function recordDayStory(s: GameState) {
 function playAgain(s: GameState, now: number): GameState {
   const next = createGame(s.code, now);
   next.adminId = s.adminId;
-  next.enabledRoles = s.enabledRoles;
+  next.script = s.script.slice();
   next.settings = s.settings;
   next.seatingPublished = s.seatingPublished;
   next.publishedSeating = s.publishedSeating;

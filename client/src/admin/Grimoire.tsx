@@ -116,7 +116,7 @@ function Reassign({ ctx, pid, onClose }: { ctx: AdminCtx; pid: string; onClose: 
         <select value={roleId} onChange={(e) => setRoleId(e.target.value)}>
           {TYPE_ORDER.map((t) => (
             <optgroup key={t} label={TYPE_LABEL[t]}>
-              {ROLES.filter((r) => r.type === t && s.enabledRoles[r.id]).map((r) => <option key={r.id} value={r.id} disabled={taken.has(r.id)}>{r.name}</option>)}
+              {ROLES.filter((r) => r.type === t && s.script.includes(r.id)).map((r) => <option key={r.id} value={r.id} disabled={taken.has(r.id)}>{r.name}</option>)}
             </optgroup>
           ))}
         </select>

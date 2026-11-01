@@ -136,7 +136,7 @@ export interface WorldState {
   setup: SetupState;
 }
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /** Admin-only story log (owner request): one entry per night and per day. */
 export interface StoryPlayer {
@@ -171,7 +171,9 @@ export interface GameState extends WorldState {
   /** Why an app update ended this game (the Storyteller's End game leaves it unset). */
   endedReason?: 'abandoned' | 'update' | null;
   createdAt: number;
-  enabledRoles: Record<string, boolean>;
+  /** The roles on this game's script (enabled by the Storyteller): ids, no duplicates, order not significant.
+   *  Read it through onScript / enabledRoles (server/src/engine/setup.ts), which ignore unknown ids. */
+  script: string[];
   adminId: string | null;
   seatingPublished: boolean;
   publishedSeating: string[];

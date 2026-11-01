@@ -87,7 +87,7 @@ function SeatingEditor({ ctx }: { ctx: AdminCtx }) {
 function Assignment({ ctx }: { ctx: AdminCtx }) {
   const { s, names, seated, roleOf } = ctx;
   const [proposal, setProposal] = useState<Record<string, string> | null>(null);
-  const enabled = ROLES.filter((r) => s.enabledRoles[r.id]);
+  const enabled = ROLES.filter((r) => s.script.includes(r.id));
   const taken = new Set(seated.map(roleOf).filter(Boolean));
   const pref = (pid: string) => {
     const p = s.players.find((x) => x.id === pid)?.rolePreference;
@@ -173,11 +173,11 @@ function TypeCounts({ ctx }: { ctx: AdminCtx }) {
 function SetupItems({ ctx }: { ctx: AdminCtx }) {
   const { s, names, seated, roleOf, view } = ctx;
   const inPlay = new Set(seated.map(roleOf).filter(Boolean) as string[]);
-  const enabledOf = (pred: (t: RoleType, align: string) => boolean) => ROLES.filter((r) => s.enabledRoles[r.id] && pred(r.type, r.alignment) && !inPlay.has(r.id));
+  const enabledOf = (pred: (t: RoleType, align: string) => boolean) => ROLES.filter((r) => s.script.includes(r.id) && pred(r.type, r.alignment) && !inPlay.has(r.id));
   const believedTaken = new Set(seated.map((id) => s.assignments[id]?.believedRoleId).filter(Boolean) as string[]);
   const drunks = seated.filter((id) => roleOf(id) === 'drunk');
   const marionettes = seated.filter((id) => roleOf(id) === 'marionette');
-  const bluffCands = ROLES.filter((r) => s.enabledRoles[r.id] && r.alignment === 'good' && !inPlay.has(r.id) && (!believedTaken.has(r.id) || s.setup.demonBluffs.includes(r.id)));
+  const bluffCands = ROLES.filter((r) => s.script.includes(r.id) && r.alignment === 'good' && !inPlay.has(r.id) && (!believedTaken.has(r.id) || s.setup.demonBluffs.includes(r.id)));
   const goodPlayers = seated.filter((id) => s.assignments[id]?.alignment === 'good');
   const bluffs = [0, 1, 2].map((i) => s.setup.demonBluffs[i] ?? '');
   const setBluff = (i: number, v: string) => { const b = bluffs.slice(); b[i] = v; send({ type: 'set_bluffs', roleIds: b.filter(Boolean) }); };
@@ -274,7 +274,7 @@ function RoleChecklist({ ctx }: { ctx: AdminCtx }) {
           <div className="checkgrid">
             {ROLES.filter((r) => r.type === t).map((r) => (
               <label key={r.id} className="check" title={r.abilityText}>
-                <input type="checkbox" checked={!!s.enabledRoles[r.id]} onChange={(e) => toggle(r.id, e.target.checked)} /> {r.name}
+                <input type="checkbox" checked={s.script.includes(r.id)} onChange={(e) => toggle(r.id, e.target.checked)} /> {r.name}
               </label>
             ))}
           </div>

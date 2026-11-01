@@ -4,7 +4,7 @@ import { actionSpecs, ravenkeeperSpec, wakingRoles } from './actions';
 import { godfatherTriggered } from './roles';
 import { computeImpairment } from './impairment';
 import { expectedActors } from './game';
-import { actualCounts, setupChecklist, setupWarnings, targetCounts } from './setup';
+import { actualCounts, enabledRoles, setupChecklist, setupWarnings, targetCounts } from './setup';
 import { findPlayer, inPlayRoleIds, roleIdOf, seated, seatedIds } from './world';
 
 function card(roleId: string): RoleCard {
@@ -55,7 +55,7 @@ export function playerView(s: GameState, pid: string, now: number): PlayerView {
     seating: s.seatingPublished ? s.publishedSeating.filter((id) => findPlayer(s, id)) : [],
     deaths: s.settings.announceDeaths && revealed ? (s.publicDead ?? []).slice() : null,
     deadAtDawn: revealed ? (s.publicDead ?? []).slice() : [],
-    enabledRoles: Object.keys(s.enabledRoles).filter((r) => s.enabledRoles[r]),
+    enabledRoles: enabledRoles(s),
     hasAdmin: !!s.adminId,
   };
 }

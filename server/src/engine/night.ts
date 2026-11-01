@@ -15,6 +15,7 @@ import {
 import { BEHAVIOURS, godfatherTriggered } from './roles';
 import { becomeDemon } from './demon';
 import { revivePlayer } from './lifecycle';
+import { enabledRoles } from './setup';
 export { becomeDemon, demonInfoLines } from './demon';
 
 export function nightOrder(night: number) {
@@ -56,7 +57,7 @@ export class NightRun {
   }
 
   get night() { return this.state.night!; }
-  get enabledRoleIds(): string[] { return Object.keys(this.state.enabledRoles).filter((r) => this.state.enabledRoles[r]); }
+  get enabledRoleIds(): string[] { return enabledRoles(this.state); }
 
   rng(key: string): Rng { return subRng(this.night.seed, key); }
 
