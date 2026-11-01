@@ -2,7 +2,7 @@
 // walks the night order and returns a Resolution (results, review items, the world after the night).
 // Admin review choices are inputs (night.reviewChoices), so changing one simply re-runs resolution.
 import {
-  FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID,
+  CANNIBAL_LEARNS, FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID,
   type ActionChoice, type Alignment, type Cause, type Effect, type EffectExpiry, type EffectType, type GameState,
   type ReviewItem, type ReviewOption, type Resolution, type ResultRow, type ActorRow, type AbnormalEvent, type WorldState,
 } from '@ct/shared';
@@ -125,7 +125,7 @@ export class NightRun {
     const key = `${actor.pid}:${actor.roleId}`;
     const override = this.night.overrides[key];
     // A Cannibal is not told which ability they ate.
-    if (isEatenAbility(this.w, actor.pid, actor.roleId, this.n)) title = 'Cannibal';
+    if (hidesEatenAbility(this.w, actor.pid, actor.roleId, this.n)) title = 'Cannibal';
     this.results.push({
       key, playerId: actor.pid, roleId: actor.roleId, title, trueLines, suggestedLines: suggested,
       finalLines: override ?? suggested, impaired: imp.impaired, causes: imp.causes, overridden: !!override,
@@ -274,13 +274,33 @@ export class NightRun {
     if (isDemon(this.w, target) && !opts.noScarlet) this.scarletCheck(target, aliveBefore);
   }
 
-  /** Shared revive (Professor, Shabaloth). */
+  /** Shared revive (Professor, Shabaloth, Al-Hadikhia). */
   revive(pid: string, reason: string): boolean {
     if (!revivePlayer(this.w, pid)) return false;
     this.revived.push(pid);
     this.noActTonight.add(pid);
     this.outcome(`${this.name(pid)} is alive again (${reason})`);
+    this.twoDemonCheck();
     return true;
+  }
+
+  /**
+   * Jinx (Scarlet Woman + Al-Hadikhia): if there would be two Demons, one of which was the Scarlet Woman,
+   * the Scarlet Woman becomes the Scarlet Woman again. Happens when a dead Al-Hadikhia chooses to live.
+   */
+  twoDemonCheck() {
+    const demons = aliveIds(this.w).filter((id) => typeOf(this.w, id) === 'demon');
+    if (demons.length < 2 || !demons.some((id) => roleIdOf(this.w, id) === 'al_hadikhia')) return;
+    for (const id of demons) {
+      const a = this.w.assignments[id];
+      const last = a.history[a.history.length - 1];
+      if (last?.from !== 'scarlet_woman' || last.reason !== 'became the Demon') continue;
+      a.history.push({ at: Date.now(), from: a.roleId, to: 'scarlet_woman', reason: 'two Demons: the Scarlet Woman again' });
+      a.roleId = 'scarlet_woman';
+      this.notice(id, 'You are the Scarlet Woman again', [ROLE_BY_ID.scarlet_woman.abilityText]);
+      this.outcome(`two Demons: ${this.name(id)} becomes the Scarlet Woman again`);
+      return;
+    }
   }
 
   scarletCheck(demonId: string, aliveBefore: number) {
@@ -374,10 +394,13 @@ export class NightRun {
   }
 }
 
-/** Whether `roleId` reaches this player only through a Cannibal's eaten ability. */
-export function isEatenAbility(w: WorldState, pid: string, roleId: string, night: number): boolean {
+/**
+ * Whether `roleId` reaches this player only through a Cannibal's eaten ability that the Cannibal is not told about
+ * (jinxes: a Cannibal learns when they gain the Butler or Zealot ability).
+ */
+export function hidesEatenAbility(w: WorldState, pid: string, roleId: string, night: number): boolean {
   const a = w.assignments[pid];
-  if (!a || a.roleId === roleId || a.believedRoleId === roleId) return false;
+  if (!a || a.roleId === roleId || a.believedRoleId === roleId || CANNIBAL_LEARNS.includes(roleId)) return false;
   if (a.grantedAbility?.roleId === roleId && a.grantedAbility.fromNight <= night) return false;
   return eatenRole(w, pid, night) === roleId;
 }

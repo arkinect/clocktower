@@ -96,6 +96,21 @@ export function role(id: string): RoleData {
 
 export const ROLE_TYPES: RoleType[] = ['townsfolk', 'outsider', 'minion', 'demon'];
 
+/** Official jinxes between roles in this app (design.md section 14.8). Shown in the role list when both are enabled. */
+export interface Jinx { a: string; b: string; text: string }
+export const JINXES: Jinx[] = [
+  { a: 'butler', b: 'organ_grinder', text: 'If the Organ Grinder is causing eyes closed voting, the Butler may raise their hand to vote but their vote is only counted if their master voted too.' },
+  { a: 'cannibal', b: 'butler', text: 'If the Cannibal gains the Butler ability, the Cannibal learns this.' },
+  { a: 'cannibal', b: 'juggler', text: 'If the Juggler guesses on their first day and dies by execution, tonight the living Cannibal learns how many guesses the Juggler got correct.' },
+  { a: 'cannibal', b: 'zealot', text: 'If the Cannibal gains the Zealot ability, the Cannibal learns this.' },
+  { a: 'marionette', b: 'balloonist', text: 'If the Marionette thinks that they are the Balloonist, an Outsider might have been added during setup.' },
+  { a: 'marionette', b: 'huntsman', text: 'If the Marionette thinks that they are the Huntsman, the Damsel was added during setup.' },
+  { a: 'scarlet_woman', b: 'al_hadikhia', text: 'If there would be two Demons, one of which was the Scarlet Woman, the Scarlet Woman becomes the Scarlet Woman again.' },
+];
+
+/** Cannibal abilities the Cannibal is told about when gained (jinxes); other eaten abilities stay hidden. */
+export const CANNIBAL_LEARNS: string[] = ['butler', 'zealot'];
+
 /** Night order slots. A slot is either a role id or a pseudo-slot. Editable data (section 14.1, 14.2). */
 export interface NightSlot { id: string; label: string; roleId?: string; note?: string }
 

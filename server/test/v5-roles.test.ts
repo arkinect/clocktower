@@ -1,11 +1,11 @@
 // Worked examples for the seven roles added in schema v5 (design.md section 18).
 import { describe, expect, it } from 'vitest';
-import type { GameState } from '@ct/shared';
+import { JINXES, ROLE_BY_ID, type GameState } from '@ct/shared';
 import { act, build, nextNight, publishAndDay, resolve, resultFor, runNight, submit, tryAct } from './helpers';
 import { playerView } from '../src/engine/views';
 import { actionSpecs } from '../src/engine/actions';
 import { computeImpairment } from '../src/engine/impairment';
-import { targetCounts } from '../src/engine/setup';
+import { setupChecklist, setupWarnings, targetCounts } from '../src/engine/setup';
 import { migrate } from '../src/engine/migrate';
 import { createGame } from '../src/engine/game';
 
@@ -168,5 +168,71 @@ describe('v5 roles', () => {
     expect(m.enabledRoles.al_hadikhia).toBe(true);
     expect(m.enabledRoles.baron).toBe(true);
     expect(m.night!.alHadikhiaChoices).toEqual({});
+  });
+});
+
+describe('jinxes', () => {
+  it('every jinx names two roles the app has', () => {
+    for (const j of JINXES) expect(!!ROLE_BY_ID[j.a] && !!ROLE_BY_ID[j.b]).toBe(true);
+  });
+
+  it('Scarlet Woman + Al-Hadikhia: a revived Al-Hadikhia turns the new Demon back into the Scarlet Woman', () => {
+    const g = build(['al_hadikhia', 'scarlet_woman', 'empath', 'clockmaker', 'butler', 'virgin', 'oracle']);
+    runNight(g, {});
+    act(g, { type: 'record_execution', playerId: g.p.al_hadikhia, died: true });
+    act(g, { type: 'resolve_day_prompt', id: g.s.dayPrompts[0].id, accept: true });
+    expect(g.s.assignments[g.p.scarlet_woman].roleId).toBe('al_hadikhia');
+    nextNight(g);
+    submit(g, { [g.p.scarlet_woman]: { al_hadikhia: [g.p.al_hadikhia, g.p.empath, g.p.clockmaker] } });
+    const res = resolve(g, { [`alhadikhia:${g.p.al_hadikhia}`]: 'live', [`alhadikhia:${g.p.empath}`]: 'die', [`alhadikhia:${g.p.clockmaker}`]: 'live' });
+    expect(res.revived).toEqual([g.p.al_hadikhia]);
+    expect(res.after.assignments[g.p.scarlet_woman].roleId).toBe('scarlet_woman');
+    expect(res.after.assignments[g.p.al_hadikhia].roleId).toBe('al_hadikhia');
+    expect(res.notices.some((n) => n.playerId === g.p.scarlet_woman && n.title === 'You are the Scarlet Woman again')).toBe(true);
+    expect(res.deaths).toEqual([g.p.empath]);
+  });
+
+  it('Cannibal + Butler: the Cannibal is told, and the Butler picker is not hidden', () => {
+    const g = build(['cannibal', 'imp', 'empath', 'clockmaker', 'butler', 'virgin', 'poisoner']);
+    runNight(g, {});
+    act(g, { type: 'record_execution', playerId: g.p.butler, died: true });
+    expect(playerView(g.s, g.p.cannibal, 0).me.messages.some((m) => m.title === 'You have the Butler ability')).toBe(true);
+    nextNight(g);
+    expect(actionSpecs(g.s, g.p.cannibal).find((s) => s.key === 'butler')!.title).toBe('Butler');
+  });
+
+  it('Cannibal + Zealot: the Cannibal is told', () => {
+    const g = build(['cannibal', 'imp', 'empath', 'clockmaker', 'zealot', 'virgin', 'poisoner']);
+    runNight(g, {});
+    act(g, { type: 'record_execution', playerId: g.p.zealot, died: true });
+    expect(playerView(g.s, g.p.cannibal, 0).me.messages.some((m) => m.title === 'You have the Zealot ability')).toBe(true);
+  });
+
+  it('Cannibal + Juggler: a Juggler executed on Day 1 tells the Cannibal the count that night; later, nothing', () => {
+    const g = build(['cannibal', 'imp', 'juggler', 'clockmaker', 'butler', 'virgin', 'poisoner']);
+    runNight(g, {});
+    act(g, { type: 'set_day_fact', key: 'jugglerCorrect', value: 3 });
+    act(g, { type: 'record_execution', playerId: g.p.juggler, died: true });
+    nextNight(g);
+    const r = resultFor(resolve(g), g.p.cannibal, 'juggler')!;
+    expect(r.title).toBe('Cannibal');
+    expect(r.trueLines).toEqual(['You guessed 3 correctly.']);
+
+    const h = build(['cannibal', 'imp', 'juggler', 'clockmaker', 'butler', 'virgin', 'poisoner']);
+    runNight(h, {});
+    nextNight(h);
+    runNight(h, {});
+    act(h, { type: 'record_execution', playerId: h.p.juggler, died: true });
+    nextNight(h);
+    expect(resultFor(resolve(h), h.p.cannibal, 'juggler')).toBeUndefined();
+  });
+
+  it('Marionette + Huntsman needs the Damsel; Marionette + Balloonist warns about an extra Outsider', () => {
+    build(['marionette', 'imp', 'empath', 'clockmaker', 'butler', 'virgin', 'oracle'], (g) => {
+      act(g, { type: 'set_believed_role', playerId: g.p.marionette, roleId: 'huntsman' });
+      expect(setupChecklist(g.s).find((c) => c.id === 'huntsman')).toMatchObject({ done: false, blocking: true });
+      act(g, { type: 'set_believed_role', playerId: g.p.marionette, roleId: 'balloonist' });
+      expect(setupWarnings(g.s).some((w) => w.startsWith('Jinx: the Marionette thinks they are the Balloonist'))).toBe(true);
+    });
   });
 });

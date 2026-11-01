@@ -313,7 +313,10 @@ function Reminders({ ctx }: { ctx: AdminCtx }) {
       out.push(working
         ? `${label(id)}: everyone votes with eyes closed and the tally is secret.`
         : `${label(id)} is drunk, poisoned or dead: vote normally.`);
+      // Jinx (Butler + Organ Grinder).
+      if (working && s.effects.some((e) => e.type === 'butler_master')) out.push('Jinx: during eyes-closed voting a Butler may raise their hand, but their vote only counts if their master voted too.');
     }
+    if (s.assignments[id]?.eatenAbility?.roleId === 'zealot' && r === 'cannibal') out.push(`${label(id)} has the Zealot ability: ${ROLE_BY_ID.zealot.reminder}`);
   }
   if (!out.length) return null;
   return <ul className="reminders">{out.map((x, i) => <li key={i}>{x}</li>)}</ul>;

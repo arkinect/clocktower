@@ -847,6 +847,20 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 - Night 1+: the token holder alone chooses a living Minion to pass the token to (self = keep) and a victim (any player). If sober: the victim is attacked, then the token moves; a new holder is told "You hold Lil' Monsta's token". Impaired: no kill, token stays.
 - If the holder dies, the Scarlet Woman check runs; if she takes over she gets the token. Otherwise the token stays with the dead holder; the Admin can move it in Grimoire → Game facts.
 
+### 14.8 Jinxes
+
+Official jinxes between roles in this app, as data (`JINXES` in `shared/src/roles.ts`). The role list (players' Roles tab and the Admin's Reference) shows a Jinxes section listing each one whose two roles are both enabled.
+
+| Roles | Jinx | How the app applies it |
+|---|---|---|
+| Butler & Organ Grinder | "If the Organ Grinder is causing eyes closed voting, the Butler may raise their hand to vote but their vote is only counted if their master voted too." | Day panel reminder while the Organ Grinder is alive and sober and a Butler has a master. Voting is not enforced. |
+| Cannibal & Butler | "If the Cannibal gains the Butler ability, the Cannibal learns this." | The Cannibal gets "You have the Butler ability" when it is gained (execution, or the Admin picking it), and their picker is titled "Butler", not "Cannibal". |
+| Cannibal & Zealot | "If the Cannibal gains the Zealot ability, the Cannibal learns this." | As for the Butler, plus a Day panel reminder. |
+| Cannibal & Juggler | "If the Juggler guesses on their first day and dies by execution, tonight the living Cannibal learns how many guesses the Juggler got correct." | Falls out of the rules: the Juggler only wakes on Night 1, so a Cannibal who ate a Juggler executed on Day 1 wakes that night and learns the Day 1 count; a later execution gives nothing. |
+| Marionette & Balloonist | "If the Marionette thinks that they are the Balloonist, an Outsider might have been added during setup." | Setup warning that the Admin may add 1 Outsider. |
+| Marionette & Huntsman | "If the Marionette thinks that they are the Huntsman, the Damsel was added during setup." | Blocking setup checklist item: the Damsel must be in play. |
+| Scarlet Woman & Al-Hadikhia | "If there would be two Demons, one of which was the Scarlet Woman, the Scarlet Woman becomes the Scarlet Woman again." | After any night revive, if two living Demons include an Al-Hadikhia and one of them became the Demon as the Scarlet Woman, she becomes the Scarlet Woman again and is told so. |
+
 ---
 
 ## 15. Screens summary
@@ -940,11 +954,12 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 
 ## 18. Tests
 
-136 automated tests (`./dev.sh npm test`), all passing:
+142 automated tests (`./dev.sh npm test`), all passing:
 - **Original worked examples:** poison makes false info; sober Sailor survives, poisoned Sailor dies; Innkeeper protects but not from the Assassin; Mayor tails redirect (may land on a protected player); Clockmaker 7 seats Demon 1 Minion 5 → 3; Goon; Po none then three; starpass suggests the Scarlet Woman and the Admin picks another; Shabaloth regurgitation; Lil' Monsta flow and the Fortune Teller reading the new holder; reconnect and rebind.
 - **Per-role tests** for every role with a night effect (true, impaired, registration cases), setup blocking, role reassignment, Ravenkeeper second round, Scarlet Woman night and day.
 - **New-role worked examples:** Oracle (and after a Professor revive), Gossip (True/False/poisoned/killed earlier), Huntsman, Professor (Townsfolk only, not tonight's victims, Shabaloth list cleared), Slayer (kill, poisoned, red herring), Damsel (notices, banner, single guess), Godfather (info, trigger, counts ±1), Witch (curse, 3 alive, poisoned), Huntsman setup guard, Mathematician cap, Grandmother (link, Assassin no link, poisoned no grandchild), identical revives, migration of an old save.
 - **v5 roles:** Baron counts, Organ Grinder (self-drunk, not abnormal, cleared at dusk), Farmer (night death converts, day or impaired death does not), Al-Hadikhia (phone answers, all-live kills all, one dies, dead player revived, impaired, publish guard), Cannibal (good executee ability titled "Cannibal", evil executee poison and fake ability, poison ended by a good execution, no gain from a survived execution or a dead Cannibal), migration of a v4 save.
+- **Jinxes:** every jinx names known roles; Scarlet Woman + Al-Hadikhia revert; Cannibal told of the Butler (picker not hidden) and the Zealot; Cannibal + Juggler on Day 1 and later; Marionette + Huntsman checklist and Marionette + Balloonist warning.
 - **Owner changes:** dead players in pickers, Vigormortis + Scarlet Woman, Balloonist names only, story contents (impairment, targets, information received) and Admin-only, Minions knowing each other, dawn snapshot of deaths.
 - **Randomised games:** 60 random 5–15 player games of 5 nights each with random legal choices, checking no crashes and no hidden information in any player view (a one-off 400-game run was also clean).
 - **End-to-end:** `scripts/smoke.mjs` over HTTP and WebSocket against a running container.

@@ -1,6 +1,6 @@
 // The game reducer: (GameState, actor, Intent) -> (GameState, events). Pure apart from `now` and `seed` inputs.
 import {
-  ROLE_BY_ID, ROLES, SCHEMA_VERSION, TYPE_CHART, WORDS,
+  CANNIBAL_LEARNS, ROLE_BY_ID, ROLES, SCHEMA_VERSION, TYPE_CHART, WORDS,
   type AdminIntent, type GameState, type Intent, type JoinRequest, type NightState, type PlayerIntent,
   type PlayerRec, type PrivateMessage, type RolePreference, type Settings, type StoryPlayer,
 } from '@ct/shared';
@@ -213,7 +213,14 @@ function cannibalEats(s: GameState, executee: string) {
     s.assignments[c].eatenAbility = { roleId, fromNight: s.nightNumber + 1, executeeId: executee, fake: evil };
     if (evil) s.effects.push({ id: nextId(s, 'e'), type: 'poisoned', cause: 'cannibal', sourcePlayerId: c, targetPlayerId: c, startNight: night, expiry: 'until_removed' });
     if (roleId === 'grandmother') (s.roleState[c] ??= {}).grandmotherInfoPending = true;
+    if (roleId) cannibalLearns(s, c, roleId);
   }
+}
+
+/** Jinxes (Cannibal + Butler, Cannibal + Zealot): the Cannibal is told when they gain these abilities. */
+function cannibalLearns(s: GameState, pid: string, roleId: string) {
+  if (!CANNIBAL_LEARNS.includes(roleId)) return;
+  deliver(s, pid, msg(s, s.nightNumber, 'notice', `You have the ${roleName(roleId)} ability`, [ROLE_BY_ID[roleId].abilityText]));
 }
 
 function isAdminIntent(i: Intent): i is AdminIntent {
@@ -643,6 +650,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       const prev = a.eatenAbility;
       a.eatenAbility = { roleId: i.roleId, fromNight: prev?.fromNight ?? s.nightNumber + 1, executeeId: prev?.executeeId ?? '', fake: prev?.fake ?? false };
       if (i.roleId === 'grandmother') (s.roleState[i.playerId] ??= {}).grandmotherInfoPending = true;
+      if (i.roleId && i.roleId !== prev?.roleId) cannibalLearns(s, i.playerId, i.roleId);
       return ok(s);
     }
     case 'set_day_fact': {
