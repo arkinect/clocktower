@@ -9,10 +9,12 @@ export interface StoredEvent { seq: number; ts: number; actor: string | null; ty
 
 export class Store {
   private db: Database.Database;
+  readonly file: string;
 
   constructor(dataDir: string) {
     fs.mkdirSync(dataDir, { recursive: true });
-    this.db = new Database(path.join(dataDir, 'clocktower.db'));
+    this.file = path.join(dataDir, 'clocktower.db');
+    this.db = new Database(this.file);
     this.db.pragma('journal_mode = WAL');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS games (
@@ -35,6 +37,21 @@ export class Store {
 
   loadAll(): GameState[] {
     return this.db.prepare('SELECT state FROM games').all().map((r) => JSON.parse((r as { state: string }).state) as GameState);
+  }
+
+  /** Saved games as raw JSON text, for the startup upgrade (server/src/upgrade.ts). */
+  savedGames(): { gameId: string; code: string; state: string }[] {
+    return this.db.prepare('SELECT game_id AS gameId, code, state FROM games').all() as { gameId: string; code: string; state: string }[];
+  }
+
+  /** A consistent copy of the whole database (works while it is open). */
+  backupTo(file: string) {
+    this.db.prepare('VACUUM INTO ?').run(file);
+  }
+
+  /** Runs fn in one transaction: everything it writes is rolled back if it throws. */
+  transaction<T>(fn: () => T): T {
+    return this.db.transaction(fn)();
   }
 
   nextSeq(gameId: string): number {

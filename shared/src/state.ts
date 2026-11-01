@@ -168,6 +168,8 @@ export interface GameState extends WorldState {
   scriptId: string;
   settings: Settings;
   nightEndsAt: number | null;
+  /** Why an app update ended this game (the Storyteller's End game leaves it unset). */
+  endedReason?: 'abandoned' | 'update' | null;
   createdAt: number;
   enabledRoles: Record<string, boolean>;
   adminId: string | null;

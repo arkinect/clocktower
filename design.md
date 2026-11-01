@@ -211,14 +211,18 @@ Append-only `events` table (game_id, seq, timestamp, actor, type, payload). Ever
 
 ### 5.5 Persistence and schema versions
 - Each game is stored as **one JSON document** (`games.state`), rewritten on every change, plus the event log. This keeps "persist every change" atomic and the engine a pure function. The data model below is logical.
-- `GameState.schemaVersion` (currently **4**). On load, `migrate()` upgrades older saves:
-  - v1 → v2: add the 9 new roles as enabled; old string `deadAt` values become `null`; add `deathCause`, `gossipStatement`, Godfather/Damsel setup fields.
-  - v2 → v3: drop the removed Balloonist setting; add an empty `story`.
-  - v3 → v4: add `publicDead` (current dead if the game has started).
+- `GameState.schemaVersion` (currently **4**; every public release has written v4, `MIN_SUPPORTED_SCHEMA` in `server/src/engine/migrations/`). Saved games are upgraded once, at startup, before any game loads (`server/src/upgrade.ts`):
+  1. Versions are checked first, changing nothing. A game newer than this release, or older than `MIN_SUPPORTED_SCHEMA` (missing = v1: "Run v0.2.2 once to bring them to v4, then upgrade"), stops startup.
+  2. If any game is older than `SCHEMA_VERSION`, the whole database is copied once to `clocktower.db.pre-v<SCHEMA_VERSION>` (a timestamp is appended rather than overwrite an existing copy).
+  3. In one transaction, each older game is **ended** if it isn't already (`phase = ENDED`, `night = null`, `nightEndsAt = null`, `endedReason = 'abandoned'` after 4 hours without progress, else `'update'`), run through the migration steps from its version up, and saved with a `schema_migrated` event `{ from, to, endedReason }`. Any failure rolls everything back and stops startup, naming the game and step.
+  When startup stops, the reason is printed as `Not starting: …` (`docker logs clocktower`); with `restart: unless-stopped` Docker keeps retrying, and each attempt refuses again without changing anything.
+  4. Games load, and each must be at `SCHEMA_VERSION`.
+- Because only ended games are migrated, steps never deal with night state. There is one file per step in `server/src/engine/migrations/`; steps read only the saved JSON and never import live code such as `ROLES`.
+- Rollback: stop the container, copy `clocktower.db.pre-v<N>` over `clocktower.db`, run the older image.
 - **Updates never interrupt a game.** `scripts/update.sh` restarts the app only when every game is `ENDED` or abandoned (not `ENDED`, no progress for 4 hours, `ABANDONED_AFTER_MS` in `server/src/upgrade.ts`); otherwise it prints `Update deferred: game in progress` and the next run tries again. A game's last progress is its latest event other than `join` or `rebind` (a reconnect is not progress), else its `createdAt`. The script asks `GET /api/upgrade-status` from inside the container; the endpoint answers only the loopback address (by socket address, never `X-Forwarded-For`), so Caddy can't reach it, and reports only game codes, phases and times. Images carry a `clocktower.schema` label; when it equals the running server's schema the restart goes ahead mid-game, so weekly base-image refreshes never wait. `--force` skips the check. A server too old to have the endpoint makes the script defer unless forced.
 
 ### 5.6 Data model (logical)
-- `Game(id, code, phase, nightNumber, dayNumber, settings, nightEndsAt, enabledRoles, adminId, seatingPublished, publishedSeating[], publicDead[], story[], schemaVersion)`
+- `Game(id, code, phase, endedReason, nightNumber, dayNumber, settings, nightEndsAt, enabledRoles, adminId, seatingPublished, publishedSeating[], publicDead[], story[], schemaVersion)`
 - `Player(id, name, rolePreference, isAdmin, seat, tokens[], alive, deadAt {phase: night|day, number} | null, deathCause, ghostVoteUsed, hasSeenRole, lastSeenAt)`
 - `Assignment(playerId, roleId, believedRoleId, alignment, retainsAbilityWhenDead, grantedAbility {roleId, fromNight} | null, history[])`
 - `Flags(playerId, key)`: `philosopher_used, seamstress_used, assassin_used, huntsman_used, professor_used, slayer_used, fool_used, virgin_used, golem_used, artist_used`
@@ -896,12 +900,12 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 
 ## 18. Tests
 
-132 automated tests (`./dev.sh npm test`), all passing:
+141 automated tests (`./dev.sh npm test`), all passing:
 - **Original worked examples:** poison makes false info; sober Sailor survives, poisoned Sailor dies; Innkeeper protects but not from the Assassin; Mayor tails redirect (may land on a protected player); Clockmaker 7 seats Demon 1 Minion 5 → 3; Goon; Po none then three; starpass suggests the Scarlet Woman and the Admin picks another; Shabaloth regurgitation; Lil' Monsta flow and the Fortune Teller reading the new holder; reconnect and rebind.
 - **Per-role tests** for every role with a night effect (true, impaired, registration cases), setup blocking, role reassignment, Ravenkeeper second round, Scarlet Woman night and day.
-- **New-role worked examples:** Oracle (and after a Professor revive), Gossip (True/False/poisoned/killed earlier), Huntsman, Professor (Townsfolk only, not tonight's victims, Shabaloth list cleared), Slayer (kill, poisoned, red herring), Damsel (notices, banner, single guess), Godfather (info, trigger, counts ±1), Witch (curse, 3 alive, poisoned), Huntsman setup guard, Mathematician cap, Grandmother (link, Assassin no link, poisoned no grandchild), identical revives, migration of an old save.
+- **New-role worked examples:** Oracle (and after a Professor revive), Gossip (True/False/poisoned/killed earlier), Huntsman, Professor (Townsfolk only, not tonight's victims, Shabaloth list cleared), Slayer (kill, poisoned, red herring), Damsel (notices, banner, single guess), Godfather (info, trigger, counts ±1), Witch (curse, 3 alive, poisoned), Huntsman setup guard, Mathematician cap, Grandmother (link, Assassin no link, poisoned no grandchild), identical revives.
 - **Owner changes:** dead players in pickers, Vigormortis + Scarlet Woman, Balloonist names only, story contents (impairment, targets, information received) and Admin-only, Minions knowing each other, dawn snapshot of deaths.
-- **Updates:** last progress ignores joins and rebinds, the 4-hour abandoned rule, when a restart is safe, the status reply has no player details, the loopback check.
+- **Updates:** last progress ignores joins and rebinds, the 4-hour abandoned rule, when a restart is safe, the status reply has no player details, the loopback check; the startup upgrade (in-progress games ended as abandoned or by the update, ended games kept and playable again, one backup, a second startup changes nothing, a failing step rolls back, too-new and too-old saves refused), using v4 fixtures built by the v0.2.2 engine (`server/test/fixtures/`).
 - **Randomised games:** 60 random 5–15 player games of 5 nights each with random legal choices, checking no crashes and no hidden information in any player view (a one-off 400-game run was also clean).
 - **End-to-end:** `scripts/smoke.mjs` over HTTP and WebSocket against a running container.
 

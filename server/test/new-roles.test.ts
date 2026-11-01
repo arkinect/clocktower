@@ -1,12 +1,9 @@
 // Worked examples for the nine roles added in schema v2 (design.md section 18).
 import { describe, expect, it } from 'vitest';
-import type { GameState } from '@ct/shared';
 import { act, alive, build, nextNight, publishAndDay, resolve, resultFor, runNight, submit, tryAct } from './helpers';
 import { playerView } from '../src/engine/views';
 import { actionSpecs } from '../src/engine/actions';
 import { setupChecklist, targetCounts } from '../src/engine/setup';
-import { migrate } from '../src/engine/migrate';
-import { createGame } from '../src/engine/game';
 
 const godfatherSet = (g: Parameters<NonNullable<Parameters<typeof build>[1]>>[0]) => act(g, { type: 'set_godfather_outsiders', value: 1 });
 
@@ -209,21 +206,6 @@ describe('new roles', () => {
     submit(g, { [g.p.poisoner]: { poisoner: [g.p.mathematician] }, [g.p.witch]: { witch: [g.p.oracle] } });
     const r = resultFor(resolve(g), g.p.mathematician)!;
     expect(r.alternatives.length - 1).toBe(5); // oracle, witch, godfather, imp, poisoner
-  });
-
-  it('11. Migration: a v1 save loads with new roles enabled and deadAt reset', () => {
-    const v1 = createGame('old', 0) as GameState & Record<string, unknown>;
-    delete (v1 as Partial<GameState>).schemaVersion;
-    for (const r of ['oracle', 'witch', 'damsel']) delete v1.enabledRoles[r];
-    v1.players.push({ id: 'p9', name: 'X', rolePreference: 'none', isAdmin: false, seat: 0, tokens: [], alive: false, deadAt: 'night 2' as never, ghostVoteUsed: false, lastSeenAt: 0, hasSeenRole: true, joinedAt: 0 } as never);
-    v1.days[1] = { dayNumber: 1, executedPlayerId: null, demonVoted: null, jugglerCorrect: null, moonchildTargetId: null, mezephelesSayer: null, notes: '' } as never;
-    const s = migrate(JSON.parse(JSON.stringify(v1)));
-    expect(s.schemaVersion).toBe(4);
-    expect(s.story).toEqual([]);
-    expect(s.enabledRoles.oracle && s.enabledRoles.witch && s.enabledRoles.damsel).toBe(true);
-    expect(s.players[0].deadAt).toBeNull();
-    expect(s.days[1].gossipStatement).toBe('none');
-    expect(s.setup.damselGuessUsed).toBe(false);
   });
 
   it('12. Grandmother: learns a grandchild; dies when the Demon kills them; not for the Assassin', () => {

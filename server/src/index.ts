@@ -8,7 +8,7 @@ import { createHash, timingSafeEqual } from 'crypto';
 import type { Intent, JoinRequest } from '@ct/shared';
 import { Store } from './db';
 import { GameManager, type LiveGame } from './manager';
-import { isLoopback, upgradeStatus } from './upgrade';
+import { isLoopback, upgradeSavedGames, UpgradeRefused, upgradeStatus } from './upgrade';
 
 const PORT = Number(process.env.PORT ?? 8080);
 const DATA_DIR = process.env.DATA_DIR ?? path.resolve('data');
@@ -24,6 +24,13 @@ const CLIENT_DIR = [process.env.CLIENT_DIR, path.resolve(here, '../../client/dis
   .find((d) => d && fs.existsSync(path.join(d, 'index.html')));
 
 const store = new Store(DATA_DIR);
+try {
+  upgradeSavedGames(store, { now: Date.now() });
+} catch (e) {
+  if (!(e instanceof UpgradeRefused)) throw e;
+  console.error(`Not starting: ${e.message}`);
+  process.exit(1);
+}
 const games = new GameManager(store);
 games.ensure(DEFAULT_GAME_CODE);
 
