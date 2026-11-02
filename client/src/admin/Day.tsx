@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { abilitiesOf, ROLE_BY_ID } from '@ct/shared';
+import { abilitiesOf, ROLE_BY_ID, type GameState } from '@ct/shared';
 import { send } from '../api';
 import { ImpairmentTags, TimedButton } from '../common';
 import { InactiveNote, Who, type AdminCtx } from './AdminApp';
@@ -18,6 +18,7 @@ export function DayPanel({ ctx }: { ctx: AdminCtx }) {
   return (
     <div className="cols">
       <div>
+        <EyesClosedBanner on={ctx.view.eyesClosedVoting} />
         {s.dayPrompts.map((dp) => (
           <section key={dp.id} className="card warn">
             <h3>{dp.title}</h3>
@@ -129,24 +130,34 @@ export function DayPanel({ ctx }: { ctx: AdminCtx }) {
   );
 }
 
-export function AbilityTracker({ ctx }: { ctx: AdminCtx }) {
-  const { s, seated, roleOf, label } = ctx;
-  const rows = seated.flatMap((id) => {
-    const r = roleOf(id);
-    if (!r) return [];
-    const f = ROLE_BY_ID[r]?.usedFlag;
-    return f ? [{ id, r, k: f.key, manual: !f.auto }] : [];
+/**
+ * The Ability tracker's rows: one per once-per-game ability a player really has, now or later (their role, a
+ * Philosopher's gained ability, an eaten one), in seat order. A believed role (Drunk, Marionette) has no row.
+ */
+export function trackerRows(s: GameState, seated: string[]): { id: string; r: string; k: string; manual: boolean }[] {
+  return seated.flatMap((id) => {
+    const own = s.assignments[id]?.roleId;
+    const roles = [...new Set([...(own ? [own] : []), ...abilitiesOf(s, id, Infinity).filter((x) => x.real).map((x) => x.roleId)])];
+    return roles.flatMap((r) => {
+      const f = ROLE_BY_ID[r]?.usedFlag;
+      return f ? [{ id, r, k: f.key, manual: !f.auto }] : [];
+    });
   });
+}
+
+export function AbilityTracker({ ctx }: { ctx: AdminCtx }) {
+  const { s, seated, roleOf } = ctx;
+  const rows = trackerRows(s, seated);
   const damsel = seated.some((id) => roleOf(id) === 'damsel');
   if (!rows.length && !damsel) return null;
   return (
     <section className="card">
       <h2>Ability tracker</h2>
-      {rows.map(({ id, k, manual }) => {
+      {rows.map(({ id, r, k, manual }) => {
         const used = !!s.flags[id]?.[k];
         return (
-          <div key={id} className="row">
-            <span className="grow"><Who ctx={ctx} id={id} role /></span>
+          <div key={`${id}:${k}`} className="row">
+            <span className="grow"><Who ctx={ctx} id={id} role />{r !== roleOf(id) && <span className="muted small"> ({ROLE_BY_ID[r].name})</span>}</span>
             <button className={`chip ${used ? 'used' : ''}`} onClick={() => send({ type: 'set_flag', playerId: id, key: k, value: !used })}>{used ? 'Used' : 'Unused'}</button>
             {!manual && <span className="muted small">auto</span>}
           </div>
@@ -266,20 +277,31 @@ function DayAbilities({ ctx }: { ctx: AdminCtx }) {
 }
 
 function Reminders({ ctx }: { ctx: AdminCtx }) {
-  const { s, label } = ctx;
+  const out = dayReminders(ctx.s, ctx.seated, ctx.label);
+  if (!out.length) return null;
+  return <ul className="reminders">{out.map((x, i) => <li key={i}>{x}</li>)}</ul>;
+}
+
+/** The Day panel's reminders: day effects, then each seated player's role reminder (dayReminder roles). */
+export function dayReminders(s: GameState, seated: string[], label: (id: string | null) => string): string[] {
   const out: string[] = [];
   for (const e of s.effects) {
     if (e.type === 'devils_advocate') out.push(`Devil's Advocate: ${label(e.targetPlayerId)} does not die if executed today.`);
     if (e.type === 'witched') out.push(`Witch: if ${label(e.targetPlayerId)} nominates today, they die (use the button above).`);
     if (e.type === 'butler_master') out.push(`Butler ${label(e.sourcePlayerId)} may only vote if ${label(e.targetPlayerId)} votes.`);
   }
-  for (const id of ctx.seated) {
-    const r = ctx.roleOf(id);
+  for (const id of seated) {
+    const r = s.assignments[id]?.roleId ?? null;
     if (r === 'fool' && !s.flags[id]?.fool_used) out.push(`${label(id)}: the first time they die (including execution), they don't.`);
-    if (r && ROLE_BY_ID[r].reminder && ROLE_BY_ID[r].dayReminder) out.push(`${label(id)}: ${ROLE_BY_ID[r].reminder}`);
+    if (r && ROLE_BY_ID[r]?.reminder && ROLE_BY_ID[r].dayReminder) out.push(`${label(id)}: ${ROLE_BY_ID[r].reminder}`);
   }
-  if (!out.length) return null;
-  return <ul className="reminders">{out.map((x, i) => <li key={i}>{x}</li>)}</ul>;
+  return out;
+}
+
+/** "Eyes-closed voting today" while the Organ Grinder's ability works (AdminView.eyesClosedVoting; absent on older servers). */
+export function EyesClosedBanner({ on }: { on: boolean | undefined }) {
+  if (!on) return null;
+  return <div className="banner no_effect" role="status"><b>Eyes-closed voting today.</b> Players keep their eyes closed when voting, and the vote tally is secret (Organ Grinder).</div>;
 }
 
 /** Drunk/poisoned (with causes) plus day-relevant effects, for the Day panel's status column. */

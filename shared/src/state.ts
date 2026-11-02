@@ -230,4 +230,6 @@ export interface AdminView {
   warnings: string[];
   presence: Record<string, boolean>;
   wordList: string[];
+  /** The Organ Grinder's eyes-closed voting applies today (Day panel banner). Added in schema v8: absent on older servers. */
+  eyesClosedVoting?: boolean;
 }

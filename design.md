@@ -1,6 +1,6 @@
 # Blood on the Clocktower Night Assistant: Design Document
 
-Version: 4. Scope: the 48 roles listed in section 14.
+Version: 4. Scope: the 52 roles listed in section 14.
 Audience: implementers and contributors.
 
 This document describes the app **as built**: the rules it implements, every decision taken where the rules leave a choice to the Storyteller, and the project owner's later changes ("owner decision").
@@ -106,7 +106,7 @@ This document describes the app **as built**: the rules it implements, every dec
 
 ### Non-goals
 - Day automation (nominations, voting, executions, win checks). Room is left for it (section 13).
-- Roles other than the 48 in section 14. Roles are data, so more can be added later.
+- Roles other than the 52 in section 14. Roles are data, so more can be added later.
 - Authentication, accounts, internet hosting, TLS.
 - Using the role-type preference collected at signup for automatic assignment (it is shown to the Admin in Setup only).
 
@@ -235,7 +235,7 @@ Append-only `events` table (game_id, seq, timestamp, actor, type, payload). Ever
 - `Player(id, name, rolePreference, isAdmin, seat, tokens[], alive, deadAt {phase: night|day, number} | null, deathCause, ghostVoteUsed, hasSeenRole, lastSeenAt)`
 - `Assignment(playerId, roleId, believedRoleId, alignment, retainsAbilityWhenDead, grantedAbility {roleId, fromNight} | null, eatenAbility? {roleId | null, fromNight, executeeId, fake} | null, history[])`. `eatenAbility` is the Cannibal's (no role data yet): absent or null = none; `roleId` null = the executee had no ability; `fake` = the executee was evil, so the Cannibal only thinks they have it.
 - **Abilities** are derived, never stored: `abilitiesOf(world, playerId, night)` (`shared/src/abilities.ts`, used by server and client) lists each ability as `{roleId, source, real, fromNight}`, with `source` one of `role`, `believed` (Drunk/Marionette: wakes as it, `real: false`), `philosopher` (from `grantedAbility.fromNight`), `cannibal` and `lil_monsta` (the token holder, from night 1). `cannibal` is the eaten ability (`eatenAbility.roleId`, from its `fromNight`), listed when the player has the Cannibal's ability for real (their role, or a Philosopher's gained ability already active) or believes they are the Cannibal (a Drunk or Marionette); `real` is true only for a real Cannibal whose eat was not `fake`, so a believed Cannibal wakes as the eaten role and gets false information through normal impairment. `hidesRole` (same file) is the one place that decides whether a player may know which role an ability is: an eaten ability is hidden unless the Cannibal learns it (`CANNIBAL_LEARNS`: the Butler and Zealot, from their jinxes). A hidden ability goes by "cannibal" in everything sent to the player: `abilityTitle` gives "Cannibal" as its picker and result title, and `abilityKey` gives `cannibal` as its picker's key and role id, its submission key (NightRun reads the submission under `cannibal` back as the eaten role's; a player has at most one eaten ability, and the Cannibal has no picker of its own), and its follow-up questions' key (`cannibal:<playerId>`) and spec. The hiding stops at what the player receives (their view and messages): result rows, follow-up questions' `roleId` and actor rows keep the eaten role, and the Storyteller's Night screen names it with `storytellerLabel`, e.g. "Cannibal (as Fortune Teller)" (the row's `title` is the player's message title). `hasAbility` is the player's actual role (which always counts, including the Drunk's and Marionette's own) or some real entry; `actingRoles` is every entry, in that order. A new source of abilities is added there only.
-- `Flags(playerId, key)`: `philosopher_used, seamstress_used, assassin_used, huntsman_used, professor_used, slayer_used, fool_used, virgin_used, golem_used, artist_used`
+- `Flags(playerId, key)`: `philosopher_used, seamstress_used, assassin_used, huntsman_used, professor_used, slayer_used, fool_used, virgin_used, golem_used, artist_used, fisherman_used`
 - `RoleState(playerId, ...)`: per-role memory such as `lastTarget` (Devil's Advocate), `lastChoiceNone` (Po), `shownTypes` (Balloonist), `grandchildId` (Grandmother), `soberAtDeath` and `moonchildUsed` (Moonchild), `startInfoPending` (role ids of start-information roles gained and not yet told: section 5.7; it replaced the Grandmother-only `grandmotherInfoPending` in v8)
 - `Effect(id, type, cause, sourcePlayerId, targetPlayerId, startNight, expiry)`; `type` in `poisoned | drunk | protected | devils_advocate | butler_master | witched`; `expiry` in `until_dusk | until_source_acts_again | while_source_alive_and_sober | until_removed`; `cause` in `poisoner | sailor | innkeeper | goon | philosopher | pukka | no_dashii | vigormortis | witch | organ_grinder | cannibal | own_character | admin` (used by the Mathematician; `organ_grinder` and `cannibal` are reserved for those roles).
 - `Setup(demonBluffs[3], redHerringId, lilMonstaMinionRole, lilMonstaTokenHolderId, mezephelesWord, mezephelesSpent, typeCountsOverride?, shabalothKills[], godfatherOutsiders (1 | -1 | null), damselGuessUsed, damselGuessResult)`
@@ -326,7 +326,7 @@ resolveNight(state):                      // pure; clones the world
 ## 7. Setup phase
 
 ### 7.1 Role checklist
-- All 48 roles grouped by type with a checkbox each (default all enabled), plus All/None.
+- All 52 roles grouped by type with a checkbox each (default all enabled), plus All/None.
 - Unchecking a role removes it from the assignment dropdown, bluff candidates, the random suggestion and **the lists shown to players**.
 - Warnings (non-blocking): too few enabled roles of a type for the player count. No Demon enabled blocks Night 0 (unless forced).
 - After Night 0 the checklist can still be changed with a confirmation; player lists update live.
@@ -484,9 +484,10 @@ Per-role inputs are in section 14.3.
 | Notes | Story |
 
 - **Scarlet Woman prompt:** when the Demon is marked dead in the day with 5+ alive and a sober Scarlet Woman alive, a prompt asks whether she becomes the Demon. On yes her role changes immediately (grimoire) and she is told when the next night starts.
-- **Ability tracker:** chips "Unused/Used" for Virgin, Golem, Artist, Fool and Slayer (Admin toggles; the engine sets the Fool and Slayer itself), automatic chips for Assassin, Seamstress, Philosopher, Huntsman and Professor, and "Guess unused/used" for the Damsel guess (resettable).
+- **Eyes-closed voting:** a banner "Eyes-closed voting today" while the Organ Grinder's ability works (14.6; `AdminView.eyesClosedVoting`, optional).
+- **Ability tracker:** one row per once-per-game ability a player really has (their role, or one gained: a Philosopher who chose the Fisherman gets a Fisherman row), never a believed one; chips "Unused/Used" for Virgin, Golem, Artist, Fool, Slayer and Fisherman (Admin toggles; the engine sets the Fool and Slayer itself), automatic chips for Assassin, Seamstress, Philosopher, Huntsman and Professor, and "Guess unused/used" for the Damsel guess (resettable).
 - **Reminders:** Devil's Advocate protection, Butler's master, Witch's curse, the Fool, and day-only role reminders.
-- Day-only abilities (Virgin, Golem, Artist, Mastermind, Psychopath, Mayor's 3-player win, Butler vote restriction, Devil's Advocate execution protection, Fool surviving an execution) are **not enforced**; the Admin applies them at the table.
+- Day-only abilities (Virgin, Golem, Artist, Fisherman, Mastermind, Psychopath, Mayor's 3-player win, Butler vote restriction, Zealot's voting, Organ Grinder's secret tally, Devil's Advocate execution protection, Fool surviving an execution) are **not enforced**; the Admin applies them at the table.
 
 ---
 
@@ -525,6 +526,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 - Every kill comes before the Professor, except the Moonchild's. This is harmless: the Professor can choose only players dead at the start of the night, so a kill's place relative to the Professor only decides whether a Professor it kills has already acted.
 - The Professor comes before the Empath and Oracle.
 - The Grandmother comes after every Demon.
+- The Organ Grinder, per the official night sheet: first night right after the Godfather, other nights right after the Gambler, before the Devil's Advocate both times.
 - A start-information role has a slot in both orders. The Clockmaker's other-night slot exists only for an ability just gained (the documented exception in the test), beside the Grandmother's.
 - The Mathematician is last.
 - Every role that resolves at night has a slot, and every slot names a real role.
@@ -538,6 +540,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 | Poisoner | 1 player | Any player, self allowed |
 | Innkeeper | 2 players | Two different players, self allowed, Night 1+ |
 | Gambler | 1 player and 1 role | Any other player and any enabled role, Night 1+ |
+| Organ Grinder | Drunk until dusk / Stay sober (buttons) | Either; no decline, and no submission counts as sober. Every night including Night 0 |
 | Devil's Advocate | 1 player | Any player except last night's choice |
 | Witch | 1 player | Any player, self allowed; only while 4+ players are alive at the start of the night |
 | Imp, Pukka, No Dashii, Vigormortis | 1 player | Any player, self allowed |
@@ -554,7 +557,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 | Butler | 1 player | Any player but self |
 | All others | none | They see "No night action tonight" |
 
-### 14.4 Townsfolk (24)
+### 14.4 Townsfolk (25)
 
 #### Clockmaker
 - Ability: "You start knowing how many steps from the Demon to its nearest Minion."
@@ -667,7 +670,11 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 - Ability: "Once per game, during the day, publicly choose a player: if they are the Demon, they die."
 - Resolved in the Day panel; the Slayer must be alive. Resolving spends the shot (except Cancel). If the Slayer is sober and the target registers as the Demon (the Lil' Monsta token holder does; a sober Recluse uses the "registers as" selector; the red herring does not), the day-kill dialog runs (5.12). Otherwise "nothing happens". A Demon death triggers the Scarlet Woman prompt. The app does not announce a win.
 
-### 14.5 Outsiders (7)
+#### Fisherman
+- Ability: "Once per game, during the day, visit the Storyteller for some advice to help your team win."
+- Day ability, never wakes. The Admin gives the advice in person and ticks "Used" in the Ability tracker (`fisherman_used`, not set by the engine); the Day panel reminds them. A Philosopher may gain it (a row of their own in the tracker).
+
+### 14.5 Outsiders (8)
 
 #### Drunk
 - Ability: "You do not know you are the Drunk. You think you are a Townsfolk character, but you are not."
@@ -698,7 +705,11 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 - Never wakes; an Outsider. Minions (not the Marionette) learn "A Damsel is in play." on Night 0 (section 8).
 - The Admin records the evil team's single guess in the Day panel. Correct, and the Damsel alive and sober: banner "The Damsel was guessed: the good team loses. Apply at the table." Damsel impaired or dead: "no effect" banner. Otherwise: "Wrong guess, nothing happens." The app does not end the game. After a Huntsman conversion, a guess at that player is wrong.
 
-### 14.6 Minions (10)
+#### Zealot
+- Ability: "If there are 5 or more players alive, you must vote for every nomination."
+- Never wakes. A Day panel reminder only: the voting rule is not enforced.
+
+### 14.6 Minions (12)
 
 #### Mezepheles
 - Ability: "You start knowing a secret word. The 1st good player to say this word becomes evil that night."
@@ -742,6 +753,15 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 #### Witch
 - Ability: "Each night, choose a player: if they nominate tomorrow, they die. If just 3 players live, you lose this ability."
 - Every night including Night 0, while 4+ players are alive at the start of the night (checked every night, nothing stored; revived players can bring it back from the next night). Any player, self allowed. At her slot, if 3 or fewer are alive she does nothing; otherwise, if sober, a `witched` effect (until dusk) on the target. The cursed player is not told; the curse persists if she dies. Day: the Admin presses "They nominated, apply curse" (day-kill dialog, once per curse). The Goon check applies. Told only "You chose X." Impaired: no curse.
+
+#### Organ Grinder
+- Ability: "All players keep their eyes closed when voting and the vote tally is secret. Each night, choose if you are drunk until dusk."
+- Every night including Night 0, at its slot (14.1): buttons "Drunk until dusk" / "Stay sober" (an `option` field), no decline; no submission counts as sober. Drunk: a `drunk` effect on themselves (cause `organ_grinder`, `until_dusk`), so they are drunk that night and the next day; the Mathematician does not count it (the Organ Grinder causes it). Impaired at their slot: choosing drunk does nothing.
+- Day: the Day panel shows "Eyes-closed voting today" while a living player with a real Organ Grinder ability (their role, or one gained, counted with `abilityNightToday`) is not drunk or poisoned as of the last night; checked live, so it goes when they die by day. A believed Organ Grinder never counts. The secret tally and the eyes-closed vote are run at the table (a Day panel reminder).
+
+#### Baron
+- Ability: "There are extra Outsiders in play. [+2 Outsiders]"
+- Setup only: +2 Outsiders, -2 Townsfolk in the suggested counts (7.4), stacking with every other modifier. Never wakes.
 
 ### 14.7 Demons (7)
 
@@ -788,7 +808,7 @@ The official jinxes between roles in the app are the `JINXES` data in `shared/sr
 - **Marionette & Balloonist:** a Marionette who believes they are the Balloonist gets a Setup warning that an Outsider may be added.
 - **Lil' Monsta & Scarlet Woman:** already how the Scarlet Woman check works (14.7, Lil' Monsta).
 
-The rest are `'reminder'`: shown in the role list only, applied by the Admin at the table.
+The rest are `'reminder'`: shown in the role list only, applied by the Admin at the table. They include **Butler & Organ Grinder** ("If the Organ Grinder is causing eyes closed voting, the Butler may raise their hand to vote but their vote is only counted if their master voted too."; Djinn page, revision 3106).
 
 ---
 
@@ -883,7 +903,7 @@ The rest are `'reminder'`: shown in the role list only, applied by the Admin at 
 
 ## 18. Tests
 
-261 automated tests (`./dev.sh npm test`: 249 server, 12 client), all passing:
+279 automated tests (`./dev.sh npm test`: 263 server, 16 client), all passing:
 - **Original worked examples:** poison makes false info; sober Sailor survives, poisoned Sailor dies; Innkeeper protects but not from the Assassin; Mayor tails redirect (may land on a protected player); Clockmaker 7 seats Demon 1 Minion 5 → 3; Goon; Po none then three; starpass suggests the Scarlet Woman and the Admin picks another; Shabaloth regurgitation; Lil' Monsta flow and the Fortune Teller reading the new holder; reconnect and rebind.
 - **Per-role tests** for every role with a night effect (true, impaired, registration cases), setup blocking, role reassignment, Ravenkeeper second round, Scarlet Woman night and day.
 - **Follow-up questions:** the question's key and spec and the timer extension, "Accept all defaults" leaves a question unanswered, re-opening collecting clears answers, the Storyteller answering for a player, only the asked player answering once with a legal choice, the v7 step.
@@ -891,6 +911,7 @@ The rest are `'reminder'`: shown in the role list only, applied by the Admin at 
 - **Jinxes:** every jinx names two roles in the app and no pair twice; every `engine` jinx has a test named after its label; label and lookup helpers; the Marionette & Huntsman Setup item, the Marionette & Balloonist warning, and the Scarlet Woman taking Lil' Monsta's token; the role list's Jinxes section (client).
 - **Philosopher day abilities:** a Philosopher who chose the Slayer can shoot on the very next day (and only once), not before choosing, and the real Slayer is drunk that day; choosing another ability does not make them a Slayer. The day after choosing, a Philosopher-Sailor or -Fool survives the Witch's curse, a Philosopher-Tea Lady protects a good neighbour, a Philosopher-Recluse can register as the Demon to the Slayer, and a Philosopher-Moonchild executed by day has their sobriety recorded.
 - **Role changes and hooks:** `changeRole` for every combination of its options, to no role and for a player with no assignment; the eaten ability is kept only with `keepAbilities`, and `keepAlignment`; the `onExecution` hook runs once per holder of the real ability (including the executee) only when an execution kills, and for believed holders, with `real: false`, only when the role opts in.
+- **Fisherman, Zealot, Baron, Organ Grinder:** a script without them never offers them (picker options, bluffs, assignment, suggested distributions, a game saved before they existed); the Baron's counts alone and with the Godfather (±1), Vigormortis and Balloonist; the Organ Grinder's choice (drunk until dusk with its own cause, sober, no submission as sober, an illegal answer refused), eyes-closed voting only while alive and sober (not when drunk, poisoned, dead or only believed); (client) a Philosopher's gained Fisherman gets a tracker row, a believed one doesn't, the Fisherman, Zealot and Organ Grinder reminders, and the banner.
 - **Night order:** the constraints in 14.1 on both orders, every resolving role has a slot, every slot's role exists once, start-information roles have slots in both orders and the just-gained-only Clockmaker slot sits by the Grandmother's.
 - **Start information:** a Philosopher who chooses the Clockmaker learns the distance that same night (night 0 or later), once; poisoned after choosing, false information and the mark still clears; the Huntsman's Damsel turned Clockmaker learns it that night, once; a Philosopher-Grandmother learns a grandchild that night with no link until the next night; other gained abilities still start the next night; the Clockmaker otherwise wakes on night 0 only.
 - **New-role worked examples:** Oracle (and after a Professor revive), Gossip (True/False/poisoned/killed earlier), Huntsman, Professor (Townsfolk only, not tonight's victims, Shabaloth list cleared), Slayer (kill, poisoned, red herring), Damsel (notices, banner, single guess), Godfather (info, trigger, counts ±1), Witch (curse, 3 alive, poisoned), Huntsman setup guard, Mathematician cap, Grandmother (link, Assassin no link, poisoned no grandchild), identical revives.
@@ -928,6 +949,9 @@ Rule gaps (already folded into the cards above, listed here for review):
 - Pressing the Witch curse button uses up the curse whatever the dialog choice (except Cancel).
 - A dead Damsel being guessed counts as "no effect".
 - The Godfather ±1 choice must be made once (suggestions assume +1 until then).
+- The Godfather's -1 still needs Outsiders on the default chart, even with the Baron in play (a 7-player game with the Baron and Godfather has 3 Outsiders).
+- The Organ Grinder's choice: no submission counts as sober; an impaired Organ Grinder choosing drunk gets no effect (like any impaired ability); their own drunkenness is not abnormal for the Mathematician.
+- Eyes-closed voting is checked live during the day: it ends when the Organ Grinder dies by day, and uses impairment as of the last night.
 - A start-information role gained later gives its information once, the night it is gained (a Philosopher's choosing night, the Damsel's night; the Cannibal's the night after the execution), before the ability itself works; impaired, it is false and still used up. A Philosopher-Grandmother's link starts the next night, like any gained ability. A player who can't act that night (dead) keeps the mark until they can.
 - The Cannibal's eaten ability comes after a Philosopher's gained one in waking order; a Philosopher-Cannibal has it only once both are active. A believed Cannibal (Drunk or Marionette) wakes as the eaten role with no real ability; an eat from an evil executee is never real, even for the real Cannibal.
 - A hidden eaten ability goes by "cannibal" in titles, keys and role ids sent to the player; the picker's prompt and field labels are the eaten role's own (the player may work the role out from what they are asked, as at a real table). The script (`enabledRoles`, the same for every player) still lists every role id. Notices are not renamed: no role today sends a notice naming itself to its own player.

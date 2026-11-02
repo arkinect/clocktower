@@ -93,6 +93,14 @@ describe('night order', () => {
     }
   });
 
+  it('the Organ Grinder per the official night sheet: after the Godfather (first night) or Gambler (other nights), before the Devil’s Advocate', () => {
+    const at = (order: NightSlot[], id: string) => order.findIndex((s) => s.roleId === id);
+    expect(at(FIRST_NIGHT_ORDER, 'organ_grinder')).toBe(at(FIRST_NIGHT_ORDER, 'godfather') + 1);
+    expect(at(FIRST_NIGHT_ORDER, 'devils_advocate')).toBe(at(FIRST_NIGHT_ORDER, 'organ_grinder') + 1);
+    expect(at(OTHER_NIGHT_ORDER, 'organ_grinder')).toBe(at(OTHER_NIGHT_ORDER, 'gambler') + 1);
+    expect(at(OTHER_NIGHT_ORDER, 'devils_advocate')).toBe(at(OTHER_NIGHT_ORDER, 'organ_grinder') + 1);
+  });
+
   it('every role that resolves at night has a slot', () => {
     const slotted = new Set([...FIRST_NIGHT_ORDER, ...OTHER_NIGHT_ORDER].map((s) => s.roleId));
     const missing = Object.entries(BEHAVIOURS).filter(([id, b]) => b.resolve && !slotted.has(id)).map(([id]) => id);

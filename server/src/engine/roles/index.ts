@@ -5,8 +5,9 @@ import { ROLE_BY_ID, type ActionSpec, type GameState, type WorldState } from '@c
 import type { Actor, NightRun } from '../night';
 import { becomeDemon, demonInfoLines } from '../demon';
 import { enabledRoles } from '../setup';
+import { computeImpairment } from '../impairment';
 import {
-  aliveIds, aliveNeighbours, alignmentOf, changeRole, findPlayer, flag, isAlive, isDemon, markStartInfo, nameOf, nearestAliveMatching,
+  abilityNightToday, aliveIds, aliveNeighbours, alignmentOf, changeRole, findPlayer, flag, isAlive, playersWithAbility, isDemon, markStartInfo, nameOf, nearestAliveMatching,
   roleIdOf, roleName, rs, seatDistance, seatedIds, startInfoPending, typeOf,
 } from '../world';
 
@@ -385,6 +386,22 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
 
   scarlet_woman: {},
 
+  organ_grinder: {
+    // Each night, including night 0. No submission means sober.
+    spec: () => ({
+      key: 'organ_grinder', roleId: 'organ_grinder', title: 'Organ Grinder', prompt: 'Choose whether you are drunk until dusk.',
+      fields: [{ kind: 'option', label: 'Tonight', options: ['drunk', 'sober'], labels: { drunk: 'Drunk until dusk', sober: 'Stay sober' } }],
+      distinct: false, allowDecline: false,
+    }),
+    resolve(run, a) {
+      const [c] = target(a);
+      if (c !== 'drunk') { run.outcome(c === 'sober' ? 'stays sober' : 'no choice: stays sober'); return; }
+      if (!run.sober(a.pid)) { run.outcome('chose drunk, but is already impaired: no effect'); return; }
+      run.addEffect('drunk', 'organ_grinder', a.pid, a.pid, 'until_dusk');
+      run.outcome('drunk until dusk (own choice)');
+    },
+  },
+
   // ===================== Demons =====================
   imp: {
     spec: (c) => players('imp', 'Imp', 'Choose a player: they die. If you choose yourself, a Minion becomes the Imp.', 1, all(c)),
@@ -530,6 +547,18 @@ export function godfatherTriggered(state: GameState, night: number): boolean {
   if (c === 'yes') return night >= 1;
   if (c === 'no') return false;
   return godfatherDerived(state, night);
+}
+
+/**
+ * The Organ Grinder's eyes-closed voting (design.md section 14.6): during the day, while a living player has a real
+ * Organ Grinder ability (their role, or a Philosopher's from the next night: abilityNightToday) and is not drunk or
+ * poisoned as of the last night (an Organ Grinder who chose drunk is drunk until dusk).
+ */
+export function eyesClosedVotingToday(state: GameState): boolean {
+  if (state.phase !== 'DAY') return false;
+  const last = Math.max(0, state.nightNumber);
+  const imp = computeImpairment(state, last);
+  return playersWithAbility(state, 'organ_grinder', abilityNightToday(last)).some((id) => isAlive(state, id) && !imp[id]?.impaired);
 }
 
 function grandmotherInfo(run: NightRun, a: Actor) {

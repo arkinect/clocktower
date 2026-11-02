@@ -1,7 +1,7 @@
 // Per-recipient views. This is the hidden-information boundary: a player view contains only that player's data.
 import { ROLE_BY_ID, TYPE_CHART, WORDS, type AdminView, type GameState, type PlayerView, type RoleCard } from '@ct/shared';
 import { actionSpecs, wakingRoles } from './actions';
-import { godfatherTriggered } from './roles';
+import { eyesClosedVotingToday, godfatherTriggered } from './roles';
 import { computeImpairment } from './impairment';
 import { expectedActors } from './game';
 import { actualCounts, enabledRoles, setupChecklist, setupWarnings, targetCounts } from './setup';
@@ -83,6 +83,7 @@ export function adminView(s: GameState, pid: string, now: number, presence: Reco
     warnings: setupWarnings(s),
     presence,
     wordList: WORDS,
+    eyesClosedVoting: eyesClosedVotingToday(s),
   };
 }
 
