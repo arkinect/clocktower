@@ -1,10 +1,10 @@
 // Per-recipient views. This is the hidden-information boundary: a player view contains only that player's data.
 import { ROLE_BY_ID, TYPE_CHART, WORDS, type AdminView, type GameState, type PlayerView, type RoleCard } from '@ct/shared';
-import { actionSpecs, ravenkeeperSpec, wakingRoles } from './actions';
+import { actionSpecs, wakingRoles } from './actions';
 import { godfatherTriggered } from './roles';
 import { computeImpairment } from './impairment';
 import { expectedActors } from './game';
-import { actualCounts, setupChecklist, setupWarnings, targetCounts } from './setup';
+import { actualCounts, enabledRoles, setupChecklist, setupWarnings, targetCounts } from './setup';
 import { findPlayer, inPlayRoleIds, roleIdOf, seated, seatedIds } from './world';
 
 function card(roleId: string): RoleCard {
@@ -27,12 +27,13 @@ export function playerView(s: GameState, pid: string, now: number): PlayerView {
   const shown = revealed ? shownRoleId(s, pid) : null;
   const night = s.night;
   const collecting = s.phase === 'NIGHT_COLLECTING' && !!night?.collectingOpen;
-  const ravenPrompt = s.phase === 'NIGHT_RESOLVING' && !!night?.resolution?.awaitingRavenkeeper.includes(pid) && !night.ravenSubmissions[pid];
+  const followUps = s.phase === 'NIGHT_RESOLVING' ? (night?.resolution?.followUps ?? []).filter((f) => f.playerId === pid && !f.answered).map((f) => f.spec) : [];
   const sub = night && (s.phase === 'NIGHT_COLLECTING' || s.phase === 'NIGHT_RESOLVING') ? night.submissions[pid] ?? null : null;
   return {
     kind: 'player',
     gameCode: s.code,
     phase: s.phase,
+    endedReason: s.endedReason ?? null,
     nightNumber: s.nightNumber,
     dayNumber: s.dayNumber,
     nightEndsAt: s.phase === 'NIGHT_COLLECTING' || s.phase === 'NIGHT_RESOLVING' ? s.nightEndsAt : null,
@@ -44,7 +45,7 @@ export function playerView(s: GameState, pid: string, now: number): PlayerView {
       submitted: !!sub,
       submission: sub,
       actions: collecting && me.seat !== null ? actionSpecs(s, pid) : [],
-      ravenkeeperPrompt: ravenPrompt,
+      followUps,
       messages: revealed ? (s.messages[pid] ?? []) : [],
     },
     players: s.players.map((p) => ({
@@ -55,15 +56,11 @@ export function playerView(s: GameState, pid: string, now: number): PlayerView {
     seating: s.seatingPublished ? s.publishedSeating.filter((id) => findPlayer(s, id)) : [],
     deaths: s.settings.announceDeaths && revealed ? (s.publicDead ?? []).slice() : null,
     deadAtDawn: revealed ? (s.publicDead ?? []).slice() : [],
-    enabledRoles: Object.keys(s.enabledRoles).filter((r) => s.enabledRoles[r]),
+    enabledRoles: enabledRoles(s),
     hasAdmin: !!s.adminId,
   };
 }
 
-/** Ravenkeeper picker sent alongside the view when prompted. */
-export function ravenkeeperPicker(s: GameState) {
-  return ravenkeeperSpec(s);
-}
 
 export function adminView(s: GameState, pid: string, now: number, presence: Record<string, boolean>): AdminView {
   const night = Math.max(0, s.nightNumber);

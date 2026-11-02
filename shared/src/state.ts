@@ -1,6 +1,6 @@
 // Full game state. Only the server and the Admin view ever see this.
 import type { Alignment } from './roles';
-import type { Effect, Phase, PrivateMessage, RolePreference, Settings, Submission } from './types';
+import type { ActionChoice, ActionSpec, Effect, Phase, PrivateMessage, RolePreference, Settings, Submission } from './types';
 
 export interface PlayerRec {
   id: string;
@@ -97,6 +97,18 @@ export interface ActorRow {
 
 export interface AbnormalEvent { playerId: string; cause: string; detail: string }
 
+/** A question a role asks a player while the night is being reviewed, answered by them or by the Storyteller. */
+export interface FollowUp {
+  /** Unique within the night, e.g. "ravenkeeper:p3". Also the key of `spec`. */
+  key: string;
+  playerId: string;
+  roleId: string;
+  spec: ActionSpec;
+  answered: boolean;
+}
+
+export interface FollowUpAnswer { choice: ActionChoice; byAdmin: boolean; at: number }
+
 export interface Resolution {
   computedAt: number;
   actors: ActorRow[];
@@ -106,7 +118,8 @@ export interface Resolution {
   deaths: string[];
   revived: string[];
   abnormal: AbnormalEvent[];
-  awaitingRavenkeeper: string[];
+  /** Questions asked during resolution (NightRun.askFollowUp), e.g. the Ravenkeeper's choice after dying. */
+  followUps: FollowUp[];
   notices: { playerId: string; title: string; lines: string[] }[];
   /** The world after the night, committed on publish. */
   after: WorldState;
@@ -116,7 +129,8 @@ export interface NightState {
   number: number;
   collectingOpen: boolean;
   submissions: Record<string, Submission>;
-  ravenSubmissions: Record<string, Submission>;
+  /** Answers to follow-up questions, by question key. Cleared when collecting is re-opened. */
+  followUpAnswers: Record<string, FollowUpAnswer>;
   seed: number;
   reviewChoices: Record<string, string>;
   overrides: Record<string, string[]>;
@@ -136,7 +150,7 @@ export interface WorldState {
   setup: SetupState;
 }
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 7;
 
 /** Admin-only story log (owner request): one entry per night and per day. */
 export interface StoryPlayer {
@@ -168,8 +182,12 @@ export interface GameState extends WorldState {
   scriptId: string;
   settings: Settings;
   nightEndsAt: number | null;
+  /** Why an app update ended this game (the Storyteller's End game leaves it unset). */
+  endedReason?: 'abandoned' | 'update' | null;
   createdAt: number;
-  enabledRoles: Record<string, boolean>;
+  /** The roles on this game's script (enabled by the Storyteller): ids, no duplicates, order not significant.
+   *  Read it through onScript / enabledRoles (server/src/engine/setup.ts), which ignore unknown ids. */
+  script: string[];
   adminId: string | null;
   seatingPublished: boolean;
   publishedSeating: string[];
@@ -184,6 +202,13 @@ export interface GameState extends WorldState {
   idSeq: number;
 }
 
+/** The line on the ended screen (players and Storyteller) when an app update ended the game. */
+export const ENDED_REASON_TEXT: Record<'abandoned' | 'update', string> = {
+  update: 'This game was ended by an app update.',
+  abandoned: 'This game was ended for an app update after 4 hours without progress.',
+};
+
+/** Fields added from schema v5 on are optional (?), like PlayerView's. */
 export interface AdminView {
   kind: 'admin';
   serverNow: number;

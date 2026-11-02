@@ -1,20 +1,21 @@
 // The game reducer: (GameState, actor, Intent) -> (GameState, events). Pure apart from `now` and `seed` inputs.
 import {
-  ROLE_BY_ID, ROLES, SCHEMA_VERSION, TYPE_CHART, WORDS,
+  ROLE_BY_ID, ROLES, SCHEMA_VERSION, TYPE_CHART, WORDS, abilitiesOf,
   type AdminIntent, type GameState, type Intent, type JoinRequest, type NightState, type PlayerIntent,
   type PlayerRec, type PrivateMessage, type RolePreference, type Settings, type StoryPlayer,
 } from '@ct/shared';
-import { actionSpecs, ravenkeeperSpec, validateChoice, validateSubmission } from './actions';
+import { actionSpecs, validateChoice, validateSubmission } from './actions';
 import { becomeDemon, demonInfoLines } from './demon';
 import { computeImpairment } from './impairment';
 import { previewDayKill, revivePlayer } from './lifecycle';
 import { resolveNight } from './night';
+import { BEHAVIOURS } from './roles';
 import { makeRng, randomSeed } from './rng';
 import {
-  bluffCandidates, enabledRoles, redHerringCandidates, setupChecklist, suggestBluffs, suggestDistribution,
+  bluffCandidates, enabledRoles, onScript, redHerringCandidates, setupChecklist, suggestBluffs, suggestDistribution,
 } from './setup';
 import {
-  aliveIds, canAct, findPlayer, flag, hasAbility, inPlayRoleIds, isDemon, playersWithAbility, roleIdOf, roleName, seatedIds,
+  abilityNightToday, aliveIds, canAct, changeRole, findPlayer, flag, hasAbility, inPlayRoleIds, isDemon, playersWithAbility, roleIdOf, roleName, seatedIds,
 } from './world';
 
 export interface Ctx { now: number; seed?: number }
@@ -23,7 +24,7 @@ export type ApplyResult = { ok: true; state: GameState; events: GameEvent[]; dat
 
 export const DEFAULT_SETTINGS: Settings = {
   countdownSeconds: 300,
-  ravenkeeperExtensionSeconds: 120,
+  followUpExtensionSeconds: 120,
   announceDeaths: false,
   notifyOnRoleChange: true,
 };
@@ -32,7 +33,7 @@ export function createGame(code: string, now: number): GameState {
   return {
     schemaVersion: SCHEMA_VERSION, id: `game-${code}`, code, phase: 'LOBBY', nightNumber: -1, dayNumber: 0, scriptId: 'all-39',
     settings: { ...DEFAULT_SETTINGS }, nightEndsAt: null, createdAt: now,
-    enabledRoles: Object.fromEntries(ROLES.map((r) => [r.id, true])),
+    script: ROLES.map((r) => r.id),
     adminId: null, seatingPublished: false, publishedSeating: [], days: {}, night: null,
     messages: {}, pendingNotices: {}, dayPrompts: [], story: [], publicDead: [], idSeq: 1,
     players: [], assignments: {}, flags: {}, effects: [], roleState: {},
@@ -136,7 +137,7 @@ function damselMsg(s: GameState): PrivateMessage {
 // ---- helpers ------------------------------------------------------------------------------------
 function newNight(number: number, seed: number, collectingOpen: boolean): NightState {
   return {
-    number, collectingOpen, submissions: {}, ravenSubmissions: {}, seed, reviewChoices: {}, overrides: {},
+    number, collectingOpen, submissions: {}, followUpAnswers: {}, seed, reviewChoices: {}, overrides: {},
     mathAdjust: { add: [], remove: [] }, resolution: null,
   };
 }
@@ -145,26 +146,18 @@ export function expectedActors(s: GameState): string[] {
   return seatedIds(s).filter((id) => canAct(s, id));
 }
 
-function reresolve(s: GameState) {
-  if (s.phase === 'NIGHT_RESOLVING' && s.night) s.night.resolution = resolveNight(s);
+function reresolve(s: GameState, now: number) {
+  if (s.phase === 'NIGHT_RESOLVING' && s.night) s.night.resolution = resolveNight(s, now);
 }
 
-function clearRoleTies(s: GameState, pid: string) {
-  delete s.flags[pid];
-  delete s.roleState[pid];
-  s.effects = s.effects.filter((e) => e.sourcePlayerId !== pid);
-  const a = s.assignments[pid];
-  if (a) { a.grantedAbility = null; a.retainsAbilityWhenDead = false; }
-}
-
-function setRole(s: GameState, pid: string, roleId: string | null, reason: string, now: number) {
-  const prev = s.assignments[pid];
-  const from = prev?.roleId ?? null;
-  const natural = roleId ? ROLE_BY_ID[roleId].alignment : 'good';
-  s.assignments[pid] = {
-    roleId, believedRoleId: null, alignment: natural, retainsAbilityWhenDead: false, grantedAbility: null,
-    history: [...(prev?.history ?? []), { at: now, from, to: roleId, reason }],
-  };
+/** Each role's onExecution hook, for every seated player with a real ability of that role. */
+function runExecutionHooks(s: GameState, executeeId: string, now: number) {
+  const night = s.nightNumber < 0 ? 0 : s.nightNumber;
+  for (const holderId of seatedIds(s)) {
+    for (const ab of abilitiesOf(s, holderId, night)) {
+      if (ab.real) BEHAVIOURS[ab.roleId]?.onExecution?.({ s, executeeId, holderId, now });
+    }
+  }
 }
 
 function markDead(s: GameState, pid: string, alive: boolean, cause: string) {
@@ -178,7 +171,8 @@ function markDead(s: GameState, pid: string, alive: boolean, cause: string) {
   const aliveBefore = aliveIds(s).length;
   const night = s.nightNumber < 0 ? 0 : s.nightNumber;
   const imp = computeImpairment(s, night)[pid];
-  if (hasAbility(s, pid, 'moonchild', night)) (s.roleState[pid] ??= {}).soberAtDeath = !imp?.impaired;
+  const atNight = s.phase === 'NIGHT_COLLECTING' || s.phase === 'NIGHT_RESOLVING';
+  if (hasAbility(s, pid, 'moonchild', atNight ? night : abilityNightToday(night))) (s.roleState[pid] ??= {}).soberAtDeath = !imp?.impaired;
   p.alive = false;
   p.deadAt = s.phase === 'NIGHT_COLLECTING' || s.phase === 'NIGHT_RESOLVING' ? { phase: 'night', number: s.nightNumber } : { phase: 'day', number: s.dayNumber };
   p.deathCause = cause;
@@ -198,7 +192,7 @@ function markDead(s: GameState, pid: string, alive: boolean, cause: string) {
 }
 
 function isAdminIntent(i: Intent): i is AdminIntent {
-  return !['seen_role', 'use_ghost_vote', 'submit_night', 'submit_ravenkeeper', 'claim_admin'].includes(i.type);
+  return !['seen_role', 'use_ghost_vote', 'submit_night', 'answer_follow_up', 'claim_admin'].includes(i.type);
 }
 
 // ---- reducer ------------------------------------------------------------------------------------
@@ -219,9 +213,15 @@ export function applyIntent(state: GameState, actorId: string, intent: Intent, c
     return err(`Internal error: ${(e as Error).message}`);
   }
   if (!res.ok) return res;
-  if (intent.type !== 'publish_night') reresolve(res.state);
+  if (intent.type !== 'publish_night') reresolve(res.state, ctx.now);
   // The event log is Storyteller-only, so it records the full intent.
   return { ...res, events: [{ type: intent.type, actor: actorId, payload: intent }, ...res.events] };
+}
+
+/** An unanswered follow-up question asked in the current review. */
+function openFollowUp(s: GameState, key: string) {
+  if (s.phase !== 'NIGHT_RESOLVING') return undefined;
+  return s.night?.resolution?.followUps.find((f) => f.key === key && !f.answered);
 }
 
 function ok(s: GameState, data?: unknown): ApplyResult {
@@ -263,11 +263,12 @@ function playerIntent(s: GameState, pid: string, intent: PlayerIntent, ctx: Ctx)
       s.night.submissions[pid] = { actions: v.actions, submittedAt: ctx.now };
       return ok(s);
     }
-    case 'submit_ravenkeeper': {
-      if (s.phase !== 'NIGHT_RESOLVING' || !s.night?.resolution?.awaitingRavenkeeper.includes(pid)) return err('You cannot do that now.');
-      const e = validateChoice(ravenkeeperSpec(s), { values: [intent.targetId] });
+    case 'answer_follow_up': {
+      const q = openFollowUp(s, intent.key);
+      if (!q || q.playerId !== pid) return err('You cannot do that now.');
+      const e = validateChoice(q.spec, intent.choice);
       if (e) return err(e);
-      s.night.ravenSubmissions[pid] = { actions: { ravenkeeper: { values: [intent.targetId] } }, submittedAt: ctx.now };
+      s.night!.followUpAnswers[q.key] = { choice: intent.choice, byAdmin: false, at: ctx.now };
       return ok(s);
     }
   }
@@ -310,11 +311,12 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
     // ---------- setup ----------
     case 'set_role_enabled': {
       if (!ROLE_BY_ID[i.roleId]) return err('Unknown role.');
-      s.enabledRoles[i.roleId] = !!i.enabled;
+      s.script = s.script.filter((r) => r !== i.roleId);
+      if (i.enabled) s.script.push(i.roleId);
       return ok(s);
     }
     case 'set_all_roles_enabled': {
-      for (const r of ROLES) s.enabledRoles[r.id] = !!i.enabled;
+      s.script = i.enabled ? ROLES.map((r) => r.id) : [];
       return ok(s);
     }
     case 'set_seating': {
@@ -337,14 +339,14 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       if (!seatedPlayer(i.playerId)) return err('Seat the player first.');
       if (i.roleId !== null) {
         if (!ROLE_BY_ID[i.roleId]) return err('Unknown role.');
-        if (!s.enabledRoles[i.roleId]) return err('That role is disabled.');
+        if (!onScript(s, i.roleId)) return err('That role is disabled.');
         if (seatedIds(s).some((id) => id !== i.playerId && roleIdOf(s, id) === i.roleId)) return err('That role is already assigned.');
       }
       const old = roleIdOf(s, i.playerId);
       if (old === i.roleId) return ok(s);
       const live = !inSetupish;
-      if (live) clearRoleTies(s, i.playerId);
-      setRole(s, i.playerId, i.roleId, live ? 'Admin reassignment' : 'setup', now);
+      // Mid-game, the old role's flags, memory and effects go with it; during setup nothing else is touched.
+      changeRole(s, i.playerId, i.roleId, live ? 'Admin reassignment' : 'setup', now, live ? { clearFlags: true } : { keepTies: true });
       if (live && s.settings.notifyOnRoleChange && i.roleId) {
         const r = ROLE_BY_ID[i.roleId];
         deliver(s, i.playerId, msg(s, s.nightNumber, 'notice', 'Your role has changed', [`You are now the ${r.name}.`, r.abilityText]));
@@ -356,11 +358,11 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       const roles = entries.map(([, r]) => r);
       if (new Set(roles).size !== roles.length) return err('Duplicate roles.');
       for (const [pid, r] of entries) {
-        if (!seatedPlayer(pid) || !ROLE_BY_ID[r] || !s.enabledRoles[r]) return err('Invalid assignment.');
+        if (!seatedPlayer(pid) || !ROLE_BY_ID[r] || !onScript(s, r)) return err('Invalid assignment.');
       }
       const touched = new Set(entries.map(([pid]) => pid));
-      for (const id of seatedIds(s)) if (!touched.has(id) && roles.includes(roleIdOf(s, id) ?? '')) setRole(s, id, null, 'setup', now);
-      for (const [pid, r] of entries) if (roleIdOf(s, pid) !== r) setRole(s, pid, r, inSetupish ? 'setup' : 'Admin reassignment', now);
+      for (const id of seatedIds(s)) if (!touched.has(id) && roles.includes(roleIdOf(s, id) ?? '')) changeRole(s, id, null, 'setup', now, { keepTies: true });
+      for (const [pid, r] of entries) if (roleIdOf(s, pid) !== r) changeRole(s, pid, r, inSetupish ? 'setup' : 'Admin reassignment', now, { keepTies: true });
       return ok(s);
     }
     case 'suggest_distribution': {
@@ -378,7 +380,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       if (!a || (a.roleId !== 'drunk' && a.roleId !== 'marionette')) return err('Only the Drunk or Marionette has a believed role.');
       if (i.roleId !== null) {
         const r = ROLE_BY_ID[i.roleId];
-        if (!r || !s.enabledRoles[i.roleId]) return err('Unknown or disabled role.');
+        if (!r || !onScript(s, i.roleId)) return err('Unknown or disabled role.');
         if (inPlayRoleIds(s).includes(i.roleId)) return err('That role is in play.');
         if (a.roleId === 'drunk' && r.type !== 'townsfolk') return err('The Drunk must believe a Townsfolk.');
         if (a.roleId === 'marionette' && r.alignment !== 'good') return err('The Marionette must believe a good role.');
@@ -434,7 +436,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
     case 'set_lil_monsta_minion': {
       if (i.roleId !== null) {
         const r = ROLE_BY_ID[i.roleId];
-        if (!r || r.type !== 'minion' || !s.enabledRoles[i.roleId] || inPlayRoleIds(s).includes(i.roleId)) return err('Choose an enabled Minion that is not in play.');
+        if (!r || r.type !== 'minion' || !onScript(s, i.roleId) || inPlayRoleIds(s).includes(i.roleId)) return err('Choose an enabled Minion that is not in play.');
       }
       s.setup.lilMonstaMinionRole = i.roleId;
       return ok(s);
@@ -486,7 +488,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
     case 'start_night': {
       if (s.phase !== 'DAY') return err('A night can only start from the day.');
       const n = s.nightNumber + 1;
-      recordDayStory(s);
+      recordDayStory(s, now);
       s.effects = s.effects.filter((e) => e.expiry !== 'until_dusk');
       for (const pid of Object.keys(s.messages)) s.messages[pid] = s.messages[pid].filter((m) => m.kind === 'starting');
       for (const [pid, list] of Object.entries(s.pendingNotices)) for (const m of list) deliver(s, pid, { ...m, night: n });
@@ -538,14 +540,15 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       }
       s.night.collectingOpen = true;
       s.phase = 'NIGHT_RESOLVING';
-      s.night.resolution = resolveNight(s);
-      if (s.night.resolution.awaitingRavenkeeper.length) s.nightEndsAt = Math.max(s.nightEndsAt ?? now, now) + s.settings.ravenkeeperExtensionSeconds * 1000;
+      s.night.resolution = resolveNight(s, now);
+      if (s.night.resolution.followUps.length) s.nightEndsAt = Math.max(s.nightEndsAt ?? now, now) + s.settings.followUpExtensionSeconds * 1000;
       return ok(s);
     }
     case 'reopen_collecting': {
       if (s.phase !== 'NIGHT_RESOLVING' || !s.night) return err('Not resolving.');
       s.phase = 'NIGHT_COLLECTING';
       s.night.resolution = null;
+      s.night.followUpAnswers = {};
       return ok(s);
     }
     case 'choose_review': {
@@ -558,7 +561,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
     case 'accept_all_defaults': {
       if (s.phase !== 'NIGHT_RESOLVING' || !s.night) return err('Not resolving.');
       for (let k = 0; k < 6; k++) {
-        const res = resolveNight(s);
+        const res = resolveNight(s, now);
         const open = res.reviewItems.filter((it) => it.chosen === null);
         if (!open.length) break;
         for (const it of open) s.night.reviewChoices[it.key] = it.default;
@@ -576,18 +579,20 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       s.night.mathAdjust = { add: (i.add ?? []).filter(seatedPlayer), remove: (i.remove ?? []).filter(seatedPlayer) };
       return ok(s);
     }
-    case 'ravenkeeper_for': {
+    case 'answer_follow_up_for': {
       if (s.phase !== 'NIGHT_RESOLVING' || !s.night?.resolution) return err('Not resolving.');
-      const e = validateChoice(ravenkeeperSpec(s), { values: [i.targetId] });
+      const q = s.night.resolution.followUps.find((f) => f.key === i.key);
+      if (!q) return err('No such question.');
+      const e = validateChoice(q.spec, i.choice);
       if (e) return err(e);
-      s.night.ravenSubmissions[i.playerId] = { actions: { ravenkeeper: { values: [i.targetId] } }, submittedAt: now, byAdmin: true };
+      s.night.followUpAnswers[q.key] = { choice: i.choice, byAdmin: true, at: now };
       return ok(s);
     }
     case 'publish_night': {
       if (s.phase !== 'NIGHT_RESOLVING' || !s.night) return err('Not resolving.');
-      const res = resolveNight(s);
-      if (res.awaitingRavenkeeper.length && !i.force) return err('Waiting for the Ravenkeeper. Submit for them or force.');
-      publish(s, res);
+      const res = resolveNight(s, now);
+      if (res.followUps.some((f) => !f.answered) && !i.force) return err('Waiting for an answer to a follow-up question. Answer for them or force.');
+      publish(s, res, now);
       return ok(s);
     }
 
@@ -602,7 +607,10 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       const d = dayRecord(s);
       if (i.playerId !== null && !seatedPlayer(i.playerId)) return err('Not a seated player.');
       d.executedPlayerId = i.playerId;
-      if (i.playerId && i.died) markDead(s, i.playerId, false, 'execution');
+      if (i.playerId && i.died && findPlayer(s, i.playerId)?.alive) {
+        markDead(s, i.playerId, false, 'execution');
+        if (!findPlayer(s, i.playerId)?.alive) runExecutionHooks(s, i.playerId, now);
+      }
       return ok(s);
     }
     case 'set_day_fact': {
@@ -656,7 +664,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       if (!dp) return err('Already handled.');
       s.dayPrompts = s.dayPrompts.filter((d) => d.id !== i.id);
       if (i.accept) {
-        becomeDemon(s, dp.scarletId, dp.demonId, (pid, title, lines) => {
+        becomeDemon(s, dp.scarletId, dp.demonId, now, (pid, title, lines) => {
           (s.pendingNotices[pid] ??= []).push(msg(s, s.nightNumber + 1, 'notice', title, lines));
         });
       }
@@ -692,10 +700,10 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       let effect: { wouldDie: boolean; reason: string; usesFool: boolean };
       let witchedId: string | null = null;
       if (i.kind === 'slayer') {
-        if (!hasAbility(s, i.sourceId, 'slayer', night)) return err('That player is not the Slayer.');
+        if (!hasAbility(s, i.sourceId, 'slayer', abilityNightToday(night))) return err('That player is not the Slayer.');
         if (flag(s, i.sourceId, 'slayer_used')) return err('The Slayer has already used their shot.');
         if (!findPlayer(s, i.sourceId)!.alive) return err('The Slayer must be alive.');
-        const isRecluse = hasAbility(s, i.targetId, 'recluse', night) && !imp[i.targetId]?.impaired;
+        const isRecluse = hasAbility(s, i.targetId, 'recluse', abilityNightToday(night)) && !imp[i.targetId]?.impaired;
         const regDemon = isRecluse && i.recluseAs ? i.recluseAs === 'demon' : isDemon(s, i.targetId);
         if (imp[i.sourceId]?.impaired) effect = { wouldDie: false, reason: 'The Slayer is drunk or poisoned: nothing happens.', usesFool: false };
         else if (!regDemon) effect = { wouldDie: false, reason: `${tname} is not the Demon: nothing happens.`, usesFool: false };
@@ -761,7 +769,7 @@ function chartOutsiders(s: GameState): number {
 }
 
 /** Admin-only story: who was what, who was impaired and who they targeted, per night. */
-function recordNightStory(s: GameState, res: NonNullable<NightState['resolution']>, n: number) {
+function recordNightStory(s: GameState, res: NonNullable<NightState['resolution']>, n: number, now: number) {
   const endImp = computeImpairment(res.after, n);
   const players: StoryPlayer[] = seatedIds(s).map((pid) => {
     const p = findPlayer(s, pid)!;
@@ -784,20 +792,20 @@ function recordNightStory(s: GameState, res: NonNullable<NightState['resolution'
       ],
     };
   });
-  s.story.push({ kind: 'night', night: n, at: Date.now(), players, deaths: res.deaths.slice(), revived: res.revived.slice() });
+  s.story.push({ kind: 'night', night: n, at: now, players, deaths: res.deaths.slice(), revived: res.revived.slice() });
 }
 
-function recordDayStory(s: GameState) {
+function recordDayStory(s: GameState, now: number) {
   const d = s.days[s.dayNumber];
   const deaths = s.players.filter((p) => !p.alive && p.deadAt?.phase === 'day' && p.deadAt.number === s.dayNumber).map((p) => ({ playerId: p.id, cause: p.deathCause }));
-  s.story.push({ kind: 'day', day: s.dayNumber, at: Date.now(), executedPlayerId: d?.executedPlayerId ?? null, deaths, notes: d?.notes ?? '' });
+  s.story.push({ kind: 'day', day: s.dayNumber, at: now, executedPlayerId: d?.executedPlayerId ?? null, deaths, notes: d?.notes ?? '' });
 }
 
 /** A fresh game in Setup that keeps the players, their seats, the enabled roles and the settings. */
 function playAgain(s: GameState, now: number): GameState {
   const next = createGame(s.code, now);
   next.adminId = s.adminId;
-  next.enabledRoles = s.enabledRoles;
+  next.script = s.script.slice();
   next.settings = s.settings;
   next.seatingPublished = s.seatingPublished;
   next.publishedSeating = s.publishedSeating;
@@ -824,10 +832,10 @@ function dayRecord(s: GameState) {
 }
 
 /** Section 9.5: one atomic step that commits the night and sends everyone to the day. */
-function publish(s: GameState, res: NonNullable<NightState['resolution']>) {
+function publish(s: GameState, res: NonNullable<NightState['resolution']>, now: number) {
   const n = s.night!.number;
   const before = new Set(aliveIds(s));
-  recordNightStory(s, res, n);
+  recordNightStory(s, res, n, now);
   s.players = res.after.players;
   s.assignments = res.after.assignments;
   s.flags = res.after.flags;
@@ -852,7 +860,7 @@ function publish(s: GameState, res: NonNullable<NightState['resolution']>) {
       if (roleIdOf(s, pid) !== 'lil_monsta') continue;
       const m = s.setup.lilMonstaMinionRole;
       if (m) {
-        setRole(s, pid, m, 'Lil\' Monsta becomes a Minion', Date.now());
+        changeRole(s, pid, m, 'Lil\' Monsta becomes a Minion', now, { keepTies: true });
         deliver(s, pid, msg(s, n, 'notice', `Your role is now ${roleName(m)}`, [ROLE_BY_ID[m].abilityText, 'You hold Lil\' Monsta\'s token. You are the Demon.']));
         if (damselNoticeFor(s, pid)) deliver(s, pid, damselMsg(s));
       }

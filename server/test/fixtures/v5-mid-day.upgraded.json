@@ -1,0 +1,615 @@
+{
+  "schemaVersion": 7,
+  "id": "game-fixture-v5-mid-day",
+  "code": "fixture-v5-mid-day",
+  "phase": "ENDED",
+  "nightNumber": 0,
+  "dayNumber": 1,
+  "scriptId": "all-39",
+  "settings": {
+    "countdownSeconds": 300,
+    "announceDeaths": false,
+    "notifyOnRoleChange": true,
+    "followUpExtensionSeconds": 120
+  },
+  "nightEndsAt": null,
+  "createdAt": 2000000,
+  "adminId": "p1",
+  "seatingPublished": true,
+  "publishedSeating": [
+    "p2",
+    "p3",
+    "p4",
+    "p5",
+    "p6",
+    "p7",
+    "p8"
+  ],
+  "days": {
+    "1": {
+      "dayNumber": 1,
+      "executedPlayerId": null,
+      "demonVoted": null,
+      "jugglerCorrect": null,
+      "moonchildTargetId": null,
+      "mezephelesSayer": null,
+      "gossipStatement": "none",
+      "notes": ""
+    }
+  },
+  "night": null,
+  "messages": {
+    "p2": [
+      {
+        "id": "m9",
+        "night": 0,
+        "kind": "starting",
+        "title": "Demon information",
+        "lines": [
+          "Your Minions: P1, P2",
+          "Not in play (bluffs): Fisherman, Clockmaker, Mayor",
+          "Tell your Minions who you are in person."
+        ]
+      },
+      {
+        "id": "m13",
+        "night": 0,
+        "kind": "result",
+        "title": "Tonight",
+        "lines": [
+          "You learned nothing."
+        ]
+      }
+    ],
+    "p3": [
+      {
+        "id": "m10",
+        "night": 0,
+        "kind": "starting",
+        "title": "Your fellow Minions",
+        "lines": [
+          "The other Minions are: P2.",
+          "The Demon will reveal themselves to you at the table."
+        ]
+      },
+      {
+        "id": "m14",
+        "night": 0,
+        "kind": "result",
+        "title": "Tonight",
+        "lines": [
+          "You learned nothing."
+        ]
+      }
+    ],
+    "p4": [
+      {
+        "id": "m11",
+        "night": 0,
+        "kind": "starting",
+        "title": "Your fellow Minions",
+        "lines": [
+          "The other Minions are: P1.",
+          "The Demon will reveal themselves to you at the table."
+        ]
+      },
+      {
+        "id": "m15",
+        "night": 0,
+        "kind": "result",
+        "title": "Tonight",
+        "lines": [
+          "You learned nothing."
+        ]
+      }
+    ],
+    "p5": [
+      {
+        "id": "m12",
+        "night": 0,
+        "kind": "result",
+        "title": "Empath",
+        "lines": [
+          "1 of your alive neighbours is evil."
+        ]
+      }
+    ],
+    "p6": [
+      {
+        "id": "m16",
+        "night": 0,
+        "kind": "result",
+        "title": "Tonight",
+        "lines": [
+          "You learned nothing."
+        ]
+      }
+    ],
+    "p7": [
+      {
+        "id": "m17",
+        "night": 0,
+        "kind": "result",
+        "title": "Tonight",
+        "lines": [
+          "You learned nothing."
+        ]
+      }
+    ],
+    "p8": [
+      {
+        "id": "m18",
+        "night": 0,
+        "kind": "result",
+        "title": "Tonight",
+        "lines": [
+          "You learned nothing."
+        ]
+      }
+    ]
+  },
+  "pendingNotices": {},
+  "dayPrompts": [],
+  "story": [
+    {
+      "kind": "night",
+      "night": 0,
+      "at": 2000024,
+      "players": [
+        {
+          "playerId": "p2",
+          "name": "P0",
+          "seat": 0,
+          "roleId": "imp",
+          "believedRoleId": null,
+          "alignment": "evil",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [],
+          "received": []
+        },
+        {
+          "playerId": "p3",
+          "name": "P1",
+          "seat": 1,
+          "roleId": null,
+          "believedRoleId": null,
+          "alignment": "evil",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [],
+          "received": []
+        },
+        {
+          "playerId": "p4",
+          "name": "P2",
+          "seat": 2,
+          "roleId": null,
+          "believedRoleId": null,
+          "alignment": "evil",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": true,
+          "causes": [],
+          "actions": [],
+          "received": []
+        },
+        {
+          "playerId": "p5",
+          "name": "P3",
+          "seat": 3,
+          "roleId": "empath",
+          "believedRoleId": null,
+          "alignment": "good",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [
+            {
+              "slot": "Empath",
+              "roleId": "empath",
+              "input": "(no input)",
+              "outcome": ""
+            }
+          ],
+          "received": [
+            {
+              "title": "Empath",
+              "lines": [
+                "1 of your alive neighbours is evil."
+              ]
+            }
+          ]
+        },
+        {
+          "playerId": "p6",
+          "name": "P4",
+          "seat": 4,
+          "roleId": "fortune_teller",
+          "believedRoleId": null,
+          "alignment": "good",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [
+            {
+              "slot": "Fortune Teller",
+              "roleId": "fortune_teller",
+              "input": "(no input)",
+              "outcome": ""
+            }
+          ],
+          "received": []
+        },
+        {
+          "playerId": "p7",
+          "name": "P5",
+          "seat": 5,
+          "roleId": "butler",
+          "believedRoleId": null,
+          "alignment": "good",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [
+            {
+              "slot": "Butler",
+              "roleId": "butler",
+              "input": "(no input)",
+              "outcome": ""
+            }
+          ],
+          "received": []
+        },
+        {
+          "playerId": "p8",
+          "name": "P6",
+          "seat": 6,
+          "roleId": "sailor",
+          "believedRoleId": null,
+          "alignment": "good",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [
+            {
+              "slot": "Sailor",
+              "roleId": "sailor",
+              "input": "(no input)",
+              "outcome": ""
+            }
+          ],
+          "received": []
+        }
+      ],
+      "deaths": [],
+      "revived": []
+    }
+  ],
+  "publicDead": [],
+  "idSeq": 19,
+  "players": [
+    {
+      "id": "p1",
+      "name": "Storyteller",
+      "rolePreference": "none",
+      "isAdmin": true,
+      "seat": null,
+      "tokens": [
+        "tok-Storyteller"
+      ],
+      "alive": true,
+      "deadAt": null,
+      "deathCause": null,
+      "ghostVoteUsed": false,
+      "lastSeenAt": 2000000,
+      "hasSeenRole": false,
+      "joinedAt": 2000000
+    },
+    {
+      "id": "p2",
+      "name": "P0",
+      "rolePreference": "none",
+      "isAdmin": false,
+      "seat": 0,
+      "tokens": [
+        "tok-P0"
+      ],
+      "alive": true,
+      "deadAt": null,
+      "deathCause": null,
+      "ghostVoteUsed": false,
+      "lastSeenAt": 2000001,
+      "hasSeenRole": false,
+      "joinedAt": 2000001
+    },
+    {
+      "id": "p3",
+      "name": "P1",
+      "rolePreference": "none",
+      "isAdmin": false,
+      "seat": 1,
+      "tokens": [
+        "tok-P1"
+      ],
+      "alive": true,
+      "deadAt": null,
+      "deathCause": null,
+      "ghostVoteUsed": false,
+      "lastSeenAt": 2000002,
+      "hasSeenRole": false,
+      "joinedAt": 2000002
+    },
+    {
+      "id": "p4",
+      "name": "P2",
+      "rolePreference": "none",
+      "isAdmin": false,
+      "seat": 2,
+      "tokens": [
+        "tok-P2"
+      ],
+      "alive": true,
+      "deadAt": null,
+      "deathCause": null,
+      "ghostVoteUsed": false,
+      "lastSeenAt": 2000003,
+      "hasSeenRole": false,
+      "joinedAt": 2000003
+    },
+    {
+      "id": "p5",
+      "name": "P3",
+      "rolePreference": "none",
+      "isAdmin": false,
+      "seat": 3,
+      "tokens": [
+        "tok-P3"
+      ],
+      "alive": true,
+      "deadAt": null,
+      "deathCause": null,
+      "ghostVoteUsed": false,
+      "lastSeenAt": 2000004,
+      "hasSeenRole": false,
+      "joinedAt": 2000004
+    },
+    {
+      "id": "p6",
+      "name": "P4",
+      "rolePreference": "none",
+      "isAdmin": false,
+      "seat": 4,
+      "tokens": [
+        "tok-P4"
+      ],
+      "alive": true,
+      "deadAt": null,
+      "deathCause": null,
+      "ghostVoteUsed": false,
+      "lastSeenAt": 2000005,
+      "hasSeenRole": false,
+      "joinedAt": 2000005
+    },
+    {
+      "id": "p7",
+      "name": "P5",
+      "rolePreference": "none",
+      "isAdmin": false,
+      "seat": 5,
+      "tokens": [
+        "tok-P5"
+      ],
+      "alive": true,
+      "deadAt": null,
+      "deathCause": null,
+      "ghostVoteUsed": false,
+      "lastSeenAt": 2000006,
+      "hasSeenRole": false,
+      "joinedAt": 2000006
+    },
+    {
+      "id": "p8",
+      "name": "P6",
+      "rolePreference": "none",
+      "isAdmin": false,
+      "seat": 6,
+      "tokens": [
+        "tok-P6"
+      ],
+      "alive": true,
+      "deadAt": null,
+      "deathCause": null,
+      "ghostVoteUsed": false,
+      "lastSeenAt": 2000007,
+      "hasSeenRole": false,
+      "joinedAt": 2000007
+    }
+  ],
+  "assignments": {
+    "p2": {
+      "roleId": "imp",
+      "believedRoleId": null,
+      "alignment": "evil",
+      "retainsAbilityWhenDead": false,
+      "grantedAbility": null,
+      "history": [
+        {
+          "at": 2000010,
+          "from": null,
+          "to": "imp",
+          "reason": "setup"
+        }
+      ]
+    },
+    "p3": {
+      "roleId": null,
+      "believedRoleId": null,
+      "alignment": "evil",
+      "retainsAbilityWhenDead": false,
+      "grantedAbility": null,
+      "history": [
+        {
+          "at": 2000011,
+          "from": null,
+          "to": null,
+          "reason": "setup"
+        }
+      ]
+    },
+    "p4": {
+      "roleId": null,
+      "believedRoleId": null,
+      "alignment": "evil",
+      "retainsAbilityWhenDead": false,
+      "grantedAbility": null,
+      "history": [
+        {
+          "at": 2000012,
+          "from": null,
+          "to": null,
+          "reason": "setup"
+        }
+      ]
+    },
+    "p5": {
+      "roleId": "empath",
+      "believedRoleId": null,
+      "alignment": "good",
+      "retainsAbilityWhenDead": false,
+      "grantedAbility": null,
+      "history": [
+        {
+          "at": 2000013,
+          "from": null,
+          "to": "empath",
+          "reason": "setup"
+        }
+      ]
+    },
+    "p6": {
+      "roleId": "fortune_teller",
+      "believedRoleId": null,
+      "alignment": "good",
+      "retainsAbilityWhenDead": false,
+      "grantedAbility": null,
+      "history": [
+        {
+          "at": 2000014,
+          "from": null,
+          "to": "fortune_teller",
+          "reason": "setup"
+        }
+      ]
+    },
+    "p7": {
+      "roleId": "butler",
+      "believedRoleId": null,
+      "alignment": "good",
+      "retainsAbilityWhenDead": false,
+      "grantedAbility": null,
+      "history": [
+        {
+          "at": 2000015,
+          "from": null,
+          "to": "butler",
+          "reason": "setup"
+        }
+      ]
+    },
+    "p8": {
+      "roleId": "sailor",
+      "believedRoleId": null,
+      "alignment": "good",
+      "retainsAbilityWhenDead": false,
+      "grantedAbility": null,
+      "history": [
+        {
+          "at": 2000016,
+          "from": null,
+          "to": "sailor",
+          "reason": "setup"
+        }
+      ]
+    }
+  },
+  "flags": {},
+  "effects": [],
+  "roleState": {},
+  "setup": {
+    "demonBluffs": [
+      "clockmaker",
+      "mayor"
+    ],
+    "redHerringId": "p5",
+    "lilMonstaMinionRole": null,
+    "lilMonstaTokenHolderId": null,
+    "mezephelesWord": null,
+    "mezephelesSpent": false,
+    "typeCountsOverride": null,
+    "shabalothKills": [],
+    "briefingSeen": false,
+    "godfatherOutsiders": null,
+    "damselGuessUsed": false,
+    "damselGuessResult": null
+  },
+  "endedReason": "update",
+  "script": [
+    "clockmaker",
+    "sailor",
+    "mathematician",
+    "flowergirl",
+    "gambler",
+    "philosopher",
+    "juggler",
+    "fool",
+    "empath",
+    "balloonist",
+    "fortune_teller",
+    "innkeeper",
+    "seamstress",
+    "artist",
+    "ravenkeeper",
+    "virgin",
+    "mayor",
+    "oracle",
+    "gossip",
+    "grandmother",
+    "huntsman",
+    "professor",
+    "slayer",
+    "tea_lady",
+    "drunk",
+    "golem",
+    "recluse",
+    "moonchild",
+    "goon",
+    "butler",
+    "damsel",
+    "mezepheles",
+    "devils_advocate",
+    "mastermind",
+    "poisoner",
+    "marionette",
+    "scarlet_woman",
+    "assassin",
+    "psychopath",
+    "godfather",
+    "witch",
+    "imp",
+    "pukka",
+    "shabaloth",
+    "po",
+    "no_dashii",
+    "vigormortis",
+    "lil_monsta"
+  ]
+}

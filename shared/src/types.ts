@@ -21,7 +21,8 @@ export interface Effect {
 
 export interface Settings {
   countdownSeconds: number;
-  ravenkeeperExtensionSeconds: number;
+  /** Extra night time when follow-up questions first appear. */
+  followUpExtensionSeconds: number;
   announceDeaths: boolean;
   notifyOnRoleChange: boolean;
 }
@@ -70,10 +71,14 @@ export interface PublicPlayer { id: string; name: string; seat: number | null; i
 
 export interface RoleCard { roleId: string; name: string; type: RoleType; abilityText: string }
 
+// View fields added from schema v5 on are optional (?), and the client must handle their absence: a phone may be
+// running an older or newer build than the server until it reloads.
 export interface PlayerView {
   kind: 'player';
   gameCode: string;
   phase: Phase;
+  /** Set when an app update ended the game (ENDED_REASON_TEXT). */
+  endedReason?: 'abandoned' | 'update' | null;
   nightNumber: number;
   dayNumber: number;
   nightEndsAt: number | null;
@@ -90,7 +95,8 @@ export interface PlayerView {
     submitted: boolean;
     submission: Submission | null;
     actions: ActionSpec[];
-    ravenkeeperPrompt: boolean;
+    /** This player's unanswered follow-up questions (each spec's key is the question key). */
+    followUps?: ActionSpec[];
     messages: PrivateMessage[];
   };
   players: PublicPlayer[];

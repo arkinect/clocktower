@@ -4,8 +4,9 @@
 import { ROLE_BY_ID, type ActionSpec, type GameState, type WorldState } from '@ct/shared';
 import type { Actor, NightRun } from '../night';
 import { becomeDemon, demonInfoLines } from '../demon';
+import { enabledRoles } from '../setup';
 import {
-  aliveIds, aliveNeighbours, alignmentOf, findPlayer, flag, isAlive, isDemon, nameOf, nearestAliveMatching, roleIdOf,
+  aliveIds, aliveNeighbours, alignmentOf, changeRole, findPlayer, flag, isAlive, isDemon, nameOf, nearestAliveMatching, roleIdOf,
   roleName, rs, seatDistance, seatedIds, typeOf,
 } from '../world';
 
@@ -18,9 +19,24 @@ export interface RoleBehaviour {
   spec?(ctx: SpecCtx): ActionSpec | null;
   resolve?(run: NightRun, actor: Actor): void;
   actsWhileDead?: boolean;
+  /**
+   * Called after an execution kills `executeeId`, once for each seated player (`holderId`) with a real ability of
+   * this role, dead or alive and whether or not impaired: the hook decides what that means for its role.
+   */
+  onExecution?(ctx: ExecutionCtx): void;
 }
 
-const enabled = (s: GameState) => Object.keys(s.enabledRoles).filter((r) => s.enabledRoles[r] && ROLE_BY_ID[r]);
+export interface ExecutionCtx { s: GameState; executeeId: string; holderId: string; now: number }
+
+const enabled = enabledRoles;
+
+/** The Ravenkeeper's follow-up question when they die at night. */
+export function ravenkeeperSpec(state: GameState): ActionSpec {
+  return {
+    key: 'ravenkeeper', roleId: 'ravenkeeper', title: 'Ravenkeeper', prompt: 'You have died. Choose a player: you learn their character.',
+    fields: [{ kind: 'player', label: 'Player', options: seatedIds(state) }], distinct: false, allowDecline: false,
+  };
+}
 
 function players(key: string, title: string, prompt: string, count: number, options: string[], distinct = true, decline?: string): ActionSpec {
   return {
@@ -251,12 +267,12 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
   ravenkeeper: {
     actsWhileDead: true,
     resolve(run, a) {
-      if (!a.choice) {
-        run.awaitingRavenkeeper.push(a.pid);
+      const choice = run.askFollowUp({ key: `ravenkeeper:${a.pid}`, playerId: a.pid, roleId: 'ravenkeeper', spec: ravenkeeperSpec(run.state) });
+      if (!choice) {
         run.outcome('died tonight: waiting for the Ravenkeeper\'s choice');
         return;
       }
-      const [t] = target(a);
+      const [t] = choice.decline ? [] : choice.values;
       if (!t) return;
       const truth = run.regRole(`ravenkeeper:${a.pid}`, t);
       const opts = enabled(run.state).filter((r) => r !== truth);
@@ -372,7 +388,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
         `${run.name(a.pid)} killed themselves.`,
         [...minions.map((m) => ({ id: m, label: `${run.name(m)} (${roleName(roleIdOf(run.w, m))})` })), { id: 'none', label: 'Nobody' }], def);
       if (ch === 'none') return;
-      becomeDemon(run.w, ch, a.pid, (pid, title, lines) => run.notice(pid, title, lines));
+      becomeDemon(run.w, ch, a.pid, run.now, (pid, title, lines) => run.notice(pid, title, lines));
       run.outcome(`${run.name(ch)} becomes the Imp`);
     },
   },
@@ -588,11 +604,7 @@ Object.assign(BEHAVIOURS, {
       const def = run.rng(`huntsman:${a.pid}`).pick(cands);
       const nr = run.review(`huntsman:${a.pid}`, 'huntsman_new_role', `Huntsman found the Damsel (${run.name(t)}): she becomes…`,
         'A Townsfolk not in play. Her new ability works from the next night.', cands.map((r) => ({ id: r, label: roleName(r) })), def);
-      const as = run.w.assignments[t];
-      as.history.push({ at: Date.now(), from: as.roleId, to: nr, reason: 'Huntsman found the Damsel' });
-      as.roleId = nr;
-      as.believedRoleId = null;
-      as.alignment = 'good';
+      changeRole(run.w, t, nr, 'Huntsman found the Damsel', run.now, { keepAbilities: true, keepTies: true });
       run.noActTonight.add(t);
       if (nr === 'grandmother') run.setRs(t, 'grandmotherInfoPending', true);
       run.notice(t, `Your role is now ${roleName(nr)}`, [ROLE_BY_ID[nr].abilityText]);

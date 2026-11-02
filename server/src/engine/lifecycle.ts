@@ -1,7 +1,7 @@
 // Shared life/death bookkeeping used by the night engine and Day panel actions.
 import type { WorldState } from '@ct/shared';
 import { computeImpairment } from './impairment';
-import { aliveNeighbours, alignmentOf, findPlayer, flag, hasAbility, playersWithAbility } from './world';
+import { abilityNightToday, aliveNeighbours, alignmentOf, findPlayer, flag, hasAbility, playersWithAbility } from './world';
 
 /**
  * Bring a dead player back with the same role (Professor, Shabaloth, Admin "mark alive").
@@ -33,15 +33,16 @@ export function previewDayKill(w: WorldState, target: string, night: number): Da
   if (!p || !p.alive) return { wouldDie: false, reason: `${p?.name ?? 'That player'} is already dead.`, usesFool: false };
   const imp = computeImpairment(w, night);
   const sober = (id: string) => !imp[id]?.impaired;
-  if (hasAbility(w, target, 'sailor', night) && sober(target)) return { wouldDie: false, reason: `${p.name} cannot die because they are a sober Sailor.`, usesFool: false };
-  for (const tl of playersWithAbility(w, 'tea_lady', night)) {
+  const today = abilityNightToday(night);
+  if (hasAbility(w, target, 'sailor', today) && sober(target)) return { wouldDie: false, reason: `${p.name} cannot die because they are a sober Sailor.`, usesFool: false };
+  for (const tl of playersWithAbility(w, 'tea_lady', today)) {
     if (!findPlayer(w, tl)?.alive || !sober(tl)) continue;
     const nb = aliveNeighbours(w, tl);
     if (nb.length === 2 && nb.includes(target) && nb.every((x) => alignmentOf(w, x) === 'good')) {
       return { wouldDie: false, reason: `${p.name} cannot die: neighbour of the Tea Lady (${findPlayer(w, tl)!.name}).`, usesFool: false };
     }
   }
-  if (hasAbility(w, target, 'fool', night) && !flag(w, target, 'fool_used') && sober(target)) {
+  if (hasAbility(w, target, 'fool', today) && !flag(w, target, 'fool_used') && sober(target)) {
     return { wouldDie: false, reason: `${p.name} survives: the Fool's first death (this uses the Fool).`, usesFool: true };
   }
   return { wouldDie: true, reason: `${p.name} would die.`, usesFool: false };

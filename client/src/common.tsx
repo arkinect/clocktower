@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID, ROLES, type ActionChoice, type ActionSpec, type PrivateMessage, type RoleCard as RC, type RoleType } from '@ct/shared';
+import { ENDED_REASON_TEXT, FIRST_NIGHT_ORDER, jinxesAmong, jinxLabel, OTHER_NIGHT_ORDER, ROLE_BY_ID, ROLES, type ActionChoice, type ActionSpec, type PrivateMessage, type RoleCard as RC, type RoleType } from '@ct/shared';
 
 export const TYPE_LABEL: Record<RoleType, string> = { townsfolk: 'Townsfolk', outsider: 'Outsiders', minion: 'Minions', demon: 'Demons' };
 export const TYPE_ORDER: RoleType[] = ['townsfolk', 'outsider', 'minion', 'demon'];
 
 export function RoleList({ enabled }: { enabled: string[] }) {
+  const jinxes = jinxesAmong(enabled);
   return (
     <div>
       {TYPE_ORDER.map((t) => {
@@ -25,6 +26,16 @@ export function RoleList({ enabled }: { enabled: string[] }) {
           </section>
         );
       })}
+      {jinxes.length > 0 && (
+        <section className="rolegroup jinxes">
+          <h3>Jinxes</h3>
+          {jinxes.map((j) => (
+            <div key={`${j.a}:${j.b}`} className="roleitem">
+              <p><b>{jinxLabel(j)}:</b> {j.text}</p>
+            </div>
+          ))}
+        </section>
+      )}
     </div>
   );
 }
@@ -74,6 +85,11 @@ export function RoleCardView({ role, hiddenByDefault = true }: { role: RC | null
       )}
     </div>
   );
+}
+
+/** Why an app update ended the game, if it did (absent from older servers' views). */
+export function EndedReason({ reason }: { reason?: 'abandoned' | 'update' | null }) {
+  return reason ? <div className="card notice"><p>{ENDED_REASON_TEXT[reason]}</p></div> : null;
 }
 
 export function Messages({ messages, emptyText }: { messages: PrivateMessage[]; emptyText?: string }) {
@@ -208,10 +224,6 @@ export function TimedButton({ onConfirm, children, className, disabled, seconds 
   );
 }
 
-const CAUSE_SOURCE: Record<string, string> = {
-  poisoner: 'Poisoner', sailor: 'Sailor', innkeeper: 'Innkeeper', goon: 'Goon', philosopher: 'Philosopher', pukka: 'Pukka',
-  no_dashii: 'No Dashii', vigormortis: 'Vigormortis', witch: 'Witch', admin: 'Storyteller',
-};
 
 /** "poisoned:poisoner" -> "Poisoned by the Poisoner"; "own_character" -> "Drunk/Marionette (own role)". */
 export function causeLabel(c: string): string {
@@ -219,7 +231,7 @@ export function causeLabel(c: string): string {
   const [kind, src] = c.split(':');
   const what = kind === 'poisoned' ? 'Poisoned' : kind === 'drunk' ? 'Drunk' : kind.replace(/_/g, ' ');
   if (!src) return what;
-  return src === 'admin' ? `${what} (set by you)` : `${what} by the ${CAUSE_SOURCE[src] ?? src.replace(/_/g, ' ')}`;
+  return src === 'admin' ? `${what} (set by you)` : `${what} by the ${ROLE_BY_ID[src]?.name ?? src.replace(/_/g, ' ')}`;
 }
 
 /** One tidy chip per impairment cause, wrapping cleanly when there are several. */

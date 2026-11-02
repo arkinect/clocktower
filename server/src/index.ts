@@ -5,9 +5,10 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createHash, timingSafeEqual } from 'crypto';
-import type { Intent, JoinRequest } from '@ct/shared';
+import { SCHEMA_VERSION, type Intent, type JoinRequest } from '@ct/shared';
 import { Store } from './db';
 import { GameManager, type LiveGame } from './manager';
+import { isLoopback, upgradeSavedGames, upgradeSummary, UpgradeRefused, upgradeStatus } from './upgrade';
 
 const PORT = Number(process.env.PORT ?? 8080);
 const DATA_DIR = process.env.DATA_DIR ?? path.resolve('data');
@@ -23,6 +24,15 @@ const CLIENT_DIR = [process.env.CLIENT_DIR, path.resolve(here, '../../client/dis
   .find((d) => d && fs.existsSync(path.join(d, 'index.html')));
 
 const store = new Store(DATA_DIR);
+try {
+  const appVersion = [process.env.APP_VERSION || 'dev', process.env.GIT_SHA].filter(Boolean).join(' ');
+  const upgraded = upgradeSavedGames(store, { now: Date.now(), appVersion });
+  if (upgraded) console.log(upgradeSummary(upgraded, SCHEMA_VERSION));
+} catch (e) {
+  if (!(e instanceof UpgradeRefused)) throw e;
+  console.error(`Not starting: ${e.message}`);
+  process.exit(1);
+}
 const games = new GameManager(store);
 games.ensure(DEFAULT_GAME_CODE);
 
@@ -89,6 +99,13 @@ function gameOr404(code: string, reply: FastifyReply): LiveGame | undefined {
 
 app.get('/healthz', async () => ({ ok: true }));
 
+// For scripts/update.sh, run inside the container. Only the container itself may ask: Caddy connects over the
+// Docker network, and the socket address is checked rather than req.ip, which TRUST_PROXY takes from a header.
+app.get('/api/upgrade-status', async (req, reply) => {
+  if (!isLoopback(req.socket.remoteAddress)) return reply.code(404).send({ ok: false, error: 'Not found' });
+  return upgradeStatus(store, games.all().map((g) => g.state), Date.now());
+});
+
 // Which build is running (baked into the image by the GitHub workflows). Storyteller-only: see /events.
 const BUILD = {
   version: process.env.APP_VERSION || 'dev',
@@ -97,7 +114,10 @@ const BUILD = {
   startedAt: Date.now(),
 };
 
-app.get('/api/config', async () => ({ publicUrl: PUBLIC_URL, defaultGame: DEFAULT_GAME_CODE, passwordRequired: !!PASSWORD_DIGEST }));
+// An opaque id of this build for every client: a phone that sees it change on reconnect offers to reload.
+const BUILD_ID = createHash('sha256').update(`${BUILD.version}|${BUILD.commit ?? ''}|${BUILD.builtAt ?? ''}`).digest('hex').slice(0, 12);
+
+app.get('/api/config', async () => ({ publicUrl: PUBLIC_URL, defaultGame: DEFAULT_GAME_CODE, passwordRequired: !!PASSWORD_DIGEST, buildId: BUILD_ID }));
 
 app.get<{ Params: { code: string } }>('/api/g/:code/names', async (req, reply) => {
   if (!passwordGate(req, reply)) return;

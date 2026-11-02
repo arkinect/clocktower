@@ -9,6 +9,17 @@ function gameCodeFromPath(): string {
   return m ? decodeURIComponent(m[1]) : 'default';
 }
 
+/** A thin bar above the page (in the flow, so headers and controls stay usable) offering a reload after an update. */
+export function UpdatedBar({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="updated" role="status">
+      <span>The app was updated.</span>
+      <button onClick={() => location.reload()}>Tap to reload.</button>
+      <button className="dismiss" aria-label="Dismiss" onClick={onDismiss}>×</button>
+    </div>
+  );
+}
+
 export function App() {
   const code = gameCodeFromPath();
   const [token, setToken] = useState<string | null>(() => loadToken(code));
@@ -36,7 +47,8 @@ export function App() {
 
   if (token) setSession(code, token);
   const logout = useCallback(() => { saveToken(code, null); setToken(null); }, [code]);
-  const { view, connected } = useGameSocket(code, token, logout);
+  const { view, connected, updated } = useGameSocket(code, token, logout);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
 
   let body;
   if (!checked) body = <div className="center muted">Loading…</div>;
@@ -48,6 +60,7 @@ export function App() {
   return (
     <>
       {token && !connected && view && <div className="offline">Reconnecting…</div>}
+      {updated && connected && !updateDismissed && <UpdatedBar onDismiss={() => setUpdateDismissed(true)} />}
       {body}
       {toastMsg && <div className="toast" onClick={() => setToastMsg(null)}>{toastMsg}</div>}
     </>

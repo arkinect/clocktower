@@ -140,7 +140,7 @@ describe('owner change: players record their own ghost vote', () => {
     const s = g.s;
     expect(s.phase).toBe('SETUP');
     expect(s.adminId).toBe(before.adminId);
-    expect(s.enabledRoles.gambler).toBe(false);
+    expect(s.script).not.toContain('gambler');
     expect(s.players.map((p) => [p.id, p.name, p.seat, p.tokens])).toEqual(before.players.map((p) => [p.id, p.name, p.seat, p.tokens]));
     expect(s.players.every((p) => p.alive && !p.ghostVoteUsed && !p.deadAt && !p.hasSeenRole)).toBe(true);
     expect(s.assignments).toEqual({});

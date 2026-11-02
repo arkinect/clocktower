@@ -211,27 +211,42 @@ Append-only `events` table (game_id, seq, timestamp, actor, type, payload). Ever
 
 ### 5.5 Persistence and schema versions
 - Each game is stored as **one JSON document** (`games.state`), rewritten on every change, plus the event log. This keeps "persist every change" atomic and the engine a pure function. The data model below is logical.
-- `GameState.schemaVersion` (currently **4**). On load, `migrate()` upgrades older saves:
-  - v1 → v2: add the 9 new roles as enabled; old string `deadAt` values become `null`; add `deathCause`, `gossipStatement`, Godfather/Damsel setup fields.
-  - v2 → v3: drop the removed Balloonist setting; add an empty `story`.
-  - v3 → v4: add `publicDead` (current dead if the game has started).
+- `GameState.schemaVersion` (currently **7**; every public release up to v0.2.2 wrote v4, the oldest this release upgrades, and the withdrawn v0.3.0 wrote v5 with four extra roles: `MIN_SUPPORTED_SCHEMA` in `server/src/engine/migrations/`). Saved games are upgraded once, at startup, before any game loads (`server/src/upgrade.ts`):
+  1. Versions are checked first, changing nothing. A game newer than this release, or older than `MIN_SUPPORTED_SCHEMA` (missing = v1: "Run v0.2.2 once to bring them to v4, then upgrade"), stops startup.
+  2. If any game is older than `SCHEMA_VERSION`, the whole database is copied once to `clocktower.db.pre-v<SCHEMA_VERSION>` (a timestamp is appended rather than overwrite an existing copy).
+  3. In one transaction, each older game is **ended** if it isn't already (`phase = ENDED`, `night = null`, `nightEndsAt = null`, `endedReason = 'abandoned'` after 4 hours without progress, else `'update'`) — except an empty lobby (`LOBBY`, no players), which is deleted with its events instead (the default game is recreated when games load) — run through the migration steps from its version up, and saved with a `schema_migrated` event `{ from, to, endedReason }`. Any failure rolls everything back and stops startup, naming the game and step.
+  When startup stops, the reason is printed as `Not starting: …` (`docker logs clocktower`); with `restart: unless-stopped` Docker keeps retrying, and each attempt refuses again without changing anything.
+  4. Games load, and each must be at `SCHEMA_VERSION`.
+- **Upgrade log.** Every startup that upgrades anything leaves three records: a row in the `migrations` table (`applied_at`, `app_version` = APP_VERSION and GIT_SHA, `to_schema`, `games_migrated`, `games_ended`, `backup_file`, `details` JSON of code, from-version and `endedReason` per game, plus `deleted: true` for an empty lobby; `games_migrated` leaves those out), written in the same transaction as the games; the `schema_migrated` event in each game (shown on the Storyteller's Log page); and one line in the server output, e.g. `Upgraded 2 games to schema v5 (1 ended: abandoned). Deleted 1 empty lobby. Backup: clocktower.db.pre-v5.` Nothing is printed or written when no game needed upgrading. Deferred updates are logged by `scripts/update.sh` to its own output (`update.log` in the documented cron line).
+- Database tables (as opposed to the saved-game JSON) are only ever added, with `CREATE TABLE IF NOT EXISTS`. A release that has to alter an existing table should track that with SQLite's `PRAGMA user_version`, separately from `SCHEMA_VERSION`.
+- Steps: v4 → v5 undoes the withdrawn v0.3.0 (schema v5 is taken for good): it removes every stored role id of the Fisherman, Zealot, Organ Grinder and Baron (script entries, held and believed roles, a gained ability, role history, bluffs, the Lil' Monsta Minion role, the Organ Grinder's effects, the story's roles, causes and actions) and drops the ended game's last night; text people were already shown is left as written. It changes nothing else on v4 data, and since a game saved at v5 starts at step 6, step 6 runs it again first. v5 → v6 turns `enabledRoles` (an on/off entry for every known role) into `script`, the list of role ids that were on, and adds `endedReason`. v6 → v7 drops the night (it held the old Ravenkeeper fields) and renames the setting `ravenkeeperExtensionSeconds` to `followUpExtensionSeconds`.
+- **The script is a list of role ids** (`script: string[]`). A role added by a later release is absent from every existing game's script, so it is off there without a migration step, while new games start with every role on. It is read only through `onScript` and `enabledRoles` (`server/src/engine/setup.ts`), which ignore ids this release doesn't know (for example after a rollback) and return roles in `ROLES` order. Player views keep the field `enabledRoles: string[]`.
+- Because only ended games are migrated, steps never deal with night state. There is one file per step in `server/src/engine/migrations/`; steps read only the saved JSON and never import live code such as `ROLES`.
+- Rollback: stop the container, copy `clocktower.db.pre-v<N>` over `clocktower.db`, run the older image.
+- **Updates never interrupt a game.** `scripts/update.sh` restarts the app only when every game is `ENDED`, abandoned (not `ENDED`, no progress for 4 hours, `ABANDONED_AFTER_MS` in `server/src/upgrade.ts`) or an empty lobby (`LOBBY` with no players, whatever its age: `isEmptyLobby`); otherwise it prints `Update deferred: game in progress` and the next run tries again. A game's last progress is its latest event other than `rebind` (a reconnect is not progress; a player joining is), else its `createdAt`. The script asks `GET /api/upgrade-status` from inside the container; the endpoint answers only the loopback address (by socket address, never `X-Forwarded-For`), so Caddy can't reach it, and reports only game codes, phases and times. Images carry a `clocktower.schema` label; when it equals the running server's schema the restart goes ahead mid-game, so weekly base-image refreshes never wait. `--force` skips the check. A server too old to have the endpoint makes the script defer unless forced: the first update from v0.2.2 must be run by hand (`--force`) at a time no game is running. Self-hosters get the script's check only by updating their checkout of the repository; the startup upgrade ships in the image.
+- **After an update ends a game**, the ended screen (players and Storyteller) shows one line from `ENDED_REASON_TEXT` (`shared/src/state.ts`): `update` "This game was ended by an app update.", `abandoned` "This game was ended for an app update after 4 hours without progress." Players stay in the game, so *Play again* carries everyone into a new Setup.
+- **Phones on an old build.** `GET /api/config` includes an opaque `buildId` (a short hash of APP_VERSION, GIT_SHA and BUILD_DATE; the build details themselves stay Storyteller-only). The client remembers the first one it sees and checks it on every reconnect; if it changed, a thin bar above the page says "The app was updated. Tap to reload." It sits in the page flow rather than over it, so the Storyteller's header and tabs stay usable, and × dismisses it. It never reloads by itself, which could lose an unsent night choice.
+- **Intent shapes are checked** before the engine sees an intent (`server/src/intent-shape.ts`, one entry per intent type in `shared/src/protocol.ts`): strings are strings, player ids are known players, arrays are arrays. A mismatch gets `Bad request.` with no state change, so a client and server from different builds fail politely.
+- **New view fields are optional.** Fields added to `PlayerView` or `AdminView` from schema v5 on are declared with `?`, and the client handles their absence.
+- **Release notes** mark every release that bumps `SCHEMA_VERSION`: updating to it ends any game in progress. The README's *Updating* section is the user-facing version of this section.
 
 ### 5.6 Data model (logical)
-- `Game(id, code, phase, nightNumber, dayNumber, settings, nightEndsAt, enabledRoles, adminId, seatingPublished, publishedSeating[], publicDead[], story[], schemaVersion)`
+- `Game(id, code, phase, endedReason, nightNumber, dayNumber, settings, nightEndsAt, script[], adminId, seatingPublished, publishedSeating[], publicDead[], story[], schemaVersion)`
 - `Player(id, name, rolePreference, isAdmin, seat, tokens[], alive, deadAt {phase: night|day, number} | null, deathCause, ghostVoteUsed, hasSeenRole, lastSeenAt)`
 - `Assignment(playerId, roleId, believedRoleId, alignment, retainsAbilityWhenDead, grantedAbility {roleId, fromNight} | null, history[])`
+- **Abilities** are derived, never stored: `abilitiesOf(world, playerId, night)` (`shared/src/abilities.ts`, used by server and client) lists each ability as `{roleId, source, real, fromNight}`, with `source` one of `role`, `believed` (Drunk/Marionette: wakes as it, `real: false`), `philosopher` (from `grantedAbility.fromNight`) and `lil_monsta` (the token holder, from night 1). `hasAbility` is the player's actual role (which always counts, including the Drunk's and Marionette's own) or some real entry; `actingRoles` is every entry, in that order. A new source of abilities is added there only.
 - `Flags(playerId, key)`: `philosopher_used, seamstress_used, assassin_used, huntsman_used, professor_used, slayer_used, fool_used, virgin_used, golem_used, artist_used`
 - `RoleState(playerId, ...)`: per-role memory such as `lastTarget` (Devil's Advocate), `lastChoiceNone` (Po), `shownTypes` (Balloonist), `grandchildId` and `grandmotherInfoPending` (Grandmother), `soberAtDeath` and `moonchildUsed` (Moonchild)
 - `Effect(id, type, cause, sourcePlayerId, targetPlayerId, startNight, expiry)`; `type` in `poisoned | drunk | protected | devils_advocate | butler_master | witched`; `expiry` in `until_dusk | until_source_acts_again | while_source_alive_and_sober | until_removed`; `cause` in `poisoner | sailor | innkeeper | goon | philosopher | pukka | no_dashii | vigormortis | witch | admin` (used by the Mathematician).
 - `Setup(demonBluffs[3], redHerringId, lilMonstaMinionRole, lilMonstaTokenHolderId, mezephelesWord, mezephelesSpent, typeCountsOverride?, shabalothKills[], godfatherOutsiders (1 | -1 | null), damselGuessUsed, damselGuessResult)`
 - `DayRecord(dayNumber, executedPlayerId, demonVoted, jugglerCorrect, moonchildTargetId, mezephelesSayer, gossipStatement (none|true|false), notes)`
-- `NightState(number, collectingOpen, submissions{}, ravenSubmissions{}, seed, reviewChoices{}, overrides{}, mathAdjust, resolution)`
-- `Resolution(actors[], results[], reviewItems[], log[], deaths[], revived[], abnormal[], awaitingRavenkeeper[], notices[], after: World)`
+- `NightState(number, collectingOpen, submissions{}, followUpAnswers{key: {choice, byAdmin, at}}, seed, reviewChoices{}, overrides{}, mathAdjust, resolution)`
+- `Resolution(actors[], results[], reviewItems[], log[], deaths[], revived[], abnormal[], followUps[{key, playerId, roleId, spec, answered}], notices[], after: World)`
 - `Messages(playerId -> [{title, lines, night, kind: result|notice|starting}])`, `PendingNotices` (delivered when the next night starts), `DayPrompts` (Scarlet Woman day prompt)
 - `Story`: see section 13.3.
 
 ### 5.7 Role definitions
-Static data in `shared/src/roles.ts` (`id, name, type, alignment, abilityText, setupModifier?, reminder?`) and both night orders as editable tables. Behaviour in `server/src/engine/roles/index.ts`, one module per role:
+Static data in `shared/src/roles.ts` (`id, name, type, alignment, abilityText, setupModifier?, reminder?, usedFlag?, dayReminder?`) and both night orders as editable tables. `usedFlag: {key, auto}` puts a once-per-game ability in the Day panel's Ability tracker (`auto`: the engine sets it); `dayReminder` shows the role's `reminder` in the Day panel's reminders. Behaviour in `server/src/engine/roles/index.ts`, one module per role:
 
 ```ts
 interface RoleBehaviour {
@@ -239,8 +254,12 @@ interface RoleBehaviour {
   spec?(ctx): ActionSpec | null;   // the player's input tonight (null = wakes without input)
   resolve?(run, actor): void;      // effects, kills, results, review items
   actsWhileDead?: boolean;         // Ravenkeeper, Moonchild, Gossip
+  onExecution?(ctx: { s, executeeId, holderId, now }): void;
+                                   // after an execution kills, once per seated player with a real ability of this role
 }
 ```
+
+Every role change goes through `changeRole(w, pid, roleId, reason, now, opts)` in `server/src/engine/world.ts`: new role, its alignment, no believed role, one history entry. By default it also clears the player's gained ability, dead-ability flag, role memory and the effects they caused; `keepAbilities` keeps the first two (a Demon change, the Huntsman's Damsel), `keepTies` keeps the last two (setup, a new Demon, the Huntsman's Damsel), and `clearFlags` also clears their used flags (a live reassignment).
 
 The night-order reference shown to players is generated from the order tables, never hand-written separately.
 
@@ -279,7 +298,7 @@ All night deaths go through `attemptKill(target, cause, attacker, options)`. Cau
 ```
 resolveNight(state):                      // pure; clones the world
   if a Godfather can act on Night 1+: review item "godfather_trigger"
-  for slot in nightOrder(night):          // 14.1 or 14.2
+  for slot in nightOrder(night):          // 14.1
     for actor in actors(slot):            // acting role = believed role (Drunk/Marionette),
                                           // actual role, Philosopher-gained role (from the next
                                           // night), Lil' Monsta token; dead actors only if they
@@ -346,7 +365,7 @@ Modifiers (each applied when that role is assigned; Townsfolk absorb the differe
 Required items appear as roles are assigned; **Begin Night 0** is enabled when all are done (or forced with a warning):
 1. Everyone seated; every seated player has a role (exactly one Demon is a non-blocking check).
 2. **Drunk:** choose the believed role (an enabled Townsfolk not in play and not another player's believed role).
-3. **Marionette:** choose the believed role (an enabled good role not in play). The app warns if the Marionette does not sit next to the Demon.
+3. **Marionette:** choose the believed role (an enabled good role not in play). The app warns if the Marionette does not sit next to the Demon. Jinxes (14.8): believing the Huntsman adds a required "Jinx (Marionette & Huntsman)" item, done once the Damsel is in play; believing the Balloonist adds a "Jinx (Marionette & Balloonist)" warning that an Outsider may be added.
 4. **Fortune Teller:** the red herring. "Recommend" picks a random good player who is not the Fortune Teller, Recluse or Drunk; the Admin may choose any good player.
 5. **Demon bluffs:** exactly 3 good roles not in play and not anyone's believed role ("Suggest random" prefers Townsfolk).
 6. **Mezepheles:** the secret word (random from a built-in list of over 250 simple nouns, or typed).
@@ -396,8 +415,10 @@ The Review tab shows:
 - **Night walk**: every actor in order with input, impairment and outcome. Deaths and revivals.
 - **Reopen collecting** and **Publish and send to Day**.
 
-### 9.4 Ravenkeeper second round
-If a Ravenkeeper (or a Drunk/Marionette who believes they are one) dies tonight, their phone shows "You have died. Choose a player" with every player listed; the countdown is extended by `ravenkeeperExtensionSeconds` (default 120) and the Admin sees "Waiting for Ravenkeeper" with Submit-for. Their result uses their impairment at the moment of death. Publishing without their choice sends them no information.
+### 9.4 Follow-up questions (the Ravenkeeper's second round)
+A role can ask a player a question while the night is reviewed: its behaviour calls `NightRun.askFollowUp({ key, playerId, roleId, spec })`, which returns the answer if there is one, else null, and records the question in `resolution.followUps`. The player's phone shows each unanswered question (`PlayerView.me.followUps`) with the usual picker; the Storyteller sees one card per unanswered question with a picker to answer for them (`answer_follow_up` / `answer_follow_up_for`, both checked against the question's spec). Built-in rules: publishing is refused while a question is unanswered, unless forced (the player then gets no information); the countdown is extended by `followUpExtensionSeconds` (default 120) when questions appear on resolving; "Accept all defaults" never answers a question; re-opening collecting clears all answers.
+
+The Ravenkeeper uses it: if a Ravenkeeper (or a Drunk/Marionette who believes they are one) dies tonight, they are asked (key `ravenkeeper:<playerId>`) to choose a player. Their result uses their impairment at the moment of death.
 
 ### 9.5 Publish and send to Day
 One atomic step: the night's world is committed, the story is recorded, every result and notice is delivered, dead players get "You have died", revived players get "You are alive again", Lil' Monsta's Night 0 role change happens, the **dawn snapshot of deaths** (`publicDead`) is taken, and all phones switch to the Day screen.
@@ -428,7 +449,7 @@ The server validates every intent; the client pre-filters options but is never t
 General:
 - Only the Admin can change phase, assign roles, edit state, resolve and publish.
 - A player may only submit for their own player id and their own acting roles. A Drunk or Marionette submits against the believed role's input rules; the server stores it under their real player.
-- Submissions are accepted only while collecting (or for the Ravenkeeper second round) and only for roles that act on this night number. A player without a real action can only acknowledge (any content is discarded, with an identical response).
+- Submissions are accepted only while collecting (answers to follow-up questions only while their question is open) and only for roles that act on this night number. A player without a real action can only acknowledge (any content is discarded, with an identical response).
 - **Dead players appear in night pickers.** Abilities can be wasted on dead players ("already dead" for kills). Exceptions: Lil' Monsta's "pass the token to" lists only living Minions; the Professor lists only players dead at the start of the night. The Admin's own pickers (Moonchild target, Gossip victim, Mayor redirect) list alive players.
 - An action with no legal choice (an empty option list, or more distinct players needed than are eligible) becomes declinable ("No legal choice").
 - Once-per-game abilities cannot be used when their flag is set.
@@ -487,69 +508,18 @@ Ability texts are verbatim from the owner. `*` means "not on Night 0". Shared co
 - "Reminder only" roles never wake; the grimoire shows their reminder.
 - Players who only confirm a choice ("You chose X.") get the same text whether or not they were impaired.
 
-### 14.1 Night 0 order (enabled and in-play roles only)
+### 14.1 Night order
 
-| # | Slot | Notes |
-|---|---|---|
-| 1 | Philosopher | |
-| 2 | Demon Info | Delivered up front (section 8). Minions learn each other. |
-| 3 | Sailor | |
-| 4 | Poisoner | |
-| 5 | Godfather | Learns the Outsiders in play (delivered at publish) |
-| 6 | Devil's Advocate | |
-| 7 | Witch | |
-| 8 | Mezepheles | Word delivered up front |
-| 9 | Pukka | |
-| 10 | Huntsman | |
-| 11 | Damsel | Minions' "A Damsel is in play" notice, delivered up front |
-| 12 | Clockmaker | |
-| 13 | Empath | |
-| 14 | Fortune Teller | |
-| 15 | Seamstress | |
-| 16 | Balloonist | |
-| 17 | Butler | |
-| 18 | Grandmother | Learns her grandchild (delivered at publish) |
-| 19 | Mathematician | |
+Both orders (night 0, and night 1 and later) are the editable `FIRST_NIGHT_ORDER` and `OTHER_NIGHT_ORDER` in `shared/src/roles.ts`; only enabled, in-play roles wake. A slot's `note` says when it is skipped (the Witch while fewer than 4 are alive, the Ravenkeeper unless killed tonight, the Juggler after night 1, and so on). Demon Info, the Mezepheles word and the Damsel notice are delivered up front; the Godfather's Outsiders and the Grandmother's grandchild at publish.
 
-### 14.2 Night 1 and later order
-
-| # | Slot | Notes |
-|---|---|---|
-| 1 | Philosopher | |
-| 2 | Sailor | |
-| 3 | Poisoner | |
-| 4 | Innkeeper | |
-| 5 | Gambler | |
-| 6 | Devil's Advocate | |
-| 7 | Witch | Only while 4 or more players are alive |
-| 8 | Mezepheles | Only if a good player said the word |
-| 9 | Scarlet Woman | No action of its own (she transforms when the Demon dies) |
-| 10 | Imp | |
-| 11 | Pukka | |
-| 12 | Shabaloth | |
-| 13 | Po | |
-| 14 | No Dashii | |
-| 15 | Vigormortis | |
-| 16 | Lil' Monsta | Token holder passes the token and chooses the victim |
-| 17 | Assassin | |
-| 18 | Godfather | Only if triggered (an Outsider died in the day) |
-| 19 | Gossip | Only if the statement was True. No picker. |
-| 20 | Professor | |
-| 21 | Huntsman | |
-| 22 | Moonchild | Only if the Admin recorded a target |
-| 23 | Grandmother | Only acts if the grandchild was killed by the Demon tonight |
-| 24 | Ravenkeeper | Only if killed tonight (9.4) |
-| 25 | Empath | |
-| 26 | Fortune Teller | |
-| 27 | Flowergirl | |
-| 28 | Oracle | |
-| 29 | Seamstress | |
-| 30 | Juggler | Night 1 only |
-| 31 | Balloonist | |
-| 32 | Butler | |
-| 33 | Mathematician | |
-
-Constraints that must hold: Philosopher, Sailor, Poisoner and Innkeeper before everything they affect; every kill before the Professor, Ravenkeeper and information roles; the Professor before the Empath and Oracle; the Grandmother after every Demon kill; the Mathematician last. The orders are editable data in `shared/src/roles.ts`.
+Constraints that must hold, checked by `server/test/night-order.test.ts` (its role groups are written out, so a new role is placed on purpose):
+- The Philosopher, Sailor, Poisoner and Innkeeper come first, in that order.
+- Every kill comes before the Ravenkeeper and the information roles.
+- Every kill comes before the Professor, except the Moonchild's. This is harmless: the Professor can choose only players dead at the start of the night, so a kill's place relative to the Professor only decides whether a Professor it kills has already acted.
+- The Professor comes before the Empath and Oracle.
+- The Grandmother comes after every Demon.
+- The Mathematician is last.
+- Every role that resolves at night has a slot, and every slot names a real role.
 
 ### 14.3 Input summary
 
@@ -591,7 +561,7 @@ Constraints that must hold: Philosopher, Sailor, Poisoner and Innkeeper before e
 
 #### Mathematician
 - Ability: "Each night, you learn how many players' abilities worked abnormally (since dawn) due to another character's ability."
-- Every night, last, no input. Counts the distinct players with an abnormal event tonight: an ability used while impaired by **another** character's effect, a protection or passive (Sailor, Tea Lady, Fool, Mayor, Goon, Grandmother link) that failed because of such impairment, or a Recluse misregistered by the Admin. Not counted: the player's own ability (e.g. a self-drunk Sailor), the Drunk or Marionette's own character, Storyteller-added poison/drunk, a declined action, a Ravenkeeper's second-round pick, and day events. The Admin can add or remove players and override the number.
+- Every night, last, no input. Counts the distinct players with an abnormal event tonight: an ability used while impaired by **another** character's effect, a protection or passive (Sailor, Tea Lady, Fool, Mayor, Goon, Grandmother link) that failed because of such impairment, or a Recluse misregistered by the Admin. Not counted: the player's own ability (e.g. a self-drunk Sailor), the Drunk or Marionette's own character, Storyteller-added poison/drunk, a declined action, a Ravenkeeper's second-round pick, and day events. The Admin can add or remove players and override the number. The official jinxes with the Drunk and the Marionette (14.8) say the Mathematician does learn of their abilities working abnormally; the count above does not apply them yet, so they are shown as reminders and the Admin adds those players by hand.
 - Impaired: a number different from the truth, from 0 to N, where N is the number of in-play players other than the Mathematician, the Drunk and the Marionette whose role has a night ability or a tracked passive (Sailor, Tea Lady, Fool, Mayor, Goon, Recluse). The Slayer and Damsel are not counted.
 
 #### Flowergirl
@@ -605,7 +575,7 @@ Constraints that must hold: Philosopher, Sailor, Poisoner and Innkeeper before e
 
 #### Philosopher
 - Ability: "Once per game, at night, choose a good character: gain that ability. If this character is in play, they are drunk."
-- Any night until used: one enabled good role (not the Philosopher), or "Not tonight". Choosing sets the used flag. Once the Philosopher has gained an ability, the choice never appears again (even if the Ability tracker chip is toggled back). If sober: gains the ability **from the next night** (acts at that role's slot with its input; gained passives also work), and every player whose actual role is that role gets a `drunk` effect (cause `philosopher`) that ends when the Philosopher dies or the Admin removes it. Day-only roles: reminder only. Choosing the Grandmother: learns a grandchild the following night.
+- Any night until used: one enabled good role (not the Philosopher), or "Not tonight". Choosing sets the used flag. Once the Philosopher has gained an ability, the choice never appears again (even if the Ability tracker chip is toggled back). If sober: gains the ability **from the next night** (acts at that role's slot with its input; gained passives also work), and every player whose actual role is that role gets a `drunk` effect (cause `philosopher`) that ends when the Philosopher dies or the Admin removes it. A gained ability already works by **day** on the day right after the choosing night: every day-time ability check (`abilityNightToday`: the Slayer shooting and the Recluse being shot, the Sailor, Tea Lady and Fool protections against day kills, the Moonchild's sobriety when they die by day) counts abilities starting the next night. Impairment is still checked as of the last night. So the Slayer's shot is recorded with the Day panel's Slayer button, and a Philosopher-Sailor survives the Witch's curse. Other day abilities (e.g. the Artist's question) are run by the Admin at the table. Choosing the Grandmother: learns a grandchild the following night.
 - Always told "You chose the X ability."
 - Impaired: the use is spent, nothing is gained, nobody is drunk.
 
@@ -800,7 +770,17 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 - Setup: +1 Minion; the Admin chooses the Minion role the Lil' Monsta player becomes.
 - Night 0: the Lil' Monsta player gets the Demon's information; at publish they become the chosen Minion ("Your role is now X") and hold the token.
 - Night 1+: the token holder alone chooses a living Minion to pass the token to (self = keep) and a victim (any player). If sober: the victim is attacked, then the token moves; a new holder is told "You hold Lil' Monsta's token". Impaired: no kill, token stays.
-- If the holder dies, the Scarlet Woman check runs; if she takes over she gets the token. Otherwise the token stays with the dead holder; the Admin can move it in Grimoire → Game facts.
+- If the holder dies, the Scarlet Woman check runs; if she takes over she gets the token and keeps her role (the "Lil' Monsta & Scarlet Woman" jinx, 14.8). Otherwise the token stays with the dead holder; the Admin can move it in Grimoire → Game facts.
+
+### 14.8 Jinxes
+The official jinxes between roles in the app are the `JINXES` data in `shared/src/roles.ts`: the two roles, the official wording, how the app handles it and the page it was checked against. A change that adds a role adds its jinxes with roles already in the app, in the same change. Every message about a jinx is labelled `Jinx (A & B): …`. The role list (players' Roles tab, Storyteller reference) has a Jinxes section listing each jinx whose two roles are both on the script.
+
+`handling: 'engine'` jinxes are applied by the app, each with a test whose name starts with its label (`server/test/jinxes.test.ts` checks this):
+- **Marionette & Huntsman:** a Marionette who believes they are the Huntsman needs the Damsel in play (blocking Setup item, 7.5).
+- **Marionette & Balloonist:** a Marionette who believes they are the Balloonist gets a Setup warning that an Outsider may be added.
+- **Lil' Monsta & Scarlet Woman:** already how the Scarlet Woman check works (14.7, Lil' Monsta).
+
+The rest are `'reminder'`: shown in the role list only, applied by the Admin at the table.
 
 ---
 
@@ -812,7 +792,7 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 | Lobby | Player | Names, waiting message, Become Storyteller (if none) |
 | Roles / Order / Seats | Player | Enabled roles; role night order; seat order with dead in red (dawn snapshot) |
 | My role | Player | Tap-to-reveal card and starting information |
-| Night | Player | Countdown, real picker or "No night action" + Continue, games after submitting, Ravenkeeper prompt |
+| Night | Player | Countdown, real picker or "No night action" + Continue, games after submitting, follow-up questions (Ravenkeeper) |
 | Day | Player | Dawn banner, own information, "You have died" |
 | Admin: Lobby | Admin | Players, presence, rename/remove, QR join |
 | Admin: Setup | Admin | Checklist, seating, assignment, decisions, counts, role checklist |
@@ -895,11 +875,22 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 
 ## 18. Tests
 
-122 automated tests (`./dev.sh npm test`), all passing:
+225 automated tests (`./dev.sh npm test`: 216 server, 9 client), all passing:
 - **Original worked examples:** poison makes false info; sober Sailor survives, poisoned Sailor dies; Innkeeper protects but not from the Assassin; Mayor tails redirect (may land on a protected player); Clockmaker 7 seats Demon 1 Minion 5 → 3; Goon; Po none then three; starpass suggests the Scarlet Woman and the Admin picks another; Shabaloth regurgitation; Lil' Monsta flow and the Fortune Teller reading the new holder; reconnect and rebind.
 - **Per-role tests** for every role with a night effect (true, impaired, registration cases), setup blocking, role reassignment, Ravenkeeper second round, Scarlet Woman night and day.
-- **New-role worked examples:** Oracle (and after a Professor revive), Gossip (True/False/poisoned/killed earlier), Huntsman, Professor (Townsfolk only, not tonight's victims, Shabaloth list cleared), Slayer (kill, poisoned, red herring), Damsel (notices, banner, single guess), Godfather (info, trigger, counts ±1), Witch (curse, 3 alive, poisoned), Huntsman setup guard, Mathematician cap, Grandmother (link, Assassin no link, poisoned no grandchild), identical revives, migration of an old save.
+- **Follow-up questions:** the question's key and spec and the timer extension, "Accept all defaults" leaves a question unanswered, re-opening collecting clears answers, the Storyteller answering for a player, only the asked player answering once with a legal choice, the v7 step.
+- **Abilities:** one test per source (own role; a Drunk or Marionette has their actual role's ability but not the believed one's; a Drunk believing the Empath wakes as it without the ability; a Philosopher's ability from `fromNight`; the Lil' Monsta token from night 1).
+- **Jinxes:** every jinx names two roles in the app and no pair twice; every `engine` jinx has a test named after its label; label and lookup helpers; the Marionette & Huntsman Setup item, the Marionette & Balloonist warning, and the Scarlet Woman taking Lil' Monsta's token; the role list's Jinxes section (client).
+- **Philosopher day abilities:** a Philosopher who chose the Slayer can shoot on the very next day (and only once), not before choosing, and the real Slayer is drunk that day; choosing another ability does not make them a Slayer. The day after choosing, a Philosopher-Sailor or -Fool survives the Witch's curse, a Philosopher-Tea Lady protects a good neighbour, a Philosopher-Recluse can register as the Demon to the Slayer, and a Philosopher-Moonchild executed by day has their sobriety recorded.
+- **Role changes and hooks:** `changeRole` for every combination of its options, to no role and for a player with no assignment; the `onExecution` hook runs once per holder of the real ability (including the executee) only when an execution kills.
+- **Night order:** the constraints in 14.1 on both orders, every resolving role has a slot, every slot's role exists once.
+- **New-role worked examples:** Oracle (and after a Professor revive), Gossip (True/False/poisoned/killed earlier), Huntsman, Professor (Townsfolk only, not tonight's victims, Shabaloth list cleared), Slayer (kill, poisoned, red herring), Damsel (notices, banner, single guess), Godfather (info, trigger, counts ±1), Witch (curse, 3 alive, poisoned), Huntsman setup guard, Mathematician cap, Grandmother (link, Assassin no link, poisoned no grandchild), identical revives.
 - **Owner changes:** dead players in pickers, Vigormortis + Scarlet Woman, Balloonist names only, story contents (impairment, targets, information received) and Admin-only, Minions knowing each other, dawn snapshot of deaths.
+- **Updates:** last progress counts joins but not rebinds, an empty lobby is safe to restart at any age and is deleted (and noted in the `migrations` row) by the startup upgrade while a lobby with players is ended, the 4-hour abandoned rule, when a restart is safe, the status reply has no player details, the loopback check; the startup upgrade (in-progress games ended as abandoned or by the update, ended games kept and playable again, one backup, a second startup changes nothing, a failing step rolls back, too-new and too-old saves refused; one `migrations` row per upgrade and none otherwise; the startup line; each v4 fixture upgrades to a stored expected state), using v4 fixtures built by the v0.2.2 engine and v5 fixtures built by the withdrawn v0.3.0 engine at 9606d63 (`server/test/fixtures/`): an ended game with the Baron and Organ Grinder assigned and a Fisherman bluff, and a game left mid-day, both upgrade with no stored id of the four roles; the v5 step changes nothing on v4 data but the ended game's last night.
+- **Script:** the v6 step, a new game has every role on, toggles and All/None, Play again keeps the script, an unknown id is left out of views, assignment, bluffs and the Setup checklist.
+- **Intent shapes:** for every intent type, each field with the wrong type is rejected as `Bad request.` with no state change or event; missing fields, unknown players, unknown types and non-objects are rejected; every intent the test helpers send must be well-formed.
+- **Ended screen** (client, rendered with `react-dom/server`): each `endedReason` message, and none when the Storyteller ended the game or an older server sends no reason; the update bar offers a reload and a dismiss button.
+- **Day panel role data** (client): the Ability tracker's used flags, the day reminders and the impairment-cause names derived from `shared/src/roles.ts` match the lists the Day panel used to hard-code.
 - **Randomised games:** 60 random 5–15 player games of 5 nights each with random legal choices, checking no crashes and no hidden information in any player view (a one-off 400-game run was also clean).
 - **End-to-end:** `scripts/smoke.mjs` over HTTP and WebSocket against a running container.
 

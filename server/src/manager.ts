@@ -1,11 +1,11 @@
 // GameManager: gameCode -> live game (state + connected sockets). v1 has one entry ("default").
 import type { WebSocket } from 'ws';
-import type { GameState, Intent, JoinRequest } from '@ct/shared';
+import { SCHEMA_VERSION, type GameState, type JoinRequest } from '@ct/shared';
 import { randomUUID } from 'crypto';
 import type { Store } from './db';
 import { applyIntent, createGame, joinPlayer, rebindPlayer, type GameEvent } from './engine/game';
 import { adminView, playerView } from './engine/views';
-import { migrate } from './engine/migrate';
+import { wellFormedIntent } from './intent-shape';
 
 interface Client { ws: WebSocket; playerId: string }
 
@@ -18,8 +18,12 @@ export interface LiveGame {
 export class GameManager {
   private games = new Map<string, LiveGame>();
 
+  /** Saved games must already be at SCHEMA_VERSION (upgradeSavedGames runs first, in index.ts). */
   constructor(private store: Store) {
-    for (const s of store.loadAll().map(migrate)) this.games.set(s.code, { state: s, clients: new Set(), seq: store.nextSeq(s.id) });
+    for (const s of store.loadAll()) {
+      if (s.schemaVersion !== SCHEMA_VERSION) throw new Error(`Game ${s.code} is at schema v${s.schemaVersion}, not v${SCHEMA_VERSION}.`);
+      this.games.set(s.code, { state: s, clients: new Set(), seq: store.nextSeq(s.id) });
+    }
   }
 
   ensure(code: string): LiveGame {
@@ -35,6 +39,10 @@ export class GameManager {
 
   get(code: string): LiveGame | undefined {
     return this.games.get(code);
+  }
+
+  all(): LiveGame[] {
+    return [...this.games.values()];
   }
 
   playerByToken(g: LiveGame, token: string | undefined | null) {
@@ -67,7 +75,8 @@ export class GameManager {
     return { ok: true as const, token, playerId, isAdmin: p.isAdmin };
   }
 
-  intent(g: LiveGame, playerId: string, intent: Intent) {
+  intent(g: LiveGame, playerId: string, intent: unknown) {
+    if (!wellFormedIntent(g.state, intent)) return { ok: false as const, error: 'Bad request.' };
     const r = applyIntent(g.state, playerId, intent, { now: Date.now() });
     if (!r.ok) return r;
     this.commit(g, r.state, r.events);

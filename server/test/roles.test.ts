@@ -115,13 +115,13 @@ describe('information roles', () => {
     nextNight(g);
     submit(g, { [g.p.imp]: { imp: [g.p.ravenkeeper] } });
     let res = resolve(g);
-    expect(res.awaitingRavenkeeper).toEqual([g.p.ravenkeeper]);
-    expect(playerView(g.s, g.p.ravenkeeper, 0).me.ravenkeeperPrompt).toBe(true);
-    expect(playerView(g.s, g.p.empath, 0).me.ravenkeeperPrompt).toBe(false);
+    expect(res.followUps.filter((f) => !f.answered).map((f) => f.playerId)).toEqual([g.p.ravenkeeper]);
+    expect(playerView(g.s, g.p.ravenkeeper, 0).me.followUps).toHaveLength(1);
+    expect(playerView(g.s, g.p.empath, 0).me.followUps).toEqual([]);
     expect(tryAct(g, { type: 'publish_night' }).ok).toBe(false);
-    act(g, { type: 'submit_ravenkeeper', targetId: g.p.poisoner }, g.p.ravenkeeper);
+    act(g, { type: 'answer_follow_up', key: `ravenkeeper:${g.p.ravenkeeper}`, choice: { values: [g.p.poisoner] } }, g.p.ravenkeeper);
     res = g.s.night!.resolution!;
-    expect(res.awaitingRavenkeeper).toEqual([]);
+    expect(res.followUps.filter((f) => !f.answered)).toEqual([]);
     expect(resultFor(res, g.p.ravenkeeper)!.trueLines[0]).toMatch(/Poisoner/);
   });
 });

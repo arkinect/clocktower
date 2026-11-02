@@ -70,7 +70,7 @@ function play(seed: number, playerCount: number, nights: number) {
       if (p.alive || specs.length || s.assignments[pid]?.retainsAbilityWhenDead) A({ type: 'submit_night', actions }, pid);
     }
     A({ type: 'resolve_night' });
-    for (const rk of s.night!.resolution!.awaitingRavenkeeper) A({ type: 'submit_ravenkeeper', targetId: rng.pick(ids) }, rk);
+    for (const f of s.night!.resolution!.followUps.filter((q) => !q.answered)) A({ type: 'answer_follow_up', key: f.key, choice: { values: [rng.pick(ids)] } }, f.playerId);
     A({ type: 'accept_all_defaults' });
     A({ type: 'publish_night' });
     expect(s.phase).toBe('DAY');

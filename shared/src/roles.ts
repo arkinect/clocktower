@@ -13,6 +13,10 @@ export interface RoleData {
   setupModifier?: { outsiders?: number; minions?: number };
   /** Short Admin-only reminder shown in the grimoire for day-only or passive abilities. */
   reminder?: string;
+  /** A once-per-game ability's used flag, listed in the Day panel's tracker. auto: the engine sets it; otherwise the Storyteller ticks it. */
+  usedFlag?: { key: string; auto: boolean };
+  /** Show `reminder` in the Day panel's reminders (a day ability the Storyteller applies by hand). */
+  dayReminder?: true;
 }
 
 const T = 'townsfolk' as const;
@@ -31,28 +35,28 @@ export const ROLES: RoleData[] = [
   r('mathematician', 'Mathematician', T, 'Each night, you learn how many players\' abilities worked abnormally (since dawn) due to another character\'s ability.'),
   r('flowergirl', 'Flowergirl', T, 'Each night*, you learn if a Demon voted today.'),
   r('gambler', 'Gambler', T, 'Each night*, choose a player & guess their character: if you guess wrong, you die.'),
-  r('philosopher', 'Philosopher', T, 'Once per game, at night, choose a good character: gain that ability. If this character is in play, they are drunk.'),
+  r('philosopher', 'Philosopher', T, 'Once per game, at night, choose a good character: gain that ability. If this character is in play, they are drunk.', { usedFlag: { key: 'philosopher_used', auto: true } }),
   r('juggler', 'Juggler', T, 'On your 1st day, publicly guess up to 5 players\' characters. That night, you learn how many you got correct.'),
-  r('fool', 'Fool', T, 'The first time you die, you don\'t.', { reminder: 'First death is prevented (night kills automatic). Apply to executions yourself.' }),
+  r('fool', 'Fool', T, 'The first time you die, you don\'t.', { reminder: 'First death is prevented (night kills automatic). Apply to executions yourself.', usedFlag: { key: 'fool_used', auto: false } }),
   r('empath', 'Empath', T, 'Each night, you learn how many of your 2 alive neighbours are evil.'),
   r('balloonist', 'Balloonist', T, 'Each night, you learn 1 player of each character type, until there are no more types to learn. [+1 Outsider]', { setupModifier: { outsiders: 1 } }),
   r('fortune_teller', 'Fortune Teller', T, 'Each night, choose 2 players: you learn if either is a Demon. There is a good player that registers as a Demon to you.'),
   r('innkeeper', 'Innkeeper', T, 'Each night*, choose 2 players: they can\'t die tonight, but 1 is drunk until dusk.'),
-  r('seamstress', 'Seamstress', T, 'Once per game, at night, choose 2 players (not yourself): you learn if they are the same alignment.'),
-  r('artist', 'Artist', T, 'Once per game, during the day, privately ask the Storyteller any yes/no question.', { reminder: 'Day ability. Mark used in the Ability tracker.' }),
+  r('seamstress', 'Seamstress', T, 'Once per game, at night, choose 2 players (not yourself): you learn if they are the same alignment.', { usedFlag: { key: 'seamstress_used', auto: true } }),
+  r('artist', 'Artist', T, 'Once per game, during the day, privately ask the Storyteller any yes/no question.', { reminder: 'Day ability. Mark used in the Ability tracker.', usedFlag: { key: 'artist_used', auto: false } }),
   r('ravenkeeper', 'Ravenkeeper', T, 'If you die at night, you are woken to choose a player: you learn their character.'),
-  r('virgin', 'Virgin', T, 'The 1st time you are nominated, if the nominator is a Townsfolk, they are executed immediately.', { reminder: 'Day ability. No effect if impaired when nominated. Mark used in the Ability tracker.' }),
-  r('mayor', 'Mayor', T, 'If only 3 players live & no execution occurs, your team wins. If you die at night, another player might die instead.', { reminder: '3-player win is not enforced.' }),
+  r('virgin', 'Virgin', T, 'The 1st time you are nominated, if the nominator is a Townsfolk, they are executed immediately.', { reminder: 'Day ability. No effect if impaired when nominated. Mark used in the Ability tracker.', usedFlag: { key: 'virgin_used', auto: false }, dayReminder: true }),
+  r('mayor', 'Mayor', T, 'If only 3 players live & no execution occurs, your team wins. If you die at night, another player might die instead.', { reminder: '3-player win is not enforced.', dayReminder: true }),
   r('oracle', 'Oracle', T, 'Each night*, you learn how many dead players are evil.'),
   r('gossip', 'Gossip', T, 'Each day, you may make a public statement. Tonight, if it was true, a player dies.', { reminder: 'Enter True/False/None for the statement in the Day panel.' }),
   r('grandmother', 'Grandmother', T, 'You start knowing a good player & their character. If the Demon kills them, you die too.'),
-  r('huntsman', 'Huntsman', T, 'Once per game, at night, choose a living player: the Damsel, if chosen, becomes a not-in-play Townsfolk. [+the Damsel]'),
-  r('professor', 'Professor', T, 'Once per game, at night*, choose a dead player: if they are a Townsfolk, they are resurrected.'),
-  r('slayer', 'Slayer', T, 'Once per game, during the day, publicly choose a player: if they are the Demon, they die.', { reminder: 'Resolve the shot in the Day panel.' }),
-  r('tea_lady', 'Tea Lady', T, 'If both your alive neighbours are good, they can\'t die.', { reminder: 'Protects night kills automatically. Apply to executions yourself.' }),
+  r('huntsman', 'Huntsman', T, 'Once per game, at night, choose a living player: the Damsel, if chosen, becomes a not-in-play Townsfolk. [+the Damsel]', { usedFlag: { key: 'huntsman_used', auto: true } }),
+  r('professor', 'Professor', T, 'Once per game, at night*, choose a dead player: if they are a Townsfolk, they are resurrected.', { usedFlag: { key: 'professor_used', auto: true } }),
+  r('slayer', 'Slayer', T, 'Once per game, during the day, publicly choose a player: if they are the Demon, they die.', { reminder: 'Resolve the shot in the Day panel.', usedFlag: { key: 'slayer_used', auto: false } }),
+  r('tea_lady', 'Tea Lady', T, 'If both your alive neighbours are good, they can\'t die.', { reminder: 'Protects night kills automatically. Apply to executions yourself.', dayReminder: true }),
   // Outsiders (7)
   r('drunk', 'Drunk', O, 'You do not know you are the Drunk. You think you are a Townsfolk character, but you are not.'),
-  r('golem', 'Golem', O, 'You may only nominate once per game. When you do, if the nominee is not the Demon, they die.', { reminder: 'Day ability. Mark the death yourself. Mark used in the Ability tracker.' }),
+  r('golem', 'Golem', O, 'You may only nominate once per game. When you do, if the nominee is not the Demon, they die.', { reminder: 'Day ability. Mark the death yourself. Mark used in the Ability tracker.', usedFlag: { key: 'golem_used', auto: false }, dayReminder: true }),
   r('recluse', 'Recluse', O, 'You might register as evil & as a Minion or Demon, even if dead.'),
   r('moonchild', 'Moonchild', O, 'When you learn that you died, publicly choose 1 alive player. Tonight, if it was a good player, they die.', { reminder: 'Record the chosen player in the Day panel after the Moonchild dies.' }),
   r('goon', 'Goon', O, 'Each night, the 1st player to choose you with their ability is drunk until dusk. You become their alignment.'),
@@ -61,12 +65,12 @@ export const ROLES: RoleData[] = [
   // Minions (10)
   r('mezepheles', 'Mezepheles', M, 'You start knowing a secret word. The 1st good player to say this word becomes evil that night.', { reminder: 'Record "Word said by X" in the Day panel.' }),
   r('devils_advocate', 'Devil\'s Advocate', M, 'Each night, choose a living player (different to last night): if executed tomorrow, they don\'t die.', { reminder: 'Execution protection is not enforced.' }),
-  r('mastermind', 'Mastermind', M, 'If the Demon dies by execution (ending the game), play for 1 more day. If a player is then executed, their team loses.', { reminder: 'Reminder only.' }),
+  r('mastermind', 'Mastermind', M, 'If the Demon dies by execution (ending the game), play for 1 more day. If a player is then executed, their team loses.', { reminder: 'Reminder only.', dayReminder: true }),
   r('poisoner', 'Poisoner', M, 'Each night, choose a player: they are poisoned tonight and tomorrow day.'),
   r('marionette', 'Marionette', M, 'You think you are a good character but you are not. The Demon knows who you are. [You neighbour the Demon]'),
   r('scarlet_woman', 'Scarlet Woman', M, 'If there are 5 or more players alive & the Demon dies, you become the Demon. (Travellers don\'t count)'),
-  r('assassin', 'Assassin', M, 'Once per game, at night*, choose a player: they die, even if for some reason they could not.'),
-  r('psychopath', 'Psychopath', M, 'Each day, before nominations, you may publicly choose a player: they die. If executed, you only die if you lose roshambo.', { reminder: 'Day ability. Mark deaths yourself.' }),
+  r('assassin', 'Assassin', M, 'Once per game, at night*, choose a player: they die, even if for some reason they could not.', { usedFlag: { key: 'assassin_used', auto: true } }),
+  r('psychopath', 'Psychopath', M, 'Each day, before nominations, you may publicly choose a player: they die. If executed, you only die if you lose roshambo.', { reminder: 'Day ability. Mark deaths yourself.', dayReminder: true }),
   r('godfather', 'Godfather', M, 'You start knowing which Outsiders are in play. If 1 died today, choose a player tonight: they die. [-1 or +1 Outsider]'),
   r('witch', 'Witch', M, 'Each night, choose a player: if they nominate tomorrow, they die. If just 3 players live, you lose this ability.', { reminder: 'If the cursed player nominates, apply the curse in the Day panel.' }),
   // Demons (7)
@@ -89,7 +93,44 @@ export function role(id: string): RoleData {
 
 export const ROLE_TYPES: RoleType[] = ['townsfolk', 'outsider', 'minion', 'demon'];
 
-/** Night order slots. A slot is either a role id or a pseudo-slot. Editable data (section 14.1, 14.2). */
+/**
+ * An official jinx between two roles in the app. `text` is the official wording; `handling` says whether the app
+ * only shows it ('reminder') or also applies it ('engine', each with a test named after jinxLabel); `source` is the
+ * page it was checked against. A change that adds a role adds its jinxes with roles already here, in the same change.
+ */
+export interface Jinx { a: string; b: string; text: string; handling: 'reminder' | 'engine'; source: string }
+
+// Checked 2026-11-01 against the Djinn page (revision 3106) and each role's own page on the official wiki.
+const DJINN = 'https://wiki.bloodontheclocktower.com/Djinn';
+
+export const JINXES: Jinx[] = [
+  { a: 'mathematician', b: 'drunk', text: 'The Mathematician learns if the Drunk’s ability yielded false info or failed to work properly.', handling: 'reminder', source: DJINN },
+  { a: 'mathematician', b: 'marionette', text: 'The Mathematician learns if the Marionette\'s ability yielded false info or failed to work properly.', handling: 'reminder', source: DJINN },
+  { a: 'marionette', b: 'balloonist', text: 'If the Marionette thinks that they are the Balloonist, an Outsider might have been added during setup.', handling: 'engine', source: DJINN },
+  { a: 'marionette', b: 'huntsman', text: 'If the Marionette thinks that they are the Huntsman, the Damsel was added during setup.', handling: 'engine', source: DJINN },
+  { a: 'marionette', b: 'lil_monsta', text: 'If there would be a Marionette in play, they enter play after the Demon & must start as their neighbor.', handling: 'reminder', source: DJINN },
+  { a: 'mastermind', b: 'vigormortis', text: 'A Mastermind that has their ability keeps it if the Vigormortis dies.', handling: 'reminder', source: DJINN },
+  { a: 'lil_monsta', b: 'psychopath', text: 'If the Psychopath is babysitting Lil\' Monsta, they die when executed.', handling: 'reminder', source: DJINN },
+  { a: 'lil_monsta', b: 'scarlet_woman', text: 'If Lil\' Monsta dies with 5 or more players alive, the Scarlet Woman babysits Lil\' Monsta for the rest of the game.', handling: 'engine', source: DJINN },
+];
+
+/** "Jinx (Marionette & Huntsman)": the label on every jinx message in the app, and the start of its tests' names. */
+export function jinxLabel(j: Jinx): string {
+  return `Jinx (${role(j.a).name} & ${role(j.b).name})`;
+}
+
+/** The jinx between two roles, in either order. */
+export function jinxBetween(x: string, y: string): Jinx | undefined {
+  return JINXES.find((j) => (j.a === x && j.b === y) || (j.a === y && j.b === x));
+}
+
+/** Jinxes whose two roles are both in `roleIds` (e.g. the script), in JINXES order. */
+export function jinxesAmong(roleIds: readonly string[]): Jinx[] {
+  return JINXES.filter((j) => roleIds.includes(j.a) && roleIds.includes(j.b));
+}
+
+
+/** Night order slots. A slot is either a role id or a pseudo-slot. Editable data (section 14.1); constraints checked in server/test/night-order.test.ts. */
 export interface NightSlot { id: string; label: string; roleId?: string; note?: string }
 
 export const FIRST_NIGHT_ORDER: NightSlot[] = [

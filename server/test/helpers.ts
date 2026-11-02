@@ -1,6 +1,7 @@
 import { expect } from 'vitest';
 import type { ActionChoice, GameState, Intent, Resolution } from '@ct/shared';
 import { applyIntent, createGame, joinPlayer } from '../src/engine/game';
+import { wellFormedIntent } from '../src/intent-shape';
 
 export interface TestGame {
   s: GameState;
@@ -13,6 +14,7 @@ export interface TestGame {
 let clock = 1_000_000;
 
 export function act(g: TestGame, intent: Intent, actor = g.admin, seed = 42) {
+  expect(wellFormedIntent(g.s, intent), `${intent.type} is well-formed`).toBe(true);
   const r = applyIntent(g.s, actor, intent, { now: clock++, seed });
   if (!r.ok) throw new Error(`${intent.type}: ${r.error}`);
   g.s = r.state;
@@ -20,6 +22,7 @@ export function act(g: TestGame, intent: Intent, actor = g.admin, seed = 42) {
 }
 
 export function tryAct(g: TestGame, intent: Intent, actor = g.admin) {
+  expect(wellFormedIntent(g.s, intent), `${intent.type} is well-formed`).toBe(true);
   const r = applyIntent(g.s, actor, intent, { now: clock++, seed: 42 });
   if (r.ok) g.s = r.state;
   return r;
