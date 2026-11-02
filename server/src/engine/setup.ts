@@ -27,21 +27,33 @@ function clampChart(n: number): Counts {
 }
 
 /** Target counts: Admin override, or default chart plus modifiers of `roleIds` (the roles assigned or proposed). */
-export function targetCounts(state: GameState, playerCount: number, roleIds: string[]): { counts: Counts; source: 'default' | 'override' } {
-  if (state.setup.typeCountsOverride) return { counts: state.setup.typeCountsOverride.slice() as Counts, source: 'override' };
+/** The chart's counts with every setup modifier except the Godfather's applied (Baron, Vigormortis, Balloonist, …). */
+function countsBeforeGodfather(playerCount: number, roleIds: string[]): Counts {
   const c = clampChart(playerCount);
-  const chartOutsiders = c[1];
   for (const r of roleIds) {
-    if (r === 'godfather') {
-      // -1 or +1 Outsider, Admin's choice (default +1); only +1 when the chart has no Outsiders.
-      const d = state.setup.godfatherOutsiders === -1 && chartOutsiders > 0 ? -1 : 1;
-      c[1] += d; c[0] -= d;
-      continue;
-    }
-    const m = ROLE_BY_ID[r]?.setupModifier;
+    const m = r === 'godfather' ? undefined : ROLE_BY_ID[r]?.setupModifier;
     if (!m) continue;
     if (m.outsiders) { c[1] += m.outsiders; c[0] -= m.outsiders; }
     if (m.minions) { c[2] += m.minions; c[0] -= m.minions; }
+  }
+  return c;
+}
+
+/**
+ * Outsiders the Godfather's -1 could remove: the count after every other setup modifier. Zero or less means only +1
+ * is possible (e.g. 7 players: none; 7 players with the Baron: 2, so 1 or 3 Outsiders).
+ */
+export function outsidersBeforeGodfather(playerCount: number, roleIds: string[]): number {
+  return countsBeforeGodfather(playerCount, roleIds)[1];
+}
+
+export function targetCounts(state: GameState, playerCount: number, roleIds: string[]): { counts: Counts; source: 'default' | 'override' } {
+  if (state.setup.typeCountsOverride) return { counts: state.setup.typeCountsOverride.slice() as Counts, source: 'override' };
+  const c = countsBeforeGodfather(playerCount, roleIds);
+  if (roleIds.includes('godfather')) {
+    // -1 or +1 Outsider, Admin's choice (default +1), decided after the other modifiers: only +1 when none is left to remove.
+    const d = state.setup.godfatherOutsiders === -1 && c[1] > 0 ? -1 : 1;
+    c[1] += d; c[0] -= d;
   }
   for (let i = 0; i < 4; i++) c[i] = Math.max(0, c[i]);
   return { counts: c, source: 'default' };

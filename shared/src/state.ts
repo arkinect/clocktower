@@ -225,7 +225,9 @@ export interface AdminView {
   actorActions: Record<string, { roleId: string; title: string }[]>;
   actorSpecs: Record<string, import('./types').ActionSpec[]>;
   setupChecklist: { id: string; label: string; done: boolean; blocking: boolean }[];
-  typeCounts: { target: [number, number, number, number]; actual: [number, number, number, number]; source: 'default' | 'override'; chartOutsiders: number };
+  typeCounts: { target: [number, number, number, number]; actual: [number, number, number, number]; source: 'default' | 'override'; chartOutsiders: number;
+    /** Outsiders after every setup modifier but the Godfather's: -1 is possible only when above 0. Added in v8: absent on older servers. */
+    outsidersBeforeGodfather?: number };
   godfatherTriggered: boolean;
   warnings: string[];
   presence: Record<string, boolean>;

@@ -12,7 +12,7 @@ import { resolveNight } from './night';
 import { BEHAVIOURS } from './roles';
 import { makeRng, randomSeed } from './rng';
 import {
-  bluffCandidates, enabledRoles, onScript, redHerringCandidates, setupChecklist, suggestBluffs, suggestDistribution,
+  bluffCandidates, enabledRoles, onScript, outsidersBeforeGodfather, redHerringCandidates, setupChecklist, suggestBluffs, suggestDistribution,
 } from './setup';
 import {
   abilityNightToday, aliveIds, canAct, changeRole, findPlayer, flag, hasAbility, inPlayRoleIds, isDemon, playersWithAbility, roleIdOf, roleName, seatedIds,
@@ -686,7 +686,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
     }
     case 'set_godfather_outsiders': {
       if (i.value !== null && i.value !== 1 && i.value !== -1) return err('Choose -1 or +1.');
-      if (i.value === -1 && chartOutsiders(s) === 0) return err('The default chart has no Outsiders for this player count, so only +1 is possible.');
+      if (i.value === -1 && outsidersBeforeGodfather(seatedIds(s).length, inPlayRoleIds(s)) <= 0) return err('There are no Outsiders to remove (after the other setup modifiers), so only +1 is possible.');
       s.setup.godfatherOutsiders = i.value;
       return ok(s);
     }
@@ -766,11 +766,6 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
     }
   }
   return err('Unknown request.');
-}
-
-function chartOutsiders(s: GameState): number {
-  const n = Math.max(5, Math.min(15, seatedIds(s).length));
-  return TYPE_CHART[n][1];
 }
 
 /** Admin-only story: who was what, who was impaired and who they targeted, per night. */

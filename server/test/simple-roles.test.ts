@@ -7,7 +7,7 @@ import type { GameState } from '@ct/shared';
 import { act, build, nextNight, resolve, runNight, submit, tryAct } from './helpers';
 import { applyIntent, createGame } from '../src/engine/game';
 import { actionSpecs } from '../src/engine/actions';
-import { bluffCandidates, enabledRoles, suggestDistribution, targetCounts } from '../src/engine/setup';
+import { bluffCandidates, enabledRoles, outsidersBeforeGodfather, suggestDistribution, targetCounts } from '../src/engine/setup';
 import { makeRng } from '../src/engine/rng';
 import { adminView } from '../src/engine/views';
 import { eyesClosedVotingToday } from '../src/engine/roles';
@@ -65,11 +65,37 @@ describe('Baron setup counts', () => {
     expect(counts(8, ['baron'])).toEqual([3, 3, 1, 1]);
   });
 
-  it('stacked with the Godfather (+1, or -1 only when the chart has Outsiders)', () => {
+  it('stacked with the Godfather: -1 or +1 decided from the Outsiders after the other modifiers', () => {
     expect(counts(8, ['baron', 'godfather'], 1)).toEqual([2, 4, 1, 1]);
     expect(counts(8, ['baron', 'godfather'], -1)).toEqual([4, 2, 1, 1]);
-    // A 7-player chart has no Outsiders: the Godfather is +1 even though the Baron adds two.
-    expect(counts(7, ['baron', 'godfather'], -1)).toEqual([2, 3, 1, 1]);
+    // 7 players: the chart has no Outsiders, the Baron adds two, so the Storyteller can choose 1 or 3.
+    expect(outsidersBeforeGodfather(7, ['baron', 'godfather'])).toBe(2);
+    expect(counts(7, ['baron', 'godfather'], -1)).toEqual([4, 1, 1, 1]);
+    expect(counts(7, ['baron', 'godfather'], 1)).toEqual([2, 3, 1, 1]);
+    // Without the Baron, 7 players: only +1. With the Vigormortis taking the 8-player chart's only Outsider: only +1.
+    expect(outsidersBeforeGodfather(7, ['godfather'])).toBe(0);
+    expect(counts(7, ['godfather'], -1)).toEqual([4, 1, 1, 1]);
+    expect(outsidersBeforeGodfather(8, ['godfather', 'vigormortis'])).toBe(0);
+    expect(counts(8, ['godfather', 'vigormortis'], -1)).toEqual([5, 1, 1, 1]);
+    // The Balloonist adds one to remove on a 7-player chart.
+    expect(counts(7, ['godfather', 'balloonist'], -1)).toEqual([5, 0, 1, 1]);
+  });
+
+  it('the Storyteller can choose -1 with 7 players when the Baron is in play, and not without it', () => {
+    const roles = ['godfather', 'baron', 'imp', 'empath', 'sailor', 'butler', 'drunk'];
+    const g = build(roles, (g) => {
+      act(g, { type: 'set_godfather_outsiders', value: -1 });
+      const view = adminView(g.s, g.admin, 0, {});
+      expect(view.typeCounts).toMatchObject({ chartOutsiders: 0, outsidersBeforeGodfather: 2, target: [4, 1, 1, 1] });
+    });
+    expect(g.s.setup.godfatherOutsiders).toBe(-1);
+    act(g, { type: 'end_game' });
+    act(g, { type: 'play_again' });
+    const ids = g.s.players.filter((p) => !p.isAdmin).map((p) => p.id);
+    act(g, { type: 'assign_role', playerId: ids[0], roleId: 'godfather' });
+    expect(tryAct(g, { type: 'set_godfather_outsiders', value: -1 }).ok).toBe(false);
+    act(g, { type: 'assign_role', playerId: ids[1], roleId: 'baron' });
+    expect(tryAct(g, { type: 'set_godfather_outsiders', value: -1 }).ok).toBe(true);
   });
 
   it('stacked with the Vigormortis and the Balloonist', () => {

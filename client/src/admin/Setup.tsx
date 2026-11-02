@@ -173,6 +173,8 @@ function TypeCounts({ ctx }: { ctx: AdminCtx }) {
 function SetupItems({ ctx }: { ctx: AdminCtx }) {
   const { s, names, seated, roleOf, view } = ctx;
   const inPlay = new Set(seated.map(roleOf).filter(Boolean) as string[]);
+  // The Godfather's -1 needs an Outsider left after the other setup modifiers (an older server sends only the chart count).
+  const godfatherCanRemove = (view.typeCounts.outsidersBeforeGodfather ?? view.typeCounts.chartOutsiders) > 0;
   const enabledOf = (pred: (t: RoleType, align: string) => boolean) => ROLES.filter((r) => s.script.includes(r.id) && pred(r.type, r.alignment) && !inPlay.has(r.id));
   const believedTaken = new Set(seated.map((id) => s.assignments[id]?.believedRoleId).filter(Boolean) as string[]);
   const drunks = seated.filter((id) => roleOf(id) === 'drunk');
@@ -239,10 +241,10 @@ function SetupItems({ ctx }: { ctx: AdminCtx }) {
         <div className="field">
           <span>Godfather: Outsiders −1 or +1</span>
           <div className="seg">
-            <button className={s.setup.godfatherOutsiders === -1 ? 'on' : ''} disabled={view.typeCounts.chartOutsiders === 0} onClick={() => send({ type: 'set_godfather_outsiders', value: -1 })}>−1 Outsider</button>
+            <button className={s.setup.godfatherOutsiders === -1 ? 'on' : ''} disabled={!godfatherCanRemove} onClick={() => send({ type: 'set_godfather_outsiders', value: -1 })}>−1 Outsider</button>
             <button className={s.setup.godfatherOutsiders === 1 ? 'on' : ''} onClick={() => send({ type: 'set_godfather_outsiders', value: 1 })}>+1 Outsider</button>
           </div>
-          {view.typeCounts.chartOutsiders === 0 && <span className="muted small">The chart has no Outsiders for this player count, so only +1 is possible.</span>}
+          {!godfatherCanRemove && <span className="muted small">There are no Outsiders to remove (after the other setup modifiers), so only +1 is possible.</span>}
         </div>
       )}
       {inPlay.has('lil_monsta') && (
