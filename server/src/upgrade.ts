@@ -3,15 +3,20 @@
 import fs from 'fs';
 import path from 'path';
 import { SCHEMA_VERSION, type GameState, type Phase } from '@ct/shared';
-import type { Store } from './db';
+import type { Store, UpgradedGame } from './db';
 import { MIN_SUPPORTED_SCHEMA, STEPS, type MigrationStep, type SavedGame } from './engine/migrations';
 
 /** A game that is not ENDED and has made no progress for this long counts as abandoned. */
 export const ABANDONED_AFTER_MS = 4 * 60 * 60 * 1000;
 
-/** Latest progress in a game: its last event other than join/rebind, else when it was created. */
+/** Latest progress in a game: its last event other than a rebind, else when it was created. */
 export function lastProgress(store: Store, s: GameState): number {
   return store.lastProgressAt(s.id) ?? s.createdAt;
+}
+
+/** A LOBBY game nobody has joined: restarting or deleting it loses nothing, whatever its age. */
+export function isEmptyLobby(s: Pick<GameState, 'phase' | 'players'>): boolean {
+  return s.phase === 'LOBBY' && s.players.length === 0;
 }
 
 export function isAbandoned(lastProgressAt: number, now: number): boolean {
@@ -20,17 +25,18 @@ export function isAbandoned(lastProgressAt: number, now: number): boolean {
 
 export interface UpgradeStatus {
   schemaVersion: number;
-  games: { code: string; phase: Phase; lastProgressAt: number; abandoned: boolean }[];
+  games: { code: string; phase: Phase; lastProgressAt: number; abandoned: boolean; empty: boolean }[];
   safeToRestart: boolean;
 }
 
-/** Safe to restart when every game is ENDED or abandoned. No names, roles or other game details. */
+/** Safe to restart when every game is ENDED, abandoned or an empty lobby. No names, roles or other game details. */
 export function upgradeStatus(store: Store, states: GameState[], now: number): UpgradeStatus {
   const games = states.map((s) => {
     const lastProgressAt = lastProgress(store, s);
-    return { code: s.code, phase: s.phase, lastProgressAt, abandoned: s.phase !== 'ENDED' && isAbandoned(lastProgressAt, now) };
+    const empty = isEmptyLobby(s);
+    return { code: s.code, phase: s.phase, lastProgressAt, abandoned: s.phase !== 'ENDED' && !empty && isAbandoned(lastProgressAt, now), empty };
   });
-  return { schemaVersion: SCHEMA_VERSION, games, safeToRestart: games.every((g) => g.phase === 'ENDED' || g.abandoned) };
+  return { schemaVersion: SCHEMA_VERSION, games, safeToRestart: games.every((g) => g.phase === 'ENDED' || g.abandoned || g.empty) };
 }
 
 // ---- startup upgrade --------------------------------------------------------------------------------
@@ -50,12 +56,13 @@ export interface UpgradeOptions {
 
 export interface UpgradeResult {
   backupFile: string;
-  games: { code: string; from: number; endedReason: 'abandoned' | 'update' | null }[];
+  games: UpgradedGame[];
 }
 
 /**
  * Brings every game saved at an older schema up to date, before GameManager loads them. Each older game is ended
- * first (if it isn't already), so migration steps only ever see ended games. Returns null when nothing was older.
+ * first (if it isn't already), so migration steps only ever see ended games. An empty lobby is deleted instead
+ * (the default game is recreated at startup as usual). Returns null when nothing was older.
  * Throws UpgradeRefused, changing nothing, when a game is too new or too old, or when any step fails.
  */
 export function upgradeSavedGames(store: Store, opts: UpgradeOptions): UpgradeResult | null {
@@ -90,6 +97,11 @@ export function upgradeSavedGames(store: Store, opts: UpgradeOptions): UpgradeRe
   const result: UpgradeResult = { backupFile: path.basename(backup), games: [] };
   store.transaction(() => {
     for (const { gameId, code, s, from } of older) {
+      if (isEmptyLobby(s as GameState)) {
+        store.deleteGame(gameId);
+        result.games.push({ code, from, endedReason: null, deleted: true });
+        continue;
+      }
       let endedReason: 'abandoned' | 'update' | null = null;
       if (s.phase !== 'ENDED') {
         const last = store.lastProgressAt(gameId) ?? s.createdAt;
@@ -114,21 +126,27 @@ export function upgradeSavedGames(store: Store, opts: UpgradeOptions): UpgradeRe
       result.games.push({ code, from, endedReason });
     }
     store.recordMigration({
-      appliedAt: opts.now, appVersion: opts.appVersion, toSchema: target, gamesMigrated: result.games.length,
+      appliedAt: opts.now, appVersion: opts.appVersion, toSchema: target, gamesMigrated: result.games.filter((g) => !g.deleted).length,
       gamesEnded: result.games.filter((g) => g.endedReason).length, backupFile: result.backupFile, details: result.games,
     });
   });
   return result;
 }
 
-/** The startup line, e.g. "Upgraded 2 games to schema v5 (1 ended: abandoned). Backup: clocktower.db.pre-v5." */
+/**
+ * The startup line, e.g. "Upgraded 2 games to schema v5 (1 ended: abandoned). Backup: clocktower.db.pre-v5.", with
+ * "Deleted 1 empty lobby." before the backup when there was one.
+ */
 export function upgradeSummary(r: UpgradeResult, toSchema: number): string {
-  const n = r.games.length;
-  const reasons = r.games.map((g) => g.endedReason).filter((x) => x !== null);
+  const migrated = r.games.filter((g) => !g.deleted);
+  const deleted = r.games.length - migrated.length;
+  const n = migrated.length;
+  const reasons = migrated.map((g) => g.endedReason).filter((x) => x !== null);
   const kinds = [...new Set(reasons)];
   const ended = reasons.length === 0 ? ''
     : ` (${reasons.length} ended: ${kinds.length === 1 ? kinds[0] : kinds.map((k) => `${reasons.filter((x) => x === k).length} ${k}`).join(', ')})`;
-  return `Upgraded ${n} game${n === 1 ? '' : 's'} to schema v${toSchema}${ended}. Backup: ${r.backupFile}.`;
+  const lobbies = deleted ? ` Deleted ${deleted} empty ${deleted === 1 ? 'lobby' : 'lobbies'}.` : '';
+  return `Upgraded ${n} game${n === 1 ? '' : 's'} to schema v${toSchema}${ended}.${lobbies} Backup: ${r.backupFile}.`;
 }
 
 /** The connection's own address (never X-Forwarded-For) is the loopback interface. */

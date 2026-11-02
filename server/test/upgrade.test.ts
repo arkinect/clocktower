@@ -10,6 +10,7 @@ import { applyIntent, createGame } from '../src/engine/game';
 import { adminView, playerView } from '../src/engine/views';
 import { STEPS, type MigrationStep } from '../src/engine/migrations';
 import { UpgradeRefused, upgradeSavedGames, upgradeSummary } from '../src/upgrade';
+import { GameManager } from '../src/manager';
 
 const HOUR = 60 * 60 * 1000;
 const NOW = 100 * HOUR;
@@ -157,6 +158,29 @@ describe('startup upgrade', () => {
     expect(upgradeSavedGames(store, release)).toBeNull();
     expect(snapshot()).toBe(before);
     expect(backups()).toEqual([]);
+  });
+});
+
+describe('empty lobbies at startup', () => {
+  const emptyLobby = (s: GameState) => { s.phase = 'LOBBY'; s.players = []; s.assignments = {}; };
+
+  it('deletes an empty lobby instead of ending it, notes it in the log, and the default game is recreated', () => {
+    seed('v4-mid-night', 'default', NOW - HOUR, emptyLobby);
+    seed('v4-mid-night', 'live', NOW - HOUR);
+    const r = upgradeSavedGames(store, release)!;
+    expect(r.games).toEqual([{ code: 'default', from: 4, endedReason: null, deleted: true }, { code: 'live', from: 4, endedReason: 'update' }]);
+    expect(store.loadAll().map((s) => s.code)).toEqual(['live']);
+    expect(store.events('game-default')).toEqual([]);
+    expect(store.migrations()[0]).toMatchObject({ gamesMigrated: 1, gamesEnded: 1, details: r.games });
+    expect(upgradeSummary(r, SCHEMA_VERSION)).toBe(`Upgraded 1 game to schema v${SCHEMA_VERSION} (1 ended: update). Deleted 1 empty lobby. Backup: clocktower.db.pre-v${SCHEMA_VERSION}.`);
+    const games = new GameManager(store);
+    expect(games.ensure('default').state).toMatchObject({ code: 'default', phase: 'LOBBY', schemaVersion: SCHEMA_VERSION });
+  });
+
+  it('ends a lobby that players have joined, like any game in progress', () => {
+    seed('v4-mid-night', 'joined', NOW - HOUR, (s) => { s.phase = 'LOBBY'; });
+    expect(upgradeSavedGames(store, release)!.games).toEqual([{ code: 'joined', from: 4, endedReason: 'update' }]);
+    expect(loaded('joined').phase).toBe('ENDED');
   });
 });
 

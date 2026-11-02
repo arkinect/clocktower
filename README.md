@@ -60,10 +60,11 @@ It never restarts the app in the middle of a game:
 | Game state when the update runs | What happens |
 |---|---|
 | Ended | Restarts. |
+| Lobby nobody has joined | Restarts. A saved-game schema change deletes it rather than ending it; the default game is recreated. |
 | Any other phase, progress in the last 4 hours | **Deferred**: prints `Update deferred: game in progress` and exits. The next run tries again. |
 | Any other phase, no progress for 4 hours | Treated as abandoned. Restarts, and the game is ended. |
 
-"Progress" is anything except players joining or reconnecting. A new image that keeps the saved-game schema (for
+"Progress" is anything except players reconnecting; a player joining counts. A new image that keeps the saved-game schema (for
 example a weekly security rebuild) restarts straight away even mid-game, since nothing is lost. `--force` restarts
 without checking.
 

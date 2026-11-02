@@ -1,8 +1,8 @@
 #!/bin/sh
 # Pull the latest published images (app and Caddy) and recreate containers whose image changed.
 # Game state is on disk, so connected phones just see a few seconds of "Reconnecting…".
-# The app is never restarted in the middle of a game (design.md section 5.5): if any game has not ENDED and has made
-# progress in the last 4 hours, the update is deferred and the next run tries again. An image that keeps the
+# The app is never restarted in the middle of a game (design.md section 5.5): if any game has not ENDED, has players
+# and has made progress (anything but a reconnect) in the last 4 hours, the update is deferred and the next run tries again. An image that keeps the
 # saved-game schema restarts straight away, since a restart then loses nothing.
 #   --force   restart without checking (a game in progress is ended at startup if the saved-game schema changed)
 # Example cron (Wednesdays 04:30):  30 4 * * 3 /path/to/clocktower/scripts/update.sh >> /path/to/update.log 2>&1
@@ -57,7 +57,7 @@ fetch('http://127.0.0.1:8080/api/upgrade-status')
   .then((s) => {
     if (!s) { console.log('missing'); return; }
     console.log('schema ' + s.schemaVersion + ' ' + (s.safeToRestart ? 'safe' : 'busy'));
-    for (const g of s.games) if (g.phase !== 'ENDED' && !g.abandoned)
+    for (const g of s.games) if (g.phase !== 'ENDED' && !g.abandoned && !g.empty)
       console.log('game ' + g.code + ' ' + g.phase + ' ' + new Date(g.lastProgressAt).toISOString());
   })
   .catch(() => console.log('missing'))" 2>/dev/null || echo missing)

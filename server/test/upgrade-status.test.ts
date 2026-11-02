@@ -28,13 +28,13 @@ function saved(code: string, phase: GameState['phase'], createdAt: number, event
 }
 
 describe('last progress', () => {
-  it('ignores join and rebind events', () => {
+  it('counts joins but not rebinds', () => {
     const s = saved('a', 'DAY', 0, [[1000, 'game_created'], [2000, 'start_night'], [3000, 'join'], [4000, 'rebind']]);
-    expect(store.lastProgressAt(s.id)).toBe(2000);
+    expect(store.lastProgressAt(s.id)).toBe(3000);
   });
 
   it('is null without a qualifying event, and the status falls back to createdAt', () => {
-    const s = saved('a', 'LOBBY', 500, [[3000, 'join']]);
+    const s = saved('a', 'LOBBY', 500, [[3000, 'rebind']]);
     expect(store.lastProgressAt(s.id)).toBeNull();
     expect(upgradeStatus(store, [s], 600).games[0].lastProgressAt).toBe(500);
   });
@@ -50,8 +50,8 @@ describe('upgrade status', () => {
     expect(st).toEqual({
       schemaVersion: SCHEMA_VERSION,
       games: [
-        { code: 'e', phase: 'ENDED', lastProgressAt: now - HOUR, abandoned: false },
-        { code: 'i', phase: 'NIGHT_RESOLVING', lastProgressAt: now - ABANDONED_AFTER_MS, abandoned: true },
+        { code: 'e', phase: 'ENDED', lastProgressAt: now - HOUR, abandoned: false, empty: false },
+        { code: 'i', phase: 'NIGHT_RESOLVING', lastProgressAt: now - ABANDONED_AFTER_MS, abandoned: true, empty: false },
       ],
       safeToRestart: true,
     });
@@ -62,6 +62,20 @@ describe('upgrade status', () => {
     const st = upgradeStatus(store, [live], now);
     expect(st.games[0].abandoned).toBe(false);
     expect(st.safeToRestart).toBe(false);
+  });
+
+  it('is safe with an empty lobby of any age', () => {
+    const fresh = saved('default', 'LOBBY', now - 1, [[now - 1, 'game_created']]);
+    const st = upgradeStatus(store, [fresh], now);
+    expect(st.games[0]).toMatchObject({ code: 'default', phase: 'LOBBY', empty: true, abandoned: false });
+    expect(st.safeToRestart).toBe(true);
+  });
+
+  it('is not safe while players joined a lobby in the last 4 hours, and is once they leave it idle', () => {
+    const lobby = saved('l', 'LOBBY', 0, [[0, 'game_created'], [now - HOUR, 'join']]);
+    lobby.players.push({ name: 'Ada' } as GameState['players'][number]);
+    expect(upgradeStatus(store, [lobby], now)).toMatchObject({ games: [{ empty: false, abandoned: false }], safeToRestart: false });
+    expect(upgradeStatus(store, [lobby], now - HOUR + ABANDONED_AFTER_MS)).toMatchObject({ games: [{ abandoned: true }], safeToRestart: true });
   });
 
   it('gives no player details', () => {

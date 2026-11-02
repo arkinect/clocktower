@@ -7,6 +7,9 @@ import type { GameState } from '@ct/shared';
 
 export interface StoredEvent { seq: number; ts: number; actor: string | null; type: string; payload: unknown }
 
+/** One game in a startup upgrade: migrated (and ended, if it was in progress), or deleted as an empty lobby. */
+export interface UpgradedGame { code: string; from: number; endedReason: 'abandoned' | 'update' | null; deleted?: true }
+
 export interface MigrationRecord {
   appliedAt: number;
   /** APP_VERSION and GIT_SHA of the build that ran the upgrade. */
@@ -15,7 +18,7 @@ export interface MigrationRecord {
   gamesMigrated: number;
   gamesEnded: number;
   backupFile: string;
-  details: { code: string; from: number; endedReason: 'abandoned' | 'update' | null }[];
+  details: UpgradedGame[];
 }
 
 export class Store {
@@ -96,9 +99,9 @@ export class Store {
     return (r.m ?? 0) + 1;
   }
 
-  /** Time of the game's latest event other than a join or rebind (a reconnect is not progress), or null. */
+  /** Time of the game's latest event other than a rebind (a reconnect is not progress; a join is), or null. */
   lastProgressAt(gameId: string): number | null {
-    const r = this.db.prepare("SELECT MAX(ts) AS m FROM events WHERE game_id = ? AND type NOT IN ('join', 'rebind')").get(gameId) as { m: number | null };
+    const r = this.db.prepare("SELECT MAX(ts) AS m FROM events WHERE game_id = ? AND type <> 'rebind'").get(gameId) as { m: number | null };
     return r.m;
   }
 
