@@ -31,6 +31,8 @@ export interface Actor {
   source: AbilitySource;
   /** The first night the ability works. Later than tonight only for start information given the night it's gained. */
   fromNight: number;
+  /** False when the player only believes they have it (a believed role, or an ability eaten from an evil executee). */
+  real: boolean;
 }
 
 export interface KillOptions { skipMayor?: boolean; noScarlet?: boolean }
@@ -171,7 +173,7 @@ export class NightRun {
   }
 
   impForActor(actor: Actor): Impairment {
-    if (actor.slot === 'ravenkeeper' && this.impairAtDeath[actor.pid]) return this.impairAtDeath[actor.pid];
+    if (BEHAVIOURS[actor.roleId]?.wakesOnNightDeath && this.impairAtDeath[actor.pid]) return this.impairAtDeath[actor.pid];
     return this.imp(actor.pid);
   }
 
@@ -380,7 +382,7 @@ export class NightRun {
         const imp2 = this.impForActor(actor);
         row.impaired = imp2.impaired;
         row.causes = imp2.causes;
-        if (imp2.impaired && !(actor.choice?.decline) && actor.slot !== 'ravenkeeper') this.abnormalIfExternal(actor.pid, `${roleName(actor.roleId)} ability impaired`);
+        if (imp2.impaired && !(actor.choice?.decline) && !b.wakesOnNightDeath) this.abnormalIfExternal(actor.pid, `${roleName(actor.roleId)} ability impaired`);
         b.resolve(this, actor);
         // A start-information role has now given its information (true or false): it isn't pending any more.
         if (ROLE_BY_ID[actor.roleId]?.startInfo) clearStartInfo(this.w, actor.pid, actor.roleId);
@@ -407,13 +409,16 @@ export class NightRun {
       const ability = abilitiesOf(this.w, pid, pending ? Infinity : this.n).find((x) => x.roleId === roleId);
       if (!ability) continue;
       if (this.noActTonight.has(pid) && !pending) continue;
-      if (slotId === 'ravenkeeper') {
+      if (b.wakesOnNightDeath) {
         if (!this.deaths.includes(pid)) continue;
       } else if (!canAct(this.w, pid) && !b.actsWhileDead) continue;
       if (b.wakes && !b.wakes({ w: this.w, pid, night: this.n, state: this.state })) continue;
-      // The Ravenkeeper's choice comes later, as a follow-up question (askFollowUp).
-      const sub = slotId === 'ravenkeeper' ? undefined : this.night.submissions[pid];
-      out.push({ pid, roleId, slot: slotId, choice: sub?.actions[abilityKey(ability)] ?? null, source: ability.source, fromNight: ability.fromNight });
+      // Nothing is submitted for these: the Ravenkeeper's choice comes later, as a follow-up question (askFollowUp).
+      const sub = b.wakesOnNightDeath ? undefined : this.night.submissions[pid];
+      out.push({
+        pid, roleId, slot: slotId, choice: sub?.actions[abilityKey(ability)] ?? null, source: ability.source, fromNight: ability.fromNight,
+        real: ability.real,
+      });
     }
     return out;
   }

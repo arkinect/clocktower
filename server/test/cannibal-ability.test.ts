@@ -1,5 +1,5 @@
-// The Cannibal's eaten ability as a source in abilitiesOf (shared/src/abilities.ts), and its hidden title. The
-// Cannibal has no role data yet, so these tests set the assignment directly.
+// The Cannibal's eaten ability as a source in abilitiesOf (shared/src/abilities.ts), and its hidden title.
+// These tests set the assignment directly, to test the source on its own (eating itself is in cannibal.test.ts).
 import { describe, expect, it } from 'vitest';
 import { abilitiesOf, abilityKey, abilityTitle, storytellerLabel, type Assignment, type PlayerView } from '@ct/shared';
 import { act, build, nextNight, resolve, resultFor, runNight, submit } from './helpers';

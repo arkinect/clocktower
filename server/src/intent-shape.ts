@@ -81,6 +81,7 @@ export const INTENT_SHAPES: Record<Intent['type'], Record<string, Check>> = {
   },
   damsel_guess: { targetId: player },
   set_damsel_guess_used: { value: bool },
+  set_cannibal_ability: { playerId: player, roleId: orNull(str) },
   set_flag: { playerId: player, key: str, value: bool },
   set_ghost_vote: { playerId: player, used: bool },
   resolve_day_prompt: { id: str, accept: bool },

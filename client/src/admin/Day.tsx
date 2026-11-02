@@ -121,6 +121,7 @@ export function DayPanel({ ctx }: { ctx: AdminCtx }) {
           </label>
         </section>
         <DayAbilities ctx={ctx} />
+        <CannibalPanel ctx={ctx} />
         <AbilityTracker ctx={ctx} />
         <section className="card">
           <TimedButton className="primary big" onConfirm={() => send({ type: 'start_night' })}>Start Night {s.nightNumber + 1}</TimedButton>
@@ -170,6 +171,71 @@ export function AbilityTracker({ ctx }: { ctx: AdminCtx }) {
         </div>
       )}
     </section>
+  );
+}
+
+export interface CannibalRow {
+  id: string;
+  executeeId: string;
+  /** The eaten ability (null: none). */
+  roleId: string | null;
+  fromNight: number;
+  /** The executee was evil: the ability (if the Storyteller gives one) is not real. */
+  evil: boolean;
+  /** Only believes they are the Cannibal (a Drunk or Marionette): never poisoned, nothing real. */
+  believed: boolean;
+  poisoned: boolean;
+}
+
+/** One row per player with the Cannibal's ability (real or believed) who has eaten, in seat order. */
+export function cannibalRows(s: GameState, seated: string[]): CannibalRow[] {
+  return seated.flatMap((id) => {
+    const eaten = s.assignments[id]?.eatenAbility;
+    const holder = abilitiesOf(s, id, Infinity).find((x) => x.roleId === 'cannibal' && x.source !== 'cannibal');
+    if (!eaten || !holder) return [];
+    return [{
+      id, executeeId: eaten.executeeId, roleId: eaten.roleId, fromNight: eaten.fromNight, evil: eaten.fake, believed: !holder.real,
+      poisoned: s.effects.some((e) => e.cause === 'cannibal' && e.targetPlayerId === id),
+    }];
+  });
+}
+
+/** What the Storyteller reads about an eat, after "X ate Y: ". */
+export function cannibalSummary(r: CannibalRow): string {
+  const ability = r.roleId ? `the ${ROLE_BY_ID[r.roleId]?.name ?? r.roleId} ability from night ${r.fromNight}` : 'no ability';
+  if (r.evil) return `evil, ${r.poisoned ? 'poisoned' : 'not poisoned'}; thinks they have ${ability}`;
+  return r.believed ? `${ability} (not real: they only think they are the Cannibal)` : ability;
+}
+
+/**
+ * The Cannibal's eats (design.md section 12): who was eaten and the ability, and a dropdown to change it (after an
+ * evil eat, the ability the Cannibal thinks they have; or to fix a re-recorded execution). Only Confirm sends.
+ */
+export function CannibalPanel({ ctx }: { ctx: AdminCtx }) {
+  const rows = cannibalRows(ctx.s, ctx.seated);
+  if (!rows.length) return null;
+  return (
+    <section className="card">
+      <h2>Cannibal</h2>
+      {rows.map((r) => <CannibalEat key={`${r.id}:${r.executeeId}:${r.roleId ?? ''}`} ctx={ctx} row={r} />)}
+    </section>
+  );
+}
+
+export function CannibalEat({ ctx, row }: { ctx: AdminCtx; row: CannibalRow }) {
+  const [choice, setChoice] = useState(row.roleId ?? '');
+  const roles = ctx.s.script.filter((r) => r !== 'cannibal' && ROLE_BY_ID[r]);
+  return (
+    <div className="field">
+      <span><Who ctx={ctx} id={row.id} role /> ate <Who ctx={ctx} id={row.executeeId} role />: {cannibalSummary(row)}</span>
+      <div className="row wrap">
+        <select value={choice} onChange={(e) => setChoice(e.target.value)} aria-label="Eaten ability">
+          <option value="">Nothing</option>
+          {roles.map((r) => <option key={r} value={r}>{ROLE_BY_ID[r].name}</option>)}
+        </select>
+        <button disabled={choice === (row.roleId ?? '')} onClick={() => send({ type: 'set_cannibal_ability', playerId: row.id, roleId: choice || null })}>Confirm</button>
+      </div>
+    </div>
   );
 }
 

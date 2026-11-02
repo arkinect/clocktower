@@ -86,6 +86,8 @@ describe('intent shapes', () => {
       { type: 'set_day_fact', key: 'notes', value: 'anything' },
       { type: 'day_kill', kind: 'slayer', sourceId: 'p1', targetId: 'p2', mode: 'preview' },
       { type: 'set_godfather_outsiders', value: -1 },
+      { type: 'set_cannibal_ability', playerId: 'p1', roleId: null },
+      { type: 'set_cannibal_ability', playerId: 'p1', roleId: 'empath' },
     ]) {
       expect(wellFormedIntent(s, ok), JSON.stringify(ok)).toBe(true);
     }

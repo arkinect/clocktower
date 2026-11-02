@@ -55,6 +55,8 @@ export type AdminIntent =
   | { type: 'day_kill'; kind: 'slayer' | 'witch'; sourceId: string; targetId: string; recluseAs?: 'truthful' | 'minion' | 'demon'; mode: 'preview' | 'accept' | 'force_death' | 'force_survive' }
   | { type: 'damsel_guess'; targetId: string }
   | { type: 'set_damsel_guess_used'; value: boolean }
+  /** The Cannibal's eaten ability (design.md 14.4): change the role (null = none); whether it is real stays as it was. */
+  | { type: 'set_cannibal_ability'; playerId: string; roleId: string | null }
   | { type: 'set_flag'; playerId: string; key: string; value: boolean }
   | { type: 'set_ghost_vote'; playerId: string; used: boolean }
   | { type: 'resolve_day_prompt'; id: string; accept: boolean }

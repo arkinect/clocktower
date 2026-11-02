@@ -101,6 +101,15 @@ describe('night order', () => {
     expect(at(OTHER_NIGHT_ORDER, 'devils_advocate')).toBe(at(OTHER_NIGHT_ORDER, 'organ_grinder') + 1);
   });
 
+  it('the Farmer per the official night sheet: other nights only, after the Huntsman, before the Moonchild and Grandmother', () => {
+    const at = (id: string) => OTHER_NIGHT_ORDER.findIndex((s) => s.roleId === id);
+    expect(FIRST_NIGHT_ORDER.some((s) => s.roleId === 'farmer')).toBe(false);
+    expect(at('farmer')).toBe(at('huntsman') + 1);
+    expect(at('moonchild')).toBe(at('farmer') + 1);
+    expect(at('farmer')).toBeLessThan(at('grandmother'));
+    expectBefore(OTHER_NIGHT_ORDER, DEMONS, ['farmer']);
+  });
+
   it('every role that resolves at night has a slot', () => {
     const slotted = new Set([...FIRST_NIGHT_ORDER, ...OTHER_NIGHT_ORDER].map((s) => s.roleId));
     const missing = Object.entries(BEHAVIOURS).filter(([id, b]) => b.resolve && !slotted.has(id)).map(([id]) => id);

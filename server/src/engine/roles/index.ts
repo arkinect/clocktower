@@ -7,7 +7,7 @@ import { becomeDemon, demonInfoLines } from '../demon';
 import { enabledRoles } from '../setup';
 import { computeImpairment } from '../impairment';
 import {
-  abilityNightToday, aliveIds, aliveNeighbours, alignmentOf, changeRole, findPlayer, flag, isAlive, playersWithAbility, isDemon, markStartInfo, nameOf, nearestAliveMatching,
+  abilityNightToday, aliveIds, aliveNeighbours, alignmentOf, changeRole, clearStartInfo, findPlayer, flag, isAlive, playersWithAbility, isDemon, markStartInfo, nameOf, nearestAliveMatching,
   roleIdOf, roleName, rs, seatDistance, seatedIds, startInfoPending, typeOf,
 } from '../world';
 
@@ -20,6 +20,11 @@ export interface RoleBehaviour {
   spec?(ctx: SpecCtx): ActionSpec | null;
   resolve?(run: NightRun, actor: Actor): void;
   actsWhileDead?: boolean;
+  /**
+   * Wakes only on a night they die, and then even though dead (the Ravenkeeper, the Farmer): impairment is taken as
+   * of the moment they died (NightRun.impairAtDeath), and they never get a picker of their own (wakingRoles).
+   */
+  wakesOnNightDeath?: true;
   /**
    * Called after an execution kills `executeeId`, once for each seated player (`holderId`) with a real ability of
    * this role, dead or alive and whether or not impaired: the hook decides what that means for its role.
@@ -282,6 +287,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
 
   ravenkeeper: {
     actsWhileDead: true,
+    wakesOnNightDeath: true,
     resolve(run, a) {
       const choice = run.askFollowUp({ key: `ravenkeeper:${a.pid}`, playerId: a.pid, roleId: 'ravenkeeper', spec: ravenkeeperSpec(run.state) });
       if (!choice) {
@@ -295,6 +301,53 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
       const fake = opts.length ? run.rng(`ravenkeeper:${a.pid}`).pick(opts) : truth;
       const fmt = (r: string) => [`${run.name(t)} is the ${roleName(r)}.`];
       run.result(a, 'Ravenkeeper', fmt(truth), fmt(fake));
+    },
+  },
+
+  // The Cannibal (design.md 14.4) never wakes as itself: it eats when an execution kills (the eaten ability then
+  // wakes in its own slot, abilitiesOf), and the Storyteller can change what it ate in the Day panel.
+  cannibal: {
+    onExecutionBelieved: true,
+    onExecution({ s, executeeId, holderId, real }) {
+      if (holderId === executeeId || !isAlive(s, holderId)) return;
+      const a = s.assignments[holderId];
+      const prev = a.eatenAbility;
+      if (prev?.roleId) clearStartInfo(s, holderId, prev.roleId);
+      const good = alignmentOf(s, executeeId) === 'good';
+      const roleId = good ? roleIdOf(s, executeeId) : null;
+      a.eatenAbility = { roleId, fromNight: Math.max(0, s.nightNumber) + 1, executeeId, fake: !good };
+      // "Poisoned until a good player dies by execution": any earlier eat's poison ends here.
+      s.effects = s.effects.filter((e) => !(e.cause === 'cannibal' && e.targetPlayerId === holderId));
+      if (roleId) gainEatenAbility(s, holderId, roleId);
+      else if (real) {
+        s.effects.push({
+          id: `cannibal-${holderId}-d${s.dayNumber}`, type: 'poisoned', cause: 'cannibal', sourcePlayerId: holderId,
+          targetPlayerId: holderId, startNight: Math.max(0, s.nightNumber), expiry: 'until_removed',
+        });
+      }
+    },
+  },
+
+  farmer: {
+    actsWhileDead: true,
+    wakesOnNightDeath: true,
+    resolve(run, a) {
+      if (!a.real || run.impForActor(a).impaired) {
+        if (a.real) run.abnormalIfExternal(a.pid, 'Farmer ability impaired');
+        run.outcome(`${a.real ? 'drunk or poisoned when they died' : 'not really the Farmer'}: nobody becomes a Farmer`);
+        return;
+      }
+      const good = aliveIds(run.w).filter((x) => alignmentOf(run.w, x) === 'good');
+      const fresh = good.filter((x) => roleIdOf(run.w, x) !== 'farmer');
+      const def = fresh.length ? run.rng(`farmer:${a.pid}`).pick(fresh) : 'nobody';
+      const ch = run.review(`farmer:${a.pid}`, 'farmer', `Farmer ${run.name(a.pid)} died: who becomes a Farmer?`,
+        'Any alive good player (they stay good). Recommended at random among those who are not a Farmer already.',
+        [...good.map((x) => ({ id: x, label: `${run.name(x)} (${roleName(roleIdOf(run.w, x))})` })), { id: 'nobody', label: 'Nobody' }], def);
+      if (!good.includes(ch)) { run.outcome('nobody becomes a Farmer'); return; }
+      changeRole(run.w, ch, 'farmer', 'became a Farmer', run.now, { keepAlignment: true });
+      run.noActTonight.add(ch);
+      run.notice(ch, 'You are now the Farmer', [ROLE_BY_ID.farmer.abilityText]);
+      run.outcome(`${run.name(ch)} becomes a Farmer`);
     },
   },
 
@@ -717,6 +770,16 @@ Object.assign(BEHAVIOURS, {
     },
   },
 } satisfies Record<string, RoleBehaviour>);
+
+/**
+ * What gaining an eaten ability does besides recording it (the Cannibal's eat, or the Storyteller's choice in the Day
+ * panel): a once-per-game ability starts unused, and start information comes the night it is gained.
+ */
+export function gainEatenAbility(s: GameState, pid: string, roleId: string) {
+  const key = ROLE_BY_ID[roleId]?.usedFlag?.key;
+  if (key && s.flags[pid]) delete s.flags[pid][key];
+  markStartInfo(s, pid, roleId);
+}
 
 export function hasNightAbility(roleId: string): boolean {
   const b = BEHAVIOURS[roleId];

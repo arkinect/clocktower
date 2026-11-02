@@ -14,7 +14,7 @@ who is drunk or poisoned and what everyone learns, and the Storyteller reviews e
 
 ## Features
 
-- **52 characters**: the full night logic for each, including drunk/poisoned, registration (Recluse, red herring),
+- **54 characters**: the full night logic for each, including drunk/poisoned, registration (Recluse, red herring),
   protections, the Mayor bounce, starpass, Scarlet Woman, revivals, and the Ravenkeeper's second round.
 - **Players' phones**: their role (tap to reveal), the script's role list, night order and seating, a night picker
   with only legal choices, private results at dawn. Two idle mini-games unlock once a player has submitted.

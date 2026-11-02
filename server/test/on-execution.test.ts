@@ -1,5 +1,5 @@
 // The onExecution role hook (server/src/engine/roles/index.ts): run after an execution kills, for each real ability.
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, onTestFinished } from 'vitest';
 import { act, build, runNight } from './helpers';
 import { BEHAVIOURS, type ExecutionCtx } from '../src/engine/roles';
 
@@ -70,6 +70,10 @@ describe('onExecution for believed holders (onExecutionBelieved)', () => {
 
   it('an ability eaten from an evil executee is a believed one: only an opted-in role runs for it', () => {
     const g = day();
+    // The Cannibal's own eating (cannibal.test.ts) is switched off here, so the planted eaten ability stays.
+    const cannibal = BEHAVIOURS.cannibal;
+    BEHAVIOURS.cannibal = {};
+    onTestFinished(() => { BEHAVIOURS.cannibal = cannibal; });
     g.s.assignments[g.p.drunk].believedRoleId = 'clockmaker';
     g.s.assignments[g.p.clockmaker].roleId = 'cannibal';
     g.s.assignments[g.p.clockmaker].eatenAbility = { roleId: 'empath', fromNight: 0, executeeId: g.p.imp, fake: true };
