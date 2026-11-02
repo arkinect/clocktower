@@ -136,7 +136,7 @@ export interface WorldState {
   setup: SetupState;
 }
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 4;
 
 /** Admin-only story log (owner request): one entry per night and per day. */
 export interface StoryPlayer {
