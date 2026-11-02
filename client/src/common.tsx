@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ENDED_REASON_TEXT, FIRST_NIGHT_ORDER, jinxesAmong, jinxLabel, OTHER_NIGHT_ORDER, ROLE_BY_ID, ROLES, type ActionChoice, type ActionSpec, type PrivateMessage, type RoleCard as RC, type RoleType } from '@ct/shared';
+import { ENDED_REASON_TEXT, FIRST_NIGHT_ORDER, jinxesAmong, jinxLabel, OTHER_NIGHT_ORDER, ROLE_BY_ID, ROLES, type ActionChoice, type ActionField, type ActionSpec, type PrivateMessage, type RoleCard as RC, type RoleType } from '@ct/shared';
 
 export const TYPE_LABEL: Record<RoleType, string> = { townsfolk: 'Townsfolk', outsider: 'Outsiders', minion: 'Minions', demon: 'Demons' };
 export const TYPE_ORDER: RoleType[] = ['townsfolk', 'outsider', 'minion', 'demon'];
@@ -141,23 +141,40 @@ export function ActionPicker({ specs, names, value, onChange, dead }: {
         return (
           <div key={spec.key} className="pickspec">
             <div className="pickhead">{spec.prompt}</div>
-            {spec.fields.map((f, i) => (
-              <label key={i} className="field">
-                <span>{f.label}</span>
-                <select
-                  value={cur.decline ? '' : cur.values[i] ?? ''}
-                  onChange={(e) => {
-                    const vals = cur.decline ? [] : cur.values.slice();
-                    while (vals.length < spec.fields.length) vals.push('');
-                    vals[i] = e.target.value;
-                    set({ values: vals });
-                  }}
-                >
-                  <option value="">Choose…</option>
-                  {f.options.map((o) => <option key={o} value={o} style={f.kind === 'player' && dead?.has(o) ? { color: '#ff6b6b' } : undefined}>{f.kind === 'player' ? names[o] ?? o : ROLE_BY_ID[o]?.name ?? o}</option>)}
-                </select>
-              </label>
-            ))}
+            {spec.fields.map((f, i) => {
+              const picked = cur.decline ? '' : cur.values[i] ?? '';
+              const pick = (v: string) => {
+                const vals = cur.decline ? [] : cur.values.slice();
+                while (vals.length < spec.fields.length) vals.push('');
+                vals[i] = v;
+                set({ values: vals });
+              };
+              if (f.kind === 'option') {
+                // A fixed set of answers (e.g. Live / Die). A server without labels: the option ids are shown.
+                return (
+                  <div key={i} className="field">
+                    <span>{f.label}</span>
+                    <div className="seg" role="group" aria-label={f.label}>
+                      {f.options.map((o) => (
+                        <button key={o} type="button" className={picked === o ? 'on' : ''} aria-pressed={picked === o} onClick={() => pick(o)}>
+                          {f.labels?.[o] ?? o}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+              // Players, roles, and any kind this build doesn't know (shown by id).
+              return (
+                <label key={i} className="field">
+                  <span>{f.label}</span>
+                  <select value={picked} onChange={(e) => pick(e.target.value)}>
+                    <option value="">Choose…</option>
+                    {f.options.map((o) => <option key={o} value={o} style={f.kind === 'player' && dead?.has(o) ? { color: '#ff6b6b' } : undefined}>{optionText(f, o, names)}</option>)}
+                  </select>
+                </label>
+              );
+            })}
             {spec.allowDecline && (
               <label className="check">
                 <input type="checkbox" checked={!!cur.decline} onChange={(e) => set(e.target.checked ? { decline: true, values: [] } : { values: [] })} />
@@ -169,6 +186,13 @@ export function ActionPicker({ specs, names, value, onChange, dead }: {
       })}
     </div>
   );
+}
+
+/** The text for one option of a dropdown field: a player's name, a role's name, else the field's label or the id. */
+function optionText(f: ActionField, o: string, names: Record<string, string>): string {
+  if (f.kind === 'player') return names[o] ?? o;
+  if (f.kind === 'role') return ROLE_BY_ID[o]?.name ?? o;
+  return f.labels?.[o] ?? o;
 }
 
 export function choiceComplete(spec: ActionSpec, c: ActionChoice | undefined): boolean {

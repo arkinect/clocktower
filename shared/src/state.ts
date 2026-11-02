@@ -28,6 +28,12 @@ export interface Assignment {
   retainsAbilityWhenDead: boolean;
   /** Philosopher-gained ability, active from `fromNight`. */
   grantedAbility: { roleId: string; fromNight: number } | null;
+  /**
+   * The Cannibal's eaten ability (design.md section 5.6), active from `fromNight`. Absent (or null) = none: added after
+   * schema v7, so older assignments simply lack it. roleId null: the executee had no ability to eat. fake: the
+   * executee was evil, so the Cannibal only thinks they have it (`real: false` in abilitiesOf).
+   */
+  eatenAbility?: { roleId: string | null; fromNight: number; executeeId: string; fake: boolean } | null;
   history: RoleHistoryEntry[];
 }
 
@@ -150,7 +156,7 @@ export interface WorldState {
   setup: SetupState;
 }
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /** Admin-only story log (owner request): one entry per night and per day. */
 export interface StoryPlayer {

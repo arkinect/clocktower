@@ -7,7 +7,7 @@ export type EffectType = 'poisoned' | 'drunk' | 'protected' | 'devils_advocate' 
 export type EffectExpiry = 'until_dusk' | 'until_source_acts_again' | 'while_source_alive_and_sober' | 'until_removed';
 export type Cause =
   | 'poisoner' | 'sailor' | 'innkeeper' | 'goon' | 'philosopher' | 'pukka' | 'no_dashii' | 'vigormortis'
-  | 'witch' | 'own_character' | 'admin';
+  | 'witch' | 'organ_grinder' | 'cannibal' | 'own_character' | 'admin';
 
 export interface Effect {
   id: string;
@@ -30,10 +30,14 @@ export interface Settings {
 // ---- Night actions (inputs) -------------------------------------------------
 
 export interface ActionField {
-  kind: 'player' | 'role';
+  /** 'option': one of a fixed set of answers (e.g. Live / Die), shown as buttons. Added after schema v7: a client must
+   *  handle a kind it doesn't know (the player client shows a plain list of the option ids). */
+  kind: 'player' | 'role' | 'option';
   label: string;
-  /** Legal option ids (player ids or role ids). */
+  /** Legal option ids (player ids, role ids, or answer ids for 'option'). */
   options: string[];
+  /** 'option' fields: the text shown for each option id. Absent, or missing an id: the id itself is shown. */
+  labels?: Record<string, string>;
 }
 
 export interface ActionSpec {

@@ -2,15 +2,15 @@
 // walks the night order and returns a Resolution (results, review items, the world after the night).
 // Admin review choices are inputs (night.reviewChoices), so changing one simply re-runs resolution.
 import {
-  FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID,
-  type ActionChoice, type ActionSpec, type Alignment, type Cause, type Effect, type EffectExpiry, type EffectType, type GameState,
+  FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID, abilitiesOf, abilityTitle,
+  type AbilitySource, type ActionChoice, type ActionSpec, type Alignment, type Cause, type Effect, type EffectExpiry, type EffectType, type GameState,
   type FollowUp, type ReviewItem, type ReviewOption, type Resolution, type ResultRow, type ActorRow, type AbnormalEvent, type WorldState,
 } from '@ct/shared';
 import { activeImpairingEffects, computeImpairment, type Impairment } from './impairment';
 import { subRng, type Rng } from './rng';
 import {
-  actingRoles, aliveIds, aliveNeighbours, alignmentOf, canAct, findPlayer, flag, getPlayer, hasAbility, isAlive,
-  isDemon, nameOf, playersWithAbility, roleIdOf, roleName, seatedIds, typeOf,
+  actingRoles, aliveIds, aliveNeighbours, alignmentOf, canAct, clearStartInfo, findPlayer, flag, getPlayer, hasAbility, isAlive,
+  isDemon, nameOf, playersWithAbility, roleIdOf, roleName, seatedIds, startInfoPending, typeOf,
 } from './world';
 import { BEHAVIOURS, godfatherTriggered } from './roles';
 import { becomeDemon } from './demon';
@@ -22,7 +22,14 @@ export function nightOrder(night: number) {
   return night === 0 ? FIRST_NIGHT_ORDER : OTHER_NIGHT_ORDER;
 }
 
-export interface Actor { pid: string; roleId: string; choice: ActionChoice | null; slot: string }
+export interface Actor {
+  pid: string;
+  roleId: string;
+  choice: ActionChoice | null;
+  slot: string;
+  /** Where the ability comes from (the first source, when several give the same role): decides the title shown. */
+  source: AbilitySource;
+}
 
 export interface KillOptions { skipMayor?: boolean; noScarlet?: boolean }
 export type KillCause = 'demon_attack' | 'assassin' | 'ability_kill' | 'self_gamble' | 'grandchild_link';
@@ -134,6 +141,7 @@ export class NightRun {
   // ---- results --------------------------------------------------------------------------------
   /** Record a private result. When the actor is impaired, `falseLines` is what is suggested. */
   result(actor: Actor, title: string, trueLines: string[], falseLines: string[] | null, alternatives: string[][] = []) {
+    title = abilityTitle(actor, title);
     const imp = this.impForActor(actor);
     const suggested = imp.impaired && falseLines ? falseLines : trueLines;
     const key = `${actor.pid}:${actor.roleId}`;
@@ -143,6 +151,11 @@ export class NightRun {
       finalLines: override ?? suggested, impaired: imp.impaired, causes: imp.causes, overridden: !!override,
       alternatives,
     });
+  }
+
+  /** Whether a start-information role (RoleData.startInfo) gives its information tonight: night 0, or just gained. */
+  startInfoDue(actor: Actor): boolean {
+    return this.n === 0 || startInfoPending(this.w, actor.pid).includes(actor.roleId);
   }
 
   impForActor(actor: Actor): Impairment {
@@ -356,6 +369,8 @@ export class NightRun {
         row.causes = imp2.causes;
         if (imp2.impaired && !(actor.choice?.decline) && actor.slot !== 'ravenkeeper') this.abnormalIfExternal(actor.pid, `${roleName(actor.roleId)} ability impaired`);
         b.resolve(this, actor);
+        // A start-information role has now given its information (true or false): it isn't pending any more.
+        if (ROLE_BY_ID[actor.roleId]?.startInfo) clearStartInfo(this.w, actor.pid, actor.roleId);
         this.currentActorRow = null;
       }
     }
@@ -372,15 +387,17 @@ export class NightRun {
     const b = BEHAVIOURS[roleId];
     const out: Actor[] = [];
     for (const pid of seatedIds(this.w)) {
-      if (!actingRoles(this.w, pid, this.n).includes(roleId)) continue;
-      if (this.noActTonight.has(pid) && !(roleId === 'grandmother' && this.w.roleState[pid]?.grandmotherInfoPending)) continue;
+      const ability = abilitiesOf(this.w, pid, this.n).find((x) => x.roleId === roleId);
+      if (!ability) continue;
+      // A player given a new role tonight acts from the next night, except to get a just-gained role's start information.
+      if (this.noActTonight.has(pid) && !startInfoPending(this.w, pid).includes(roleId)) continue;
       if (slotId === 'ravenkeeper') {
         if (!this.deaths.includes(pid)) continue;
       } else if (!canAct(this.w, pid) && !b.actsWhileDead) continue;
       if (b.wakes && !b.wakes({ w: this.w, pid, night: this.n, state: this.state })) continue;
       // The Ravenkeeper's choice comes later, as a follow-up question (askFollowUp).
       const sub = slotId === 'ravenkeeper' ? undefined : this.night.submissions[pid];
-      out.push({ pid, roleId, slot: slotId, choice: sub?.actions[roleId] ?? null });
+      out.push({ pid, roleId, slot: slotId, choice: sub?.actions[roleId] ?? null, source: ability.source });
     }
     return out;
   }

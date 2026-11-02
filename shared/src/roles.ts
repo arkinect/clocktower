@@ -17,6 +17,12 @@ export interface RoleData {
   usedFlag?: { key: string; auto: boolean };
   /** Show `reminder` in the Day panel's reminders (a day ability the Storyteller applies by hand). */
   dayReminder?: true;
+  /**
+   * The role's information comes only on night 0 ("You start knowing…"). A player who gains it later (a Philosopher,
+   * the Huntsman's Damsel) is marked in roleState.startInfoPending and gets that information the first night the
+   * ability is active (design.md section 5.7).
+   */
+  startInfo?: true;
 }
 
 const T = 'townsfolk' as const;
@@ -30,7 +36,7 @@ function r(id: string, name: string, type: RoleType, abilityText: string, extra:
 
 export const ROLES: RoleData[] = [
   // Townsfolk (24)
-  r('clockmaker', 'Clockmaker', T, 'You start knowing how many steps from the Demon to its nearest Minion.'),
+  r('clockmaker', 'Clockmaker', T, 'You start knowing how many steps from the Demon to its nearest Minion.', { startInfo: true }),
   r('sailor', 'Sailor', T, 'Each night, choose an alive player: either you or they are drunk until dusk. You can\'t die.'),
   r('mathematician', 'Mathematician', T, 'Each night, you learn how many players\' abilities worked abnormally (since dawn) due to another character\'s ability.'),
   r('flowergirl', 'Flowergirl', T, 'Each night*, you learn if a Demon voted today.'),
@@ -49,7 +55,7 @@ export const ROLES: RoleData[] = [
   r('mayor', 'Mayor', T, 'If only 3 players live & no execution occurs, your team wins. If you die at night, another player might die instead.', { reminder: '3-player win is not enforced.', dayReminder: true }),
   r('oracle', 'Oracle', T, 'Each night*, you learn how many dead players are evil.'),
   r('gossip', 'Gossip', T, 'Each day, you may make a public statement. Tonight, if it was true, a player dies.', { reminder: 'Enter True/False/None for the statement in the Day panel.' }),
-  r('grandmother', 'Grandmother', T, 'You start knowing a good player & their character. If the Demon kills them, you die too.'),
+  r('grandmother', 'Grandmother', T, 'You start knowing a good player & their character. If the Demon kills them, you die too.', { startInfo: true }),
   r('huntsman', 'Huntsman', T, 'Once per game, at night, choose a living player: the Damsel, if chosen, becomes a not-in-play Townsfolk. [+the Damsel]', { usedFlag: { key: 'huntsman_used', auto: true } }),
   r('professor', 'Professor', T, 'Once per game, at night*, choose a dead player: if they are a Townsfolk, they are resurrected.', { usedFlag: { key: 'professor_used', auto: true } }),
   r('slayer', 'Slayer', T, 'Once per game, during the day, publicly choose a player: if they are the Demon, they die.', { reminder: 'Resolve the shot in the Day panel.', usedFlag: { key: 'slayer_used', auto: false } }),
@@ -178,7 +184,8 @@ export const OTHER_NIGHT_ORDER: NightSlot[] = [
   { id: 'professor', label: 'Professor', roleId: 'professor' },
   { id: 'huntsman', label: 'Huntsman', roleId: 'huntsman' },
   { id: 'moonchild', label: 'Moonchild', roleId: 'moonchild', note: 'Only if a target was chosen' },
-  { id: 'grandmother', label: 'Grandmother', roleId: 'grandmother', note: 'Only if the Demon killed the grandchild' },
+  { id: 'grandmother', label: 'Grandmother', roleId: 'grandmother', note: 'Only if the Demon killed the grandchild, or the ability was just gained' },
+  { id: 'clockmaker', label: 'Clockmaker', roleId: 'clockmaker', note: 'Only if the ability was just gained' },
   { id: 'ravenkeeper', label: 'Ravenkeeper', roleId: 'ravenkeeper', note: 'Only if killed tonight' },
   { id: 'empath', label: 'Empath', roleId: 'empath' },
   { id: 'fortune_teller', label: 'Fortune Teller', roleId: 'fortune_teller' },

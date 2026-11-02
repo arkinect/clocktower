@@ -46,6 +46,7 @@ label.check { display: flex; gap: 8px; align-items: center; }
 label.check input { width: auto; min-height: 0; }
 .field > span { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 4px; }
 .field { margin: 10px 0; }
+.field > .seg { margin: 0; }
 .muted { color: var(--muted); }
 .small { font-size: 0.85rem; }
 .mono { font-family: ui-monospace, monospace; word-break: break-all; }

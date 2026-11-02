@@ -44,6 +44,11 @@ export function upgradeStatus(store: Store, states: GameState[], now: number): U
 /** Startup must stop: the database is left exactly as it was. */
 export class UpgradeRefused extends Error {}
 
+/** The line startup prints when it stops (index.ts), e.g. "Not starting: This database has games saved at schema v8…". */
+export function notStarting(e: UpgradeRefused): string {
+  return `Not starting: ${e.message}`;
+}
+
 export interface UpgradeOptions {
   now: number;
   /** APP_VERSION and GIT_SHA of this build, for the migrations table. */

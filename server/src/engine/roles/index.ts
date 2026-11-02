@@ -6,8 +6,8 @@ import type { Actor, NightRun } from '../night';
 import { becomeDemon, demonInfoLines } from '../demon';
 import { enabledRoles } from '../setup';
 import {
-  aliveIds, aliveNeighbours, alignmentOf, changeRole, findPlayer, flag, isAlive, isDemon, nameOf, nearestAliveMatching, roleIdOf,
-  roleName, rs, seatDistance, seatedIds, typeOf,
+  aliveIds, aliveNeighbours, alignmentOf, changeRole, findPlayer, flag, isAlive, isDemon, markStartInfo, nameOf, nearestAliveMatching,
+  roleIdOf, roleName, rs, seatDistance, seatedIds, startInfoPending, typeOf,
 } from '../world';
 
 export interface SpecCtx { w: WorldState; pid: string; night: number; state: GameState }
@@ -24,9 +24,22 @@ export interface RoleBehaviour {
    * this role, dead or alive and whether or not impaired: the hook decides what that means for its role.
    */
   onExecution?(ctx: ExecutionCtx): void;
+  /**
+   * Also call onExecution for players who only believe they have this role's ability (a Drunk or Marionette who
+   * thinks they are it, an ability eaten from an evil executee), with `real: false`: for a role that must look as if
+   * it worked (e.g. the believed Cannibal eating). Without it, believed holders are skipped.
+   */
+  onExecutionBelieved?: true;
 }
 
-export interface ExecutionCtx { s: GameState; executeeId: string; holderId: string; now: number }
+export interface ExecutionCtx {
+  s: GameState;
+  executeeId: string;
+  holderId: string;
+  now: number;
+  /** False when the holder only believes they have the ability (onExecutionBelieved). */
+  real: boolean;
+}
 
 const enabled = enabledRoles;
 
@@ -80,7 +93,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
       run.setFlag(a.pid, 'philosopher_used');
       if (run.sober(a.pid)) {
         run.w.assignments[a.pid].grantedAbility = { roleId, fromNight: run.n + 1 };
-        if (roleId === 'grandmother') run.setRs(a.pid, 'grandmotherInfoPending', true);
+        markStartInfo(run.w, a.pid, roleId);
         run.outcome(`gains the ${roleName(roleId)} ability from next night`);
         for (const pid of seatedIds(run.w)) {
           if (pid !== a.pid && roleIdOf(run.w, pid) === roleId) {
@@ -149,6 +162,8 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
   },
 
   clockmaker: {
+    // Start information: night 0, or the first night after gaining the ability (startInfoPending).
+    wakes: (c) => c.night === 0 || startInfoPending(c.w, c.pid).includes('clockmaker'),
     resolve(run, a) {
       const ids = seatedIds(run.w);
       const demons = ids.filter((id) => run.regIsDemon(`clockmaker:${a.pid}`, id));
@@ -518,7 +533,6 @@ export function godfatherTriggered(state: GameState, night: number): boolean {
 }
 
 function grandmotherInfo(run: NightRun, a: Actor) {
-  run.setRs(a.pid, 'grandmotherInfoPending', false);
   const others = seatedIds(run.w).filter((x) => x !== a.pid);
   if (!others.length) return;
   const fmt = (pid: string, r: string) => [`Your grandchild is ${run.name(pid)}, the ${roleName(r)}.`];
@@ -571,7 +585,7 @@ Object.assign(BEHAVIOURS, {
 
   grandmother: {
     resolve(run: NightRun, a: Actor) {
-      if (run.n === 0 || rs<boolean>(run.w, a.pid, 'grandmotherInfoPending')) {
+      if (run.startInfoDue(a)) {
         grandmotherInfo(run, a);
         if (run.n === 0) return;
       }
@@ -606,7 +620,7 @@ Object.assign(BEHAVIOURS, {
         'A Townsfolk not in play. Her new ability works from the next night.', cands.map((r) => ({ id: r, label: roleName(r) })), def);
       changeRole(run.w, t, nr, 'Huntsman found the Damsel', run.now, { keepAbilities: true, keepTies: true });
       run.noActTonight.add(t);
-      if (nr === 'grandmother') run.setRs(t, 'grandmotherInfoPending', true);
+      markStartInfo(run.w, t, nr);
       run.notice(t, `Your role is now ${roleName(nr)}`, [ROLE_BY_ID[nr].abilityText]);
       run.outcome(`the Damsel (${run.name(t)}) becomes the ${roleName(nr)}`);
     },

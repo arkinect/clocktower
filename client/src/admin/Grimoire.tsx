@@ -33,11 +33,16 @@ export function Grimoire({ ctx, code }: { ctx: AdminCtx; code: string }) {
                 <b className="grow">{p.seat !== null ? `${p.seat + 1}. ` : ''}<Who ctx={ctx} id={id} /></b>
               </div>
               <div className={`grimrole type-${r?.type ?? ''}`}>{r?.name ?? 'No role'}</div>
-              {abilitiesOf(s, id, Infinity).filter((x) => x.source === 'believed' || x.source === 'philosopher').map((x) => (
-                <div key={x.source} className="small">
-                  {x.source === 'believed' ? `believes: ${ROLE_BY_ID[x.roleId].name}` : `gained: ${ROLE_BY_ID[x.roleId].name} (from night ${x.fromNight})`}
-                </div>
-              ))}
+              {abilitiesOf(s, id, Infinity).filter((x) => x.source === 'believed' || x.source === 'philosopher' || x.source === 'cannibal').map((x) => {
+                const name = ROLE_BY_ID[x.roleId]?.name ?? x.roleId;
+                return (
+                  <div key={x.source} className="small">
+                    {x.source === 'believed' ? `believes: ${name}`
+                      : x.source === 'cannibal' ? `ate: ${name} (from night ${x.fromNight}${x.real ? '' : ', not real'})`
+                      : `gained: ${name} (from night ${x.fromNight})`}
+                  </div>
+                );
+              })}
               {s.setup.lilMonstaTokenHolderId === id && <div className="tag evil">Lil' Monsta token</div>}
               {s.setup.redHerringId === id && <div className="tag">red herring</div>}
               {a?.retainsAbilityWhenDead && <div className="tag">keeps ability when dead</div>}

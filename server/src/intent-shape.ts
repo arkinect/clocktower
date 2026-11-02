@@ -17,6 +17,8 @@ const orNull = (c: Check): Check => (v, s) => v === null || c(v, s);
 const optional = (c: Check): Check => (v, s) => v === undefined || c(v, s);
 const record = (c: Check): Check => (v, s) =>
   typeof v === 'object' && v !== null && !Array.isArray(v) && Object.values(v).every((x) => c(x, s));
+/** A night or follow-up choice: one string per field, whatever the field's kind (a player id, a role id, or the id of
+ *  an 'option' answer such as "live"; never the answer's label). validateChoice checks each against the spec. */
 const choice: Check = (v, s) =>
   typeof v === 'object' && v !== null && strings((v as { values?: unknown }).values, s) && optional(bool)((v as { decline?: unknown }).decline, s);
 const counts: Check = (v) => Array.isArray(v) && v.length === 4 && v.every((x) => typeof x === 'number' && Number.isFinite(x));

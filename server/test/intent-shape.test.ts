@@ -7,6 +7,8 @@ import { Store } from '../src/db';
 import { GameManager, type LiveGame } from '../src/manager';
 import { INTENT_SHAPES, wellFormedIntent } from '../src/intent-shape';
 import { createGame } from '../src/engine/game';
+import { validateChoice } from '../src/engine/actions';
+import type { ActionSpec } from '@ct/shared';
 
 let dir: string;
 let store: Store;
@@ -87,5 +89,26 @@ describe('intent shapes', () => {
     ]) {
       expect(wellFormedIntent(s, ok), JSON.stringify(ok)).toBe(true);
     }
+  });
+
+  it('an answer to an \'option\' field is its option id, a string', () => {
+    const s = createGame('x', 0);
+    s.players.push({ id: 'p1' } as never);
+    const spec: ActionSpec = {
+      key: 'q:p1', roleId: 'empath', title: 'Question', prompt: 'Live or die?', distinct: true, allowDecline: false,
+      fields: [{ kind: 'option', label: 'Answer', options: ['live', 'die'], labels: { live: 'Live', die: 'Die' } }, { kind: 'player', label: 'Player', options: ['p1'] }],
+    };
+    for (const choice of [{ values: ['live', 'p1'] }, { values: ['die'] }]) {
+      expect(wellFormedIntent(s, { type: 'answer_follow_up', key: 'q:p1', choice })).toBe(true);
+      expect(wellFormedIntent(s, { type: 'submit_night', actions: { q: choice } })).toBe(true);
+    }
+    for (const choice of [{ values: [true] }, { values: [{ live: 'Live' }] }, { values: 'live' }, { decline: 'yes', values: [] }]) {
+      expect(wellFormedIntent(s, { type: 'answer_follow_up', key: 'q:p1', choice }), JSON.stringify(choice)).toBe(false);
+      expect(wellFormedIntent(s, { type: 'submit_night', actions: { q: choice } }), JSON.stringify(choice)).toBe(false);
+    }
+    // Then the engine checks the meaning: an option id is legal, its label is not; 'distinct' counts players only.
+    expect(validateChoice(spec, { values: ['live', 'p1'] })).toBeNull();
+    expect(validateChoice(spec, { values: ['Live', 'p1'] })).toMatch(/"Answer" is not a legal choice/);
+    expect(validateChoice(spec, { values: ['live'] })).toMatch(/choose 2 option/);
   });
 });

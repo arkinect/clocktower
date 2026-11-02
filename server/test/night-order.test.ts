@@ -15,6 +15,14 @@ const INFORMATION = [
 /** Kills allowed after the Professor. The Professor's picker lists only players dead at the start of the night, so a
  * kill's place relative to the Professor only decides whether a Professor it kills has already acted. */
 const AFTER_PROFESSOR = ['moonchild'];
+/**
+ * Exception: slots that exist on other nights only for an ability just gained. A start-information role
+ * (RoleData.startInfo) gives its night-0 information to a player who gains it later, on the first night it is
+ * active (startInfoPending), so it needs an other-night slot even when it has no other-night ability. The Clockmaker
+ * is such a role: its other-night slot never wakes anyone otherwise. It sits beside the Grandmother's, after every
+ * kill, so the information is about the night's final state, like hers.
+ */
+const JUST_GAINED_ONLY = ['clockmaker'];
 
 /** Position of each role slot, ignoring pseudo-slots such as Demon Info. */
 function positions(order: NightSlot[]): Map<string, number> {
@@ -72,6 +80,18 @@ describe('night order', () => {
       });
     });
   }
+
+  it('every start-information role has a slot on both orders; the just-gained-only slots say so and sit by the Grandmother', () => {
+    const startInfo = ROLES.filter((r) => r.startInfo).map((r) => r.id);
+    for (const [, order] of ORDERS) for (const r of startInfo) expect(positions(order).has(r), r).toBe(true);
+    for (const r of JUST_GAINED_ONLY) {
+      expect(startInfo).toContain(r);
+      const i = OTHER_NIGHT_ORDER.findIndex((s) => s.roleId === r);
+      expect(OTHER_NIGHT_ORDER[i].note).toBe('Only if the ability was just gained');
+      const near = OTHER_NIGHT_ORDER.slice(i - JUST_GAINED_ONLY.length, i + JUST_GAINED_ONLY.length + 1).map((s) => s.roleId);
+      expect(near, r).toContain('grandmother');
+    }
+  });
 
   it('every role that resolves at night has a slot', () => {
     const slotted = new Set([...FIRST_NIGHT_ORDER, ...OTHER_NIGHT_ORDER].map((s) => s.roleId));

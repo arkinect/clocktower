@@ -38,3 +38,48 @@ describe('onExecution hook', () => {
     expect(calls).toEqual([]);
   });
 });
+
+describe('onExecution for believed holders (onExecutionBelieved)', () => {
+  const seen: { holderId: string; real: boolean }[] = [];
+  afterEach(() => { seen.length = 0; });
+
+  function optedIn() {
+    const g = day();
+    BEHAVIOURS.empath = { ...original, onExecutionBelieved: true, onExecution: (ctx) => { seen.push({ holderId: ctx.holderId, real: ctx.real }); } };
+    return g;
+  }
+
+  it('a real holder\'s call says real: true', () => {
+    const g = day();
+    BEHAVIOURS.empath = { ...original, onExecution: (ctx) => { seen.push({ holderId: ctx.holderId, real: ctx.real }); } };
+    act(g, { type: 'record_execution', playerId: g.p.clockmaker, died: true });
+    expect(seen).toEqual([{ holderId: g.p.empath, real: true }]);
+  });
+
+  it('a role that opts in also runs for a player who only believes they have it, with real: false', () => {
+    const g = optedIn();
+    act(g, { type: 'record_execution', playerId: g.p.clockmaker, died: true });
+    expect(seen).toEqual([{ holderId: g.p.empath, real: true }, { holderId: g.p.drunk, real: false }]);
+  });
+
+  it('opting in changes nothing when no execution kills', () => {
+    const g = optedIn();
+    act(g, { type: 'record_execution', playerId: g.p.clockmaker, died: false });
+    expect(seen).toEqual([]);
+  });
+
+  it('an ability eaten from an evil executee is a believed one: only an opted-in role runs for it', () => {
+    const g = day();
+    g.s.assignments[g.p.drunk].believedRoleId = 'clockmaker';
+    g.s.assignments[g.p.clockmaker].roleId = 'cannibal';
+    g.s.assignments[g.p.clockmaker].eatenAbility = { roleId: 'empath', fromNight: 0, executeeId: g.p.imp, fake: true };
+    BEHAVIOURS.empath = { ...original, onExecution: (ctx) => { seen.push({ holderId: ctx.holderId, real: ctx.real }); } };
+    act(g, { type: 'record_execution', playerId: g.p.scarlet_woman, died: true });
+    expect(seen).toEqual([{ holderId: g.p.empath, real: true }]);
+    seen.length = 0;
+    BEHAVIOURS.empath = { ...BEHAVIOURS.empath, onExecutionBelieved: true };
+    act(g, { type: 'mark_alive', playerId: g.p.scarlet_woman, alive: true });
+    act(g, { type: 'record_execution', playerId: g.p.scarlet_woman, died: true });
+    expect(seen).toEqual([{ holderId: g.p.empath, real: true }, { holderId: g.p.clockmaker, real: false }]);
+  });
+});

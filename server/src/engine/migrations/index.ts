@@ -4,6 +4,7 @@
 import { v5 } from './v5';
 import { v6 } from './v6';
 import { v7 } from './v7';
+import { v8 } from './v8';
 
 /** A saved game as loose JSON: steps must not assume today's GameState. */
 export type SavedGame = Record<string, any>;
@@ -19,4 +20,5 @@ export const STEPS: Record<number, MigrationStep> = {
   // version, so the v5 undo runs again here; on a game that came through step 5 it changes nothing.
   6: (s) => { v5(s); v6(s); },
   7: v7,
+  8: v8,
 };

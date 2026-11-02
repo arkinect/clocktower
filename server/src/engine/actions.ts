@@ -1,5 +1,5 @@
 // Section 11: what a player may submit tonight, and server-side validation of it.
-import type { ActionChoice, ActionSpec, GameState } from '@ct/shared';
+import { abilitiesOf, abilityTitle, type ActionChoice, type ActionSpec, type GameState } from '@ct/shared';
 import { BEHAVIOURS, type SpecCtx } from './roles';
 import { nightOrder } from './night';
 import { actingRoles, canAct, seatedIds } from './world';
@@ -29,6 +29,8 @@ export function actionSpecs(state: GameState, pid: string): ActionSpec[] {
   for (const roleId of wakingRoles(state, pid)) {
     const spec = BEHAVIOURS[roleId].spec?.({ w: state, pid, night: night.number, state });
     if (!spec) continue;
+    const ability = abilitiesOf(state, pid, night.number).find((x) => x.roleId === roleId);
+    if (ability) spec.title = abilityTitle(ability, spec.title);
     // A field with no legal option (e.g. nobody else alive) must still be submittable.
     const playerFields = spec.fields.filter((f) => f.kind === 'player');
     const pool = new Set(playerFields.flatMap((f) => f.options));
