@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "id": "game-fixture-ended",
   "code": "fixture-ended",
   "phase": "ENDED",

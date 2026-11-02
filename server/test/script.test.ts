@@ -1,16 +1,16 @@
-// The script as a list of role ids (design.md section 5.5, schema v5).
+// The script as a list of role ids (design.md section 5.5, schema v6).
 import { describe, expect, it } from 'vitest';
 import { ROLES } from '@ct/shared';
 import { act, build, tryAct } from './helpers';
 import { createGame } from '../src/engine/game';
-import { v5 } from '../src/engine/migrations/v5';
+import { v6 } from '../src/engine/migrations/v6';
 import { bluffCandidates, enabledRoles, onScript, setupChecklist } from '../src/engine/setup';
 import { adminView, playerView } from '../src/engine/views';
 
 describe('script', () => {
-  it('the v5 step keeps the roles that were on', () => {
+  it('the v6 step keeps the roles that were on', () => {
     const s: Record<string, unknown> = { enabledRoles: { empath: true, imp: true, poisoner: false } };
-    v5(s);
+    v6(s);
     expect(s).toEqual({ script: ['empath', 'imp'], endedReason: null });
   });
 

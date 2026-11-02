@@ -73,7 +73,7 @@ release the server copies the database to `data/clocktower.db.pre-v<N>`, then en
 (players and the Storyteller see "This game was ended by an app update.") and upgrades every saved game. The
 Storyteller's *Play again* starts a new game with the same players. Phones still running the old page show "The app
 was updated. Tap to reload." The server log has one line per upgrade, e.g.
-`Upgraded 1 game to schema v5 (1 ended: update). Backup: clocktower.db.pre-v5.`
+`Upgraded 1 game to schema v7 (1 ended: update). Backup: clocktower.db.pre-v7.`
 
 If the server refuses to start, `docker logs clocktower` says why (`Not starting: …`).
 
@@ -81,7 +81,7 @@ If the server refuses to start, `docker logs clocktower` says why (`Not starting
 `data/clocktower.db` (and delete `data/clocktower.db-wal` and `data/clocktower.db-shm`), then run the older image
 (set its version tag in `docker-compose.yml`) and `docker compose up -d`.
 
-**Updating from v0.2.2 or earlier:** those servers can't report whether a game is in progress, so the new
+**Updating from v0.3.0 or earlier:** those servers can't report whether a game is in progress, so the new
 `update.sh` defers until you run it once by hand with `--force`, at a time no game is running. The game-in-progress
 check lives in `scripts/update.sh`, so you get it by updating your checkout of this repository (`git pull`); the
 startup upgrade ships in the image.

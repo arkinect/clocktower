@@ -52,6 +52,9 @@ jobs:
             type=semver,pattern={{version}},value=${{ steps.tag.outputs.tag }}
             type=semver,pattern={{major}}.{{minor}},value=${{ steps.tag.outputs.tag }}
             type=raw,value=latest
+          # The image is rebuilt from the tag's commit, not the commit this workflow runs on.
+          labels: |
+            org.opencontainers.image.revision=${{ steps.checkout.outputs.sha }}
       - if: steps.tag.outputs.tag != ''
         uses: docker/build-push-action@v6
         with:

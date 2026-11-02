@@ -1,7 +1,7 @@
 // Follow-up questions during night review (NightRun.askFollowUp), used by the Ravenkeeper.
 import { describe, expect, it } from 'vitest';
 import { act, build, nextNight, resolve, resultFor, runNight, submit, tryAct, type TestGame } from './helpers';
-import { v6 } from '../src/engine/migrations/v6';
+import { v7 } from '../src/engine/migrations/v7';
 
 /** Night 1 where the Imp kills the Ravenkeeper, who is then asked to choose a player. */
 function ravenkeeperDies(): TestGame & { key: string } {
@@ -57,9 +57,9 @@ describe('follow-up questions', () => {
     expect(tryAct(g, { type: 'answer_follow_up', key: g.key, choice: { values: [g.p.empath] } }, g.p.ravenkeeper).ok).toBe(false);
   });
 
-  it('the v6 step drops the night and renames the time setting', () => {
+  it('the v7 step drops the night and renames the time setting', () => {
     const s: Record<string, unknown> = { night: { ravenSubmissions: {} }, settings: { countdownSeconds: 300, ravenkeeperExtensionSeconds: 90 } };
-    v6(s);
+    v7(s);
     expect(s).toEqual({ night: null, settings: { countdownSeconds: 300, followUpExtensionSeconds: 90 } });
   });
 });

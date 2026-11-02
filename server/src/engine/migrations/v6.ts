@@ -1,11 +1,10 @@
-// v5 -> v6: the Ravenkeeper's second round became general follow-up questions. Only ended games are migrated, so
-// the night (which held the old Ravenkeeper fields) is simply dropped, and the time setting is renamed.
+// v5 -> v6: the script becomes a list of the role ids that were on, so a role added by a later release is simply
+// absent (off) in existing games. Also adds endedReason.
 import type { SavedGame } from './index';
 
 export function v6(s: SavedGame) {
-  s.night = null;
-  const settings = (s.settings ?? {}) as Record<string, unknown>;
-  settings.followUpExtensionSeconds = typeof settings.ravenkeeperExtensionSeconds === 'number' ? settings.ravenkeeperExtensionSeconds : 120;
-  delete settings.ravenkeeperExtensionSeconds;
-  s.settings = settings;
+  const map = (s.enabledRoles ?? {}) as Record<string, unknown>;
+  s.script = Object.keys(map).filter((id) => map[id] === true);
+  delete s.enabledRoles;
+  s.endedReason ??= null;
 }

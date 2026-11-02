@@ -58,6 +58,51 @@ describe('startup upgrade', () => {
     }
   });
 
+  it('upgrades each v5 fixture (saved by the withdrawn v0.3.0) to the stored expected state', async () => {
+    seed('v5-ended', 'fixture-v5-ended', NOW - 50 * HOUR);
+    seed('v5-mid-day', 'fixture-v5-mid-day', NOW - HOUR);
+    upgradeSavedGames(store, release);
+    for (const name of ['ended', 'mid-day']) {
+      await expect(JSON.stringify(loaded(`fixture-v5-${name}`), null, 2) + '\n').toMatchFileSnapshot(`fixtures/v5-${name}.upgraded.json`);
+    }
+  });
+
+  it('a v0.3.0 game keeps no trace of the Fisherman, Zealot, Organ Grinder or Baron, and Play again works', () => {
+    const before = seed('v5-ended', 'ended', NOW - 50 * HOUR);
+    seed('v5-mid-day', 'live', NOW - HOUR);
+    // The fixtures do hold them: assigned Baron and Organ Grinder, a Fisherman bluff, an Organ Grinder effect.
+    expect(JSON.stringify(before)).toMatch(/"baron"[\s\S]*"organ_grinder"/);
+    expect(before.setup.demonBluffs).toContain('fisherman');
+    expect(upgradeSavedGames(store, release)!.games).toEqual([
+      { code: 'ended', from: 5, endedReason: null }, { code: 'live', from: 5, endedReason: 'update' },
+    ]);
+    for (const code of ['ended', 'live']) {
+      const s = loaded(code);
+      expect(s).toMatchObject({ phase: 'ENDED', schemaVersion: SCHEMA_VERSION, night: null });
+      // No stored role id of the four, anywhere (their names can remain in text people were already shown).
+      expect(JSON.stringify(s)).not.toMatch(/"(fisherman|zealot|organ_grinder|baron)"|:(fisherman|zealot|organ_grinder|baron)"/);
+      expect(s.script).not.toContain('baron');
+      expect(s.setup.demonBluffs).toEqual(['clockmaker', 'mayor']);
+      expect(Object.values(s.assignments).filter((a) => a.roleId === null)).toHaveLength(2);
+      expect(s.effects.some((e) => (e.cause as string) === 'organ_grinder')).toBe(false);
+      const r = applyIntent(s, s.adminId!, { type: 'play_again' }, { now: NOW + 1 });
+      if (!r.ok) throw new Error(r.error);
+      expect(r.state.phase).toBe('SETUP');
+      expect(r.state.players.map((p) => p.id)).toEqual(s.players.map((p) => p.id));
+    }
+    expect(loaded('live').endedReason).toBe('update');
+  });
+
+  it('the v5 step changes nothing on real v4 data but the ended game\'s last night, which v7 drops anyway', () => {
+    for (const name of ['v4-ended', 'v4-mid-night']) {
+      const s = fixture(name);
+      const after = JSON.parse(JSON.stringify(s));
+      STEPS[5](after);
+      expect({ ...after, night: s.night }).toEqual(s);
+      expect(after.night).toBeNull();
+    }
+  });
+
   it('ends a mid-night game idle for 5 hours as abandoned, migrates it and logs one event', () => {
     seed('v4-mid-night', 'idle', NOW - 5 * HOUR);
     const r = upgradeSavedGames(store, release);
@@ -86,7 +131,7 @@ describe('startup upgrade', () => {
     expect(s.endedReason).toBeNull();
     for (const k of ['players', 'assignments', 'story', 'days', 'messages'] as const) expect(s[k]).toEqual(before[k]);
     const { ravenkeeperExtensionSeconds, ...settings } = before.settings as typeof before.settings & { ravenkeeperExtensionSeconds: number };
-    expect(s.settings).toEqual({ ...settings, followUpExtensionSeconds: ravenkeeperExtensionSeconds }); // renamed in v6
+    expect(s.settings).toEqual({ ...settings, followUpExtensionSeconds: ravenkeeperExtensionSeconds }); // renamed in v7
     const r = applyIntent(s, s.adminId!, { type: 'play_again' }, { now: NOW + 1 });
     if (!r.ok) throw new Error(r.error);
     expect(r.state.phase).toBe('SETUP');

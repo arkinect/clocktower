@@ -150,7 +150,7 @@ export interface WorldState {
   setup: SetupState;
 }
 
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /** Admin-only story log (owner request): one entry per night and per day. */
 export interface StoryPlayer {
