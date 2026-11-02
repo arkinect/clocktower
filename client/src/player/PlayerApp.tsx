@@ -122,6 +122,7 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
         </div>
       )}
       {view.me.ravenkeeperPrompt && <RavenkeeperPrompt view={view} names={names} dead={dead} />}
+      {view.me.alHadikhiaPrompt && <AlHadikhiaPrompt chosen={view.me.alHadikhiaPrompt.chosen} names={names} />}
       <footer className="nightbar">
         {submitted || !collecting ? (
           <div className="waiting">
@@ -177,6 +178,22 @@ function RavenkeeperPrompt({ view, names, dead }: { view: PlayerView; names: Rec
           {options.map((o) => <option key={o} value={o} style={dead.has(o) ? { color: '#ff6b6b' } : undefined}>{names[o]}</option>)}
         </select>
         <button className="primary big" disabled={!target} onClick={() => send({ type: 'submit_ravenkeeper', targetId: target })}>Submit</button>
+      </div>
+    </div>
+  );
+}
+
+function AlHadikhiaPrompt({ chosen, names }: { chosen: string[]; names: Record<string, string> }) {
+  return (
+    <div className="sheet">
+      <div className="sheetbody">
+        <h3>The Al-Hadikhia has chosen you.</h3>
+        <p>Chosen: {chosen.map((id) => names[id]).join(', ')}.</p>
+        <p>Do you choose to live? If all three chosen players live, all three die.</p>
+        <div className="row">
+          <button className="primary big" onClick={() => send({ type: 'submit_alhadikhia', live: true })}>Live</button>
+          <button className="big" onClick={() => send({ type: 'submit_alhadikhia', live: false })}>Die</button>
+        </div>
       </div>
     </div>
   );

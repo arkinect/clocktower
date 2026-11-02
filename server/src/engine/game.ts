@@ -1,6 +1,6 @@
 // The game reducer: (GameState, actor, Intent) -> (GameState, events). Pure apart from `now` and `seed` inputs.
 import {
-  ROLE_BY_ID, ROLES, SCHEMA_VERSION, TYPE_CHART, WORDS,
+  CANNIBAL_LEARNS, ROLE_BY_ID, ROLES, SCHEMA_VERSION, TYPE_CHART, WORDS,
   type AdminIntent, type GameState, type Intent, type JoinRequest, type NightState, type PlayerIntent,
   type PlayerRec, type PrivateMessage, type RolePreference, type Settings, type StoryPlayer,
 } from '@ct/shared';
@@ -136,7 +136,7 @@ function damselMsg(s: GameState): PrivateMessage {
 // ---- helpers ------------------------------------------------------------------------------------
 function newNight(number: number, seed: number, collectingOpen: boolean): NightState {
   return {
-    number, collectingOpen, submissions: {}, ravenSubmissions: {}, seed, reviewChoices: {}, overrides: {},
+    number, collectingOpen, submissions: {}, ravenSubmissions: {}, alHadikhiaChoices: {}, seed, reviewChoices: {}, overrides: {},
     mathAdjust: { add: [], remove: [] }, resolution: null,
   };
 }
@@ -154,7 +154,7 @@ function clearRoleTies(s: GameState, pid: string) {
   delete s.roleState[pid];
   s.effects = s.effects.filter((e) => e.sourcePlayerId !== pid);
   const a = s.assignments[pid];
-  if (a) { a.grantedAbility = null; a.retainsAbilityWhenDead = false; }
+  if (a) { a.grantedAbility = null; a.eatenAbility = null; a.retainsAbilityWhenDead = false; }
 }
 
 function setRole(s: GameState, pid: string, roleId: string | null, reason: string, now: number) {
@@ -197,8 +197,34 @@ function markDead(s: GameState, pid: string, alive: boolean, cause: string) {
   }
 }
 
+/**
+ * Cannibal (design.md section 14.4): when an execution kills someone, every alive Cannibal gains their ability from
+ * the next night. A good executee also ends the Cannibal's poison; an evil one poisons the Cannibal until a good
+ * player dies by execution, and the Admin picks the ability the Cannibal thinks they gained (none by default).
+ */
+function cannibalEats(s: GameState, executee: string) {
+  if (findPlayer(s, executee)?.alive) return;
+  const night = Math.max(0, s.nightNumber);
+  const evil = s.assignments[executee]?.alignment === 'evil';
+  for (const c of seatedIds(s)) {
+    if (c === executee || !findPlayer(s, c)?.alive || !hasAbility(s, c, 'cannibal', night)) continue;
+    s.effects = s.effects.filter((e) => !(e.cause === 'cannibal' && e.targetPlayerId === c));
+    const roleId = evil ? null : roleIdOf(s, executee);
+    s.assignments[c].eatenAbility = { roleId, fromNight: s.nightNumber + 1, executeeId: executee, fake: evil };
+    if (evil) s.effects.push({ id: nextId(s, 'e'), type: 'poisoned', cause: 'cannibal', sourcePlayerId: c, targetPlayerId: c, startNight: night, expiry: 'until_removed' });
+    if (roleId === 'grandmother') (s.roleState[c] ??= {}).grandmotherInfoPending = true;
+    if (roleId) cannibalLearns(s, c, roleId);
+  }
+}
+
+/** Jinxes (Cannibal + Butler, Cannibal + Zealot): the Cannibal is told when they gain these abilities. */
+function cannibalLearns(s: GameState, pid: string, roleId: string) {
+  if (!CANNIBAL_LEARNS.includes(roleId)) return;
+  deliver(s, pid, msg(s, s.nightNumber, 'notice', `You have the ${roleName(roleId)} ability`, [ROLE_BY_ID[roleId].abilityText]));
+}
+
 function isAdminIntent(i: Intent): i is AdminIntent {
-  return !['seen_role', 'use_ghost_vote', 'submit_night', 'submit_ravenkeeper', 'claim_admin'].includes(i.type);
+  return !['seen_role', 'use_ghost_vote', 'submit_night', 'submit_ravenkeeper', 'submit_alhadikhia', 'claim_admin'].includes(i.type);
 }
 
 // ---- reducer ------------------------------------------------------------------------------------
@@ -268,6 +294,13 @@ function playerIntent(s: GameState, pid: string, intent: PlayerIntent, ctx: Ctx)
       const e = validateChoice(ravenkeeperSpec(s), { values: [intent.targetId] });
       if (e) return err(e);
       s.night.ravenSubmissions[pid] = { actions: { ravenkeeper: { values: [intent.targetId] } }, submittedAt: ctx.now };
+      return ok(s);
+    }
+    case 'submit_alhadikhia': {
+      if (s.phase !== 'NIGHT_RESOLVING' || !s.night?.resolution?.awaitingAlHadikhia?.includes(pid)) return err('You cannot do that now.');
+      (s.night.alHadikhiaChoices ??= {})[pid] = intent.live ? 'live' : 'die';
+      // The player's own answer replaces any default the Admin accepted while waiting.
+      delete s.night.reviewChoices[`alhadikhia:${pid}`];
       return ok(s);
     }
   }
@@ -539,7 +572,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       s.night.collectingOpen = true;
       s.phase = 'NIGHT_RESOLVING';
       s.night.resolution = resolveNight(s);
-      if (s.night.resolution.awaitingRavenkeeper.length) s.nightEndsAt = Math.max(s.nightEndsAt ?? now, now) + s.settings.ravenkeeperExtensionSeconds * 1000;
+      if (s.night.resolution.awaitingRavenkeeper.length || s.night.resolution.awaitingAlHadikhia.length) s.nightEndsAt = Math.max(s.nightEndsAt ?? now, now) + s.settings.ravenkeeperExtensionSeconds * 1000;
       return ok(s);
     }
     case 'reopen_collecting': {
@@ -587,6 +620,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       if (s.phase !== 'NIGHT_RESOLVING' || !s.night) return err('Not resolving.');
       const res = resolveNight(s);
       if (res.awaitingRavenkeeper.length && !i.force) return err('Waiting for the Ravenkeeper. Submit for them or force.');
+      if (res.awaitingAlHadikhia.length && !i.force) return err('Waiting for players chosen by the Al-Hadikhia. Answer for them or force.');
       publish(s, res);
       return ok(s);
     }
@@ -602,7 +636,21 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       const d = dayRecord(s);
       if (i.playerId !== null && !seatedPlayer(i.playerId)) return err('Not a seated player.');
       d.executedPlayerId = i.playerId;
-      if (i.playerId && i.died) markDead(s, i.playerId, false, 'execution');
+      if (i.playerId && i.died) {
+        markDead(s, i.playerId, false, 'execution');
+        cannibalEats(s, i.playerId);
+      }
+      return ok(s);
+    }
+    case 'set_cannibal_ability': {
+      const night = Math.max(0, s.nightNumber);
+      if (!seatedPlayer(i.playerId) || !hasAbility(s, i.playerId, 'cannibal', night)) return err('That player is not the Cannibal.');
+      if (i.roleId !== null && !ROLE_BY_ID[i.roleId]) return err('Unknown role.');
+      const a = s.assignments[i.playerId];
+      const prev = a.eatenAbility;
+      a.eatenAbility = { roleId: i.roleId, fromNight: prev?.fromNight ?? s.nightNumber + 1, executeeId: prev?.executeeId ?? '', fake: prev?.fake ?? false };
+      if (i.roleId === 'grandmother') (s.roleState[i.playerId] ??= {}).grandmotherInfoPending = true;
+      if (i.roleId && i.roleId !== prev?.roleId) cannibalLearns(s, i.playerId, i.roleId);
       return ok(s);
     }
     case 'set_day_fact': {

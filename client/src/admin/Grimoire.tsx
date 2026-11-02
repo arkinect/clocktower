@@ -36,6 +36,7 @@ export function Grimoire({ ctx, code }: { ctx: AdminCtx; code: string }) {
               <div className={`grimrole type-${r?.type ?? ''}`}>{r?.name ?? 'No role'}</div>
               {a?.believedRoleId && <div className="small">believes: {ROLE_BY_ID[a.believedRoleId].name}</div>}
               {a?.grantedAbility && <div className="small">gained: {ROLE_BY_ID[a.grantedAbility.roleId].name} (from night {a.grantedAbility.fromNight})</div>}
+              {a?.eatenAbility && <div className="small">eaten: {a.eatenAbility.roleId ? ROLE_BY_ID[a.eatenAbility.roleId].name : 'nothing'}{a.eatenAbility.fake ? ' (fake, executee was evil)' : ''} (from night {a.eatenAbility.fromNight})</div>}
               {s.setup.lilMonstaTokenHolderId === id && <div className="tag evil">Lil' Monsta token</div>}
               {s.setup.redHerringId === id && <div className="tag">red herring</div>}
               {a?.retainsAbilityWhenDead && <div className="tag">keeps ability when dead</div>}
