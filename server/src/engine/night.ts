@@ -135,10 +135,11 @@ export class NightRun {
    * the night timer is extended when questions first appear, and "Accept all defaults" never answers one.
    */
   askFollowUp(q: { key: string; playerId: string; roleId: string; spec: ActionSpec }): ActionChoice | null {
-    // A question asked by a hidden eaten ability names it only as the Cannibal (one eaten ability per player).
+    // A question asked by a hidden eaten ability is shown to the player only as the Cannibal's (one eaten ability per
+    // player): its key and spec. The question's roleId, seen only by the Storyteller, stays the eaten role.
     const actor = this.currentActor;
     if (actor && actor.pid === q.playerId && hidesRole(actor)) {
-      q = { ...q, key: `cannibal:${q.playerId}`, roleId: 'cannibal', spec: { ...q.spec, roleId: 'cannibal', title: abilityTitle(actor) } };
+      q = { ...q, key: `cannibal:${q.playerId}`, spec: { ...q.spec, roleId: 'cannibal', title: abilityTitle(actor) } };
     }
     const a = this.night.followUpAnswers[q.key];
     this.followUps.push({ key: q.key, playerId: q.playerId, roleId: q.roleId, spec: { ...q.spec, key: q.key }, answered: !!a });
@@ -149,10 +150,12 @@ export class NightRun {
   // ---- results --------------------------------------------------------------------------------
   /** Record a private result. When the actor is impaired, `falseLines` is what is suggested. */
   result(actor: Actor, title: string, trueLines: string[], falseLines: string[] | null, alternatives: string[][] = []) {
+    // The title is what the player's message is called ("Cannibal" for a hidden eaten ability); the row itself is
+    // the Storyteller's and keeps the real role.
     title = abilityTitle(actor, title);
     const imp = this.impForActor(actor);
     const suggested = imp.impaired && falseLines ? falseLines : trueLines;
-    const roleId = abilityKey(actor);
+    const roleId = actor.roleId;
     const key = `${actor.pid}:${roleId}`;
     const override = this.night.overrides[key];
     this.results.push({

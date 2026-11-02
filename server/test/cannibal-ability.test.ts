@@ -1,11 +1,11 @@
 // The Cannibal's eaten ability as a source in abilitiesOf (shared/src/abilities.ts), and its hidden title. The
 // Cannibal has no role data yet, so these tests set the assignment directly.
 import { describe, expect, it } from 'vitest';
-import { abilitiesOf, abilityKey, abilityTitle, type Assignment, type PlayerView } from '@ct/shared';
+import { abilitiesOf, abilityKey, abilityTitle, storytellerLabel, type Assignment, type PlayerView } from '@ct/shared';
 import { act, build, nextNight, resolve, resultFor, runNight, submit } from './helpers';
 import { actingRoles, hasAbility } from '../src/engine/world';
 import { actionSpecs } from '../src/engine/actions';
-import { playerView } from '../src/engine/views';
+import { adminView, playerView } from '../src/engine/views';
 
 const eat = (roleId: string | null, fromNight: number, fake = false): Assignment['eatenAbility'] =>
   ({ roleId, fromNight, executeeId: 'p99', fake });
@@ -99,7 +99,7 @@ describe('hidden eaten ability', () => {
     }
   });
 
-  it('a believed Cannibal\'s picker and result go by "cannibal", and the result is false information', () => {
+  it('a believed Cannibal\'s picker goes by "cannibal", its result is titled "Cannibal", and the result is false information', () => {
     const g = build(['drunk', 'imp', 'butler', 'empath', 'sailor', 'fortune_teller', 'poisoner']);
     const a = () => g.s.assignments[g.p.drunk];
     runNight(g, {});
@@ -114,9 +114,10 @@ describe('hidden eaten ability', () => {
     expect(actionSpecs(g.s, g.p.drunk).map((x) => [x.key, x.roleId, x.title])).toEqual([['butler', 'butler', 'Butler']]);
     a().eatenAbility = eat('empath', 1);
     const res = resolve(g);
-    expect(resultFor(res, g.p.drunk, 'empath')).toBeUndefined();
-    const row = resultFor(res, g.p.drunk, 'cannibal')!;
-    expect(row).toMatchObject({ key: `${g.p.drunk}:cannibal`, roleId: 'cannibal', title: 'Cannibal', impaired: true });
+    // The row is the Storyteller's: it keeps the real role. Its title is the player's message title.
+    const row = resultFor(res, g.p.drunk, 'empath')!;
+    expect(row).toMatchObject({ key: `${g.p.drunk}:empath`, roleId: 'empath', title: 'Cannibal', impaired: true });
+    expect(storytellerLabel(row.title, row.roleId)).toBe('Cannibal (as Empath)');
     expect(row.suggestedLines).not.toEqual(row.trueLines);
     expect(resultFor(res, g.p.empath, 'empath')!.title).toBe('Empath');
   });
@@ -145,7 +146,7 @@ describe('hidden eaten ability', () => {
     expect(sent(view())).not.toMatch(/fortune_teller|Fortune Teller/);
     const res = resolve(g);
     // The submission under "cannibal" is the Fortune Teller's choice: one of the two is the Demon.
-    expect(resultFor(res, pid, 'cannibal')!.trueLines).toEqual([`${name(g.p.imp)} and ${name(g.p.empath)}: Yes, one of them is a Demon.`]);
+    expect(resultFor(res, pid, 'fortune_teller')!.trueLines).toEqual([`${name(g.p.imp)} and ${name(g.p.empath)}: Yes, one of them is a Demon.`]);
     expect(res.actors.find((x) => x.playerId === pid)).toMatchObject({ roleId: 'fortune_teller' }); // the Storyteller sees it
     expect(sent(view())).not.toMatch(/fortune_teller|Fortune Teller/);
     act(g, { type: 'publish_night', force: true });
@@ -158,12 +159,29 @@ describe('hidden eaten ability', () => {
     const pid = g.p.philosopher;
     submit(g, { [g.p.imp]: { imp: [pid] } });
     const res = resolve(g);
+    // The player sees the key and spec; the question's roleId is the Storyteller's.
     expect(res.followUps.map((f) => [f.key, f.roleId, f.spec.key, f.spec.roleId, f.spec.title]))
-      .toEqual([[`cannibal:${pid}`, 'cannibal', `cannibal:${pid}`, 'cannibal', 'Cannibal']]);
+      .toEqual([[`cannibal:${pid}`, 'ravenkeeper', `cannibal:${pid}`, 'cannibal', 'Cannibal']]);
+    expect(storytellerLabel(res.followUps[0].spec.title, res.followUps[0].roleId)).toBe('Cannibal (as Ravenkeeper)');
     expect(sent(playerView(g.s, pid, 0))).not.toMatch(/ravenkeeper|Ravenkeeper/);
     act(g, { type: 'answer_follow_up', key: `cannibal:${pid}`, choice: { values: [g.p.imp] } }, pid);
-    expect(resultFor(g.s.night!.resolution!, pid, 'cannibal')!.title).toBe('Cannibal');
+    expect(resultFor(g.s.night!.resolution!, pid, 'ravenkeeper')!.title).toBe('Cannibal');
     act(g, { type: 'publish_night', force: true });
     expect(sent(playerView(g.s, pid, 0))).not.toMatch(/ravenkeeper|Ravenkeeper/);
+  });
+
+  it('the admin view names the eaten role: "Cannibal (as Fortune Teller)"', () => {
+    const g = philosopherCannibal('fortune_teller');
+    const pid = g.p.philosopher;
+    act(g, { type: 'submit_night', actions: { cannibal: { values: [g.p.imp, g.p.empath] } } }, pid);
+    resolve(g);
+    const view = adminView(g.s, g.admin, 0, {});
+    const row = view.state.night!.resolution!.results.find((r) => r.playerId === pid)!;
+    expect(row).toMatchObject({ roleId: 'fortune_teller', key: `${pid}:fortune_teller`, title: 'Cannibal' });
+    expect(storytellerLabel(row.title, row.roleId)).toBe('Cannibal (as Fortune Teller)');
+    expect(view.state.night!.resolution!.actors.find((x) => x.playerId === pid)!.roleId).toBe('fortune_teller');
+    expect(view.state.night!.submissions[pid].actions).toEqual({ cannibal: { values: [g.p.imp, g.p.empath] } });
+    // A role shown under its own title is named plainly.
+    expect(storytellerLabel('Fortune Teller', 'fortune_teller')).toBe('Fortune Teller');
   });
 });

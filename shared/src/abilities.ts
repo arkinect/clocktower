@@ -79,9 +79,19 @@ export function abilityTitle(ability: Pick<Ability, 'roleId' | 'source'>, title 
 }
 
 /**
- * The role id an ability goes by in anything sent to the player (its picker's key and roleId, its submission, its
- * result row and follow-up questions): the role's own id, or "cannibal" when the role is hidden. A player has at most
- * one eaten ability, and the Cannibal itself has no picker, so "cannibal" names exactly one ability.
+ * How the Storyteller's screens name a result or question: the role's name, or "Cannibal (as Fortune Teller)" when the
+ * player was shown another title (a hidden eaten ability).
+ */
+export function storytellerLabel(title: string, roleId: string): string {
+  const name = ROLE_BY_ID[roleId]?.name ?? roleId;
+  return title === name ? name : `${title} (as ${name})`;
+}
+
+/**
+ * The role id an ability goes by in what the player receives (its picker's key and roleId, its submission, its
+ * follow-up questions' key and spec): the role's own id, or "cannibal" when the role is hidden. Result rows and
+ * questions keep the real role for the Storyteller. A player has at most one eaten ability, and the Cannibal itself
+ * has no picker, so "cannibal" names exactly one ability.
  */
 export function abilityKey(ability: Pick<Ability, 'roleId' | 'source'>): string {
   return hidesRole(ability) ? 'cannibal' : ability.roleId;

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { abilitiesOf, ROLE_BY_ID, type ActionChoice, type FollowUp, type ResultRow } from '@ct/shared';
+import { abilitiesOf, ROLE_BY_ID, storytellerLabel, type ActionChoice, type FollowUp, type ResultRow } from '@ct/shared';
 import { send } from '../api';
 import { ActionPicker, Countdown, ImpairmentTags, TimedButton, choiceComplete, useNow } from '../common';
 import { InactiveNote, Who, type AdminCtx } from './AdminApp';
@@ -193,7 +193,7 @@ function ResultEditor({ ctx, r }: { ctx: AdminCtx; r: ResultRow }) {
     <div className={`result ${r.impaired ? 'impaired' : ''}`}>
       <div className="row wrap">
         <b><Who ctx={ctx} id={r.playerId} role /></b>
-        <span className="muted">as {ROLE_BY_ID[r.roleId]?.name ?? r.title}</span>
+        <span className="muted">as {storytellerLabel(r.title, r.roleId)}</span>
         {r.impaired && <ImpairmentTags causes={r.causes} />}
         {r.overridden && <span className="tag">edited</span>}
       </div>
@@ -225,7 +225,7 @@ function FollowUpCard({ ctx, q }: { ctx: AdminCtx; q: FollowUp }) {
   const [value, setValue] = useState<Record<string, ActionChoice>>({});
   return (
     <section className="card warn">
-      <h3>Waiting for {ROLE_BY_ID[q.roleId]?.name ?? q.roleId} <Who ctx={ctx} id={q.playerId} /></h3>
+      <h3>Waiting for {storytellerLabel(q.spec.title, q.roleId)} <Who ctx={ctx} id={q.playerId} /></h3>
       <p>Their phone is showing this question. Or answer for them:</p>
       <ActionPicker specs={[q.spec]} names={ctx.names} value={value} onChange={setValue} dead={new Set(ctx.seated.filter(ctx.isDead))} />
       <button disabled={!choiceComplete(q.spec, value[q.key])} onClick={() => send({ type: 'answer_follow_up_for', key: q.key, choice: value[q.key] })}>Answer for them</button>
