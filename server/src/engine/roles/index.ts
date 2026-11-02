@@ -663,20 +663,6 @@ Object.assign(BEHAVIOURS, {
   },
 } satisfies Record<string, RoleBehaviour>);
 
-// ===================== Roles added in schema v5 (design.md section 14) =====================
-Object.assign(BEHAVIOURS, {
-  organ_grinder: {
-    // The Organ Grinder picks themselves to be drunk; declining keeps them sober (eyes-closed voting tomorrow).
-    spec: (c: SpecCtx) => players('organ_grinder', 'Organ Grinder', 'Choose yourself to be drunk until dusk (voting is then normal), or stay sober.', 1, [c.pid], true, 'Stay sober'),
-    resolve(run: NightRun, a: Actor) {
-      const [t] = target(a);
-      if (t !== a.pid) { run.outcome('stays sober: eyes-closed voting tomorrow'); return; }
-      run.addEffect('drunk', 'organ_grinder', a.pid, a.pid, 'until_dusk');
-      run.outcome('chooses to be drunk until dusk: normal voting tomorrow');
-    },
-  },
-} satisfies Record<string, RoleBehaviour>);
-
 export function hasNightAbility(roleId: string): boolean {
   const b = BEHAVIOURS[roleId];
   return !!b && !!b.resolve;

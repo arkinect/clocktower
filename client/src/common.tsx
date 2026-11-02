@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { FIRST_NIGHT_ORDER, JINXES, OTHER_NIGHT_ORDER, ROLE_BY_ID, ROLES, type ActionChoice, type ActionSpec, type PrivateMessage, type RoleCard as RC, type RoleType } from '@ct/shared';
+import { FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID, ROLES, type ActionChoice, type ActionSpec, type PrivateMessage, type RoleCard as RC, type RoleType } from '@ct/shared';
 
 export const TYPE_LABEL: Record<RoleType, string> = { townsfolk: 'Townsfolk', outsider: 'Outsiders', minion: 'Minions', demon: 'Demons' };
 export const TYPE_ORDER: RoleType[] = ['townsfolk', 'outsider', 'minion', 'demon'];
 
 export function RoleList({ enabled }: { enabled: string[] }) {
-  const jinxes = JINXES.filter((j) => enabled.includes(j.a) && enabled.includes(j.b));
   return (
     <div>
       {TYPE_ORDER.map((t) => {
@@ -26,19 +25,6 @@ export function RoleList({ enabled }: { enabled: string[] }) {
           </section>
         );
       })}
-      {jinxes.length > 0 && (
-        <section className="rolegroup">
-          <h3>Jinxes</h3>
-          {jinxes.map((j) => (
-            <div key={`${j.a}-${j.b}`} className="roleitem">
-              <div>
-                <b>{ROLE_BY_ID[j.a].name} &amp; {ROLE_BY_ID[j.b].name}</b>
-                <p>{j.text}</p>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
     </div>
   );
 }
@@ -224,7 +210,7 @@ export function TimedButton({ onConfirm, children, className, disabled, seconds 
 
 const CAUSE_SOURCE: Record<string, string> = {
   poisoner: 'Poisoner', sailor: 'Sailor', innkeeper: 'Innkeeper', goon: 'Goon', philosopher: 'Philosopher', pukka: 'Pukka',
-  no_dashii: 'No Dashii', vigormortis: 'Vigormortis', witch: 'Witch', organ_grinder: 'Organ Grinder', admin: 'Storyteller',
+  no_dashii: 'No Dashii', vigormortis: 'Vigormortis', witch: 'Witch', admin: 'Storyteller',
 };
 
 /** "poisoned:poisoner" -> "Poisoned by the Poisoner"; "own_character" -> "Drunk/Marionette (own role)". */

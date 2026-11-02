@@ -9,8 +9,6 @@ easily, and they are **not** covered by this project's MIT licence. The MIT lice
 own source code only.
 
 The character icons in `client/public/icons/` were taken from
-[bra1n/townsquare](https://github.com/bra1n/townsquare) (clocktower.online) and resized, except `zealot.png` and
-`organ_grinder.png`, which come from
-[ThePandemoniumInstitute/botc-release](https://github.com/ThePandemoniumInstitute/botc-release) and were resized.
+[bra1n/townsquare](https://github.com/bra1n/townsquare) (clocktower.online) and resized.
 
 If you are a rights holder and would like something changed or removed, please open an issue.

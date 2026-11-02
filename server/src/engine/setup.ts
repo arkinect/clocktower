@@ -145,9 +145,6 @@ export function setupChecklist(state: GameState): CheckItem[] {
   }
   if (inPlay.includes('huntsman')) {
     items.push({ id: 'huntsman', label: 'Huntsman needs the Damsel in play', done: inPlay.includes('damsel'), blocking: true });
-  } else if (marionetteBelieves(state, 'huntsman')) {
-    // Jinx (Marionette + Huntsman): the Damsel was added during setup.
-    items.push({ id: 'huntsman', label: 'Jinx (Marionette & Huntsman): the Marionette thinks they are the Huntsman, so the Damsel must be in play', done: inPlay.includes('damsel'), blocking: true });
   }
   const bluffs = state.setup.demonBluffs;
   const cands = bluffCandidates(state);
@@ -158,10 +155,6 @@ export function setupChecklist(state: GameState): CheckItem[] {
     items.push({ id: 'lil_monsta', label: 'Choose the Minion role the Lil\' Monsta player becomes', done: !!m && ROLE_BY_ID[m]?.type === 'minion' && !inPlay.includes(m), blocking: true });
   }
   return items;
-}
-
-function marionetteBelieves(state: GameState, roleId: string): boolean {
-  return seatedIds(state).some((id) => roleIdOf(state, id) === 'marionette' && state.assignments[id]?.believedRoleId === roleId);
 }
 
 export function setupWarnings(state: GameState): string[] {
@@ -176,7 +169,6 @@ export function setupWarnings(state: GameState): string[] {
   for (let i = 0; i < 4; i++) {
     if (enabledOfType(state, ROLE_TYPES[i]).length < counts[i]) out.push(`Only ${enabledOfType(state, ROLE_TYPES[i]).length} ${ROLE_TYPES[i]} roles enabled but ${counts[i]} needed.`);
   }
-  if (marionetteBelieves(state, 'balloonist')) out.push('Jinx (Marionette & Balloonist): the Marionette thinks they are the Balloonist, so you may add 1 Outsider (and remove 1 Townsfolk).');
   if (allAssigned && actual.some((v, i) => v !== counts[i])) out.push(`Assigned types (${actual.join('/')}) differ from target (${counts.join('/')}) Townsfolk/Outsider/Minion/Demon.`);
   const demons = demonIds(state);
   for (const id of ids) {
