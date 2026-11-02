@@ -63,11 +63,26 @@ export function abilitiesOf(w: WorldState, id: string, night: number): Ability[]
 }
 
 /**
- * The title a player sees on the picker and result of an ability: `title` (by default the role's name), except that
- * an ability the Cannibal ate is titled "Cannibal" unless it is one the Cannibal learns (CANNIBAL_LEARNS). The one
- * place that decides it: the server passes every spec and result title through here.
+ * Whether the player must not learn which role this ability is: an ability the Cannibal ate, unless it is one the
+ * Cannibal learns (CANNIBAL_LEARNS). The one place that decides it; abilityTitle and abilityKey follow from it.
+ */
+export function hidesRole(ability: Pick<Ability, 'roleId' | 'source'>): boolean {
+  return ability.source === 'cannibal' && !CANNIBAL_LEARNS.includes(ability.roleId);
+}
+
+/**
+ * The title a player sees on the picker and result of an ability: `title` (by default the role's name), or
+ * "Cannibal" when the role is hidden (hidesRole). The server passes every spec and result title through here.
  */
 export function abilityTitle(ability: Pick<Ability, 'roleId' | 'source'>, title = ROLE_BY_ID[ability.roleId]?.name ?? ability.roleId): string {
-  if (ability.source === 'cannibal' && !CANNIBAL_LEARNS.includes(ability.roleId)) return 'Cannibal';
-  return title;
+  return hidesRole(ability) ? 'Cannibal' : title;
+}
+
+/**
+ * The role id an ability goes by in anything sent to the player (its picker's key and roleId, its submission, its
+ * result row and follow-up questions): the role's own id, or "cannibal" when the role is hidden. A player has at most
+ * one eaten ability, and the Cannibal itself has no picker, so "cannibal" names exactly one ability.
+ */
+export function abilityKey(ability: Pick<Ability, 'roleId' | 'source'>): string {
+  return hidesRole(ability) ? 'cannibal' : ability.roleId;
 }

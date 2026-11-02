@@ -587,7 +587,7 @@ Object.assign(BEHAVIOURS, {
     resolve(run: NightRun, a: Actor) {
       if (run.startInfoDue(a)) {
         grandmotherInfo(run, a);
-        if (run.n === 0) return;
+        if (run.n === 0 || a.fromNight > run.n) return; // the link works once the ability does
       }
       const gc = rs<string | null>(run.w, a.pid, 'grandchildId');
       if (!gc || run.deathCause[gc] !== 'demon_attack' || !isAlive(run.w, a.pid)) return;

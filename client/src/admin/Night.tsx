@@ -193,7 +193,7 @@ function ResultEditor({ ctx, r }: { ctx: AdminCtx; r: ResultRow }) {
     <div className={`result ${r.impaired ? 'impaired' : ''}`}>
       <div className="row wrap">
         <b><Who ctx={ctx} id={r.playerId} role /></b>
-        <span className="muted">as {ROLE_BY_ID[r.roleId]?.name}</span>
+        <span className="muted">as {ROLE_BY_ID[r.roleId]?.name ?? r.title}</span>
         {r.impaired && <ImpairmentTags causes={r.causes} />}
         {r.overridden && <span className="tag">edited</span>}
       </div>

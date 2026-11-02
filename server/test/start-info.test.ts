@@ -1,19 +1,28 @@
 // Start information on gaining an ability (design.md section 5.7): a role whose information comes only on night 0
-// (RoleData.startInfo: the Clockmaker, the Grandmother) gives it, once, the first night a gained ability is active.
+// (RoleData.startInfo: the Clockmaker, the Grandmother) gives it, once, the night the ability is gained, even before
+// the ability itself works. Other gained abilities still start the next night.
 import { describe, expect, it } from 'vitest';
-import { ROLES } from '@ct/shared';
-import { act, build, nextNight, resolve, resultFor, runNight, submit, type TestGame } from './helpers';
+import { ROLES, type Resolution } from '@ct/shared';
+import { build, nextNight, resolve, resultFor, runNight, type TestGame } from './helpers';
 import { wakingRoles } from '../src/engine/actions';
 import { markStartInfo, startInfoPending } from '../src/engine/world';
 
 const ONE_STEP = ['The Demon is 1 step from its nearest Minion.'];
 
-/** Seats: Philosopher, Imp, Poisoner, Empath, Butler. The Imp and Poisoner are neighbours: 1 step. */
-function philosopherChooses(roleId: string): TestGame {
+/**
+ * Seats: Philosopher, Imp, Poisoner, Empath, Butler (the Imp and Poisoner are neighbours: 1 step). The Philosopher
+ * waits on night 0 and chooses `roleId` on night 1, with the night's other choices and review choices given.
+ */
+function philosopherChoosesOnNight1(
+  roleId: string,
+  others: (p: Record<string, string>) => Record<string, Record<string, string[]>> = () => ({}),
+  review: (p: Record<string, string>) => Record<string, string> = () => ({}),
+): { g: TestGame; res: Resolution } {
   const g = build(['philosopher', 'imp', 'poisoner', 'empath', 'butler']);
-  const { res } = runNight(g, { [g.p.philosopher]: { philosopher: [roleId] } });
-  expect(resultFor(res, g.p.philosopher, roleId)).toBeUndefined(); // not on the choosing night
-  return g;
+  runNight(g, { [g.p.philosopher]: { philosopher: 'decline' } });
+  nextNight(g);
+  const { final } = runNight(g, { [g.p.philosopher]: { philosopher: [roleId] }, ...others(g.p) }, review(g.p));
+  return { g, res: final };
 }
 
 describe('start information', () => {
@@ -31,16 +40,11 @@ describe('start information', () => {
     expect(startInfoPending(g.s, g.p.empath)).toEqual(['clockmaker', 'grandmother']);
   });
 
-  it('a Philosopher who gains the Clockmaker learns the distance the next night, once', () => {
-    const g = philosopherChooses('clockmaker');
+  it('a Philosopher who chooses the Clockmaker learns the distance that same night, once', () => {
+    const { g, res } = philosopherChoosesOnNight1('clockmaker');
     const pid = g.p.philosopher;
-    expect(startInfoPending(g.s, pid)).toEqual(['clockmaker']);
-    nextNight(g);
-    expect(wakingRoles(g.s, pid)).toEqual(['clockmaker']);
-    const { res } = runNight(g, {});
-    const row = resultFor(res, pid, 'clockmaker')!;
-    expect(row).toMatchObject({ title: 'Clockmaker', trueLines: ONE_STEP, finalLines: ONE_STEP, impaired: false });
-    expect(g.s.messages[pid].filter((m) => m.night === 1).map((m) => m.title)).toEqual(['Clockmaker']);
+    expect(resultFor(res, pid, 'clockmaker')).toMatchObject({ title: 'Clockmaker', trueLines: ONE_STEP, finalLines: ONE_STEP, impaired: false });
+    expect(g.s.messages[pid].filter((m) => m.night === 1).map((m) => m.title)).toEqual(['Philosopher', 'Clockmaker']);
     expect(startInfoPending(g.s, pid)).toEqual([]);
     expect(g.s.roleState[pid]).not.toHaveProperty('startInfoPending');
     // Never again.
@@ -49,21 +53,27 @@ describe('start information', () => {
     expect(resultFor(resolve(g), pid, 'clockmaker')).toBeUndefined();
   });
 
-  it('an impaired Philosopher-Clockmaker gets false information, and the mark still clears', () => {
-    const g = philosopherChooses('clockmaker');
-    const pid = g.p.philosopher;
+  it('a Philosopher who chooses the Clockmaker on night 0 learns it on night 0', () => {
+    const g = build(['philosopher', 'imp', 'poisoner', 'empath', 'butler']);
+    const { final } = runNight(g, { [g.p.philosopher]: { philosopher: ['clockmaker'] } });
+    expect(resultFor(final, g.p.philosopher, 'clockmaker')!.trueLines).toEqual(ONE_STEP);
+    expect(startInfoPending(g.s, g.p.philosopher)).toEqual([]);
     nextNight(g);
-    submit(g, { [g.p.poisoner]: { poisoner: [pid] } });
-    const res = resolve(g);
-    const row = resultFor(res, pid, 'clockmaker')!;
+    expect(resultFor(resolve(g), g.p.philosopher, 'clockmaker')).toBeUndefined();
+  });
+
+  it('a Philosopher poisoned after choosing the Clockmaker gets false information, and the mark still clears', () => {
+    // The Philosopher acts first (sober, so the ability is gained); the Poisoner then poisons them before the Clockmaker slot.
+    const { g, res } = philosopherChoosesOnNight1('clockmaker', (p) => ({ [p.poisoner]: { poisoner: [p.philosopher] } }));
+    const row = resultFor(res, g.p.philosopher, 'clockmaker')!;
     expect(row.impaired).toBe(true);
     expect(row.trueLines).toEqual(ONE_STEP);
     expect(row.suggestedLines).not.toEqual(ONE_STEP);
     expect(row.suggestedLines[0]).toMatch(/^The Demon is \d steps? from its nearest Minion\.$/);
-    act(g, { type: 'publish_night', force: true });
-    expect(startInfoPending(g.s, pid)).toEqual([]);
+    expect(g.s.assignments[g.p.philosopher].grantedAbility).toEqual({ roleId: 'clockmaker', fromNight: 2 });
+    expect(startInfoPending(g.s, g.p.philosopher)).toEqual([]);
     nextNight(g);
-    expect(resultFor(resolve(g), pid, 'clockmaker')).toBeUndefined();
+    expect(resultFor(resolve(g), g.p.philosopher, 'clockmaker')).toBeUndefined();
   });
 
   it('the Huntsman\'s Damsel turned Clockmaker learns the distance that night, once', () => {
@@ -80,26 +90,37 @@ describe('start information', () => {
     expect(resultFor(resolve(g), g.p.damsel, 'clockmaker')).toBeUndefined();
   });
 
-  it('a Philosopher who gains the Grandmother learns a grandchild the next night, through startInfoPending', () => {
-    const g = philosopherChooses('grandmother');
+  it('a Philosopher who chooses the Grandmother learns a grandchild that night; the link works from the next night', () => {
+    // The Imp kills the Empath, who is chosen as the grandchild on the same night: no link yet.
+    const { g, res } = philosopherChoosesOnNight1('grandmother', (p) => ({ [p.imp]: { imp: [p.empath] } }), (p) => ({ [`grandmother:${p.philosopher}`]: p.empath }));
     const pid = g.p.philosopher;
-    expect(g.s.roleState[pid]).toEqual({ startInfoPending: ['grandmother'] });
-    nextNight(g);
-    const res = resolve(g, { [`grandmother:${pid}`]: g.p.empath });
     expect(res.reviewItems.some((i) => i.key === `grandmother:${pid}`)).toBe(true);
     expect(resultFor(res, pid, 'grandmother')!.trueLines).toEqual([`Your grandchild is ${g.s.players.find((p) => p.id === g.p.empath)!.name}, the Empath.`]);
-    act(g, { type: 'publish_night', force: true });
+    expect(res.reviewItems.some((i) => i.kind === 'grandmother_link')).toBe(false);
+    expect(res.deaths).toEqual([g.p.empath]);
     expect(g.s.roleState[pid]).toEqual({ grandchildId: g.p.empath });
     nextNight(g);
     expect(resolve(g).reviewItems.some((i) => i.key === `grandmother:${pid}`)).toBe(false);
   });
 
-  it('a gained role without start information is not marked', () => {
-    const g = philosopherChooses('empath');
-    expect(startInfoPending(g.s, g.p.philosopher)).toEqual([]);
+  it('a Philosopher-Grandmother\'s link works from the next night', () => {
+    const { g } = philosopherChoosesOnNight1('grandmother');
+    const gc = g.s.roleState[g.p.philosopher].grandchildId as string;
+    expect(gc).toBeTruthy();
+    nextNight(g);
+    runNight(g, { [g.p.imp]: { imp: [gc] } });
+    expect(g.s.players.find((p) => p.id === g.p.philosopher)!.alive).toBe(false);
   });
 
-  it('the Clockmaker wakes on other nights only for a just-gained ability', () => {
+  it('a gained ability without start information still starts the next night', () => {
+    const { g, res } = philosopherChoosesOnNight1('empath');
+    expect(resultFor(res, g.p.philosopher, 'empath')).toBeUndefined();
+    expect(startInfoPending(g.s, g.p.philosopher)).toEqual([]);
+    nextNight(g);
+    expect(resultFor(resolve(g), g.p.philosopher, 'empath')).toBeDefined();
+  });
+
+  it('the Clockmaker wakes on other nights only for an ability just gained', () => {
     const g = build(['clockmaker', 'imp', 'poisoner', 'empath', 'butler']);
     const { res } = runNight(g, {});
     expect(resultFor(res, g.p.clockmaker, 'clockmaker')!.trueLines).toEqual(ONE_STEP);

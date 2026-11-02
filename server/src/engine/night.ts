@@ -2,7 +2,7 @@
 // walks the night order and returns a Resolution (results, review items, the world after the night).
 // Admin review choices are inputs (night.reviewChoices), so changing one simply re-runs resolution.
 import {
-  FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID, abilitiesOf, abilityTitle,
+  FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID, abilitiesOf, abilityKey, abilityTitle, hidesRole,
   type AbilitySource, type ActionChoice, type ActionSpec, type Alignment, type Cause, type Effect, type EffectExpiry, type EffectType, type GameState,
   type FollowUp, type ReviewItem, type ReviewOption, type Resolution, type ResultRow, type ActorRow, type AbnormalEvent, type WorldState,
 } from '@ct/shared';
@@ -29,6 +29,8 @@ export interface Actor {
   slot: string;
   /** Where the ability comes from (the first source, when several give the same role): decides the title shown. */
   source: AbilitySource;
+  /** The first night the ability works. Later than tonight only for start information given the night it's gained. */
+  fromNight: number;
 }
 
 export interface KillOptions { skipMayor?: boolean; noScarlet?: boolean }
@@ -54,6 +56,7 @@ export class NightRun {
   readonly noActTonight = new Set<string>();
   private goonTriggered = new Set<string>();
   private currentActorRow: ActorRow | null = null;
+  private currentActor: Actor | null = null;
   private killSeq = 0;
 
   constructor(readonly state: GameState, readonly now: number) {
@@ -132,6 +135,11 @@ export class NightRun {
    * the night timer is extended when questions first appear, and "Accept all defaults" never answers one.
    */
   askFollowUp(q: { key: string; playerId: string; roleId: string; spec: ActionSpec }): ActionChoice | null {
+    // A question asked by a hidden eaten ability names it only as the Cannibal (one eaten ability per player).
+    const actor = this.currentActor;
+    if (actor && actor.pid === q.playerId && hidesRole(actor)) {
+      q = { ...q, key: `cannibal:${q.playerId}`, roleId: 'cannibal', spec: { ...q.spec, roleId: 'cannibal', title: abilityTitle(actor) } };
+    }
     const a = this.night.followUpAnswers[q.key];
     this.followUps.push({ key: q.key, playerId: q.playerId, roleId: q.roleId, spec: { ...q.spec, key: q.key }, answered: !!a });
     if (a && this.currentActorRow) this.currentActorRow.input = describeChoice(this.w, a.choice);
@@ -144,10 +152,11 @@ export class NightRun {
     title = abilityTitle(actor, title);
     const imp = this.impForActor(actor);
     const suggested = imp.impaired && falseLines ? falseLines : trueLines;
-    const key = `${actor.pid}:${actor.roleId}`;
+    const roleId = abilityKey(actor);
+    const key = `${actor.pid}:${roleId}`;
     const override = this.night.overrides[key];
     this.results.push({
-      key, playerId: actor.pid, roleId: actor.roleId, title, trueLines, suggestedLines: suggested,
+      key, playerId: actor.pid, roleId, title, trueLines, suggestedLines: suggested,
       finalLines: override ?? suggested, impaired: imp.impaired, causes: imp.causes, overridden: !!override,
       alternatives,
     });
@@ -363,6 +372,7 @@ export class NightRun {
         };
         this.actors.push(row);
         this.currentActorRow = row;
+        this.currentActor = actor;
         this.goonCheck(actor);
         const imp2 = this.impForActor(actor);
         row.impaired = imp2.impaired;
@@ -372,6 +382,7 @@ export class NightRun {
         // A start-information role has now given its information (true or false): it isn't pending any more.
         if (ROLE_BY_ID[actor.roleId]?.startInfo) clearStartInfo(this.w, actor.pid, actor.roleId);
         this.currentActorRow = null;
+        this.currentActor = null;
       }
     }
     const after = this.w;
@@ -387,17 +398,19 @@ export class NightRun {
     const b = BEHAVIOURS[roleId];
     const out: Actor[] = [];
     for (const pid of seatedIds(this.w)) {
-      const ability = abilitiesOf(this.w, pid, this.n).find((x) => x.roleId === roleId);
+      // Start information comes the night the ability is gained (startInfoPending), even before the ability works: a
+      // Philosopher's choice, a Damsel given a new role tonight. Any other ability only once it works.
+      const pending = startInfoPending(this.w, pid).includes(roleId);
+      const ability = abilitiesOf(this.w, pid, pending ? Infinity : this.n).find((x) => x.roleId === roleId);
       if (!ability) continue;
-      // A player given a new role tonight acts from the next night, except to get a just-gained role's start information.
-      if (this.noActTonight.has(pid) && !startInfoPending(this.w, pid).includes(roleId)) continue;
+      if (this.noActTonight.has(pid) && !pending) continue;
       if (slotId === 'ravenkeeper') {
         if (!this.deaths.includes(pid)) continue;
       } else if (!canAct(this.w, pid) && !b.actsWhileDead) continue;
       if (b.wakes && !b.wakes({ w: this.w, pid, night: this.n, state: this.state })) continue;
       // The Ravenkeeper's choice comes later, as a follow-up question (askFollowUp).
       const sub = slotId === 'ravenkeeper' ? undefined : this.night.submissions[pid];
-      out.push({ pid, roleId, slot: slotId, choice: sub?.actions[roleId] ?? null, source: ability.source });
+      out.push({ pid, roleId, slot: slotId, choice: sub?.actions[abilityKey(ability)] ?? null, source: ability.source, fromNight: ability.fromNight });
     }
     return out;
   }

@@ -9,7 +9,7 @@ import { becomeDemon, demonInfoLines } from './demon';
 import { computeImpairment } from './impairment';
 import { previewDayKill, revivePlayer } from './lifecycle';
 import { resolveNight } from './night';
-import { BEHAVIOURS, type ExecutionCtx } from './roles';
+import { BEHAVIOURS } from './roles';
 import { makeRng, randomSeed } from './rng';
 import {
   bluffCandidates, enabledRoles, onScript, redHerringCandidates, setupChecklist, suggestBluffs, suggestDistribution,
@@ -160,19 +160,9 @@ function runExecutionHooks(s: GameState, executeeId: string, now: number) {
     for (const ab of abilitiesOf(s, holderId, night)) {
       const b = BEHAVIOURS[ab.roleId];
       if (!b?.onExecution || (!ab.real && !b.onExecutionBelieved)) continue;
-      b.onExecution(executionCtx(s, executeeId, holderId, now, ab.real));
+      b.onExecution({ s, executeeId, holderId, now, real: ab.real });
     }
   }
-}
-
-/**
- * The hook's context. `real` is not enumerable, so a hook that spreads or records the context sees the same fields
- * it did before `real` was added (on-execution.test.ts records them): read it as ctx.real.
- */
-function executionCtx(s: GameState, executeeId: string, holderId: string, now: number, real: boolean): ExecutionCtx {
-  const ctx = { s, executeeId, holderId, now } as ExecutionCtx;
-  Object.defineProperty(ctx, 'real', { value: real, enumerable: false });
-  return ctx;
 }
 
 function markDead(s: GameState, pid: string, alive: boolean, cause: string) {

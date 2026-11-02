@@ -20,7 +20,7 @@ describe('onExecution hook', () => {
   it('runs once per holder with the real ability when an execution kills', () => {
     const g = day();
     act(g, { type: 'record_execution', playerId: g.p.clockmaker, died: true }, g.admin, 1);
-    expect(calls).toEqual([{ executeeId: g.p.clockmaker, holderId: g.p.empath, now: expect.any(Number) }]);
+    expect(calls).toEqual([{ executeeId: g.p.clockmaker, holderId: g.p.empath, now: expect.any(Number), real: true }]);
   });
 
   it('runs for a holder who is the executee', () => {
