@@ -983,6 +983,8 @@ Rule gaps (already folded into the cards above, listed here for review):
 - The Cannibal's poison after an evil eat is the Cannibal's own ability, so it is not abnormal for the Mathematician.
 - The Farmer's new Farmer is any alive player whose actual alignment is good (a Recluse included), and keeps their alignment; with only Farmers left the default is Nobody. A Farmer impaired at death, or a Drunk or Marionette who thinks they are the Farmer, makes nobody a Farmer: the review screen's actor row says so, and no review item is shown.
 - A Philosopher who chose the Cannibal eats from the day after choosing (abilities counted with `abilityNightToday`, like the Slayer's shot).
+- A Philosopher-Cannibal who eats the executed real Cannibal gains nothing new: they already have that ability, and whatever they ate before is replaced as usual.
+- A Cannibal who chooses an ability as the eaten Philosopher keeps it only while they have the Philosopher's ability. When the eaten ability changes to anything else (a new eat, or `set_cannibal_ability`), the gained ability goes, with its pending start information and the drunkenness it caused, so that character is sober again. A gained Cannibal stays (it is the ability that eats). Changing back to the Philosopher does not restore any of this: they may choose again.
 
 Interpretation and UX choices:
 - Game state persisted as one JSON document per game (logical data model in 5.6).

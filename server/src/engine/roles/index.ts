@@ -1,7 +1,7 @@
 // Role behaviour modules (section 14). Each role declares its night input (spec) and how it resolves.
 // Owner decision: night pickers list dead players too (abilities can be wasted on bodies), except where a role
 // needs a specific group (Lil' Monsta passes only to living Minions, the Professor picks only the dead).
-import { ROLE_BY_ID, type ActionSpec, type GameState, type WorldState } from '@ct/shared';
+import { ROLE_BY_ID, type ActionSpec, type Assignment, type GameState, type WorldState } from '@ct/shared';
 import type { Actor, NightRun } from '../night';
 import { becomeDemon, demonInfoLines } from '../demon';
 import { enabledRoles } from '../setup';
@@ -310,16 +310,12 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
     onExecutionBelieved: true,
     onExecution({ s, executeeId, holderId, real }) {
       if (holderId === executeeId || !isAlive(s, holderId)) return;
-      const a = s.assignments[holderId];
-      const prev = a.eatenAbility;
-      if (prev?.roleId) clearStartInfo(s, holderId, prev.roleId);
       const good = alignmentOf(s, executeeId) === 'good';
       const roleId = good ? roleIdOf(s, executeeId) : null;
-      a.eatenAbility = { roleId, fromNight: Math.max(0, s.nightNumber) + 1, executeeId, fake: !good };
+      setEatenAbility(s, holderId, { roleId, fromNight: Math.max(0, s.nightNumber) + 1, executeeId, fake: !good });
       // "Poisoned until a good player dies by execution": any earlier eat's poison ends here.
       s.effects = s.effects.filter((e) => !(e.cause === 'cannibal' && e.targetPlayerId === holderId));
-      if (roleId) gainEatenAbility(s, holderId, roleId);
-      else if (real) {
+      if (!roleId && real) {
         s.effects.push({
           id: `cannibal-${holderId}-d${s.dayNumber}`, type: 'poisoned', cause: 'cannibal', sourcePlayerId: holderId,
           targetPlayerId: holderId, startNight: Math.max(0, s.nightNumber), expiry: 'until_removed',
@@ -772,13 +768,35 @@ Object.assign(BEHAVIOURS, {
 } satisfies Record<string, RoleBehaviour>);
 
 /**
- * What gaining an eaten ability does besides recording it (the Cannibal's eat, or the Storyteller's choice in the Day
- * panel): a once-per-game ability starts unused, and start information comes the night it is gained.
+ * The one way a player's eaten ability changes (the Cannibal's eat, or the Storyteller's choice in the Day panel).
+ * The old ability's unspent start information goes with it, and so does what it gained: a Philosopher's ability, when
+ * the eaten Philosopher is lost (dropEatenPhilosopherGain). The new one starts unused, and start information comes the
+ * night it is gained.
  */
-export function gainEatenAbility(s: GameState, pid: string, roleId: string) {
-  const key = ROLE_BY_ID[roleId]?.usedFlag?.key;
+export function setEatenAbility(s: GameState, pid: string, eaten: NonNullable<Assignment['eatenAbility']>) {
+  const a = s.assignments[pid];
+  const prev = a.eatenAbility;
+  if (prev?.roleId) clearStartInfo(s, pid, prev.roleId);
+  if (prev?.roleId === 'philosopher' && eaten.roleId !== 'philosopher') dropEatenPhilosopherGain(s, pid);
+  a.eatenAbility = eaten;
+  if (!eaten.roleId) return;
+  const key = ROLE_BY_ID[eaten.roleId]?.usedFlag?.key;
   if (key && s.flags[pid]) delete s.flags[pid][key];
-  markStartInfo(s, pid, roleId);
+  markStartInfo(s, pid, eaten.roleId);
+}
+
+/**
+ * A Cannibal who chose an ability as the eaten Philosopher keeps it only while they have the Philosopher's ability:
+ * it goes, with its start information and the drunkenness it caused. A gained Cannibal stays: that is the ability
+ * that eats, a Philosopher's own, not something the eat gave them.
+ */
+function dropEatenPhilosopherGain(s: GameState, pid: string) {
+  const a = s.assignments[pid];
+  const gained = a.grantedAbility;
+  if (!gained || gained.roleId === 'cannibal') return;
+  a.grantedAbility = null;
+  clearStartInfo(s, pid, gained.roleId);
+  s.effects = s.effects.filter((e) => !(e.cause === 'philosopher' && e.sourcePlayerId === pid));
 }
 
 export function hasNightAbility(roleId: string): boolean {

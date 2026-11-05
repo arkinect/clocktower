@@ -6,6 +6,7 @@ import { act, build, nextNight, resolve, resultFor, runNight, submit, tryAct, ty
 import { actionSpecs } from '../src/engine/actions';
 import { bluffCandidates, enabledRoles } from '../src/engine/setup';
 import { adminView, playerView } from '../src/engine/views';
+import { computeImpairment } from '../src/engine/impairment';
 import { startInfoPending } from '../src/engine/world';
 
 const NEW = ['cannibal', 'farmer'];
@@ -243,5 +244,97 @@ describe('Cannibal jinxes', () => {
     nextNight(g);
     submit(g, {});
     expect(resultFor(resolve(g), g.p.cannibal, 'juggler')).toBeUndefined();
+  });
+});
+
+describe('the Cannibal and the Philosopher', () => {
+  /** Seats: Philosopher, Cannibal, Imp, Poisoner, Empath, Fortune Teller, Sailor, Butler. */
+  const roles = ['philosopher', 'cannibal', 'imp', 'poisoner', 'empath', 'fortune_teller', 'sailor', 'butler'];
+  const drunk = (g: TestGame, pid: string) => computeImpairment(g.s, g.s.nightNumber)[pid].impaired;
+  const hasFt = (g: TestGame) => abilitiesOf(g.s, g.p.cannibal, Infinity).some((x) => x.roleId === 'fortune_teller');
+
+  /** Day 2: the Philosopher chose the Empath and was executed; the Cannibal ate them and chose the Fortune Teller. */
+  function cannibalChoseFt(): TestGame {
+    const g = build(roles);
+    runNight(g, { [g.p.philosopher]: { philosopher: ['empath'] } });
+    expect(drunk(g, g.p.empath)).toBe(true);
+    execute(g, g.p.philosopher);
+    expect(drunk(g, g.p.empath)).toBe(false);
+    nextNight(g);
+    expect(actionSpecs(g.s, g.p.cannibal).map((x) => [x.key, x.title])).toEqual([['cannibal', 'Cannibal']]);
+    runNight(g, { [g.p.cannibal]: { cannibal: ['fortune_teller'] } });
+    expect(g.s.assignments[g.p.cannibal].grantedAbility).toEqual({ roleId: 'fortune_teller', fromNight: 2 });
+    expect(drunk(g, g.p.fortune_teller)).toBe(true);
+    return g;
+  }
+
+  it('what the Cannibal chose as the Philosopher lasts until the next eat, which ends it and the character\'s drunkenness', () => {
+    const g = cannibalChoseFt();
+    nextNight(g);
+    expect(hasFt(g)).toBe(true);
+    runNight(g, {});
+    nextNight(g);
+    runNight(g, {});
+    expect(drunk(g, g.p.fortune_teller)).toBe(true);
+    execute(g, g.p.sailor);
+    expect(eaten(g, g.p.cannibal)).toMatchObject({ roleId: 'sailor' });
+    expect(drunk(g, g.p.fortune_teller)).toBe(false);
+    expect(hasFt(g)).toBe(false);
+    expect(g.s.assignments[g.p.cannibal].grantedAbility).toBeNull();
+    nextNight(g);
+    expect(actionSpecs(g.s, g.p.cannibal).map((x) => x.roleId)).not.toContain('fortune_teller');
+  });
+
+  it('an evil eat ends it too', () => {
+    const g = cannibalChoseFt();
+    execute(g, g.p.imp);
+    expect(hasFt(g)).toBe(false);
+    expect(drunk(g, g.p.fortune_teller)).toBe(false);
+  });
+
+  it('the Storyteller changing the eaten Philosopher ends it, and its unspent start information', () => {
+    const g = build(['philosopher', 'cannibal', 'imp', 'poisoner', 'clockmaker', 'fortune_teller', 'sailor', 'butler']);
+    runNight(g, {});
+    execute(g, g.p.philosopher);
+    nextNight(g);
+    runNight(g, { [g.p.cannibal]: { cannibal: ['clockmaker'] } });
+    expect(drunk(g, g.p.clockmaker)).toBe(true);
+    // Given the night it is chosen, so still marked only if that night passed them by.
+    (g.s.roleState[g.p.cannibal] ??= {}).startInfoPending = ['clockmaker'];
+    act(g, { type: 'set_cannibal_ability', playerId: g.p.cannibal, roleId: 'sailor' });
+    expect(g.s.assignments[g.p.cannibal].grantedAbility).toBeNull();
+    expect(startInfoPending(g.s, g.p.cannibal)).toEqual([]);
+    expect(drunk(g, g.p.clockmaker)).toBe(false);
+  });
+
+  it('staying the Philosopher changes nothing', () => {
+    const g = cannibalChoseFt();
+    act(g, { type: 'set_cannibal_ability', playerId: g.p.cannibal, roleId: 'philosopher' });
+    expect(hasFt(g)).toBe(true);
+    expect(drunk(g, g.p.fortune_teller)).toBe(true);
+  });
+
+  it('a Philosopher with the Cannibal\'s ability keeps it when what they ate changes, and the real Cannibal stays drunk', () => {
+    const g = build(roles);
+    runNight(g, { [g.p.philosopher]: { philosopher: ['cannibal'] } });
+    execute(g, g.p.sailor);
+    act(g, { type: 'set_cannibal_ability', playerId: g.p.philosopher, roleId: 'philosopher' });
+    runNight(nextNightThen(g), {});
+    execute(g, g.p.butler);
+    expect(g.s.assignments[g.p.philosopher].grantedAbility).toMatchObject({ roleId: 'cannibal' });
+    expect(drunk(g, g.p.cannibal)).toBe(true);
+  });
+
+  it('a Philosopher who chose the Cannibal and eats the executed real Cannibal gains nothing new', () => {
+    const g = build(roles);
+    runNight(g, { [g.p.philosopher]: { philosopher: ['cannibal'] } });
+    execute(g, g.p.sailor);
+    expect(eaten(g, g.p.philosopher)).toMatchObject({ roleId: 'sailor' });
+    runNight(nextNightThen(g), {});
+    execute(g, g.p.cannibal);
+    const roleIds = abilitiesOf(g.s, g.p.philosopher, Infinity).map((x) => x.roleId);
+    expect([...new Set(roleIds)]).toEqual(['philosopher', 'cannibal']);
+    nextNight(g);
+    expect(actionSpecs(g.s, g.p.philosopher)).toEqual([]);
   });
 });

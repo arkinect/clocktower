@@ -9,13 +9,13 @@ import { becomeDemon, demonInfoLines } from './demon';
 import { computeImpairment } from './impairment';
 import { previewDayKill, revivePlayer } from './lifecycle';
 import { resolveNight } from './night';
-import { BEHAVIOURS, gainEatenAbility } from './roles';
+import { BEHAVIOURS, setEatenAbility } from './roles';
 import { makeRng, randomSeed } from './rng';
 import {
   bluffCandidates, enabledRoles, onScript, outsidersBeforeGodfather, redHerringCandidates, setupChecklist, suggestBluffs, suggestDistribution,
 } from './setup';
 import {
-  abilityNightToday, aliveIds, canAct, changeRole, clearStartInfo, findPlayer, flag, hasAbility, inPlayRoleIds, isDemon, playersWithAbility, roleIdOf, roleName, seatedIds,
+  abilityNightToday, aliveIds, canAct, changeRole, findPlayer, flag, hasAbility, inPlayRoleIds, isDemon, playersWithAbility, roleIdOf, roleName, seatedIds,
 } from './world';
 
 export interface Ctx { now: number; seed?: number }
@@ -773,10 +773,8 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       if (!cannibal || !eaten) return err('Only a Cannibal who has eaten has an eaten ability to change.');
       if (i.roleId !== null && (!ROLE_BY_ID[i.roleId] || i.roleId === 'cannibal')) return err('Choose a character other than the Cannibal.');
       if (i.roleId === eaten.roleId) return ok(s);
-      if (eaten.roleId) clearStartInfo(s, i.playerId, eaten.roleId);
       // Whether it is real stays as it was: an ability chosen after an evil eat gives false information.
-      a.eatenAbility = { ...eaten, roleId: i.roleId };
-      if (i.roleId) gainEatenAbility(s, i.playerId, i.roleId);
+      setEatenAbility(s, i.playerId, { ...eaten, roleId: i.roleId });
       queueCannibalLearns(s, i.playerId, i.roleId);
       return ok(s);
     }
