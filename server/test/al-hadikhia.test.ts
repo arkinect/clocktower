@@ -306,6 +306,27 @@ describe('jinxes', () => {
     expect(row(g).outcome).toContain('Jinx (Al-Hadikhia & Mastermind): the Mastermind (P1-mastermind) is drunk or poisoned');
   });
 
+  it('Jinx (Al-Hadikhia & Mastermind): a Scarlet Woman took over, so the game goes on: the dead Al-Hadikhia doesn\'t wake, the new Demon acts normally', () => {
+    const g = night1(['al_hadikhia', 'mastermind', 'scarlet_woman', 'empath', 'gambler', 'butler', 'seamstress'], (g) => {
+      executed(g);
+      act(g, { type: 'resolve_day_prompt', id: g.s.dayPrompts[0].id, accept: true });
+    });
+    const me = g.p.scarlet_woman;
+    expect(wakingRoles(g.s, g.p.al_hadikhia)).toEqual([]);
+    expect(expectedActors(g.s)).not.toContain(g.p.al_hadikhia);
+    expect(wakingRoles(g.s, me)).toEqual(['al_hadikhia']);
+    const [spec] = actionSpecs(g.s, me);
+    expect(spec).toMatchObject({ allowDecline: true, declineLabel: 'No one' });
+    expect(spec.prompt).not.toMatch(/^Jinx/);
+    expect(spec.fields[0].options).toEqual(g.ids);
+    chose(g, three(g), me);
+    answer(g, g.p.empath, 'die', me);
+    const res = g.s.night!.resolution!;
+    expect(res.deaths).toEqual([g.p.empath]);
+    expect(res.actors.filter((a) => a.roleId === 'al_hadikhia').map((a) => a.playerId)).toEqual([me]);
+    expect(row(g, me).outcome).not.toContain('Jinx');
+  });
+
   it('Jinx (Al-Hadikhia & Mastermind): not without a living Mastermind, and only the night after the execution', () => {
     const none = night1(ROLES, (g) => { act(g, { type: 'record_execution', playerId: g.p.al_hadikhia, died: true }); });
     expect(wakingRoles(none.s, none.p.al_hadikhia)).toEqual([]);

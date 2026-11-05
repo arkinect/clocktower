@@ -661,12 +661,16 @@ export function eyesClosedVotingToday(state: GameState): boolean {
 
 const JINX_AH_MASTERMIND = jinxLabel(jinxBetween('al_hadikhia', 'mastermind')!);
 
-/** The night after the Al-Hadikhia died by execution, with a living Mastermind who has a real ability (design.md 14.8). */
+/**
+ * The night after the Al-Hadikhia died by execution, with a living Mastermind who has a real ability, and with no other
+ * living Demon, so the execution ended the game (design.md 14.8).
+ */
 function mastermindJinxTonight(state: GameState, pid: string, night: number): boolean {
   const p = findPlayer(state, pid);
   return !!p && !p.alive && roleIdOf(state, pid) === 'al_hadikhia' && p.deathCause === 'execution'
     && p.deadAt?.phase === 'day' && p.deadAt.number === night
-    && playersWithAbility(state, 'mastermind', night).some((id) => isAlive(state, id));
+    && playersWithAbility(state, 'mastermind', night).some((id) => isAlive(state, id))
+    && !aliveIds(state).some((id) => id !== pid && isDemon(state, id));
 }
 
 /** The Al-Hadikhia's question to one chosen player. Returns their answer, once given. */
