@@ -7,7 +7,7 @@ import { BEHAVIOURS } from '../src/engine/roles';
 const ORDERS: [string, NightSlot[]][] = [['first night', FIRST_NIGHT_ORDER], ['other nights', OTHER_NIGHT_ORDER]];
 
 const MODIFIERS = ['philosopher', 'sailor', 'poisoner', 'innkeeper'];
-const DEMONS = ['imp', 'pukka', 'shabaloth', 'po', 'no_dashii', 'vigormortis', 'lil_monsta'];
+const DEMONS = ['imp', 'pukka', 'shabaloth', 'po', 'no_dashii', 'vigormortis', 'al_hadikhia', 'lil_monsta'];
 const KILLS = [...DEMONS, 'gambler', 'assassin', 'godfather', 'gossip', 'moonchild'];
 const INFORMATION = [
   'clockmaker', 'empath', 'fortune_teller', 'flowergirl', 'oracle', 'seamstress', 'juggler', 'balloonist', 'grandmother', 'mathematician',
@@ -99,6 +99,13 @@ describe('night order', () => {
     expect(at(FIRST_NIGHT_ORDER, 'devils_advocate')).toBe(at(FIRST_NIGHT_ORDER, 'organ_grinder') + 1);
     expect(at(OTHER_NIGHT_ORDER, 'organ_grinder')).toBe(at(OTHER_NIGHT_ORDER, 'gambler') + 1);
     expect(at(OTHER_NIGHT_ORDER, 'devils_advocate')).toBe(at(OTHER_NIGHT_ORDER, 'organ_grinder') + 1);
+  });
+
+  it('the Al-Hadikhia: other nights only, right after the Vigormortis, right before Lil\' Monsta', () => {
+    const at = (id: string) => OTHER_NIGHT_ORDER.findIndex((s) => s.roleId === id);
+    expect(FIRST_NIGHT_ORDER.some((s) => s.roleId === 'al_hadikhia')).toBe(false);
+    expect(at('al_hadikhia')).toBe(at('vigormortis') + 1);
+    expect(at('lil_monsta')).toBe(at('al_hadikhia') + 1);
   });
 
   it('the Farmer per the official night sheet: other nights only, after the Huntsman, before the Moonchild and Grandmother', () => {

@@ -1,6 +1,6 @@
 # Blood on the Clocktower Night Assistant: Design Document
 
-Version: 4. Scope: the 54 roles listed in section 14.
+Version: 4. Scope: the 55 roles listed in section 14.
 Audience: implementers and contributors.
 
 This document describes the app **as built**: the rules it implements, every decision taken where the rules leave a choice to the Storyteller, and the project owner's later changes ("owner decision").
@@ -106,7 +106,7 @@ This document describes the app **as built**: the rules it implements, every dec
 
 ### Non-goals
 - Day automation (nominations, voting, executions, win checks). Room is left for it (section 13).
-- Roles other than the 54 in section 14. Roles are data, so more can be added later.
+- Roles other than the 55 in section 14. Roles are data, so more can be added later.
 - Authentication, accounts, internet hosting, TLS.
 - Using the role-type preference collected at signup for automatic assignment (it is shown to the Admin in Setup only).
 
@@ -327,7 +327,7 @@ resolveNight(state):                      // pure; clones the world
 ## 7. Setup phase
 
 ### 7.1 Role checklist
-- All 54 roles grouped by type with a checkbox each (default all enabled), plus All/None.
+- All 55 roles grouped by type with a checkbox each (default all enabled), plus All/None.
 - Unchecking a role removes it from the assignment dropdown, bluff candidates, the random suggestion and **the lists shown to players**.
 - Warnings (non-blocking): too few enabled roles of a type for the player count. No Demon enabled blocks Night 0 (unless forced).
 - After Night 0 the checklist can still be changed with a confirmation; player lists update live.
@@ -528,6 +528,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 - Every kill comes before the Professor, except the Moonchild's. This is harmless: the Professor can choose only players dead at the start of the night, so a kill's place relative to the Professor only decides whether a Professor it kills has already acted.
 - The Professor comes before the Empath and Oracle.
 - The Grandmother comes after every Demon.
+- The Al-Hadikhia: other nights only, right after the Vigormortis and right before Lil' Monsta.
 - The Farmer, per the official night sheet: other nights only, right after the Huntsman and right before the Moonchild (so before the Grandmother), after every Demon.
 - The Organ Grinder, per the official night sheet: first night right after the Godfather, other nights right after the Gambler, before the Devil's Advocate both times.
 - A start-information role has a slot in both orders. The Clockmaker's other-night slot exists only for an ability just gained (the documented exception in the test), beside the Grandmother's.
@@ -549,6 +550,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 | Imp, Pukka, No Dashii, Vigormortis | 1 player | Any player, self allowed |
 | Shabaloth | 2 players | Two different players |
 | Po | 0 or 1 player; 3 after choosing no one | See card |
+| Al-Hadikhia | 3 different players, or "No one" | Any player, dead and self allowed. After the Mastermind jinx (14.8): 3 good players, dead allowed, no "No one" |
 | Lil' Monsta (token holder) | 1 living Minion and 1 player | Pass-to: a living Minion (self = keep). Victim: any player. Night 1+ |
 | Assassin | 1 player, or "Not tonight" | Any player, once per game, Night 1+ |
 | Godfather | 1 player | Any player, self allowed; only on Night 1+ when triggered |
@@ -780,7 +782,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 - Ability: "There are extra Outsiders in play. [+2 Outsiders]"
 - Setup only: +2 Outsiders, -2 Townsfolk in the suggested counts (7.4), stacking with every other modifier. Never wakes.
 
-### 14.7 Demons (7)
+### 14.7 Demons (8)
 
 Common: exactly one Demon at the start. Demon kills are `attemptKill(target, demon_attack)`. Kill roles marked `*` do not act on Night 0. An impaired Demon's kill silently does nothing. A new Demon (starpass, Scarlet Woman) receives Demon information.
 
@@ -817,6 +819,14 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 - Night 1+: the token holder alone chooses a living Minion to pass the token to (self = keep) and a victim (any player). If sober: the victim is attacked, then the token moves; a new holder is told "You hold Lil' Monsta's token". Impaired: no kill, token stays.
 - If the holder dies, the Scarlet Woman check runs; if she takes over she gets the token and keeps her role (the "Lil' Monsta & Scarlet Woman" jinx, 14.8). Otherwise the token stays with the dead holder; the Admin can move it in Grimoire → Game facts.
 
+#### Al-Hadikhia
+- Ability: "Each night*, you may choose 3 players (all players learn who): each silently chooses to live or die, but if all live, all die."
+- Night 1+: 3 different players, or "No one". Declining (or no input) does nothing and announces nothing.
+- At dawn every seated player is told "The Al-Hadikhia chose A, B and C."
+- During review, each chosen player in order gets a follow-up question (9.4), key `al_hadikhia:<ahId>:<targetId>`: "The Al-Hadikhia chose A, B and C. Do you choose to live or die?", Live or Die, dead players included. "Accept all defaults" answers none of them; publishing waits unless forced.
+- Live revives a dead player (`revive`) and does nothing to a living one. Die is `attemptKill(t, demon_attack)`, so every protection applies. If all three answered and all three are alive afterwards, including anyone whose "die" was stopped, all three are attacked.
+- An unanswered question at a forced publish has no effect for that player, and the "if all live, all die" rule needs all three answers. Impaired: the questions are still asked and the choice still announced, with no effect. The actor row says so in both cases.
+
 ### 14.8 Jinxes
 The official jinxes between roles in the app are the `JINXES` data in `shared/src/roles.ts`: the two roles, the official wording, how the app handles it and the page it was checked against. A change that adds a role adds its jinxes with roles already in the app, in the same change. Every message about a jinx is labelled `Jinx (A & B): …`. The role list (players' Roles tab, Storyteller reference) has a Jinxes section listing each jinx whose two roles are both on the script.
 
@@ -825,6 +835,8 @@ The official jinxes between roles in the app are the `JINXES` data in `shared/sr
 - **Marionette & Balloonist:** a Marionette who believes they are the Balloonist gets a Setup warning that an Outsider may be added.
 - **Lil' Monsta & Scarlet Woman:** already how the Scarlet Woman check works (14.7, Lil' Monsta).
 - **Cannibal & Butler**, **Cannibal & Zealot** ("If the Cannibal gains the Butler [Zealot] ability, the Cannibal learns this."): when the Cannibal gains it (an eat, or the Storyteller's Confirm in the Day panel), a notice "Jinx (Cannibal & Butler): You have the Butler ability" with the ability text is queued and delivered when the next night starts, once. Changing the ability again the same day withdraws it. The eaten Butler's picker is titled "Butler", not "Cannibal".
+- **Scarlet Woman & Al-Hadikhia** ("If there would be two Demons, one of which was the Scarlet Woman, the Scarlet Woman becomes the Scarlet Woman again."): after any revive (at night, or the Storyteller's `mark_alive`), if two Demons are alive, one an Al-Hadikhia and one who became the Demon from the Scarlet Woman, she changes back (`changeRole`, `keepAbilities`, `keepTies`), is told "Jinx (Scarlet Woman & Al-Hadikhia): You are the Scarlet Woman again" with her ability text, and at night the actor row says so.
+- **Al-Hadikhia & Mastermind** ("If the Al-Hadikhia dies by execution, and the Mastermind is alive, the Al-Hadikhia chooses 3 good players tonight: if all 3 choose to live, evil wins. Otherwise, good wins."): the night after the Al-Hadikhia died by execution, with a living player who has a real Mastermind ability, the dead Al-Hadikhia wakes with a picker of 3 actually-good players (`wakesDead`) and is an expected actor. Each gets the Live/Die question, nothing dies, and the actor row shows "evil wins" if all three chose to live, else "good wins". The app doesn't end the game: the Storyteller applies it at the table. An impaired Mastermind gets a note on the row. The dawn notice is sent as usual.
 - **Cannibal & Juggler** ("If the Juggler guesses on their first day and dies by execution, tonight the living Cannibal learns how many guesses the Juggler got correct."): already how it works: eating the Juggler on day 1 gives the Cannibal the Juggler's ability from night 1, which wakes on night 1 with that day's count (titled "Cannibal").
 
 The rest are `'reminder'`: shown in the role list only, applied by the Admin at the table. They include **Butler & Organ Grinder** ("If the Organ Grinder is causing eyes closed voting, the Butler may raise their hand to vote but their vote is only counted if their master voted too."; Djinn page, revision 3106).
@@ -922,9 +934,10 @@ The rest are `'reminder'`: shown in the role list only, applied by the Admin at 
 
 ## 18. Tests
 
-322 automated tests (`./dev.sh npm test`: 301 server, 21 client), all passing:
+346 automated tests (`./dev.sh npm test`: 325 server, 21 client), all passing:
 - **Original worked examples:** poison makes false info; sober Sailor survives, poisoned Sailor dies; Innkeeper protects but not from the Assassin; Mayor tails redirect (may land on a protected player); Clockmaker 7 seats Demon 1 Minion 5 → 3; Goon; Po none then three; starpass suggests the Scarlet Woman and the Admin picks another; Shabaloth regurgitation; Lil' Monsta flow and the Fortune Teller reading the new holder; reconnect and rebind.
 - **Per-role tests** for every role with a night effect (true, impaired, registration cases), setup blocking, role reassignment, Ravenkeeper second round, Scarlet Woman night and day.
+- **Al-Hadikhia:** off the script it is never offered; the picker; declining; the questions and their order; "Accept all defaults" answers nothing and publishing waits unless forced; die, live revives, all-live kills all three, a Tea Lady-protected "die" counts as alive; a revived player killed again isn't told they are alive; impaired; reopening clears answers; a forced publish with a missing answer; dead players answer; the dawn notice; Live/Die reaches only the asked player; both jinxes; the night-order slot.
 - **Follow-up questions:** the question's key and spec and the timer extension, "Accept all defaults" leaves a question unanswered, re-opening collecting clears answers, the Storyteller answering for a player, only the asked player answering once with a legal choice, the v7 step.
 - **Abilities:** one test per source (own role; a Drunk or Marionette has their actual role's ability but not the believed one's; a Drunk believing the Empath wakes as it without the ability; a Philosopher's ability from `fromNight`; the Lil' Monsta token from night 1); the Cannibal's eaten ability for a real, Philosopher-gained, Drunk and Marionette Cannibal (the eaten role from `fromNight`, `real` only for a real Cannibal's non-fake eat, nothing for a fake eat's ability or no ability), and its "Cannibal" title and `cannibal` key on pickers, submissions, messages and follow-up questions except for the Butler and Zealot, with the eaten role's id appearing nowhere in the player's view, while the admin view's result row keeps the eaten role ("Cannibal (as Fortune Teller)").
 - **Jinxes:** every jinx names two roles in the app and no pair twice; every `engine` jinx has a test named after its label; label and lookup helpers; the Marionette & Huntsman Setup item, the Marionette & Balloonist warning, and the Scarlet Woman taking Lil' Monsta's token; the role list's Jinxes section (client).
@@ -984,6 +997,10 @@ Rule gaps (already folded into the cards above, listed here for review):
 - The Farmer's new Farmer is any alive player whose actual alignment is good (a Recluse included), and keeps their alignment; with only Farmers left the default is Nobody. A Farmer impaired at death, or a Drunk or Marionette who thinks they are the Farmer, makes nobody a Farmer: the review screen's actor row says so, and no review item is shown.
 - A real Farmer who dies after the Farmer's slot (the Moonchild's target, a Grandmother's link) acts once the night order has finished, with the same options, default and outcome (`alsoAfterOrder`). That includes a Farmer made earlier the same night. The Mathematician has already counted by then, so an impaired Farmer's abnormal event in that case is listed on the review screen but not in their number.
 - The Ravenkeeper and the Farmer wake if they are dead now and died tonight: revived later the same night they don't, and revived and then killed again the same night they do.
+- The Al-Hadikhia's dawn notice names the choice only. The official "How to Run" also declares who is alive and dead at dawn; the Storyteller does that at the table, like other public deaths (3.5).
+- Al-Hadikhia & Mastermind applies whenever its conditions hold, even if a Scarlet Woman took over the Demon at the execution: the app shows the result and the Storyteller decides. Its dawn notice is sent like any other Al-Hadikhia choice. With fewer than 3 good players the picker can be declined and the actor row leaves it to the Storyteller.
+- Al-Hadikhia & Princess (official) is not in `JINXES`: the Princess isn't in the app.
+- A player revived and killed again the same night (Live, then "all die") is listed as both revived and dead on the review screen, and gets neither "You are alive again" nor "You died in the night" if they were dead at dusk.
 - An eaten Juggler wakes only if the Storyteller entered a count for day 1: with none there is nothing to learn. The real Juggler always wakes on night 1 (the count defaults to 0).
 - A Philosopher who chose the Cannibal eats from the day after choosing (abilities counted with `abilityNightToday`, like the Slayer's shot).
 - A Philosopher-Cannibal who eats the executed real Cannibal gains nothing new: they already have that ability, and whatever they ate before is replaced as usual.

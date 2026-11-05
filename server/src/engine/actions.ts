@@ -7,7 +7,8 @@ import { actingRoles, canAct, seatedIds } from './world';
 /** Role ids (slots) this player wakes for tonight, in night order, with or without input. */
 export function wakingRoles(state: GameState, pid: string): string[] {
   const night = state.night;
-  if (!night || !canAct(state, pid)) return [];
+  if (!night) return [];
+  const able = canAct(state, pid);
   const acting = actingRoles(state, pid, night.number);
   const out: string[] = [];
   for (const slot of nightOrder(night.number)) {
@@ -15,6 +16,7 @@ export function wakingRoles(state: GameState, pid: string): string[] {
     const b = BEHAVIOURS[slot.roleId];
     if (!b?.resolve || b.wakesOnNightDeath) continue;
     const ctx: SpecCtx = { w: state, pid, night: night.number, state };
+    if (!able && !b.wakesDead?.(ctx)) continue;
     if (b.wakes && !b.wakes(ctx)) continue;
     if (!out.includes(slot.roleId)) out.push(slot.roleId);
   }

@@ -2,7 +2,7 @@
 // walks the night order and returns a Resolution (results, review items, the world after the night).
 // Admin review choices are inputs (night.reviewChoices), so changing one simply re-runs resolution.
 import {
-  FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID, abilitiesOf, abilityKey, abilityTitle, hidesRole,
+  FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID, abilitiesOf, abilityKey, abilityTitle, hidesRole, jinxBetween, jinxLabel,
   type AbilitySource, type ActionChoice, type ActionSpec, type Alignment, type Cause, type Effect, type EffectExpiry, type EffectType, type GameState,
   type FollowUp, type NightSlot, type ReviewItem, type ReviewOption, type Resolution, type ResultRow, type ActorRow, type AbnormalEvent, type WorldState,
 } from '@ct/shared';
@@ -13,7 +13,7 @@ import {
   isDemon, nameOf, playersWithAbility, roleIdOf, roleName, seatedIds, startInfoPending, typeOf,
 } from './world';
 import { BEHAVIOURS, godfatherTriggered } from './roles';
-import { becomeDemon } from './demon';
+import { becomeDemon, scarletWomanAgain } from './demon';
 import { revivePlayer } from './lifecycle';
 import { enabledRoles } from './setup';
 export { becomeDemon, demonInfoLines } from './demon';
@@ -134,9 +134,10 @@ export class NightRun {
   /**
    * Ask a player a question during review (the Ravenkeeper's choice after dying, for example). Returns the answer
    * once the player or the Storyteller has given one, else null. Publishing waits for every question unless forced,
-   * the night timer is extended when questions first appear, and "Accept all defaults" never answers one.
+   * the night timer is extended when questions first appear, and "Accept all defaults" never answers one. With
+   * `asksOther` the answer isn't the actor's own input (the Al-Hadikhia's chosen players), so the actor row keeps theirs.
    */
-  askFollowUp(q: { key: string; playerId: string; roleId: string; spec: ActionSpec }): ActionChoice | null {
+  askFollowUp(q: { key: string; playerId: string; roleId: string; spec: ActionSpec; asksOther?: true }): ActionChoice | null {
     // A question asked by a hidden eaten ability is shown to the player only as the Cannibal's (one eaten ability per
     // player): its key and spec. The question's roleId, seen only by the Storyteller, stays the eaten role.
     const actor = this.currentActor;
@@ -145,7 +146,7 @@ export class NightRun {
     }
     const a = this.night.followUpAnswers[q.key];
     this.followUps.push({ key: q.key, playerId: q.playerId, roleId: q.roleId, spec: { ...q.spec, key: q.key }, answered: !!a });
-    if (a && this.currentActorRow) this.currentActorRow.input = describeChoice(this.w, a.choice);
+    if (a && this.currentActorRow && !q.asksOther) this.currentActorRow.input = describeChoice(this.w, a.choice);
     return a?.choice ?? null;
   }
 
@@ -313,12 +314,17 @@ export class NightRun {
     if (isDemon(this.w, target) && !opts.noScarlet) this.scarletCheck(target, aliveBefore);
   }
 
-  /** Shared revive (Professor, Shabaloth). */
+  /** Shared revive (Professor, Shabaloth, Al-Hadikhia). */
   revive(pid: string, reason: string): boolean {
     if (!revivePlayer(this.w, pid)) return false;
     this.revived.push(pid);
     this.noActTonight.add(pid);
     this.outcome(`${this.name(pid)} is alive again (${reason})`);
+    const back = scarletWomanAgain(this.w, this.now, (id, title, lines) => this.notice(id, title, lines));
+    if (back) {
+      this.noActTonight.add(back);
+      this.outcome(`${jinxLabel(jinxBetween('scarlet_woman', 'al_hadikhia')!)}: ${this.name(back)} is the Scarlet Woman again`);
+    }
     return true;
   }
 
@@ -416,14 +422,15 @@ export class NightRun {
       const pending = startInfoPending(this.w, pid).includes(roleId);
       const ability = abilitiesOf(this.w, pid, pending ? Infinity : this.n).find((x) => x.roleId === roleId);
       if (!ability) continue;
+      const ctx = { w: this.w, pid, night: this.n, state: this.state };
       if (b.wakesOnNightDeath) {
         // Dead now, so not skipped for being revived or given this role earlier tonight, if they then died.
         if (!this.deaths.includes(pid) || isAlive(this.w, pid)) continue;
       } else {
         if (this.noActTonight.has(pid) && !pending) continue;
-        if (!canAct(this.w, pid) && !b.actsWhileDead) continue;
+        if (!canAct(this.w, pid) && !b.actsWhileDead && !b.wakesDead?.(ctx)) continue;
       }
-      if (b.wakes && !b.wakes({ w: this.w, pid, night: this.n, state: this.state })) continue;
+      if (b.wakes && !b.wakes(ctx)) continue;
       // Nothing is submitted for these: the Ravenkeeper's choice comes later, as a follow-up question (askFollowUp).
       const sub = b.wakesOnNightDeath ? undefined : this.night.submissions[pid];
       out.push({

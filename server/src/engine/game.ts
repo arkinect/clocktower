@@ -5,7 +5,7 @@ import {
   type PlayerRec, type PrivateMessage, type RolePreference, type Settings, type StoryPlayer,
 } from '@ct/shared';
 import { actionSpecs, validateChoice, validateSubmission } from './actions';
-import { becomeDemon, demonInfoLines } from './demon';
+import { becomeDemon, demonInfoLines, scarletWomanAgain } from './demon';
 import { computeImpairment } from './impairment';
 import { previewDayKill, revivePlayer } from './lifecycle';
 import { resolveNight } from './night';
@@ -143,7 +143,7 @@ function newNight(number: number, seed: number, collectingOpen: boolean): NightS
 }
 
 export function expectedActors(s: GameState): string[] {
-  return seatedIds(s).filter((id) => canAct(s, id));
+  return seatedIds(s).filter((id) => canAct(s, id) || actionSpecs(s, id).length > 0);
 }
 
 function reresolve(s: GameState, now: number) {
@@ -626,7 +626,9 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
     // ---------- day ----------
     case 'mark_alive': {
       if (!seatedPlayer(i.playerId)) return err('Not a seated player.');
+      const revives = !!i.alive && !findPlayer(s, i.playerId)?.alive;
       markDead(s, i.playerId, !!i.alive, 'storyteller');
+      if (revives) scarletWomanAgain(s, now, (pid, title, lines) => deliver(s, pid, msg(s, s.nightNumber, 'notice', title, lines)));
       return ok(s);
     }
     case 'record_execution': {
@@ -888,7 +890,8 @@ function publish(s: GameState, res: NonNullable<NightState['resolution']>, now: 
   for (const pid of res.deaths) {
     if (!findPlayer(s, pid)?.alive && before.has(pid)) deliver(s, pid, msg(s, n, 'notice', 'You have died', ['You died in the night.']));
   }
-  for (const pid of res.revived) deliver(s, pid, msg(s, n, 'notice', 'You are alive again', ['You have been brought back to life.']));
+  // Revived and killed again the same night (the Al-Hadikhia's "if all live, all die"): still dead, so nothing to say.
+  for (const pid of res.revived) if (findPlayer(s, pid)?.alive) deliver(s, pid, msg(s, n, 'notice', 'You are alive again', ['You have been brought back to life.']));
 
   // Lil' Monsta: at the end of Night 0 the Lil' Monsta player becomes the chosen Minion and holds the token.
   if (n === 0) {

@@ -1,7 +1,7 @@
 // Role behaviour modules (section 14). Each role declares its night input (spec) and how it resolves.
 // Owner decision: night pickers list dead players too (abilities can be wasted on bodies), except where a role
 // needs a specific group (Lil' Monsta passes only to living Minions, the Professor picks only the dead).
-import { ROLE_BY_ID, abilitiesOf, type ActionSpec, type Assignment, type GameState, type WorldState } from '@ct/shared';
+import { ROLE_BY_ID, abilitiesOf, jinxBetween, jinxLabel, type ActionSpec, type Assignment, type GameState, type WorldState } from '@ct/shared';
 import type { Actor, NightRun } from '../night';
 import { becomeDemon, demonInfoLines } from '../demon';
 import { enabledRoles } from '../setup';
@@ -20,6 +20,8 @@ export interface RoleBehaviour {
   spec?(ctx: SpecCtx): ActionSpec | null;
   resolve?(run: NightRun, actor: Actor): void;
   actsWhileDead?: boolean;
+  /** Dead tonight but gets a picker anyway (the Al-Hadikhia after the Mastermind jinx). */
+  wakesDead?(ctx: SpecCtx): boolean;
   /**
    * Wakes only on a night they die, and then even though dead (the Ravenkeeper, the Farmer): impairment is taken as
    * of the moment they died (NightRun.impairAtDeath), and they never get a picker of their own (wakingRoles).
@@ -565,6 +567,45 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
     },
   },
 
+  al_hadikhia: {
+    wakesDead: (c) => mastermindJinxTonight(c.state, c.pid, c.night),
+    spec: (c) => {
+      if (!mastermindJinxTonight(c.state, c.pid, c.night)) {
+        return players('al_hadikhia', 'Al-Hadikhia', 'You may choose 3 players (all players learn who): each chooses to live or die, but if all live, all die.', 3, all(c), true, 'No one');
+      }
+      return players('al_hadikhia', 'Al-Hadikhia', `${JINX_AH_MASTERMIND}: Choose 3 good players: if all 3 choose to live, evil wins. Otherwise, good wins.`, 3, all(c).filter((x) => alignmentOf(c.w, x) === 'good'));
+    },
+    resolve(run, a) {
+      const jinx = mastermindJinxTonight(run.state, a.pid, run.n);
+      const ts = target(a);
+      if (ts.length !== 3) {
+        run.outcome(jinx ? `${JINX_AH_MASTERMIND}: no 3 good players chosen, the Storyteller decides` : 'chose no one: nothing happens');
+        return;
+      }
+      const [x, y, z] = ts.map((t) => run.name(t));
+      const list = `${x}, ${y} and ${z}`;
+      for (const pid of seatedIds(run.w)) run.notice(pid, 'Al-Hadikhia', [`The Al-Hadikhia chose ${list}.`]);
+      if (jinx) { mastermindJinx(run, a, ts, list); return; }
+      const works = a.real && run.sober(a.pid);
+      if (!works) run.outcome(`${a.real ? 'impaired' : 'not really the Al-Hadikhia'}: questions asked, the answers have no effect`);
+      let answers = 0;
+      for (const t of ts) {
+        const answer = liveOrDie(run, a, t, list);
+        if (!answer) { run.outcome(`${run.name(t)} has not answered: no effect for them`); continue; }
+        answers++;
+        run.outcome(`${run.name(t)} chose to ${answer}`);
+        if (!works) continue;
+        if (answer === 'die') run.attemptKill(t, 'demon_attack', a.pid);
+        else run.revive(t, 'chose to live');
+      }
+      if (!works) return;
+      if (answers < 3) { run.outcome('the "if all live, all die" rule needs all three answers'); return; }
+      if (!ts.every((t) => isAlive(run.w, t))) return;
+      run.outcome('all three are alive: all three die');
+      for (const t of ts) run.attemptKill(t, 'demon_attack', a.pid);
+    },
+  },
+
   lil_monsta: {
     wakes: (c) => c.w.setup.lilMonstaTokenHolderId === c.pid,
     spec: (c) => ({
@@ -616,6 +657,40 @@ export function eyesClosedVotingToday(state: GameState): boolean {
   const last = Math.max(0, state.nightNumber);
   const imp = computeImpairment(state, last);
   return playersWithAbility(state, 'organ_grinder', abilityNightToday(last)).some((id) => isAlive(state, id) && !imp[id]?.impaired);
+}
+
+const JINX_AH_MASTERMIND = jinxLabel(jinxBetween('al_hadikhia', 'mastermind')!);
+
+/** The night after the Al-Hadikhia died by execution, with a living Mastermind who has a real ability (design.md 14.8). */
+function mastermindJinxTonight(state: GameState, pid: string, night: number): boolean {
+  const p = findPlayer(state, pid);
+  return !!p && !p.alive && roleIdOf(state, pid) === 'al_hadikhia' && p.deathCause === 'execution'
+    && p.deadAt?.phase === 'day' && p.deadAt.number === night
+    && playersWithAbility(state, 'mastermind', night).some((id) => isAlive(state, id));
+}
+
+/** The Al-Hadikhia's question to one chosen player. Returns their answer, once given. */
+function liveOrDie(run: NightRun, a: Actor, t: string, list: string): string | null {
+  const choice = run.askFollowUp({
+    key: `al_hadikhia:${a.pid}:${t}`, playerId: t, roleId: 'al_hadikhia', asksOther: true,
+    spec: {
+      key: 'al_hadikhia', roleId: 'al_hadikhia', title: 'Al-Hadikhia', prompt: `The Al-Hadikhia chose ${list}. Do you choose to live or die?`,
+      fields: [{ kind: 'option', label: 'Your choice', options: ['live', 'die'], labels: { live: 'Live', die: 'Die' } }],
+      distinct: false, allowDecline: false,
+    },
+  });
+  return choice?.values[0] ?? null;
+}
+
+/** Nothing dies and the app doesn't end the game: the review says who wins, for the Storyteller to apply at the table. */
+function mastermindJinx(run: NightRun, a: Actor, ts: string[], list: string) {
+  const answers = ts.map((t) => liveOrDie(run, a, t, list));
+  ts.forEach((t, i) => run.outcome(`${run.name(t)} ${answers[i] ? `chose to ${answers[i]}` : 'has not answered'}`));
+  if (answers.every(Boolean)) run.outcome(`${JINX_AH_MASTERMIND}: ${answers.every((x) => x === 'live') ? 'evil wins' : 'good wins'}. Apply this at the table.`);
+  else run.outcome(`${JINX_AH_MASTERMIND}: waiting for all three answers`);
+  for (const m of playersWithAbility(run.w, 'mastermind', run.n)) {
+    if (isAlive(run.w, m) && !run.sober(m)) run.outcome(`${JINX_AH_MASTERMIND}: the Mastermind (${run.name(m)}) is drunk or poisoned`);
+  }
 }
 
 function grandmotherInfo(run: NightRun, a: Actor) {

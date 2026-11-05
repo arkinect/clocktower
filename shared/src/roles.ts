@@ -1,4 +1,4 @@
-// Static role data for the 54 roles in design.md section 14 (27 Townsfolk, 8 Outsiders, 12 Minions, 7 Demons).
+// Static role data for the 55 roles in design.md section 14 (27 Townsfolk, 8 Outsiders, 12 Minions, 8 Demons).
 // Ability texts are verbatim from the design doc. Behaviour lives in server/src/engine/roles.
 
 export type RoleType = 'townsfolk' | 'outsider' | 'minion' | 'demon';
@@ -85,7 +85,7 @@ export const ROLES: RoleData[] = [
   r('witch', 'Witch', M, 'Each night, choose a player: if they nominate tomorrow, they die. If just 3 players live, you lose this ability.', { reminder: 'If the cursed player nominates, apply the curse in the Day panel.' }),
   r('organ_grinder', 'Organ Grinder', M, 'All players keep their eyes closed when voting and the vote tally is secret. Each night, choose if you are drunk until dusk.', { reminder: 'Eyes-closed voting and a secret tally while they are alive and sober (shown at the top of the Day panel); the tally is not tracked here.', dayReminder: true }),
   r('baron', 'Baron', M, 'There are extra Outsiders in play. [+2 Outsiders]', { setupModifier: { outsiders: 2 } }),
-  // Demons (7)
+  // Demons (8)
   r('imp', 'Imp', D, 'Each night*, choose a player: they die. If you kill yourself this way, a Minion becomes the Imp.'),
   r('pukka', 'Pukka', D, 'Each night, choose a player: they are poisoned. The previously poisoned player dies then becomes healthy.'),
   r('shabaloth', 'Shabaloth', D, 'Each night*, choose 2 players: they die. A dead player you chose last night might be regurgitated.'),
@@ -93,6 +93,7 @@ export const ROLES: RoleData[] = [
   r('no_dashii', 'No Dashii', D, 'Each night*, choose a player: they die. Your 2 Townsfolk neighbours are poisoned.'),
   r('vigormortis', 'Vigormortis', D, 'Each night*, choose a player: they die. Minions you kill keep their ability & poison 1 Townsfolk neighbour. [-1 Outsider]', { setupModifier: { outsiders: -1 } }),
   r('lil_monsta', 'Lil\' Monsta', D, 'Each night, Minions choose who babysits Lil\' Monsta\'s token & "is the Demon". A player dies each night*. [+1 Minion]', { setupModifier: { minions: 1 } }),
+  r('al_hadikhia', 'Al-Hadikhia', D, 'Each night*, you may choose 3 players (all players learn who): each silently chooses to live or die, but if all live, all die.'),
 ];
 
 export const ROLE_BY_ID: Record<string, RoleData> = Object.fromEntries(ROLES.map((x) => [x.id, x]));
@@ -128,6 +129,8 @@ export const JINXES: Jinx[] = [
   { a: 'cannibal', b: 'zealot', text: 'If the Cannibal gains the Zealot ability, the Cannibal learns this.', handling: 'engine', source: DJINN },
   { a: 'cannibal', b: 'juggler', text: 'If the Juggler guesses on their first day and dies by execution, tonight the living Cannibal learns how many guesses the Juggler got correct.', handling: 'engine', source: DJINN },
   { a: 'lil_monsta', b: 'scarlet_woman', text: 'If Lil\' Monsta dies with 5 or more players alive, the Scarlet Woman babysits Lil\' Monsta for the rest of the game.', handling: 'engine', source: DJINN },
+  { a: 'scarlet_woman', b: 'al_hadikhia', text: 'If there would be two Demons, one of which was the Scarlet Woman, the Scarlet Woman becomes the Scarlet Woman again.', handling: 'engine', source: DJINN },
+  { a: 'al_hadikhia', b: 'mastermind', text: 'If the Al-Hadikhia dies by execution, and the Mastermind is alive, the Al-Hadikhia chooses 3 good players tonight: if all 3 choose to live, evil wins. Otherwise, good wins.', handling: 'engine', source: DJINN },
 ];
 
 /** "Jinx (Marionette & Huntsman)": the label on every jinx message in the app, and the start of its tests' names. */
@@ -189,6 +192,7 @@ export const OTHER_NIGHT_ORDER: NightSlot[] = [
   { id: 'po', label: 'Po', roleId: 'po' },
   { id: 'no_dashii', label: 'No Dashii', roleId: 'no_dashii' },
   { id: 'vigormortis', label: 'Vigormortis', roleId: 'vigormortis' },
+  { id: 'al_hadikhia', label: 'Al-Hadikhia', roleId: 'al_hadikhia', note: 'The 3 chosen players each choose to live or die' },
   { id: 'lil_monsta', label: 'Lil\' Monsta', roleId: 'lil_monsta', note: 'The token holder passes the token and chooses the victim' },
   { id: 'assassin', label: 'Assassin', roleId: 'assassin' },
   { id: 'godfather', label: 'Godfather', roleId: 'godfather', note: 'Only if an Outsider died today' },

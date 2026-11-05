@@ -70,8 +70,12 @@ function play(seed: number, playerCount: number, nights: number) {
       if (p.alive || specs.length || s.assignments[pid]?.retainsAbilityWhenDead) A({ type: 'submit_night', actions }, pid);
     }
     A({ type: 'resolve_night' });
-    for (const f of s.night!.resolution!.followUps.filter((q) => !q.answered)) A({ type: 'answer_follow_up', key: f.key, choice: { values: [rng.pick(ids)] } }, f.playerId);
-    A({ type: 'accept_all_defaults' });
+    // An answer can raise another question (an Al-Hadikhia's "die" killing the Ravenkeeper), so until none are left.
+    for (let open = s.night!.resolution!.followUps.filter((q) => !q.answered); ; open = s.night!.resolution!.followUps.filter((q) => !q.answered)) {
+      for (const f of open) A({ type: 'answer_follow_up', key: f.key, choice: { values: [rng.pick(f.spec.fields[0].options)] } }, f.playerId);
+      A({ type: 'accept_all_defaults' });
+      if (!s.night!.resolution!.followUps.some((q) => !q.answered)) break;
+    }
     A({ type: 'publish_night' });
     expect(s.phase).toBe('DAY');
     // day facts
