@@ -167,7 +167,10 @@ export function setupChecklist(state: GameState): CheckItem[] {
     items.push({ id: 'red_herring', label: 'Choose the Fortune Teller\'s red herring (a good player)', done: !!rh && ids.includes(rh) && state.assignments[rh]?.alignment === 'good', blocking: true });
   }
   if (inPlay.includes('godfather')) {
-    items.push({ id: 'godfather', label: `Godfather: Outsiders -1 or +1${state.setup.godfatherOutsiders ? ` (chosen: ${state.setup.godfatherOutsiders > 0 ? '+1' : '-1'})` : ''}`, done: state.setup.godfatherOutsiders !== null, blocking: true });
+    // As targetCounts: a -1 with no Outsider left to remove counts as +1.
+    const canRemove = outsidersBeforeGodfather(ids.length, inPlay) > 0;
+    const chosen = state.setup.godfatherOutsiders;
+    items.push({ id: 'godfather', label: `Godfather: Outsiders -1 or +1${chosen ? ` (chosen: ${chosen > 0 || !canRemove ? '+1' : '-1'})` : ''}`, done: chosen !== null, blocking: true });
   }
   if (inPlay.includes('huntsman')) {
     items.push({ id: 'huntsman', label: 'Huntsman needs the Damsel in play', done: inPlay.includes('damsel'), blocking: true });

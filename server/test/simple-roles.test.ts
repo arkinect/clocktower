@@ -7,7 +7,7 @@ import type { GameState } from '@ct/shared';
 import { act, build, nextNight, resolve, runNight, submit, tryAct } from './helpers';
 import { applyIntent, createGame } from '../src/engine/game';
 import { actionSpecs } from '../src/engine/actions';
-import { bluffCandidates, enabledRoles, outsidersBeforeGodfather, suggestDistribution, targetCounts } from '../src/engine/setup';
+import { bluffCandidates, enabledRoles, outsidersBeforeGodfather, setupChecklist, suggestDistribution, targetCounts } from '../src/engine/setup';
 import { makeRng } from '../src/engine/rng';
 import { adminView } from '../src/engine/views';
 import { eyesClosedVotingToday } from '../src/engine/roles';
@@ -96,6 +96,17 @@ describe('Baron setup counts', () => {
     expect(tryAct(g, { type: 'set_godfather_outsiders', value: -1 }).ok).toBe(false);
     act(g, { type: 'assign_role', playerId: ids[1], roleId: 'baron' });
     expect(tryAct(g, { type: 'set_godfather_outsiders', value: -1 }).ok).toBe(true);
+  });
+
+  it('the setup checklist shows a -1 with no Outsider left to remove as +1, like the counts', () => {
+    const roles = ['godfather', 'baron', 'imp', 'empath', 'sailor', 'butler', 'drunk'];
+    build(roles, (g) => {
+      act(g, { type: 'set_godfather_outsiders', value: -1 });
+      const label = () => setupChecklist(g.s).find((c) => c.id === 'godfather')!.label;
+      expect(label()).toContain('(chosen: -1)');
+      act(g, { type: 'assign_role', playerId: g.p.baron, roleId: 'poisoner' });
+      expect(label()).toContain('(chosen: +1)');
+    });
   });
 
   it('stacked with the Vigormortis and the Balloonist', () => {

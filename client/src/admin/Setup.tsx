@@ -170,11 +170,30 @@ function TypeCounts({ ctx }: { ctx: AdminCtx }) {
   );
 }
 
+/**
+ * The Godfather's -1 or +1, decided after the other setup modifiers. A -1 chosen earlier stops being possible when
+ * there is no Outsider left to remove (a Vigormortis seated afterwards, say); the counts then use +1, so this does too.
+ */
+export function GodfatherChoice({ chosen, outsidersBefore }: { chosen: 1 | -1 | null; outsidersBefore: number }) {
+  const canRemove = outsidersBefore > 0;
+  const shown = chosen === -1 && !canRemove ? 1 : chosen;
+  return (
+    <div className="field">
+      <span>Godfather: Outsiders −1 or +1</span>
+      <div className="seg">
+        <button className={shown === -1 ? 'on' : ''} disabled={!canRemove} onClick={() => send({ type: 'set_godfather_outsiders', value: -1 })}>−1 Outsider</button>
+        <button className={shown === 1 ? 'on' : ''} onClick={() => send({ type: 'set_godfather_outsiders', value: 1 })}>+1 Outsider</button>
+      </div>
+      {!canRemove && <span className="muted small">There are no Outsiders to remove (after the other setup modifiers), so only +1 is possible.</span>}
+    </div>
+  );
+}
+
 function SetupItems({ ctx }: { ctx: AdminCtx }) {
   const { s, names, seated, roleOf, view } = ctx;
   const inPlay = new Set(seated.map(roleOf).filter(Boolean) as string[]);
-  // The Godfather's -1 needs an Outsider left after the other setup modifiers (an older server sends only the chart count).
-  const godfatherCanRemove = (view.typeCounts.outsidersBeforeGodfather ?? view.typeCounts.chartOutsiders) > 0;
+  // An older server sends only the chart count.
+  const godfatherOutsiders = view.typeCounts.outsidersBeforeGodfather ?? view.typeCounts.chartOutsiders;
   const enabledOf = (pred: (t: RoleType, align: string) => boolean) => ROLES.filter((r) => s.script.includes(r.id) && pred(r.type, r.alignment) && !inPlay.has(r.id));
   const believedTaken = new Set(seated.map((id) => s.assignments[id]?.believedRoleId).filter(Boolean) as string[]);
   const drunks = seated.filter((id) => roleOf(id) === 'drunk');
@@ -237,16 +256,7 @@ function SetupItems({ ctx }: { ctx: AdminCtx }) {
           </div>
         </label>
       )}
-      {inPlay.has('godfather') && (
-        <div className="field">
-          <span>Godfather: Outsiders −1 or +1</span>
-          <div className="seg">
-            <button className={s.setup.godfatherOutsiders === -1 ? 'on' : ''} disabled={!godfatherCanRemove} onClick={() => send({ type: 'set_godfather_outsiders', value: -1 })}>−1 Outsider</button>
-            <button className={s.setup.godfatherOutsiders === 1 ? 'on' : ''} onClick={() => send({ type: 'set_godfather_outsiders', value: 1 })}>+1 Outsider</button>
-          </div>
-          {!godfatherCanRemove && <span className="muted small">There are no Outsiders to remove (after the other setup modifiers), so only +1 is possible.</span>}
-        </div>
-      )}
+      {inPlay.has('godfather') && <GodfatherChoice chosen={s.setup.godfatherOutsiders} outsidersBefore={godfatherOutsiders} />}
       {inPlay.has('lil_monsta') && (
         <label className="field">
           <span>Lil' Monsta player becomes (Minion)</span>
