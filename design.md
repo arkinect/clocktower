@@ -922,7 +922,7 @@ The rest are `'reminder'`: shown in the role list only, applied by the Admin at 
 
 ## 18. Tests
 
-307 automated tests (`./dev.sh npm test`: 289 server, 18 client), all passing:
+322 automated tests (`./dev.sh npm test`: 301 server, 21 client), all passing:
 - **Original worked examples:** poison makes false info; sober Sailor survives, poisoned Sailor dies; Innkeeper protects but not from the Assassin; Mayor tails redirect (may land on a protected player); Clockmaker 7 seats Demon 1 Minion 5 → 3; Goon; Po none then three; starpass suggests the Scarlet Woman and the Admin picks another; Shabaloth regurgitation; Lil' Monsta flow and the Fortune Teller reading the new holder; reconnect and rebind.
 - **Per-role tests** for every role with a night effect (true, impaired, registration cases), setup blocking, role reassignment, Ravenkeeper second round, Scarlet Woman night and day.
 - **Follow-up questions:** the question's key and spec and the timer extension, "Accept all defaults" leaves a question unanswered, re-opening collecting clears answers, the Storyteller answering for a player, only the asked player answering once with a legal choice, the v7 step.
@@ -982,6 +982,9 @@ Rule gaps (already folded into the cards above, listed here for review):
 - The Cannibal & Juggler jinx is applied only for a Juggler executed on day 1 (their ability wakes only on night 1). A Juggler eaten on a later day gives nothing; the Storyteller applies anything else at the table.
 - The Cannibal's poison after an evil eat is the Cannibal's own ability, so it is not abnormal for the Mathematician.
 - The Farmer's new Farmer is any alive player whose actual alignment is good (a Recluse included), and keeps their alignment; with only Farmers left the default is Nobody. A Farmer impaired at death, or a Drunk or Marionette who thinks they are the Farmer, makes nobody a Farmer: the review screen's actor row says so, and no review item is shown.
+- A real Farmer who dies after the Farmer's slot (the Moonchild's target, a Grandmother's link) acts once the night order has finished, with the same options, default and outcome (`alsoAfterOrder`). That includes a Farmer made earlier the same night. The Mathematician has already counted by then, so an impaired Farmer's abnormal event in that case is listed on the review screen but not in their number.
+- The Ravenkeeper and the Farmer wake if they are dead now and died tonight: revived later the same night they don't, and revived and then killed again the same night they do.
+- An eaten Juggler wakes only if the Storyteller entered a count for day 1: with none there is nothing to learn. The real Juggler always wakes on night 1 (the count defaults to 0).
 - A Philosopher who chose the Cannibal eats from the day after choosing (abilities counted with `abilityNightToday`, like the Slayer's shot).
 - A Philosopher-Cannibal who eats the executed real Cannibal gains nothing new: they already have that ability, and whatever they ate before is replaced as usual.
 - A Cannibal who chooses an ability as the eaten Philosopher keeps it only while they have the Philosopher's ability. When the eaten ability changes to anything else (a new eat, or `set_cannibal_ability`), the gained ability goes, with its pending start information and the drunkenness it caused, so that character is sober again. A gained Cannibal stays (it is the ability that eats). Changing back to the Philosopher does not restore any of this: they may choose again.

@@ -4,7 +4,7 @@
 import {
   FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID, abilitiesOf, abilityKey, abilityTitle, hidesRole,
   type AbilitySource, type ActionChoice, type ActionSpec, type Alignment, type Cause, type Effect, type EffectExpiry, type EffectType, type GameState,
-  type FollowUp, type ReviewItem, type ReviewOption, type Resolution, type ResultRow, type ActorRow, type AbnormalEvent, type WorldState,
+  type FollowUp, type NightSlot, type ReviewItem, type ReviewOption, type Resolution, type ResultRow, type ActorRow, type AbnormalEvent, type WorldState,
 } from '@ct/shared';
 import { activeImpairingEffects, computeImpairment, type Impairment } from './impairment';
 import { subRng, type Rng } from './rng';
@@ -367,27 +367,14 @@ export class NightRun {
         [{ id: 'yes', label: 'Yes, the Godfather kills' }, { id: 'no', label: 'No' }], derived ? 'yes' : 'no');
     }
     for (const slot of order) {
-      if (!slot.roleId) continue;
-      const b = BEHAVIOURS[slot.roleId];
-      if (!b?.resolve) continue;
+      if (!slot.roleId || !BEHAVIOURS[slot.roleId]?.resolve) continue;
+      for (const actor of this.actorsFor(slot.id, slot.roleId)) this.act(slot, actor);
+    }
+    // Deaths after a role's slot (the Moonchild's target, a Grandmother's link): it acts once the order has finished.
+    for (const slot of order) {
+      if (!slot.roleId || !BEHAVIOURS[slot.roleId]?.alsoAfterOrder) continue;
       for (const actor of this.actorsFor(slot.id, slot.roleId)) {
-        const row: ActorRow = {
-          slot: slot.label, playerId: actor.pid, roleId: actor.roleId, input: describeChoice(this.w, actor.choice),
-          impaired: false, causes: [], outcome: '',
-        };
-        this.actors.push(row);
-        this.currentActorRow = row;
-        this.currentActor = actor;
-        this.goonCheck(actor);
-        const imp2 = this.impForActor(actor);
-        row.impaired = imp2.impaired;
-        row.causes = imp2.causes;
-        if (imp2.impaired && !(actor.choice?.decline) && !b.wakesOnNightDeath) this.abnormalIfExternal(actor.pid, `${roleName(actor.roleId)} ability impaired`);
-        b.resolve(this, actor);
-        // A start-information role has now given its information (true or false): it isn't pending any more.
-        if (ROLE_BY_ID[actor.roleId]?.startInfo) clearStartInfo(this.w, actor.pid, actor.roleId);
-        this.currentActorRow = null;
-        this.currentActor = null;
+        if (actor.real && !this.actors.some((r) => r.playerId === actor.pid && r.roleId === actor.roleId)) this.act(slot, actor);
       }
     }
     const after = this.w;
@@ -399,6 +386,27 @@ export class NightRun {
     };
   }
 
+  private act(slot: NightSlot, actor: Actor) {
+    const b = BEHAVIOURS[actor.roleId];
+    const row: ActorRow = {
+      slot: slot.label, playerId: actor.pid, roleId: actor.roleId, input: describeChoice(this.w, actor.choice),
+      impaired: false, causes: [], outcome: '',
+    };
+    this.actors.push(row);
+    this.currentActorRow = row;
+    this.currentActor = actor;
+    this.goonCheck(actor);
+    const imp2 = this.impForActor(actor);
+    row.impaired = imp2.impaired;
+    row.causes = imp2.causes;
+    if (imp2.impaired && !(actor.choice?.decline) && !b.wakesOnNightDeath) this.abnormalIfExternal(actor.pid, `${roleName(actor.roleId)} ability impaired`);
+    b.resolve!(this, actor);
+    // A start-information role has now given its information (true or false): it isn't pending any more.
+    if (ROLE_BY_ID[actor.roleId]?.startInfo) clearStartInfo(this.w, actor.pid, actor.roleId);
+    this.currentActorRow = null;
+    this.currentActor = null;
+  }
+
   actorsFor(slotId: string, roleId: string): Actor[] {
     const b = BEHAVIOURS[roleId];
     const out: Actor[] = [];
@@ -408,10 +416,13 @@ export class NightRun {
       const pending = startInfoPending(this.w, pid).includes(roleId);
       const ability = abilitiesOf(this.w, pid, pending ? Infinity : this.n).find((x) => x.roleId === roleId);
       if (!ability) continue;
-      if (this.noActTonight.has(pid) && !pending) continue;
       if (b.wakesOnNightDeath) {
-        if (!this.deaths.includes(pid)) continue;
-      } else if (!canAct(this.w, pid) && !b.actsWhileDead) continue;
+        // Dead now, so not skipped for being revived or given this role earlier tonight, if they then died.
+        if (!this.deaths.includes(pid) || isAlive(this.w, pid)) continue;
+      } else {
+        if (this.noActTonight.has(pid) && !pending) continue;
+        if (!canAct(this.w, pid) && !b.actsWhileDead) continue;
+      }
       if (b.wakes && !b.wakes({ w: this.w, pid, night: this.n, state: this.state })) continue;
       // Nothing is submitted for these: the Ravenkeeper's choice comes later, as a follow-up question (askFollowUp).
       const sub = b.wakesOnNightDeath ? undefined : this.night.submissions[pid];

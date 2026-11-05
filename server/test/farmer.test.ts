@@ -85,6 +85,59 @@ describe('Farmer', () => {
     expect(res.abnormal).toContainEqual(expect.objectContaining({ playerId: g.p.farmer, detail: 'Farmer ability impaired' }));
   });
 
+  describe('dying after the Farmer\'s slot', () => {
+    /** Seats: Moonchild (executed on day 1, choosing `target`), Imp, Poisoner, then the rest. Night 1 open. */
+    function moonchildKills(rest: string[], target: string, extra?: (g: TestGame) => void) {
+      const g = build(['moonchild', 'imp', 'poisoner', ...rest]);
+      runNight(g, {});
+      act(g, { type: 'record_execution', playerId: g.p.moonchild, died: true });
+      act(g, { type: 'set_day_fact', key: 'moonchildTargetId', value: g.p[target] });
+      nextNight(g);
+      extra?.(g);
+      return g;
+    }
+
+    it('the Moonchild kills the Farmer: the same review item, once the night order has finished', () => {
+      const g = moonchildKills(['farmer', 'empath', 'sailor'], 'farmer');
+      const res = resolve(g);
+      expect(res.deaths).toEqual([g.p.farmer]);
+      const pick = item(g, g.p.farmer)!;
+      expect(pick.options.map((o) => o.id)).toEqual([g.p.empath, g.p.sailor, 'nobody']);
+      expect([g.p.empath, g.p.sailor]).toContain(pick.default);
+      const rows = res.actors.filter((a) => a.roleId === 'farmer');
+      expect(rows).toHaveLength(1);
+      expect(res.actors.at(-1)).toEqual(rows[0]);
+      resolve(g, { [`farmer:${g.p.farmer}`]: g.p.sailor });
+      act(g, { type: 'publish_night', force: true });
+      expect(g.s.assignments[g.p.sailor]).toMatchObject({ roleId: 'farmer', alignment: 'good' });
+      expect(g.s.messages[g.p.sailor].map((m) => m.title)).toContain('You are now the Farmer');
+    });
+
+    it('a Farmer poisoned when the Moonchild kills them does nothing, with the same note', () => {
+      const g = moonchildKills(['farmer', 'empath', 'sailor'], 'farmer');
+      submit(g, { [g.p.poisoner]: { poisoner: [g.p.farmer] } });
+      const res = resolve(g);
+      expect(item(g, g.p.farmer)).toBeUndefined();
+      expect(res.actors.find((a) => a.roleId === 'farmer')).toMatchObject({ impaired: true, outcome: 'drunk or poisoned when they died: nobody becomes a Farmer' });
+    });
+
+    it('a new Farmer killed later the same night also passes it on', () => {
+      const g = moonchildKills(['farmer', 'empath', 'sailor'], 'empath');
+      submit(g, { [g.p.imp]: { imp: [g.p.farmer] } });
+      resolve(g, { [`farmer:${g.p.farmer}`]: g.p.empath });
+      const res = resolve(g, { [`farmer:${g.p.empath}`]: g.p.sailor });
+      expect(res.deaths).toEqual([g.p.farmer, g.p.empath]);
+      expect(res.after.assignments[g.p.sailor].roleId).toBe('farmer');
+    });
+
+    it('a Drunk who thinks they are the Farmer gets nothing after the order', () => {
+      const g = moonchildKills(['drunk', 'empath', 'sailor'], 'drunk', (g) => { g.s.assignments[g.p.drunk].believedRoleId = 'farmer'; });
+      const res = resolve(g);
+      expect(res.deaths).toEqual([g.p.drunk]);
+      expect(item(g, g.p.drunk)).toBeUndefined();
+    });
+  });
+
   it('a Drunk who thinks they are the Farmer does nothing when they die at night', () => {
     const g = night1(['drunk', 'imp', 'poisoner', 'empath', 'sailor', 'butler'], (g) => {
       act(g, { type: 'set_believed_role', playerId: g.p.drunk, roleId: 'farmer' });

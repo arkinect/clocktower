@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { abilitiesOf } from '@ct/shared';
 import { act, build, nextNight, resolve, resultFor, runNight, submit, tryAct, type TestGame } from './helpers';
-import { actionSpecs } from '../src/engine/actions';
+import { actionSpecs, wakingRoles } from '../src/engine/actions';
 import { bluffCandidates, enabledRoles } from '../src/engine/setup';
 import { adminView, playerView } from '../src/engine/views';
 import { computeImpairment } from '../src/engine/impairment';
@@ -234,6 +234,19 @@ describe('Cannibal jinxes', () => {
     execute(g, g.p.juggler);
     nextNight(g);
     expect(resultFor(resolve(g), g.p.cannibal, 'juggler')).toMatchObject({ title: 'Cannibal', trueLines: ['You guessed 3 correctly.'], impaired: false });
+  });
+
+  it('Jinx (Cannibal & Juggler): with no count entered, the Cannibal doesn\'t wake as the Juggler; the real Juggler still does', () => {
+    const g = day1(['cannibal', 'imp', 'poisoner', 'juggler', 'empath', 'sailor']);
+    execute(g, g.p.juggler);
+    nextNight(g);
+    expect(wakingRoles(g.s, g.p.cannibal)).toEqual([]);
+    expect(resultFor(resolve(g), g.p.cannibal, 'juggler')).toBeUndefined();
+
+    const h = day1(['cannibal', 'imp', 'poisoner', 'juggler', 'empath', 'sailor']);
+    nextNight(h);
+    expect(wakingRoles(h.s, h.p.juggler)).toEqual(['juggler']);
+    expect(resultFor(resolve(h), h.p.juggler, 'juggler')).toBeDefined();
   });
 
   it('Jinx (Cannibal & Juggler): a Juggler executed on a later day gives the Cannibal nothing (the Storyteller\'s call)', () => {

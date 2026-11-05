@@ -1,7 +1,7 @@
 // Role behaviour modules (section 14). Each role declares its night input (spec) and how it resolves.
 // Owner decision: night pickers list dead players too (abilities can be wasted on bodies), except where a role
 // needs a specific group (Lil' Monsta passes only to living Minions, the Professor picks only the dead).
-import { ROLE_BY_ID, type ActionSpec, type Assignment, type GameState, type WorldState } from '@ct/shared';
+import { ROLE_BY_ID, abilitiesOf, type ActionSpec, type Assignment, type GameState, type WorldState } from '@ct/shared';
 import type { Actor, NightRun } from '../night';
 import { becomeDemon, demonInfoLines } from '../demon';
 import { enabledRoles } from '../setup';
@@ -25,6 +25,11 @@ export interface RoleBehaviour {
    * of the moment they died (NightRun.impairAtDeath), and they never get a picker of their own (wakingRoles).
    */
   wakesOnNightDeath?: true;
+  /**
+   * With wakesOnNightDeath: also acts, once the night order has finished, for a player with the real ability who died
+   * after this role's slot. (The Ravenkeeper's slot comes after every death, so it doesn't need this.)
+   */
+  alsoAfterOrder?: true;
   /**
    * Called after an execution kills `executeeId`, once for each seated player (`holderId`) with a real ability of
    * this role, dead or alive and whether or not impaired: the hook decides what that means for its role.
@@ -228,7 +233,9 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
   },
 
   juggler: {
-    wakes: (c) => c.night === 1,
+    // Jinx (Cannibal & Juggler): an eaten Juggler has something to learn only if the Storyteller entered a count.
+    wakes: (c) => c.night === 1
+      && (c.state.days[1]?.jugglerCorrect != null || abilitiesOf(c.w, c.pid, c.night).some((x) => x.roleId === 'juggler' && x.source !== 'cannibal')),
     resolve(run, a) {
       const truth = run.state.days[1]?.jugglerCorrect ?? 0;
       const fake = otherNumbers(run, `juggler:${a.pid}`, truth, 0, 5);
@@ -327,6 +334,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
   farmer: {
     actsWhileDead: true,
     wakesOnNightDeath: true,
+    alsoAfterOrder: true,
     resolve(run, a) {
       if (!a.real || run.impForActor(a).impaired) {
         if (a.real) run.abnormalIfExternal(a.pid, 'Farmer ability impaired');
