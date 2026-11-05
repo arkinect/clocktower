@@ -8,7 +8,7 @@ import { createHash, timingSafeEqual } from 'crypto';
 import { SCHEMA_VERSION, type Intent, type JoinRequest } from '@ct/shared';
 import { Store } from './db';
 import { GameManager, type LiveGame } from './manager';
-import { isLoopback, upgradeSavedGames, upgradeSummary, UpgradeRefused, upgradeStatus } from './upgrade';
+import { isLoopback, notStarting, upgradeSavedGames, upgradeSummary, UpgradeRefused, upgradeStatus } from './upgrade';
 
 const PORT = Number(process.env.PORT ?? 8080);
 const DATA_DIR = process.env.DATA_DIR ?? path.resolve('data');
@@ -30,7 +30,7 @@ try {
   if (upgraded) console.log(upgradeSummary(upgraded, SCHEMA_VERSION));
 } catch (e) {
   if (!(e instanceof UpgradeRefused)) throw e;
-  console.error(`Not starting: ${e.message}`);
+  console.error(notStarting(e));
   process.exit(1);
 }
 const games = new GameManager(store);

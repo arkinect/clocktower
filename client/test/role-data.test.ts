@@ -8,14 +8,14 @@ const pick = (f: (r: (typeof ROLES)[number]) => unknown) => Object.fromEntries(R
 describe('Day panel role data', () => {
   it('used flags: ticked by the Storyteller, and set by the engine', () => {
     expect(pick((r) => r.usedFlag && !r.usedFlag.auto && r.usedFlag.key))
-      .toEqual({ virgin: 'virgin_used', golem: 'golem_used', artist: 'artist_used', fool: 'fool_used', slayer: 'slayer_used' });
+      .toEqual({ virgin: 'virgin_used', golem: 'golem_used', artist: 'artist_used', fool: 'fool_used', slayer: 'slayer_used', fisherman: 'fisherman_used' });
     expect(pick((r) => r.usedFlag?.auto && r.usedFlag.key))
       .toEqual({ assassin: 'assassin_used', seamstress: 'seamstress_used', philosopher: 'philosopher_used', huntsman: 'huntsman_used', professor: 'professor_used' });
   });
 
   it('day reminders, each with a reminder to show', () => {
     expect(ROLES.filter((r) => r.dayReminder).map((r) => r.id).sort())
-      .toEqual(['virgin', 'golem', 'mastermind', 'psychopath', 'mayor', 'tea_lady'].sort());
+      .toEqual(['virgin', 'golem', 'mastermind', 'psychopath', 'mayor', 'tea_lady', 'fisherman', 'zealot', 'organ_grinder'].sort());
     expect(ROLES.filter((r) => r.dayReminder && !r.reminder)).toEqual([]);
   });
 

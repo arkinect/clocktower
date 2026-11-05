@@ -1,0 +1,1515 @@
+{
+  "schemaVersion": 8,
+  "id": "game-fixture-v7-ended",
+  "code": "fixture-v7-ended",
+  "phase": "ENDED",
+  "nightNumber": 1,
+  "dayNumber": 2,
+  "scriptId": "all-39",
+  "settings": {
+    "countdownSeconds": 300,
+    "followUpExtensionSeconds": 120,
+    "announceDeaths": false,
+    "notifyOnRoleChange": true
+  },
+  "nightEndsAt": null,
+  "createdAt": 3000000,
+  "script": [
+    "clockmaker",
+    "sailor",
+    "mathematician",
+    "flowergirl",
+    "gambler",
+    "philosopher",
+    "juggler",
+    "fool",
+    "empath",
+    "balloonist",
+    "fortune_teller",
+    "innkeeper",
+    "seamstress",
+    "artist",
+    "ravenkeeper",
+    "virgin",
+    "mayor",
+    "oracle",
+    "gossip",
+    "grandmother",
+    "huntsman",
+    "professor",
+    "slayer",
+    "tea_lady",
+    "drunk",
+    "golem",
+    "recluse",
+    "moonchild",
+    "goon",
+    "butler",
+    "damsel",
+    "mezepheles",
+    "devils_advocate",
+    "mastermind",
+    "poisoner",
+    "marionette",
+    "scarlet_woman",
+    "assassin",
+    "psychopath",
+    "godfather",
+    "witch",
+    "imp",
+    "pukka",
+    "shabaloth",
+    "po",
+    "no_dashii",
+    "vigormortis",
+    "lil_monsta"
+  ],
+  "adminId": "p1",
+  "seatingPublished": true,
+  "publishedSeating": [
+    "p2",
+    "p3",
+    "p4",
+    "p5",
+    "p6",
+    "p7",
+    "p8"
+  ],
+  "days": {
+    "1": {
+      "dayNumber": 1,
+      "executedPlayerId": null,
+      "demonVoted": null,
+      "jugglerCorrect": null,
+      "moonchildTargetId": null,
+      "mezephelesSayer": null,
+      "gossipStatement": "none",
+      "notes": ""
+    },
+    "2": {
+      "dayNumber": 2,
+      "executedPlayerId": "p3",
+      "demonVoted": null,
+      "jugglerCorrect": null,
+      "moonchildTargetId": null,
+      "mezephelesSayer": null,
+      "gossipStatement": "none",
+      "notes": ""
+    }
+  },
+  "night": {
+    "number": 1,
+    "collectingOpen": true,
+    "submissions": {
+      "p3": {
+        "actions": {
+          "poisoner": {
+            "values": [
+              "p8"
+            ]
+          }
+        },
+        "submittedAt": 3000026
+      },
+      "p2": {
+        "actions": {
+          "imp": {
+            "values": [
+              "p7"
+            ]
+          }
+        },
+        "submittedAt": 3000027
+      },
+      "p8": {
+        "actions": {
+          "butler": {
+            "values": [
+              "p6"
+            ]
+          }
+        },
+        "submittedAt": 3000028
+      }
+    },
+    "followUpAnswers": {
+      "ravenkeeper:p7": {
+        "choice": {
+          "values": [
+            "p2"
+          ]
+        },
+        "byAdmin": true,
+        "at": 3000030
+      }
+    },
+    "seed": 42,
+    "reviewChoices": {},
+    "overrides": {},
+    "mathAdjust": {
+      "add": [],
+      "remove": []
+    },
+    "resolution": {
+      "computedAt": 3000030,
+      "actors": [
+        {
+          "slot": "Poisoner",
+          "playerId": "p3",
+          "roleId": "poisoner",
+          "input": "P6",
+          "impaired": false,
+          "causes": [],
+          "outcome": "P6 is poisoned"
+        },
+        {
+          "slot": "Imp",
+          "playerId": "p2",
+          "roleId": "imp",
+          "input": "P5",
+          "impaired": false,
+          "causes": [],
+          "outcome": "P5 dies (demon attack)"
+        },
+        {
+          "slot": "Grandmother",
+          "playerId": "p4",
+          "roleId": "grandmother",
+          "input": "(no input)",
+          "impaired": false,
+          "causes": [],
+          "outcome": "grandchild: P3"
+        },
+        {
+          "slot": "Grandmother",
+          "playerId": "p5",
+          "roleId": "grandmother",
+          "input": "(no input)",
+          "impaired": true,
+          "causes": [
+            "drunk:philosopher"
+          ],
+          "outcome": ""
+        },
+        {
+          "slot": "Ravenkeeper",
+          "playerId": "p7",
+          "roleId": "ravenkeeper",
+          "input": "P0",
+          "impaired": false,
+          "causes": [],
+          "outcome": ""
+        },
+        {
+          "slot": "Empath",
+          "playerId": "p6",
+          "roleId": "empath",
+          "input": "(no input)",
+          "impaired": false,
+          "causes": [],
+          "outcome": ""
+        },
+        {
+          "slot": "Butler",
+          "playerId": "p8",
+          "roleId": "butler",
+          "input": "P4",
+          "impaired": true,
+          "causes": [
+            "poisoned:poisoner"
+          ],
+          "outcome": "master: P4 (no effect, impaired)"
+        }
+      ],
+      "results": [
+        {
+          "key": "p4:grandmother",
+          "playerId": "p4",
+          "roleId": "grandmother",
+          "title": "Grandmother",
+          "trueLines": [
+            "Your grandchild is P3, the Grandmother."
+          ],
+          "suggestedLines": [
+            "Your grandchild is P3, the Grandmother."
+          ],
+          "finalLines": [
+            "Your grandchild is P3, the Grandmother."
+          ],
+          "impaired": false,
+          "causes": [],
+          "overridden": false,
+          "alternatives": []
+        },
+        {
+          "key": "p7:ravenkeeper",
+          "playerId": "p7",
+          "roleId": "ravenkeeper",
+          "title": "Ravenkeeper",
+          "trueLines": [
+            "P0 is the Imp."
+          ],
+          "suggestedLines": [
+            "P0 is the Imp."
+          ],
+          "finalLines": [
+            "P0 is the Imp."
+          ],
+          "impaired": false,
+          "causes": [],
+          "overridden": false,
+          "alternatives": []
+        },
+        {
+          "key": "p6:empath",
+          "playerId": "p6",
+          "roleId": "empath",
+          "title": "Empath",
+          "trueLines": [
+            "0 of your alive neighbours are evil."
+          ],
+          "suggestedLines": [
+            "0 of your alive neighbours are evil."
+          ],
+          "finalLines": [
+            "0 of your alive neighbours are evil."
+          ],
+          "impaired": false,
+          "causes": [],
+          "overridden": false,
+          "alternatives": [
+            [
+              "0 of your alive neighbours are evil."
+            ],
+            [
+              "1 of your alive neighbours is evil."
+            ],
+            [
+              "2 of your alive neighbours are evil."
+            ]
+          ]
+        },
+        {
+          "key": "p8:butler",
+          "playerId": "p8",
+          "roleId": "butler",
+          "title": "Butler",
+          "trueLines": [
+            "Your master is P4."
+          ],
+          "suggestedLines": [
+            "Your master is P4."
+          ],
+          "finalLines": [
+            "Your master is P4."
+          ],
+          "impaired": true,
+          "causes": [
+            "poisoned:poisoner"
+          ],
+          "overridden": false,
+          "alternatives": []
+        }
+      ],
+      "reviewItems": [
+        {
+          "key": "grandmother:p4",
+          "kind": "grandmother_grandchild",
+          "title": "Grandmother P2: who is the grandchild?",
+          "description": "Any good player. She learns their actual character.",
+          "options": [
+            {
+              "id": "p5",
+              "label": "P3 (Grandmother)"
+            },
+            {
+              "id": "p6",
+              "label": "P4 (Empath)"
+            },
+            {
+              "id": "p7",
+              "label": "P5 (Ravenkeeper)"
+            },
+            {
+              "id": "p8",
+              "label": "P6 (Butler)"
+            }
+          ],
+          "default": "p5",
+          "chosen": null
+        }
+      ],
+      "log": [
+        "P6 is poisoned",
+        "P5 dies (demon attack)",
+        "grandchild: P3",
+        "master: P4 (no effect, impaired)"
+      ],
+      "deaths": [
+        "p7"
+      ],
+      "revived": [],
+      "abnormal": [
+        {
+          "playerId": "p5",
+          "cause": "drunk:philosopher",
+          "detail": "Grandmother ability impaired"
+        },
+        {
+          "playerId": "p8",
+          "cause": "poisoned:poisoner",
+          "detail": "Butler ability impaired"
+        }
+      ],
+      "followUps": [
+        {
+          "key": "ravenkeeper:p7",
+          "playerId": "p7",
+          "roleId": "ravenkeeper",
+          "spec": {
+            "key": "ravenkeeper:p7",
+            "roleId": "ravenkeeper",
+            "title": "Ravenkeeper",
+            "prompt": "You have died. Choose a player: you learn their character.",
+            "fields": [
+              {
+                "kind": "player",
+                "label": "Player",
+                "options": [
+                  "p2",
+                  "p3",
+                  "p4",
+                  "p5",
+                  "p6",
+                  "p7",
+                  "p8"
+                ]
+              }
+            ],
+            "distinct": false,
+            "allowDecline": false
+          },
+          "answered": true
+        }
+      ],
+      "notices": [],
+      "after": {
+        "players": [
+          {
+            "id": "p1",
+            "name": "Storyteller",
+            "rolePreference": "none",
+            "isAdmin": true,
+            "seat": null,
+            "tokens": [
+              "tok-Storyteller"
+            ],
+            "alive": true,
+            "deadAt": null,
+            "deathCause": null,
+            "ghostVoteUsed": false,
+            "lastSeenAt": 3000000,
+            "hasSeenRole": false,
+            "joinedAt": 3000000
+          },
+          {
+            "id": "p2",
+            "name": "P0",
+            "rolePreference": "none",
+            "isAdmin": false,
+            "seat": 0,
+            "tokens": [
+              "tok-P0"
+            ],
+            "alive": true,
+            "deadAt": null,
+            "deathCause": null,
+            "ghostVoteUsed": false,
+            "lastSeenAt": 3000001,
+            "hasSeenRole": false,
+            "joinedAt": 3000001
+          },
+          {
+            "id": "p3",
+            "name": "P1",
+            "rolePreference": "none",
+            "isAdmin": false,
+            "seat": 1,
+            "tokens": [
+              "tok-P1"
+            ],
+            "alive": true,
+            "deadAt": null,
+            "deathCause": null,
+            "ghostVoteUsed": false,
+            "lastSeenAt": 3000002,
+            "hasSeenRole": false,
+            "joinedAt": 3000002
+          },
+          {
+            "id": "p4",
+            "name": "P2",
+            "rolePreference": "none",
+            "isAdmin": false,
+            "seat": 2,
+            "tokens": [
+              "tok-P2"
+            ],
+            "alive": true,
+            "deadAt": null,
+            "deathCause": null,
+            "ghostVoteUsed": false,
+            "lastSeenAt": 3000003,
+            "hasSeenRole": false,
+            "joinedAt": 3000003
+          },
+          {
+            "id": "p5",
+            "name": "P3",
+            "rolePreference": "none",
+            "isAdmin": false,
+            "seat": 3,
+            "tokens": [
+              "tok-P3"
+            ],
+            "alive": true,
+            "deadAt": null,
+            "deathCause": null,
+            "ghostVoteUsed": false,
+            "lastSeenAt": 3000004,
+            "hasSeenRole": false,
+            "joinedAt": 3000004
+          },
+          {
+            "id": "p6",
+            "name": "P4",
+            "rolePreference": "none",
+            "isAdmin": false,
+            "seat": 4,
+            "tokens": [
+              "tok-P4"
+            ],
+            "alive": true,
+            "deadAt": null,
+            "deathCause": null,
+            "ghostVoteUsed": false,
+            "lastSeenAt": 3000005,
+            "hasSeenRole": false,
+            "joinedAt": 3000005
+          },
+          {
+            "id": "p7",
+            "name": "P5",
+            "rolePreference": "none",
+            "isAdmin": false,
+            "seat": 5,
+            "tokens": [
+              "tok-P5"
+            ],
+            "alive": false,
+            "deadAt": {
+              "phase": "night",
+              "number": 1
+            },
+            "deathCause": "demon_attack",
+            "ghostVoteUsed": false,
+            "lastSeenAt": 3000006,
+            "hasSeenRole": false,
+            "joinedAt": 3000006
+          },
+          {
+            "id": "p8",
+            "name": "P6",
+            "rolePreference": "none",
+            "isAdmin": false,
+            "seat": 6,
+            "tokens": [
+              "tok-P6"
+            ],
+            "alive": true,
+            "deadAt": null,
+            "deathCause": null,
+            "ghostVoteUsed": false,
+            "lastSeenAt": 3000007,
+            "hasSeenRole": false,
+            "joinedAt": 3000007
+          }
+        ],
+        "assignments": {
+          "p2": {
+            "roleId": "imp",
+            "believedRoleId": null,
+            "alignment": "evil",
+            "retainsAbilityWhenDead": false,
+            "grantedAbility": null,
+            "history": [
+              {
+                "at": 3000010,
+                "from": null,
+                "to": "imp",
+                "reason": "setup"
+              }
+            ]
+          },
+          "p3": {
+            "roleId": "poisoner",
+            "believedRoleId": null,
+            "alignment": "evil",
+            "retainsAbilityWhenDead": false,
+            "grantedAbility": null,
+            "history": [
+              {
+                "at": 3000011,
+                "from": null,
+                "to": "poisoner",
+                "reason": "setup"
+              }
+            ]
+          },
+          "p4": {
+            "roleId": "philosopher",
+            "believedRoleId": null,
+            "alignment": "good",
+            "retainsAbilityWhenDead": false,
+            "grantedAbility": {
+              "roleId": "grandmother",
+              "fromNight": 1
+            },
+            "history": [
+              {
+                "at": 3000012,
+                "from": null,
+                "to": "philosopher",
+                "reason": "setup"
+              }
+            ]
+          },
+          "p5": {
+            "roleId": "grandmother",
+            "believedRoleId": null,
+            "alignment": "good",
+            "retainsAbilityWhenDead": false,
+            "grantedAbility": null,
+            "history": [
+              {
+                "at": 3000013,
+                "from": null,
+                "to": "grandmother",
+                "reason": "setup"
+              }
+            ]
+          },
+          "p6": {
+            "roleId": "empath",
+            "believedRoleId": null,
+            "alignment": "good",
+            "retainsAbilityWhenDead": false,
+            "grantedAbility": null,
+            "history": [
+              {
+                "at": 3000014,
+                "from": null,
+                "to": "empath",
+                "reason": "setup"
+              }
+            ]
+          },
+          "p7": {
+            "roleId": "ravenkeeper",
+            "believedRoleId": null,
+            "alignment": "good",
+            "retainsAbilityWhenDead": false,
+            "grantedAbility": null,
+            "history": [
+              {
+                "at": 3000015,
+                "from": null,
+                "to": "ravenkeeper",
+                "reason": "setup"
+              }
+            ]
+          },
+          "p8": {
+            "roleId": "butler",
+            "believedRoleId": null,
+            "alignment": "good",
+            "retainsAbilityWhenDead": false,
+            "grantedAbility": null,
+            "history": [
+              {
+                "at": 3000016,
+                "from": null,
+                "to": "butler",
+                "reason": "setup"
+              }
+            ]
+          }
+        },
+        "flags": {
+          "p4": {
+            "philosopher_used": true
+          }
+        },
+        "effects": [
+          {
+            "id": "e0-0-p4-p5",
+            "type": "drunk",
+            "cause": "philosopher",
+            "sourcePlayerId": "p4",
+            "targetPlayerId": "p5",
+            "startNight": 0,
+            "expiry": "until_removed"
+          },
+          {
+            "id": "e1-1-p3-p8",
+            "type": "poisoned",
+            "cause": "poisoner",
+            "sourcePlayerId": "p3",
+            "targetPlayerId": "p8",
+            "startNight": 1,
+            "expiry": "until_dusk"
+          }
+        ],
+        "roleState": {
+          "p4": {
+            "grandmotherInfoPending": false,
+            "grandchildId": "p5"
+          },
+          "p5": {
+            "grandmotherInfoPending": false,
+            "grandchildId": null
+          }
+        },
+        "setup": {
+          "demonBluffs": [
+            "clockmaker",
+            "mayor",
+            "oracle"
+          ],
+          "redHerringId": null,
+          "lilMonstaMinionRole": null,
+          "lilMonstaTokenHolderId": null,
+          "mezephelesWord": null,
+          "mezephelesSpent": false,
+          "typeCountsOverride": null,
+          "shabalothKills": [],
+          "briefingSeen": false,
+          "godfatherOutsiders": null,
+          "damselGuessUsed": false,
+          "damselGuessResult": null
+        }
+      }
+    }
+  },
+  "messages": {
+    "p2": [
+      {
+        "id": "m9",
+        "night": 0,
+        "kind": "starting",
+        "title": "Demon information",
+        "lines": [
+          "Your Minions: P1",
+          "Not in play (bluffs): Clockmaker, Mayor, Oracle",
+          "Tell your Minions who you are in person."
+        ]
+      },
+      {
+        "id": "m23",
+        "night": 1,
+        "kind": "result",
+        "title": "Tonight",
+        "lines": [
+          "You learned nothing."
+        ]
+      }
+    ],
+    "p3": [
+      {
+        "id": "m10",
+        "night": 0,
+        "kind": "starting",
+        "title": "Your fellow Minions",
+        "lines": [
+          "You are the only Minion.",
+          "The Demon will reveal themselves to you at the table."
+        ]
+      },
+      {
+        "id": "m24",
+        "night": 1,
+        "kind": "result",
+        "title": "Tonight",
+        "lines": [
+          "You learned nothing."
+        ]
+      },
+      {
+        "id": "m26",
+        "night": 1,
+        "kind": "notice",
+        "title": "You have died",
+        "lines": [
+          "You are dead. Keep your eyes closed at night unless your ability says otherwise."
+        ]
+      }
+    ],
+    "p4": [
+      {
+        "id": "m18",
+        "night": 1,
+        "kind": "result",
+        "title": "Grandmother",
+        "lines": [
+          "Your grandchild is P3, the Grandmother."
+        ]
+      }
+    ],
+    "p6": [
+      {
+        "id": "m20",
+        "night": 1,
+        "kind": "result",
+        "title": "Empath",
+        "lines": [
+          "0 of your alive neighbours are evil."
+        ]
+      }
+    ],
+    "p8": [
+      {
+        "id": "m21",
+        "night": 1,
+        "kind": "result",
+        "title": "Butler",
+        "lines": [
+          "Your master is P4."
+        ]
+      }
+    ],
+    "p5": [
+      {
+        "id": "m25",
+        "night": 1,
+        "kind": "result",
+        "title": "Tonight",
+        "lines": [
+          "You learned nothing."
+        ]
+      }
+    ],
+    "p7": [
+      {
+        "id": "m19",
+        "night": 1,
+        "kind": "result",
+        "title": "Ravenkeeper",
+        "lines": [
+          "P0 is the Imp."
+        ]
+      },
+      {
+        "id": "m22",
+        "night": 1,
+        "kind": "notice",
+        "title": "You have died",
+        "lines": [
+          "You died in the night."
+        ]
+      }
+    ]
+  },
+  "pendingNotices": {},
+  "dayPrompts": [],
+  "story": [
+    {
+      "kind": "night",
+      "night": 0,
+      "at": 3000024,
+      "players": [
+        {
+          "playerId": "p2",
+          "name": "P0",
+          "seat": 0,
+          "roleId": "imp",
+          "believedRoleId": null,
+          "alignment": "evil",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [],
+          "received": []
+        },
+        {
+          "playerId": "p3",
+          "name": "P1",
+          "seat": 1,
+          "roleId": "poisoner",
+          "believedRoleId": null,
+          "alignment": "evil",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [
+            {
+              "slot": "Poisoner",
+              "roleId": "poisoner",
+              "input": "P4",
+              "outcome": "P4 is poisoned"
+            }
+          ],
+          "received": []
+        },
+        {
+          "playerId": "p4",
+          "name": "P2",
+          "seat": 2,
+          "roleId": "philosopher",
+          "believedRoleId": null,
+          "alignment": "good",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [
+            {
+              "slot": "Philosopher",
+              "roleId": "philosopher",
+              "input": "Grandmother",
+              "outcome": "gains the Grandmother ability from next night; P3 (Grandmother) is drunk while the Philosopher lives"
+            }
+          ],
+          "received": [
+            {
+              "title": "Philosopher",
+              "lines": [
+                "You chose the Grandmother ability."
+              ]
+            }
+          ]
+        },
+        {
+          "playerId": "p5",
+          "name": "P3",
+          "seat": 3,
+          "roleId": "grandmother",
+          "believedRoleId": null,
+          "alignment": "good",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": true,
+          "causes": [
+            "drunk:philosopher"
+          ],
+          "actions": [
+            {
+              "slot": "Grandmother",
+              "roleId": "grandmother",
+              "input": "(no input)",
+              "outcome": "impaired: false grandchild, no link"
+            }
+          ],
+          "received": [
+            {
+              "title": "Grandmother",
+              "lines": [
+                "Your grandchild is P1, the Damsel."
+              ],
+              "trueLines": [
+                "(impaired: no grandchild is recorded)"
+              ]
+            }
+          ]
+        },
+        {
+          "playerId": "p6",
+          "name": "P4",
+          "seat": 4,
+          "roleId": "empath",
+          "believedRoleId": null,
+          "alignment": "good",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": true,
+          "causes": [
+            "poisoned:poisoner"
+          ],
+          "actions": [
+            {
+              "slot": "Empath",
+              "roleId": "empath",
+              "input": "(no input)",
+              "outcome": ""
+            }
+          ],
+          "received": [
+            {
+              "title": "Empath",
+              "lines": [
+                "2 of your alive neighbours are evil."
+              ],
+              "trueLines": [
+                "0 of your alive neighbours are evil."
+              ]
+            }
+          ]
+        },
+        {
+          "playerId": "p7",
+          "name": "P5",
+          "seat": 5,
+          "roleId": "ravenkeeper",
+          "believedRoleId": null,
+          "alignment": "good",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [],
+          "received": []
+        },
+        {
+          "playerId": "p8",
+          "name": "P6",
+          "seat": 6,
+          "roleId": "butler",
+          "believedRoleId": null,
+          "alignment": "good",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [
+            {
+              "slot": "Butler",
+              "roleId": "butler",
+              "input": "P4",
+              "outcome": "master: P4"
+            }
+          ],
+          "received": [
+            {
+              "title": "Butler",
+              "lines": [
+                "Your master is P4."
+              ]
+            }
+          ]
+        }
+      ],
+      "deaths": [],
+      "revived": []
+    },
+    {
+      "kind": "day",
+      "day": 1,
+      "at": 3000025,
+      "executedPlayerId": null,
+      "deaths": [],
+      "notes": ""
+    },
+    {
+      "kind": "night",
+      "night": 1,
+      "at": 3000031,
+      "players": [
+        {
+          "playerId": "p2",
+          "name": "P0",
+          "seat": 0,
+          "roleId": "imp",
+          "believedRoleId": null,
+          "alignment": "evil",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [
+            {
+              "slot": "Imp",
+              "roleId": "imp",
+              "input": "P5",
+              "outcome": "P5 dies (demon attack)"
+            }
+          ],
+          "received": []
+        },
+        {
+          "playerId": "p3",
+          "name": "P1",
+          "seat": 1,
+          "roleId": "poisoner",
+          "believedRoleId": null,
+          "alignment": "evil",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [
+            {
+              "slot": "Poisoner",
+              "roleId": "poisoner",
+              "input": "P6",
+              "outcome": "P6 is poisoned"
+            }
+          ],
+          "received": []
+        },
+        {
+          "playerId": "p4",
+          "name": "P2",
+          "seat": 2,
+          "roleId": "philosopher",
+          "believedRoleId": null,
+          "alignment": "good",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [
+            {
+              "slot": "Grandmother",
+              "roleId": "grandmother",
+              "input": "(no input)",
+              "outcome": "grandchild: P3"
+            }
+          ],
+          "received": [
+            {
+              "title": "Grandmother",
+              "lines": [
+                "Your grandchild is P3, the Grandmother."
+              ]
+            }
+          ]
+        },
+        {
+          "playerId": "p5",
+          "name": "P3",
+          "seat": 3,
+          "roleId": "grandmother",
+          "believedRoleId": null,
+          "alignment": "good",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": true,
+          "causes": [
+            "drunk:philosopher"
+          ],
+          "actions": [
+            {
+              "slot": "Grandmother",
+              "roleId": "grandmother",
+              "input": "(no input)",
+              "outcome": ""
+            }
+          ],
+          "received": []
+        },
+        {
+          "playerId": "p6",
+          "name": "P4",
+          "seat": 4,
+          "roleId": "empath",
+          "believedRoleId": null,
+          "alignment": "good",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": false,
+          "causes": [],
+          "actions": [
+            {
+              "slot": "Empath",
+              "roleId": "empath",
+              "input": "(no input)",
+              "outcome": ""
+            }
+          ],
+          "received": [
+            {
+              "title": "Empath",
+              "lines": [
+                "0 of your alive neighbours are evil."
+              ]
+            }
+          ]
+        },
+        {
+          "playerId": "p7",
+          "name": "P5",
+          "seat": 5,
+          "roleId": "ravenkeeper",
+          "believedRoleId": null,
+          "alignment": "good",
+          "aliveAtStart": true,
+          "aliveAtEnd": false,
+          "impaired": false,
+          "causes": [],
+          "actions": [
+            {
+              "slot": "Ravenkeeper",
+              "roleId": "ravenkeeper",
+              "input": "P0",
+              "outcome": ""
+            }
+          ],
+          "received": [
+            {
+              "title": "Ravenkeeper",
+              "lines": [
+                "P0 is the Imp."
+              ]
+            }
+          ]
+        },
+        {
+          "playerId": "p8",
+          "name": "P6",
+          "seat": 6,
+          "roleId": "butler",
+          "believedRoleId": null,
+          "alignment": "good",
+          "aliveAtStart": true,
+          "aliveAtEnd": true,
+          "impaired": true,
+          "causes": [
+            "poisoned:poisoner"
+          ],
+          "actions": [
+            {
+              "slot": "Butler",
+              "roleId": "butler",
+              "input": "P4",
+              "outcome": "master: P4 (no effect, impaired)"
+            }
+          ],
+          "received": [
+            {
+              "title": "Butler",
+              "lines": [
+                "Your master is P4."
+              ]
+            }
+          ]
+        }
+      ],
+      "deaths": [
+        "p7"
+      ],
+      "revived": []
+    }
+  ],
+  "publicDead": [
+    "p7"
+  ],
+  "idSeq": 27,
+  "players": [
+    {
+      "id": "p1",
+      "name": "Storyteller",
+      "rolePreference": "none",
+      "isAdmin": true,
+      "seat": null,
+      "tokens": [
+        "tok-Storyteller"
+      ],
+      "alive": true,
+      "deadAt": null,
+      "deathCause": null,
+      "ghostVoteUsed": false,
+      "lastSeenAt": 3000000,
+      "hasSeenRole": false,
+      "joinedAt": 3000000
+    },
+    {
+      "id": "p2",
+      "name": "P0",
+      "rolePreference": "none",
+      "isAdmin": false,
+      "seat": 0,
+      "tokens": [
+        "tok-P0"
+      ],
+      "alive": true,
+      "deadAt": null,
+      "deathCause": null,
+      "ghostVoteUsed": false,
+      "lastSeenAt": 3000001,
+      "hasSeenRole": false,
+      "joinedAt": 3000001
+    },
+    {
+      "id": "p3",
+      "name": "P1",
+      "rolePreference": "none",
+      "isAdmin": false,
+      "seat": 1,
+      "tokens": [
+        "tok-P1"
+      ],
+      "alive": false,
+      "deadAt": {
+        "phase": "day",
+        "number": 2
+      },
+      "deathCause": "execution",
+      "ghostVoteUsed": false,
+      "lastSeenAt": 3000002,
+      "hasSeenRole": false,
+      "joinedAt": 3000002
+    },
+    {
+      "id": "p4",
+      "name": "P2",
+      "rolePreference": "none",
+      "isAdmin": false,
+      "seat": 2,
+      "tokens": [
+        "tok-P2"
+      ],
+      "alive": true,
+      "deadAt": null,
+      "deathCause": null,
+      "ghostVoteUsed": false,
+      "lastSeenAt": 3000003,
+      "hasSeenRole": false,
+      "joinedAt": 3000003
+    },
+    {
+      "id": "p5",
+      "name": "P3",
+      "rolePreference": "none",
+      "isAdmin": false,
+      "seat": 3,
+      "tokens": [
+        "tok-P3"
+      ],
+      "alive": true,
+      "deadAt": null,
+      "deathCause": null,
+      "ghostVoteUsed": false,
+      "lastSeenAt": 3000004,
+      "hasSeenRole": false,
+      "joinedAt": 3000004
+    },
+    {
+      "id": "p6",
+      "name": "P4",
+      "rolePreference": "none",
+      "isAdmin": false,
+      "seat": 4,
+      "tokens": [
+        "tok-P4"
+      ],
+      "alive": true,
+      "deadAt": null,
+      "deathCause": null,
+      "ghostVoteUsed": false,
+      "lastSeenAt": 3000005,
+      "hasSeenRole": false,
+      "joinedAt": 3000005
+    },
+    {
+      "id": "p7",
+      "name": "P5",
+      "rolePreference": "none",
+      "isAdmin": false,
+      "seat": 5,
+      "tokens": [
+        "tok-P5"
+      ],
+      "alive": false,
+      "deadAt": {
+        "phase": "night",
+        "number": 1
+      },
+      "deathCause": "demon_attack",
+      "ghostVoteUsed": false,
+      "lastSeenAt": 3000006,
+      "hasSeenRole": false,
+      "joinedAt": 3000006
+    },
+    {
+      "id": "p8",
+      "name": "P6",
+      "rolePreference": "none",
+      "isAdmin": false,
+      "seat": 6,
+      "tokens": [
+        "tok-P6"
+      ],
+      "alive": true,
+      "deadAt": null,
+      "deathCause": null,
+      "ghostVoteUsed": false,
+      "lastSeenAt": 3000007,
+      "hasSeenRole": false,
+      "joinedAt": 3000007
+    }
+  ],
+  "assignments": {
+    "p2": {
+      "roleId": "imp",
+      "believedRoleId": null,
+      "alignment": "evil",
+      "retainsAbilityWhenDead": false,
+      "grantedAbility": null,
+      "history": [
+        {
+          "at": 3000010,
+          "from": null,
+          "to": "imp",
+          "reason": "setup"
+        }
+      ]
+    },
+    "p3": {
+      "roleId": "poisoner",
+      "believedRoleId": null,
+      "alignment": "evil",
+      "retainsAbilityWhenDead": false,
+      "grantedAbility": null,
+      "history": [
+        {
+          "at": 3000011,
+          "from": null,
+          "to": "poisoner",
+          "reason": "setup"
+        }
+      ]
+    },
+    "p4": {
+      "roleId": "philosopher",
+      "believedRoleId": null,
+      "alignment": "good",
+      "retainsAbilityWhenDead": false,
+      "grantedAbility": {
+        "roleId": "grandmother",
+        "fromNight": 1
+      },
+      "history": [
+        {
+          "at": 3000012,
+          "from": null,
+          "to": "philosopher",
+          "reason": "setup"
+        }
+      ]
+    },
+    "p5": {
+      "roleId": "grandmother",
+      "believedRoleId": null,
+      "alignment": "good",
+      "retainsAbilityWhenDead": false,
+      "grantedAbility": null,
+      "history": [
+        {
+          "at": 3000013,
+          "from": null,
+          "to": "grandmother",
+          "reason": "setup"
+        }
+      ]
+    },
+    "p6": {
+      "roleId": "empath",
+      "believedRoleId": null,
+      "alignment": "good",
+      "retainsAbilityWhenDead": false,
+      "grantedAbility": null,
+      "history": [
+        {
+          "at": 3000014,
+          "from": null,
+          "to": "empath",
+          "reason": "setup"
+        }
+      ]
+    },
+    "p7": {
+      "roleId": "ravenkeeper",
+      "believedRoleId": null,
+      "alignment": "good",
+      "retainsAbilityWhenDead": false,
+      "grantedAbility": null,
+      "history": [
+        {
+          "at": 3000015,
+          "from": null,
+          "to": "ravenkeeper",
+          "reason": "setup"
+        }
+      ]
+    },
+    "p8": {
+      "roleId": "butler",
+      "believedRoleId": null,
+      "alignment": "good",
+      "retainsAbilityWhenDead": false,
+      "grantedAbility": null,
+      "history": [
+        {
+          "at": 3000016,
+          "from": null,
+          "to": "butler",
+          "reason": "setup"
+        }
+      ]
+    }
+  },
+  "flags": {
+    "p4": {
+      "philosopher_used": true
+    }
+  },
+  "effects": [
+    {
+      "id": "e0-0-p4-p5",
+      "type": "drunk",
+      "cause": "philosopher",
+      "sourcePlayerId": "p4",
+      "targetPlayerId": "p5",
+      "startNight": 0,
+      "expiry": "until_removed"
+    },
+    {
+      "id": "e1-1-p3-p8",
+      "type": "poisoned",
+      "cause": "poisoner",
+      "sourcePlayerId": "p3",
+      "targetPlayerId": "p8",
+      "startNight": 1,
+      "expiry": "until_dusk"
+    }
+  ],
+  "roleState": {
+    "p4": {
+      "grandmotherInfoPending": false,
+      "grandchildId": "p5"
+    },
+    "p5": {
+      "grandmotherInfoPending": false,
+      "grandchildId": null
+    }
+  },
+  "setup": {
+    "demonBluffs": [
+      "clockmaker",
+      "mayor",
+      "oracle"
+    ],
+    "redHerringId": null,
+    "lilMonstaMinionRole": null,
+    "lilMonstaTokenHolderId": null,
+    "mezephelesWord": null,
+    "mezephelesSpent": false,
+    "typeCountsOverride": null,
+    "shabalothKills": [],
+    "briefingSeen": false,
+    "godfatherOutsiders": null,
+    "damselGuessUsed": false,
+    "damselGuessResult": null
+  }
+}

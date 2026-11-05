@@ -42,14 +42,14 @@ describe('script', () => {
   });
 
   it('an unknown id on the script is left out of views, assignment and the Setup checklist', () => {
-    const g = build(['imp', 'empath', 'sailor', 'butler', 'poisoner'], (g) => { g.s.script.push('fisherman'); });
-    expect(onScript(g.s, 'fisherman')).toBe(false);
-    expect(enabledRoles(g.s)).not.toContain('fisherman');
-    expect(playerView(g.s, g.p.empath, 0).enabledRoles).not.toContain('fisherman');
-    expect(bluffCandidates(g.s)).not.toContain('fisherman');
-    expect(tryAct(g, { type: 'assign_role', playerId: g.p.empath, roleId: 'fisherman' }).ok).toBe(false);
-    expect(JSON.stringify(setupChecklist(g.s))).not.toContain('fisherman');
+    const g = build(['imp', 'empath', 'sailor', 'butler', 'poisoner'], (g) => { g.s.script.push('no_such_role'); });
+    expect(onScript(g.s, 'no_such_role')).toBe(false);
+    expect(enabledRoles(g.s)).not.toContain('no_such_role');
+    expect(playerView(g.s, g.p.empath, 0).enabledRoles).not.toContain('no_such_role');
+    expect(bluffCandidates(g.s)).not.toContain('no_such_role');
+    expect(tryAct(g, { type: 'assign_role', playerId: g.p.empath, roleId: 'no_such_role' }).ok).toBe(false);
+    expect(JSON.stringify(setupChecklist(g.s))).not.toContain('no_such_role');
     const av = adminView(g.s, g.admin, 0, {});
-    expect(JSON.stringify(av.setupChecklist) + JSON.stringify(av.warnings)).not.toContain('fisherman');
+    expect(JSON.stringify(av.setupChecklist) + JSON.stringify(av.warnings)).not.toContain('no_such_role');
   });
 });

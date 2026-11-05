@@ -1,10 +1,10 @@
 // Per-recipient views. This is the hidden-information boundary: a player view contains only that player's data.
 import { ROLE_BY_ID, TYPE_CHART, WORDS, type AdminView, type GameState, type PlayerView, type RoleCard } from '@ct/shared';
 import { actionSpecs, wakingRoles } from './actions';
-import { godfatherTriggered } from './roles';
+import { eyesClosedVotingToday, godfatherTriggered } from './roles';
 import { computeImpairment } from './impairment';
 import { expectedActors } from './game';
-import { actualCounts, enabledRoles, setupChecklist, setupWarnings, targetCounts } from './setup';
+import { actualCounts, enabledRoles, outsidersBeforeGodfather, setupChecklist, setupWarnings, targetCounts } from './setup';
 import { findPlayer, inPlayRoleIds, roleIdOf, seated, seatedIds } from './world';
 
 function card(roleId: string): RoleCard {
@@ -78,11 +78,13 @@ export function adminView(s: GameState, pid: string, now: number, presence: Reco
     kind: 'admin', serverNow: now, state: s, meId: pid, impairment: imp,
     expectedActors: expectedActors(s), actorActions, actorSpecs,
     setupChecklist: setupChecklist(s),
-    typeCounts: { target: tc.counts, actual: actualCounts(s), source: tc.source, chartOutsiders: TYPE_CHART[Math.max(5, Math.min(15, seatedIds(s).length))][1] },
+    typeCounts: { target: tc.counts, actual: actualCounts(s), source: tc.source, chartOutsiders: TYPE_CHART[Math.max(5, Math.min(15, seatedIds(s).length))][1],
+      outsidersBeforeGodfather: outsidersBeforeGodfather(seatedIds(s).length, inPlayRoleIds(s)) },
     godfatherTriggered: godfatherTriggered(s, Math.max(0, s.nightNumber)),
     warnings: setupWarnings(s),
     presence,
     wordList: WORDS,
+    eyesClosedVoting: eyesClosedVotingToday(s),
   };
 }
 

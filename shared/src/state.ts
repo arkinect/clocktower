@@ -28,6 +28,12 @@ export interface Assignment {
   retainsAbilityWhenDead: boolean;
   /** Philosopher-gained ability, active from `fromNight`. */
   grantedAbility: { roleId: string; fromNight: number } | null;
+  /**
+   * The Cannibal's eaten ability (design.md section 5.6), active from `fromNight`. Absent (or null) = none: added after
+   * schema v7, so older assignments simply lack it. roleId null: the executee had no ability to eat. fake: the
+   * executee was evil, so the Cannibal only thinks they have it (`real: false` in abilitiesOf).
+   */
+  eatenAbility?: { roleId: string | null; fromNight: number; executeeId: string; fake: boolean } | null;
   history: RoleHistoryEntry[];
 }
 
@@ -150,7 +156,7 @@ export interface WorldState {
   setup: SetupState;
 }
 
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /** Admin-only story log (owner request): one entry per night and per day. */
 export interface StoryPlayer {
@@ -219,9 +225,13 @@ export interface AdminView {
   actorActions: Record<string, { roleId: string; title: string }[]>;
   actorSpecs: Record<string, import('./types').ActionSpec[]>;
   setupChecklist: { id: string; label: string; done: boolean; blocking: boolean }[];
-  typeCounts: { target: [number, number, number, number]; actual: [number, number, number, number]; source: 'default' | 'override'; chartOutsiders: number };
+  typeCounts: { target: [number, number, number, number]; actual: [number, number, number, number]; source: 'default' | 'override'; chartOutsiders: number;
+    /** Outsiders after every setup modifier but the Godfather's: -1 is possible only when above 0. Added in v8: absent on older servers. */
+    outsidersBeforeGodfather?: number };
   godfatherTriggered: boolean;
   warnings: string[];
   presence: Record<string, boolean>;
   wordList: string[];
+  /** The Organ Grinder's eyes-closed voting applies today (Day panel banner). Added in schema v8: absent on older servers. */
+  eyesClosedVoting?: boolean;
 }

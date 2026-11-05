@@ -1,13 +1,14 @@
 // Role behaviour modules (section 14). Each role declares its night input (spec) and how it resolves.
 // Owner decision: night pickers list dead players too (abilities can be wasted on bodies), except where a role
 // needs a specific group (Lil' Monsta passes only to living Minions, the Professor picks only the dead).
-import { ROLE_BY_ID, type ActionSpec, type GameState, type WorldState } from '@ct/shared';
+import { ROLE_BY_ID, abilitiesOf, jinxBetween, jinxLabel, type ActionSpec, type Assignment, type GameState, type WorldState } from '@ct/shared';
 import type { Actor, NightRun } from '../night';
 import { becomeDemon, demonInfoLines } from '../demon';
 import { enabledRoles } from '../setup';
+import { computeImpairment } from '../impairment';
 import {
-  aliveIds, aliveNeighbours, alignmentOf, changeRole, findPlayer, flag, isAlive, isDemon, nameOf, nearestAliveMatching, roleIdOf,
-  roleName, rs, seatDistance, seatedIds, typeOf,
+  abilityNightToday, aliveIds, aliveNeighbours, alignmentOf, changeRole, clearStartInfo, findPlayer, flag, isAlive, playersWithAbility, isDemon, markStartInfo, nameOf, nearestAliveMatching,
+  roleIdOf, roleName, rs, seatDistance, seatedIds, startInfoPending, typeOf,
 } from '../world';
 
 export interface SpecCtx { w: WorldState; pid: string; night: number; state: GameState }
@@ -19,14 +20,39 @@ export interface RoleBehaviour {
   spec?(ctx: SpecCtx): ActionSpec | null;
   resolve?(run: NightRun, actor: Actor): void;
   actsWhileDead?: boolean;
+  /** Dead tonight but gets a picker anyway (the Al-Hadikhia after the Mastermind jinx). */
+  wakesDead?(ctx: SpecCtx): boolean;
+  /**
+   * Wakes only on a night they die, and then even though dead (the Ravenkeeper, the Farmer): impairment is taken as
+   * of the moment they died (NightRun.impairAtDeath), and they never get a picker of their own (wakingRoles).
+   */
+  wakesOnNightDeath?: true;
+  /**
+   * With wakesOnNightDeath: also acts, once the night order has finished, for a player with the real ability who died
+   * after this role's slot. (The Ravenkeeper's slot comes after every death, so it doesn't need this.)
+   */
+  alsoAfterOrder?: true;
   /**
    * Called after an execution kills `executeeId`, once for each seated player (`holderId`) with a real ability of
    * this role, dead or alive and whether or not impaired: the hook decides what that means for its role.
    */
   onExecution?(ctx: ExecutionCtx): void;
+  /**
+   * Also call onExecution for players who only believe they have this role's ability (a Drunk or Marionette who
+   * thinks they are it, an ability eaten from an evil executee), with `real: false`: for a role that must look as if
+   * it worked (e.g. the believed Cannibal eating). Without it, believed holders are skipped.
+   */
+  onExecutionBelieved?: true;
 }
 
-export interface ExecutionCtx { s: GameState; executeeId: string; holderId: string; now: number }
+export interface ExecutionCtx {
+  s: GameState;
+  executeeId: string;
+  holderId: string;
+  now: number;
+  /** False when the holder only believes they have the ability (onExecutionBelieved). */
+  real: boolean;
+}
 
 const enabled = enabledRoles;
 
@@ -80,7 +106,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
       run.setFlag(a.pid, 'philosopher_used');
       if (run.sober(a.pid)) {
         run.w.assignments[a.pid].grantedAbility = { roleId, fromNight: run.n + 1 };
-        if (roleId === 'grandmother') run.setRs(a.pid, 'grandmotherInfoPending', true);
+        markStartInfo(run.w, a.pid, roleId);
         run.outcome(`gains the ${roleName(roleId)} ability from next night`);
         for (const pid of seatedIds(run.w)) {
           if (pid !== a.pid && roleIdOf(run.w, pid) === roleId) {
@@ -149,6 +175,8 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
   },
 
   clockmaker: {
+    // Start information: night 0, or the first night after gaining the ability (startInfoPending).
+    wakes: (c) => c.night === 0 || startInfoPending(c.w, c.pid).includes('clockmaker'),
     resolve(run, a) {
       const ids = seatedIds(run.w);
       const demons = ids.filter((id) => run.regIsDemon(`clockmaker:${a.pid}`, id));
@@ -207,7 +235,9 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
   },
 
   juggler: {
-    wakes: (c) => c.night === 1,
+    // Jinx (Cannibal & Juggler): an eaten Juggler has something to learn only if the Storyteller entered a count.
+    wakes: (c) => c.night === 1
+      && (c.state.days[1]?.jugglerCorrect != null || abilitiesOf(c.w, c.pid, c.night).some((x) => x.roleId === 'juggler' && x.source !== 'cannibal')),
     resolve(run, a) {
       const truth = run.state.days[1]?.jugglerCorrect ?? 0;
       const fake = otherNumbers(run, `juggler:${a.pid}`, truth, 0, 5);
@@ -266,6 +296,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
 
   ravenkeeper: {
     actsWhileDead: true,
+    wakesOnNightDeath: true,
     resolve(run, a) {
       const choice = run.askFollowUp({ key: `ravenkeeper:${a.pid}`, playerId: a.pid, roleId: 'ravenkeeper', spec: ravenkeeperSpec(run.state) });
       if (!choice) {
@@ -279,6 +310,50 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
       const fake = opts.length ? run.rng(`ravenkeeper:${a.pid}`).pick(opts) : truth;
       const fmt = (r: string) => [`${run.name(t)} is the ${roleName(r)}.`];
       run.result(a, 'Ravenkeeper', fmt(truth), fmt(fake));
+    },
+  },
+
+  // The Cannibal (design.md 14.4) never wakes as itself: it eats when an execution kills (the eaten ability then
+  // wakes in its own slot, abilitiesOf), and the Storyteller can change what it ate in the Day panel.
+  cannibal: {
+    onExecutionBelieved: true,
+    onExecution({ s, executeeId, holderId, real }) {
+      if (holderId === executeeId || !isAlive(s, holderId)) return;
+      const good = alignmentOf(s, executeeId) === 'good';
+      const roleId = good ? roleIdOf(s, executeeId) : null;
+      setEatenAbility(s, holderId, { roleId, fromNight: Math.max(0, s.nightNumber) + 1, executeeId, fake: !good });
+      // "Poisoned until a good player dies by execution": any earlier eat's poison ends here.
+      s.effects = s.effects.filter((e) => !(e.cause === 'cannibal' && e.targetPlayerId === holderId));
+      if (!roleId && real) {
+        s.effects.push({
+          id: `cannibal-${holderId}-d${s.dayNumber}`, type: 'poisoned', cause: 'cannibal', sourcePlayerId: holderId,
+          targetPlayerId: holderId, startNight: Math.max(0, s.nightNumber), expiry: 'until_removed',
+        });
+      }
+    },
+  },
+
+  farmer: {
+    actsWhileDead: true,
+    wakesOnNightDeath: true,
+    alsoAfterOrder: true,
+    resolve(run, a) {
+      if (!a.real || run.impForActor(a).impaired) {
+        if (a.real) run.abnormalIfExternal(a.pid, 'Farmer ability impaired');
+        run.outcome(`${a.real ? 'drunk or poisoned when they died' : 'not really the Farmer'}: nobody becomes a Farmer`);
+        return;
+      }
+      const good = aliveIds(run.w).filter((x) => alignmentOf(run.w, x) === 'good');
+      const fresh = good.filter((x) => roleIdOf(run.w, x) !== 'farmer');
+      const def = fresh.length ? run.rng(`farmer:${a.pid}`).pick(fresh) : 'nobody';
+      const ch = run.review(`farmer:${a.pid}`, 'farmer', `Farmer ${run.name(a.pid)} died: who becomes a Farmer?`,
+        'Any alive good player (they stay good). Recommended at random among those who are not a Farmer already.',
+        [...good.map((x) => ({ id: x, label: `${run.name(x)} (${roleName(roleIdOf(run.w, x))})` })), { id: 'nobody', label: 'Nobody' }], def);
+      if (!good.includes(ch)) { run.outcome('nobody becomes a Farmer'); return; }
+      changeRole(run.w, ch, 'farmer', 'became a Farmer', run.now, { keepAlignment: true });
+      run.noActTonight.add(ch);
+      run.notice(ch, 'You are now the Farmer', [ROLE_BY_ID.farmer.abilityText]);
+      run.outcome(`${run.name(ch)} becomes a Farmer`);
     },
   },
 
@@ -369,6 +444,22 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
   },
 
   scarlet_woman: {},
+
+  organ_grinder: {
+    // Each night, including night 0. No submission means sober.
+    spec: () => ({
+      key: 'organ_grinder', roleId: 'organ_grinder', title: 'Organ Grinder', prompt: 'Choose whether you are drunk until dusk.',
+      fields: [{ kind: 'option', label: 'Tonight', options: ['drunk', 'sober'], labels: { drunk: 'Drunk until dusk', sober: 'Stay sober' } }],
+      distinct: false, allowDecline: false,
+    }),
+    resolve(run, a) {
+      const [c] = target(a);
+      if (c !== 'drunk') { run.outcome(c === 'sober' ? 'stays sober' : 'no choice: stays sober'); return; }
+      if (!run.sober(a.pid)) { run.outcome('chose drunk, but is already impaired: no effect'); return; }
+      run.addEffect('drunk', 'organ_grinder', a.pid, a.pid, 'until_dusk');
+      run.outcome('drunk until dusk (own choice)');
+    },
+  },
 
   // ===================== Demons =====================
   imp: {
@@ -476,6 +567,45 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
     },
   },
 
+  al_hadikhia: {
+    wakesDead: (c) => mastermindJinxTonight(c.state, c.pid, c.night),
+    spec: (c) => {
+      if (!mastermindJinxTonight(c.state, c.pid, c.night)) {
+        return players('al_hadikhia', 'Al-Hadikhia', 'You may choose 3 players (all players learn who): each chooses to live or die, but if all live, all die.', 3, all(c), true, 'No one');
+      }
+      return players('al_hadikhia', 'Al-Hadikhia', `${JINX_AH_MASTERMIND}: Choose 3 good players: if all 3 choose to live, evil wins. Otherwise, good wins.`, 3, all(c).filter((x) => alignmentOf(c.w, x) === 'good'));
+    },
+    resolve(run, a) {
+      const jinx = mastermindJinxTonight(run.state, a.pid, run.n);
+      const ts = target(a);
+      if (ts.length !== 3) {
+        run.outcome(jinx ? `${JINX_AH_MASTERMIND}: no 3 good players chosen, the Storyteller decides` : 'chose no one: nothing happens');
+        return;
+      }
+      const [x, y, z] = ts.map((t) => run.name(t));
+      const list = `${x}, ${y} and ${z}`;
+      for (const pid of seatedIds(run.w)) run.notice(pid, 'Al-Hadikhia', [`The Al-Hadikhia chose ${list}.`]);
+      if (jinx) { mastermindJinx(run, a, ts, list); return; }
+      const works = a.real && run.sober(a.pid);
+      if (!works) run.outcome(`${a.real ? 'impaired' : 'not really the Al-Hadikhia'}: questions asked, the answers have no effect`);
+      let answers = 0;
+      for (const t of ts) {
+        const answer = liveOrDie(run, a, t, list);
+        if (!answer) { run.outcome(`${run.name(t)} has not answered: no effect for them`); continue; }
+        answers++;
+        run.outcome(`${run.name(t)} chose to ${answer}`);
+        if (!works) continue;
+        if (answer === 'die') run.attemptKill(t, 'demon_attack', a.pid);
+        else run.revive(t, 'chose to live');
+      }
+      if (!works) return;
+      if (answers < 3) { run.outcome('the "if all live, all die" rule needs all three answers'); return; }
+      if (!ts.every((t) => isAlive(run.w, t))) return;
+      run.outcome('all three are alive: all three die');
+      for (const t of ts) run.attemptKill(t, 'demon_attack', a.pid);
+    },
+  },
+
   lil_monsta: {
     wakes: (c) => c.w.setup.lilMonstaTokenHolderId === c.pid,
     spec: (c) => ({
@@ -517,8 +647,57 @@ export function godfatherTriggered(state: GameState, night: number): boolean {
   return godfatherDerived(state, night);
 }
 
+/**
+ * The Organ Grinder's eyes-closed voting (design.md section 14.6): during the day, while a living player has a real
+ * Organ Grinder ability (their role, or a Philosopher's from the next night: abilityNightToday) and is not drunk or
+ * poisoned as of the last night (an Organ Grinder who chose drunk is drunk until dusk).
+ */
+export function eyesClosedVotingToday(state: GameState): boolean {
+  if (state.phase !== 'DAY') return false;
+  const last = Math.max(0, state.nightNumber);
+  const imp = computeImpairment(state, last);
+  return playersWithAbility(state, 'organ_grinder', abilityNightToday(last)).some((id) => isAlive(state, id) && !imp[id]?.impaired);
+}
+
+const JINX_AH_MASTERMIND = jinxLabel(jinxBetween('al_hadikhia', 'mastermind')!);
+
+/**
+ * The night after the Al-Hadikhia died by execution, with a living Mastermind who has a real ability, and with no other
+ * living Demon, so the execution ended the game (design.md 14.8).
+ */
+function mastermindJinxTonight(state: GameState, pid: string, night: number): boolean {
+  const p = findPlayer(state, pid);
+  return !!p && !p.alive && roleIdOf(state, pid) === 'al_hadikhia' && p.deathCause === 'execution'
+    && p.deadAt?.phase === 'day' && p.deadAt.number === night
+    && playersWithAbility(state, 'mastermind', night).some((id) => isAlive(state, id))
+    && !aliveIds(state).some((id) => id !== pid && isDemon(state, id));
+}
+
+/** The Al-Hadikhia's question to one chosen player. Returns their answer, once given. */
+function liveOrDie(run: NightRun, a: Actor, t: string, list: string): string | null {
+  const choice = run.askFollowUp({
+    key: `al_hadikhia:${a.pid}:${t}`, playerId: t, roleId: 'al_hadikhia', asksOther: true,
+    spec: {
+      key: 'al_hadikhia', roleId: 'al_hadikhia', title: 'Al-Hadikhia', prompt: `The Al-Hadikhia chose ${list}. Do you choose to live or die?`,
+      fields: [{ kind: 'option', label: 'Your choice', options: ['live', 'die'], labels: { live: 'Live', die: 'Die' } }],
+      distinct: false, allowDecline: false,
+    },
+  });
+  return choice?.values[0] ?? null;
+}
+
+/** Nothing dies and the app doesn't end the game: the review says who wins, for the Storyteller to apply at the table. */
+function mastermindJinx(run: NightRun, a: Actor, ts: string[], list: string) {
+  const answers = ts.map((t) => liveOrDie(run, a, t, list));
+  ts.forEach((t, i) => run.outcome(`${run.name(t)} ${answers[i] ? `chose to ${answers[i]}` : 'has not answered'}`));
+  if (answers.every(Boolean)) run.outcome(`${JINX_AH_MASTERMIND}: ${answers.every((x) => x === 'live') ? 'evil wins' : 'good wins'}. Apply this at the table.`);
+  else run.outcome(`${JINX_AH_MASTERMIND}: waiting for all three answers`);
+  for (const m of playersWithAbility(run.w, 'mastermind', run.n)) {
+    if (isAlive(run.w, m) && !run.sober(m)) run.outcome(`${JINX_AH_MASTERMIND}: the Mastermind (${run.name(m)}) is drunk or poisoned`);
+  }
+}
+
 function grandmotherInfo(run: NightRun, a: Actor) {
-  run.setRs(a.pid, 'grandmotherInfoPending', false);
   const others = seatedIds(run.w).filter((x) => x !== a.pid);
   if (!others.length) return;
   const fmt = (pid: string, r: string) => [`Your grandchild is ${run.name(pid)}, the ${roleName(r)}.`];
@@ -571,9 +750,9 @@ Object.assign(BEHAVIOURS, {
 
   grandmother: {
     resolve(run: NightRun, a: Actor) {
-      if (run.n === 0 || rs<boolean>(run.w, a.pid, 'grandmotherInfoPending')) {
+      if (run.startInfoDue(a)) {
         grandmotherInfo(run, a);
-        if (run.n === 0) return;
+        if (run.n === 0 || a.fromNight > run.n) return; // the link works once the ability does
       }
       const gc = rs<string | null>(run.w, a.pid, 'grandchildId');
       if (!gc || run.deathCause[gc] !== 'demon_attack' || !isAlive(run.w, a.pid)) return;
@@ -606,7 +785,7 @@ Object.assign(BEHAVIOURS, {
         'A Townsfolk not in play. Her new ability works from the next night.', cands.map((r) => ({ id: r, label: roleName(r) })), def);
       changeRole(run.w, t, nr, 'Huntsman found the Damsel', run.now, { keepAbilities: true, keepTies: true });
       run.noActTonight.add(t);
-      if (nr === 'grandmother') run.setRs(t, 'grandmotherInfoPending', true);
+      markStartInfo(run.w, t, nr);
       run.notice(t, `Your role is now ${roleName(nr)}`, [ROLE_BY_ID[nr].abilityText]);
       run.outcome(`the Damsel (${run.name(t)}) becomes the ${roleName(nr)}`);
     },
@@ -674,6 +853,38 @@ Object.assign(BEHAVIOURS, {
     },
   },
 } satisfies Record<string, RoleBehaviour>);
+
+/**
+ * The one way a player's eaten ability changes (the Cannibal's eat, or the Storyteller's choice in the Day panel).
+ * The old ability's unspent start information goes with it, and so does what it gained: a Philosopher's ability, when
+ * the eaten Philosopher is lost (dropEatenPhilosopherGain). The new one starts unused, and start information comes the
+ * night it is gained.
+ */
+export function setEatenAbility(s: GameState, pid: string, eaten: NonNullable<Assignment['eatenAbility']>) {
+  const a = s.assignments[pid];
+  const prev = a.eatenAbility;
+  if (prev?.roleId) clearStartInfo(s, pid, prev.roleId);
+  if (prev?.roleId === 'philosopher' && eaten.roleId !== 'philosopher') dropEatenPhilosopherGain(s, pid);
+  a.eatenAbility = eaten;
+  if (!eaten.roleId) return;
+  const key = ROLE_BY_ID[eaten.roleId]?.usedFlag?.key;
+  if (key && s.flags[pid]) delete s.flags[pid][key];
+  markStartInfo(s, pid, eaten.roleId);
+}
+
+/**
+ * A Cannibal who chose an ability as the eaten Philosopher keeps it only while they have the Philosopher's ability:
+ * it goes, with its start information and the drunkenness it caused. A gained Cannibal stays: that is the ability
+ * that eats, a Philosopher's own, not something the eat gave them.
+ */
+function dropEatenPhilosopherGain(s: GameState, pid: string) {
+  const a = s.assignments[pid];
+  const gained = a.grantedAbility;
+  if (!gained || gained.roleId === 'cannibal') return;
+  a.grantedAbility = null;
+  clearStartInfo(s, pid, gained.roleId);
+  s.effects = s.effects.filter((e) => !(e.cause === 'philosopher' && e.sourcePlayerId === pid));
+}
 
 export function hasNightAbility(roleId: string): boolean {
   const b = BEHAVIOURS[roleId];

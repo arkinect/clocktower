@@ -1,18 +1,18 @@
 // The game reducer: (GameState, actor, Intent) -> (GameState, events). Pure apart from `now` and `seed` inputs.
 import {
-  ROLE_BY_ID, ROLES, SCHEMA_VERSION, TYPE_CHART, WORDS, abilitiesOf,
+  CANNIBAL_LEARNS, ROLE_BY_ID, ROLES, SCHEMA_VERSION, TYPE_CHART, WORDS, abilitiesOf, jinxBetween, jinxLabel,
   type AdminIntent, type GameState, type Intent, type JoinRequest, type NightState, type PlayerIntent,
   type PlayerRec, type PrivateMessage, type RolePreference, type Settings, type StoryPlayer,
 } from '@ct/shared';
 import { actionSpecs, validateChoice, validateSubmission } from './actions';
-import { becomeDemon, demonInfoLines } from './demon';
+import { becomeDemon, demonInfoLines, scarletWomanAgain } from './demon';
 import { computeImpairment } from './impairment';
 import { previewDayKill, revivePlayer } from './lifecycle';
 import { resolveNight } from './night';
-import { BEHAVIOURS } from './roles';
+import { BEHAVIOURS, setEatenAbility } from './roles';
 import { makeRng, randomSeed } from './rng';
 import {
-  bluffCandidates, enabledRoles, onScript, redHerringCandidates, setupChecklist, suggestBluffs, suggestDistribution,
+  bluffCandidates, enabledRoles, onScript, outsidersBeforeGodfather, redHerringCandidates, setupChecklist, suggestBluffs, suggestDistribution,
 } from './setup';
 import {
   abilityNightToday, aliveIds, canAct, changeRole, findPlayer, flag, hasAbility, inPlayRoleIds, isDemon, playersWithAbility, roleIdOf, roleName, seatedIds,
@@ -143,21 +143,48 @@ function newNight(number: number, seed: number, collectingOpen: boolean): NightS
 }
 
 export function expectedActors(s: GameState): string[] {
-  return seatedIds(s).filter((id) => canAct(s, id));
+  return seatedIds(s).filter((id) => canAct(s, id) || actionSpecs(s, id).length > 0);
 }
 
 function reresolve(s: GameState, now: number) {
   if (s.phase === 'NIGHT_RESOLVING' && s.night) s.night.resolution = resolveNight(s, now);
 }
 
-/** Each role's onExecution hook, for every seated player with a real ability of that role. */
+/**
+ * Each role's onExecution hook, for every seated player with a real ability of that role, and for players who only
+ * believe they have it when the role opts in (onExecutionBelieved). Abilities are those that work today
+ * (abilityNightToday): a Philosopher who chose the Cannibal last night eats today.
+ */
 function runExecutionHooks(s: GameState, executeeId: string, now: number) {
-  const night = s.nightNumber < 0 ? 0 : s.nightNumber;
+  const night = abilityNightToday(s.nightNumber < 0 ? 0 : s.nightNumber);
+  const eatenBefore = new Map(seatedIds(s).map((id) => [id, s.assignments[id]?.eatenAbility]));
   for (const holderId of seatedIds(s)) {
     for (const ab of abilitiesOf(s, holderId, night)) {
-      if (ab.real) BEHAVIOURS[ab.roleId]?.onExecution?.({ s, executeeId, holderId, now });
+      const b = BEHAVIOURS[ab.roleId];
+      if (!b?.onExecution || (!ab.real && !b.onExecutionBelieved)) continue;
+      b.onExecution({ s, executeeId, holderId, now, real: ab.real });
     }
   }
+  for (const id of seatedIds(s)) {
+    const eaten = s.assignments[id]?.eatenAbility;
+    if (eaten && eaten !== eatenBefore.get(id)) queueCannibalLearns(s, id, eaten.roleId);
+  }
+}
+
+const CANNIBAL_JINX_TITLE = /^Jinx \(Cannibal & /;
+
+/**
+ * Jinxes Cannibal & Butler and Cannibal & Zealot: "If the Cannibal gains the Butler [Zealot] ability, the Cannibal
+ * learns this." Queued when the Cannibal gains it (an eat, or the Storyteller's choice in the Day panel), delivered
+ * when the next night starts. A notice queued for an earlier eat or choice the same day is dropped.
+ */
+function queueCannibalLearns(s: GameState, pid: string, roleId: string | null) {
+  const queued = (s.pendingNotices[pid] ?? []).filter((m) => !CANNIBAL_JINX_TITLE.test(m.title));
+  if (queued.length) s.pendingNotices[pid] = queued;
+  else delete s.pendingNotices[pid];
+  if (!roleId || !CANNIBAL_LEARNS.includes(roleId)) return;
+  const label = jinxLabel(jinxBetween('cannibal', roleId)!);
+  (s.pendingNotices[pid] ??= []).push(msg(s, s.nightNumber + 1, 'notice', `${label}: You have the ${roleName(roleId)} ability`, [ROLE_BY_ID[roleId].abilityText]));
 }
 
 function markDead(s: GameState, pid: string, alive: boolean, cause: string) {
@@ -599,7 +626,9 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
     // ---------- day ----------
     case 'mark_alive': {
       if (!seatedPlayer(i.playerId)) return err('Not a seated player.');
+      const revives = !!i.alive && !findPlayer(s, i.playerId)?.alive;
       markDead(s, i.playerId, !!i.alive, 'storyteller');
+      if (revives) scarletWomanAgain(s, now, (pid, title, lines) => deliver(s, pid, msg(s, s.nightNumber, 'notice', title, lines)));
       return ok(s);
     }
     case 'record_execution': {
@@ -681,7 +710,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
     }
     case 'set_godfather_outsiders': {
       if (i.value !== null && i.value !== 1 && i.value !== -1) return err('Choose -1 or +1.');
-      if (i.value === -1 && chartOutsiders(s) === 0) return err('The default chart has no Outsiders for this player count, so only +1 is possible.');
+      if (i.value === -1 && outsidersBeforeGodfather(seatedIds(s).length, inPlayRoleIds(s)) <= 0) return err('There are no Outsiders to remove (after the other setup modifiers), so only +1 is possible.');
       s.setup.godfatherOutsiders = i.value;
       return ok(s);
     }
@@ -737,6 +766,20 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       s.setup.damselGuessResult = res;
       return ok(s, res);
     }
+    case 'set_cannibal_ability': {
+      if (s.phase !== 'DAY') return err('The Cannibal\'s ability is changed during the day.');
+      if (!seatedPlayer(i.playerId)) return err('Not a seated player.');
+      const a = s.assignments[i.playerId];
+      const eaten = a?.eatenAbility;
+      const cannibal = abilitiesOf(s, i.playerId, Infinity).some((x) => x.roleId === 'cannibal' && x.source !== 'cannibal');
+      if (!cannibal || !eaten) return err('Only a Cannibal who has eaten has an eaten ability to change.');
+      if (i.roleId !== null && (!ROLE_BY_ID[i.roleId] || i.roleId === 'cannibal')) return err('Choose a character other than the Cannibal.');
+      if (i.roleId === eaten.roleId) return ok(s);
+      // Whether it is real stays as it was: an ability chosen after an evil eat gives false information.
+      setEatenAbility(s, i.playerId, { ...eaten, roleId: i.roleId });
+      queueCannibalLearns(s, i.playerId, i.roleId);
+      return ok(s);
+    }
     case 'set_damsel_guess_used': {
       s.setup.damselGuessUsed = !!i.value;
       if (!i.value) s.setup.damselGuessResult = null;
@@ -761,11 +804,6 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
     }
   }
   return err('Unknown request.');
-}
-
-function chartOutsiders(s: GameState): number {
-  const n = Math.max(5, Math.min(15, seatedIds(s).length));
-  return TYPE_CHART[n][1];
 }
 
 /** Admin-only story: who was what, who was impaired and who they targeted, per night. */
@@ -852,7 +890,8 @@ function publish(s: GameState, res: NonNullable<NightState['resolution']>, now: 
   for (const pid of res.deaths) {
     if (!findPlayer(s, pid)?.alive && before.has(pid)) deliver(s, pid, msg(s, n, 'notice', 'You have died', ['You died in the night.']));
   }
-  for (const pid of res.revived) deliver(s, pid, msg(s, n, 'notice', 'You are alive again', ['You have been brought back to life.']));
+  // Revived and killed again the same night (the Al-Hadikhia's "if all live, all die"): still dead, so nothing to say.
+  for (const pid of res.revived) if (findPlayer(s, pid)?.alive) deliver(s, pid, msg(s, n, 'notice', 'You are alive again', ['You have been brought back to life.']));
 
   // Lil' Monsta: at the end of Night 0 the Lil' Monsta player becomes the chosen Minion and holds the token.
   if (n === 0) {

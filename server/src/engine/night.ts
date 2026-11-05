@@ -2,18 +2,18 @@
 // walks the night order and returns a Resolution (results, review items, the world after the night).
 // Admin review choices are inputs (night.reviewChoices), so changing one simply re-runs resolution.
 import {
-  FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID,
-  type ActionChoice, type ActionSpec, type Alignment, type Cause, type Effect, type EffectExpiry, type EffectType, type GameState,
-  type FollowUp, type ReviewItem, type ReviewOption, type Resolution, type ResultRow, type ActorRow, type AbnormalEvent, type WorldState,
+  FIRST_NIGHT_ORDER, OTHER_NIGHT_ORDER, ROLE_BY_ID, abilitiesOf, abilityKey, abilityTitle, hidesRole, jinxBetween, jinxLabel,
+  type AbilitySource, type ActionChoice, type ActionSpec, type Alignment, type Cause, type Effect, type EffectExpiry, type EffectType, type GameState,
+  type FollowUp, type NightSlot, type ReviewItem, type ReviewOption, type Resolution, type ResultRow, type ActorRow, type AbnormalEvent, type WorldState,
 } from '@ct/shared';
 import { activeImpairingEffects, computeImpairment, type Impairment } from './impairment';
 import { subRng, type Rng } from './rng';
 import {
-  actingRoles, aliveIds, aliveNeighbours, alignmentOf, canAct, findPlayer, flag, getPlayer, hasAbility, isAlive,
-  isDemon, nameOf, playersWithAbility, roleIdOf, roleName, seatedIds, typeOf,
+  actingRoles, aliveIds, aliveNeighbours, alignmentOf, canAct, clearStartInfo, findPlayer, flag, getPlayer, hasAbility, isAlive,
+  isDemon, nameOf, playersWithAbility, roleIdOf, roleName, seatedIds, startInfoPending, typeOf,
 } from './world';
 import { BEHAVIOURS, godfatherTriggered } from './roles';
-import { becomeDemon } from './demon';
+import { becomeDemon, scarletWomanAgain } from './demon';
 import { revivePlayer } from './lifecycle';
 import { enabledRoles } from './setup';
 export { becomeDemon, demonInfoLines } from './demon';
@@ -22,7 +22,18 @@ export function nightOrder(night: number) {
   return night === 0 ? FIRST_NIGHT_ORDER : OTHER_NIGHT_ORDER;
 }
 
-export interface Actor { pid: string; roleId: string; choice: ActionChoice | null; slot: string }
+export interface Actor {
+  pid: string;
+  roleId: string;
+  choice: ActionChoice | null;
+  slot: string;
+  /** Where the ability comes from (the first source, when several give the same role): decides the title shown. */
+  source: AbilitySource;
+  /** The first night the ability works. Later than tonight only for start information given the night it's gained. */
+  fromNight: number;
+  /** False when the player only believes they have it (a believed role, or an ability eaten from an evil executee). */
+  real: boolean;
+}
 
 export interface KillOptions { skipMayor?: boolean; noScarlet?: boolean }
 export type KillCause = 'demon_attack' | 'assassin' | 'ability_kill' | 'self_gamble' | 'grandchild_link';
@@ -47,6 +58,7 @@ export class NightRun {
   readonly noActTonight = new Set<string>();
   private goonTriggered = new Set<string>();
   private currentActorRow: ActorRow | null = null;
+  private currentActor: Actor | null = null;
   private killSeq = 0;
 
   constructor(readonly state: GameState, readonly now: number) {
@@ -122,31 +134,47 @@ export class NightRun {
   /**
    * Ask a player a question during review (the Ravenkeeper's choice after dying, for example). Returns the answer
    * once the player or the Storyteller has given one, else null. Publishing waits for every question unless forced,
-   * the night timer is extended when questions first appear, and "Accept all defaults" never answers one.
+   * the night timer is extended when questions first appear, and "Accept all defaults" never answers one. With
+   * `asksOther` the answer isn't the actor's own input (the Al-Hadikhia's chosen players), so the actor row keeps theirs.
    */
-  askFollowUp(q: { key: string; playerId: string; roleId: string; spec: ActionSpec }): ActionChoice | null {
+  askFollowUp(q: { key: string; playerId: string; roleId: string; spec: ActionSpec; asksOther?: true }): ActionChoice | null {
+    // A question asked by a hidden eaten ability is shown to the player only as the Cannibal's (one eaten ability per
+    // player): its key and spec. The question's roleId, seen only by the Storyteller, stays the eaten role.
+    const actor = this.currentActor;
+    if (actor && actor.pid === q.playerId && hidesRole(actor)) {
+      q = { ...q, key: `cannibal:${q.playerId}`, spec: { ...q.spec, roleId: 'cannibal', title: abilityTitle(actor) } };
+    }
     const a = this.night.followUpAnswers[q.key];
     this.followUps.push({ key: q.key, playerId: q.playerId, roleId: q.roleId, spec: { ...q.spec, key: q.key }, answered: !!a });
-    if (a && this.currentActorRow) this.currentActorRow.input = describeChoice(this.w, a.choice);
+    if (a && this.currentActorRow && !q.asksOther) this.currentActorRow.input = describeChoice(this.w, a.choice);
     return a?.choice ?? null;
   }
 
   // ---- results --------------------------------------------------------------------------------
   /** Record a private result. When the actor is impaired, `falseLines` is what is suggested. */
   result(actor: Actor, title: string, trueLines: string[], falseLines: string[] | null, alternatives: string[][] = []) {
+    // The title is what the player's message is called ("Cannibal" for a hidden eaten ability); the row itself is
+    // the Storyteller's and keeps the real role.
+    title = abilityTitle(actor, title);
     const imp = this.impForActor(actor);
     const suggested = imp.impaired && falseLines ? falseLines : trueLines;
-    const key = `${actor.pid}:${actor.roleId}`;
+    const roleId = actor.roleId;
+    const key = `${actor.pid}:${roleId}`;
     const override = this.night.overrides[key];
     this.results.push({
-      key, playerId: actor.pid, roleId: actor.roleId, title, trueLines, suggestedLines: suggested,
+      key, playerId: actor.pid, roleId, title, trueLines, suggestedLines: suggested,
       finalLines: override ?? suggested, impaired: imp.impaired, causes: imp.causes, overridden: !!override,
       alternatives,
     });
   }
 
+  /** Whether a start-information role (RoleData.startInfo) gives its information tonight: night 0, or just gained. */
+  startInfoDue(actor: Actor): boolean {
+    return this.n === 0 || startInfoPending(this.w, actor.pid).includes(actor.roleId);
+  }
+
   impForActor(actor: Actor): Impairment {
-    if (actor.slot === 'ravenkeeper' && this.impairAtDeath[actor.pid]) return this.impairAtDeath[actor.pid];
+    if (BEHAVIOURS[actor.roleId]?.wakesOnNightDeath && this.impairAtDeath[actor.pid]) return this.impairAtDeath[actor.pid];
     return this.imp(actor.pid);
   }
 
@@ -286,12 +314,17 @@ export class NightRun {
     if (isDemon(this.w, target) && !opts.noScarlet) this.scarletCheck(target, aliveBefore);
   }
 
-  /** Shared revive (Professor, Shabaloth). */
+  /** Shared revive (Professor, Shabaloth, Al-Hadikhia). */
   revive(pid: string, reason: string): boolean {
     if (!revivePlayer(this.w, pid)) return false;
     this.revived.push(pid);
     this.noActTonight.add(pid);
     this.outcome(`${this.name(pid)} is alive again (${reason})`);
+    const back = scarletWomanAgain(this.w, this.now, (id, title, lines) => this.notice(id, title, lines));
+    if (back) {
+      this.noActTonight.add(back);
+      this.outcome(`${jinxLabel(jinxBetween('scarlet_woman', 'al_hadikhia')!)}: ${this.name(back)} is the Scarlet Woman again`);
+    }
     return true;
   }
 
@@ -340,23 +373,14 @@ export class NightRun {
         [{ id: 'yes', label: 'Yes, the Godfather kills' }, { id: 'no', label: 'No' }], derived ? 'yes' : 'no');
     }
     for (const slot of order) {
-      if (!slot.roleId) continue;
-      const b = BEHAVIOURS[slot.roleId];
-      if (!b?.resolve) continue;
+      if (!slot.roleId || !BEHAVIOURS[slot.roleId]?.resolve) continue;
+      for (const actor of this.actorsFor(slot.id, slot.roleId)) this.act(slot, actor);
+    }
+    // Deaths after a role's slot (the Moonchild's target, a Grandmother's link): it acts once the order has finished.
+    for (const slot of order) {
+      if (!slot.roleId || !BEHAVIOURS[slot.roleId]?.alsoAfterOrder) continue;
       for (const actor of this.actorsFor(slot.id, slot.roleId)) {
-        const row: ActorRow = {
-          slot: slot.label, playerId: actor.pid, roleId: actor.roleId, input: describeChoice(this.w, actor.choice),
-          impaired: false, causes: [], outcome: '',
-        };
-        this.actors.push(row);
-        this.currentActorRow = row;
-        this.goonCheck(actor);
-        const imp2 = this.impForActor(actor);
-        row.impaired = imp2.impaired;
-        row.causes = imp2.causes;
-        if (imp2.impaired && !(actor.choice?.decline) && actor.slot !== 'ravenkeeper') this.abnormalIfExternal(actor.pid, `${roleName(actor.roleId)} ability impaired`);
-        b.resolve(this, actor);
-        this.currentActorRow = null;
+        if (actor.real && !this.actors.some((r) => r.playerId === actor.pid && r.roleId === actor.roleId)) this.act(slot, actor);
       }
     }
     const after = this.w;
@@ -368,19 +392,51 @@ export class NightRun {
     };
   }
 
+  private act(slot: NightSlot, actor: Actor) {
+    const b = BEHAVIOURS[actor.roleId];
+    const row: ActorRow = {
+      slot: slot.label, playerId: actor.pid, roleId: actor.roleId, input: describeChoice(this.w, actor.choice),
+      impaired: false, causes: [], outcome: '',
+    };
+    this.actors.push(row);
+    this.currentActorRow = row;
+    this.currentActor = actor;
+    this.goonCheck(actor);
+    const imp2 = this.impForActor(actor);
+    row.impaired = imp2.impaired;
+    row.causes = imp2.causes;
+    if (imp2.impaired && !(actor.choice?.decline) && !b.wakesOnNightDeath) this.abnormalIfExternal(actor.pid, `${roleName(actor.roleId)} ability impaired`);
+    b.resolve!(this, actor);
+    // A start-information role has now given its information (true or false): it isn't pending any more.
+    if (ROLE_BY_ID[actor.roleId]?.startInfo) clearStartInfo(this.w, actor.pid, actor.roleId);
+    this.currentActorRow = null;
+    this.currentActor = null;
+  }
+
   actorsFor(slotId: string, roleId: string): Actor[] {
     const b = BEHAVIOURS[roleId];
     const out: Actor[] = [];
     for (const pid of seatedIds(this.w)) {
-      if (!actingRoles(this.w, pid, this.n).includes(roleId)) continue;
-      if (this.noActTonight.has(pid) && !(roleId === 'grandmother' && this.w.roleState[pid]?.grandmotherInfoPending)) continue;
-      if (slotId === 'ravenkeeper') {
-        if (!this.deaths.includes(pid)) continue;
-      } else if (!canAct(this.w, pid) && !b.actsWhileDead) continue;
-      if (b.wakes && !b.wakes({ w: this.w, pid, night: this.n, state: this.state })) continue;
-      // The Ravenkeeper's choice comes later, as a follow-up question (askFollowUp).
-      const sub = slotId === 'ravenkeeper' ? undefined : this.night.submissions[pid];
-      out.push({ pid, roleId, slot: slotId, choice: sub?.actions[roleId] ?? null });
+      // Start information comes the night the ability is gained (startInfoPending), even before the ability works: a
+      // Philosopher's choice, a Damsel given a new role tonight. Any other ability only once it works.
+      const pending = startInfoPending(this.w, pid).includes(roleId);
+      const ability = abilitiesOf(this.w, pid, pending ? Infinity : this.n).find((x) => x.roleId === roleId);
+      if (!ability) continue;
+      const ctx = { w: this.w, pid, night: this.n, state: this.state };
+      if (b.wakesOnNightDeath) {
+        // Dead now, so not skipped for being revived or given this role earlier tonight, if they then died.
+        if (!this.deaths.includes(pid) || isAlive(this.w, pid)) continue;
+      } else {
+        if (this.noActTonight.has(pid) && !pending) continue;
+        if (!canAct(this.w, pid) && !b.actsWhileDead && !b.wakesDead?.(ctx)) continue;
+      }
+      if (b.wakes && !b.wakes(ctx)) continue;
+      // Nothing is submitted for these: the Ravenkeeper's choice comes later, as a follow-up question (askFollowUp).
+      const sub = b.wakesOnNightDeath ? undefined : this.night.submissions[pid];
+      out.push({
+        pid, roleId, slot: slotId, choice: sub?.actions[abilityKey(ability)] ?? null, source: ability.source, fromNight: ability.fromNight,
+        real: ability.real,
+      });
     }
     return out;
   }

@@ -9,7 +9,7 @@ import { Store } from '../src/db';
 import { applyIntent, createGame } from '../src/engine/game';
 import { adminView, playerView } from '../src/engine/views';
 import { STEPS, type MigrationStep } from '../src/engine/migrations';
-import { UpgradeRefused, upgradeSavedGames, upgradeSummary } from '../src/upgrade';
+import { notStarting, UpgradeRefused, upgradeSavedGames, upgradeSummary } from '../src/upgrade';
 import { GameManager } from '../src/manager';
 
 const HOUR = 60 * 60 * 1000;
@@ -65,6 +65,51 @@ describe('startup upgrade', () => {
     for (const name of ['ended', 'mid-day']) {
       await expect(JSON.stringify(loaded(`fixture-v5-${name}`), null, 2) + '\n').toMatchFileSnapshot(`fixtures/v5-${name}.upgraded.json`);
     }
+  });
+
+  it('upgrades each v7 fixture (saved by the engine at b9d25f0) to the stored expected state', async () => {
+    seed('v7-ended', 'fixture-v7-ended', NOW - 50 * HOUR);
+    seed('v7-mid-day', 'fixture-v7-mid-day', NOW - HOUR);
+    upgradeSavedGames(store, release);
+    for (const name of ['ended', 'mid-day']) {
+      await expect(JSON.stringify(loaded(`fixture-v7-${name}`), null, 2) + '\n').toMatchFileSnapshot(`fixtures/v7-${name}.upgraded.json`);
+    }
+  });
+
+  it('the v8 step only stamps the version, and an upgraded v7 game plays again', () => {
+    for (const name of ['v7-ended', 'v7-mid-day']) {
+      const s = fixture(name);
+      const after = JSON.parse(JSON.stringify(s));
+      STEPS[8](after);
+      expect(after).toEqual({ ...s, schemaVersion: 8 });
+    }
+    // The mid-day game was waiting to give a Philosopher their Grandmother information (the v7 grandmotherInfoPending).
+    expect(Object.values(fixture('v7-mid-day').roleState).some((r) => r.grandmotherInfoPending === true)).toBe(true);
+    seed('v7-mid-day', 'live', NOW - HOUR);
+    expect(upgradeSavedGames(store, release)!.games).toEqual([{ code: 'live', from: 7, endedReason: 'update' }]);
+    const s = loaded('live');
+    expect(s).toMatchObject({ phase: 'ENDED', schemaVersion: 8, endedReason: 'update', night: null });
+    const r = applyIntent(s, s.adminId!, { type: 'play_again' }, { now: NOW + 1 });
+    if (!r.ok) throw new Error(r.error);
+    expect(r.state).toMatchObject({ phase: 'SETUP', roleState: {} });
+    expect(r.state.script).toEqual(s.script);
+  });
+
+  it('a v7 build refuses a game saved at v8: "Not starting", nothing changed', () => {
+    seedCurrent('new');
+    expect(loaded('new').schemaVersion).toBe(8);
+    const before = snapshot();
+    let refused: unknown;
+    try {
+      upgradeSavedGames(store, { ...release, schemaVersion: 7, steps: Object.fromEntries(Object.entries(STEPS).filter(([v]) => Number(v) <= 7)) });
+    } catch (e) {
+      refused = e;
+    }
+    expect(refused).toBeInstanceOf(UpgradeRefused);
+    expect(notStarting(refused as UpgradeRefused)).toBe('Not starting: This database has games saved at schema v8, written by a newer release '
+      + 'than this one (schema v7). Upgrade the image, or restore the clocktower.db.pre-v8 backup made before that upgrade.');
+    expect(snapshot()).toBe(before);
+    expect(backups()).toEqual([]);
   });
 
   it('a v0.3.0 game keeps no trace of the Fisherman, Zealot, Organ Grinder or Baron, and Play again works', () => {

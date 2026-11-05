@@ -1,6 +1,6 @@
 # Blood on the Clocktower Night Assistant: Design Document
 
-Version: 4. Scope: the 48 roles listed in section 14.
+Version: 4. Scope: the 55 roles listed in section 14.
 Audience: implementers and contributors.
 
 This document describes the app **as built**: the rules it implements, every decision taken where the rules leave a choice to the Storyteller, and the project owner's later changes ("owner decision").
@@ -106,7 +106,7 @@ This document describes the app **as built**: the rules it implements, every dec
 
 ### Non-goals
 - Day automation (nominations, voting, executions, win checks). Room is left for it (section 13).
-- Roles other than the 48 in section 14. Roles are data, so more can be added later.
+- Roles other than the 55 in section 14. Roles are data, so more can be added later.
 - Authentication, accounts, internet hosting, TLS.
 - Using the role-type preference collected at signup for automatic assignment (it is shown to the Admin in Setup only).
 
@@ -211,7 +211,7 @@ Append-only `events` table (game_id, seq, timestamp, actor, type, payload). Ever
 
 ### 5.5 Persistence and schema versions
 - Each game is stored as **one JSON document** (`games.state`), rewritten on every change, plus the event log. This keeps "persist every change" atomic and the engine a pure function. The data model below is logical.
-- `GameState.schemaVersion` (currently **7**; every public release up to v0.2.2 wrote v4, the oldest this release upgrades, and the withdrawn v0.3.0 wrote v5 with four extra roles: `MIN_SUPPORTED_SCHEMA` in `server/src/engine/migrations/`). Saved games are upgraded once, at startup, before any game loads (`server/src/upgrade.ts`):
+- `GameState.schemaVersion` (currently **8**; every public release up to v0.2.2 wrote v4, the oldest this release upgrades, and the withdrawn v0.3.0 wrote v5 with four extra roles: `MIN_SUPPORTED_SCHEMA` in `server/src/engine/migrations/`). Saved games are upgraded once, at startup, before any game loads (`server/src/upgrade.ts`):
   1. Versions are checked first, changing nothing. A game newer than this release, or older than `MIN_SUPPORTED_SCHEMA` (missing = v1: "Run v0.2.2 once to bring them to v4, then upgrade"), stops startup.
   2. If any game is older than `SCHEMA_VERSION`, the whole database is copied once to `clocktower.db.pre-v<SCHEMA_VERSION>` (a timestamp is appended rather than overwrite an existing copy).
   3. In one transaction, each older game is **ended** if it isn't already (`phase = ENDED`, `night = null`, `nightEndsAt = null`, `endedReason = 'abandoned'` after 4 hours without progress, else `'update'`) — except an empty lobby (`LOBBY`, no players), which is deleted with its events instead (the default game is recreated when games load) — run through the migration steps from its version up, and saved with a `schema_migrated` event `{ from, to, endedReason }`. Any failure rolls everything back and stops startup, naming the game and step.
@@ -219,7 +219,7 @@ Append-only `events` table (game_id, seq, timestamp, actor, type, payload). Ever
   4. Games load, and each must be at `SCHEMA_VERSION`.
 - **Upgrade log.** Every startup that upgrades anything leaves three records: a row in the `migrations` table (`applied_at`, `app_version` = APP_VERSION and GIT_SHA, `to_schema`, `games_migrated`, `games_ended`, `backup_file`, `details` JSON of code, from-version and `endedReason` per game, plus `deleted: true` for an empty lobby; `games_migrated` leaves those out), written in the same transaction as the games; the `schema_migrated` event in each game (shown on the Storyteller's Log page); and one line in the server output, e.g. `Upgraded 2 games to schema v5 (1 ended: abandoned). Deleted 1 empty lobby. Backup: clocktower.db.pre-v5.` Nothing is printed or written when no game needed upgrading. Deferred updates are logged by `scripts/update.sh` to its own output (`update.log` in the documented cron line).
 - Database tables (as opposed to the saved-game JSON) are only ever added, with `CREATE TABLE IF NOT EXISTS`. A release that has to alter an existing table should track that with SQLite's `PRAGMA user_version`, separately from `SCHEMA_VERSION`.
-- Steps: v4 → v5 undoes the withdrawn v0.3.0 (schema v5 is taken for good): it removes every stored role id of the Fisherman, Zealot, Organ Grinder and Baron (script entries, held and believed roles, a gained ability, role history, bluffs, the Lil' Monsta Minion role, the Organ Grinder's effects, the story's roles, causes and actions) and drops the ended game's last night; text people were already shown is left as written. It changes nothing else on v4 data, and since a game saved at v5 starts at step 6, step 6 runs it again first. v5 → v6 turns `enabledRoles` (an on/off entry for every known role) into `script`, the list of role ids that were on, and adds `endedReason`. v6 → v7 drops the night (it held the old Ravenkeeper fields) and renames the setting `ravenkeeperExtensionSeconds` to `followUpExtensionSeconds`.
+- Steps: v4 → v5 undoes the withdrawn v0.3.0 (schema v5 is taken for good): it removes every stored role id of the Fisherman, Zealot, Organ Grinder and Baron (script entries, held and believed roles, a gained ability, role history, bluffs, the Lil' Monsta Minion role, the Organ Grinder's effects, the story's roles, causes and actions) and drops the ended game's last night; text people were already shown is left as written. It changes nothing else on v4 data, and since a game saved at v5 starts at step 6, step 6 runs it again first. v5 → v6 turns `enabledRoles` (an on/off entry for every known role) into `script`, the list of role ids that were on, and adds `endedReason`. v6 → v7 drops the night (it held the old Ravenkeeper fields) and renames the setting `ravenkeeperExtensionSeconds` to `followUpExtensionSeconds`. v7 → v8 only stamps the version: its additions (`Assignment.eatenAbility`, `roleState.startInfoPending`, the causes `organ_grinder` and `cannibal`, the field kind `option`) are optional or new values, and the `grandmotherInfoPending` it replaces is left as written in ended games, whose role memory is never read again (*Play again* starts a fresh one).
 - **The script is a list of role ids** (`script: string[]`). A role added by a later release is absent from every existing game's script, so it is off there without a migration step, while new games start with every role on. It is read only through `onScript` and `enabledRoles` (`server/src/engine/setup.ts`), which ignore ids this release doesn't know (for example after a rollback) and return roles in `ROLES` order. Player views keep the field `enabledRoles: string[]`.
 - Because only ended games are migrated, steps never deal with night state. There is one file per step in `server/src/engine/migrations/`; steps read only the saved JSON and never import live code such as `ROLES`.
 - Rollback: stop the container, copy `clocktower.db.pre-v<N>` over `clocktower.db`, run the older image.
@@ -227,17 +227,17 @@ Append-only `events` table (game_id, seq, timestamp, actor, type, payload). Ever
 - **After an update ends a game**, the ended screen (players and Storyteller) shows one line from `ENDED_REASON_TEXT` (`shared/src/state.ts`): `update` "This game was ended by an app update.", `abandoned` "This game was ended for an app update after 4 hours without progress." Players stay in the game, so *Play again* carries everyone into a new Setup.
 - **Phones on an old build.** `GET /api/config` includes an opaque `buildId` (a short hash of APP_VERSION, GIT_SHA and BUILD_DATE; the build details themselves stay Storyteller-only). The client remembers the first one it sees and checks it on every reconnect; if it changed, a thin bar above the page says "The app was updated. Tap to reload." It sits in the page flow rather than over it, so the Storyteller's header and tabs stay usable, and × dismisses it. It never reloads by itself, which could lose an unsent night choice.
 - **Intent shapes are checked** before the engine sees an intent (`server/src/intent-shape.ts`, one entry per intent type in `shared/src/protocol.ts`): strings are strings, player ids are known players, arrays are arrays. A mismatch gets `Bad request.` with no state change, so a client and server from different builds fail politely.
-- **New view fields are optional.** Fields added to `PlayerView` or `AdminView` from schema v5 on are declared with `?`, and the client handles their absence.
+- **New view fields are optional.** Fields added to `PlayerView` or `AdminView` from schema v5 on are declared with `?`, and the client handles their absence. The same goes for new values inside a view: the player client shows an action field of a kind it doesn't know as a dropdown of its option ids (labels when given), so an `option` field sent to an older phone still works, showing ids such as `live` and `die`.
 - **Release notes** mark every release that bumps `SCHEMA_VERSION`: updating to it ends any game in progress. The README's *Updating* section is the user-facing version of this section.
 
 ### 5.6 Data model (logical)
 - `Game(id, code, phase, endedReason, nightNumber, dayNumber, settings, nightEndsAt, script[], adminId, seatingPublished, publishedSeating[], publicDead[], story[], schemaVersion)`
 - `Player(id, name, rolePreference, isAdmin, seat, tokens[], alive, deadAt {phase: night|day, number} | null, deathCause, ghostVoteUsed, hasSeenRole, lastSeenAt)`
-- `Assignment(playerId, roleId, believedRoleId, alignment, retainsAbilityWhenDead, grantedAbility {roleId, fromNight} | null, history[])`
-- **Abilities** are derived, never stored: `abilitiesOf(world, playerId, night)` (`shared/src/abilities.ts`, used by server and client) lists each ability as `{roleId, source, real, fromNight}`, with `source` one of `role`, `believed` (Drunk/Marionette: wakes as it, `real: false`), `philosopher` (from `grantedAbility.fromNight`) and `lil_monsta` (the token holder, from night 1). `hasAbility` is the player's actual role (which always counts, including the Drunk's and Marionette's own) or some real entry; `actingRoles` is every entry, in that order. A new source of abilities is added there only.
-- `Flags(playerId, key)`: `philosopher_used, seamstress_used, assassin_used, huntsman_used, professor_used, slayer_used, fool_used, virgin_used, golem_used, artist_used`
-- `RoleState(playerId, ...)`: per-role memory such as `lastTarget` (Devil's Advocate), `lastChoiceNone` (Po), `shownTypes` (Balloonist), `grandchildId` and `grandmotherInfoPending` (Grandmother), `soberAtDeath` and `moonchildUsed` (Moonchild)
-- `Effect(id, type, cause, sourcePlayerId, targetPlayerId, startNight, expiry)`; `type` in `poisoned | drunk | protected | devils_advocate | butler_master | witched`; `expiry` in `until_dusk | until_source_acts_again | while_source_alive_and_sober | until_removed`; `cause` in `poisoner | sailor | innkeeper | goon | philosopher | pukka | no_dashii | vigormortis | witch | admin` (used by the Mathematician).
+- `Assignment(playerId, roleId, believedRoleId, alignment, retainsAbilityWhenDead, grantedAbility {roleId, fromNight} | null, eatenAbility? {roleId | null, fromNight, executeeId, fake} | null, history[])`. `eatenAbility` is the Cannibal's (14.4): absent or null = none; `roleId` null = no ability (an evil executee, or cleared by the Storyteller); `fake` = the executee was evil, so the Cannibal only thinks they have it.
+- **Abilities** are derived, never stored: `abilitiesOf(world, playerId, night)` (`shared/src/abilities.ts`, used by server and client) lists each ability as `{roleId, source, real, fromNight}`, with `source` one of `role`, `believed` (Drunk/Marionette: wakes as it, `real: false`), `philosopher` (from `grantedAbility.fromNight`), `cannibal` and `lil_monsta` (the token holder, from night 1). `cannibal` is the eaten ability (`eatenAbility.roleId`, from its `fromNight`), listed when the player has the Cannibal's ability for real (their role, or a Philosopher's gained ability already active) or believes they are the Cannibal (a Drunk or Marionette); `real` is true only for a real Cannibal whose eat was not `fake`, so a believed Cannibal wakes as the eaten role and gets false information through normal impairment. `hidesRole` (same file) is the one place that decides whether a player may know which role an ability is: an eaten ability is hidden unless the Cannibal learns it (`CANNIBAL_LEARNS`: the Butler and Zealot, from their jinxes). A hidden ability goes by "cannibal" in everything sent to the player: `abilityTitle` gives "Cannibal" as its picker and result title, and `abilityKey` gives `cannibal` as its picker's key and role id, its submission key (NightRun reads the submission under `cannibal` back as the eaten role's; a player has at most one eaten ability, and the Cannibal has no picker of its own), and its follow-up questions' key (`cannibal:<playerId>`) and spec. The hiding stops at what the player receives (their view and messages): result rows, follow-up questions' `roleId` and actor rows keep the eaten role, and the Storyteller's Night screen names it with `storytellerLabel`, e.g. "Cannibal (as Fortune Teller)" (the row's `title` is the player's message title). `hasAbility` is the player's actual role (which always counts, including the Drunk's and Marionette's own) or some real entry; `actingRoles` is every entry, in that order. A new source of abilities is added there only.
+- `Flags(playerId, key)`: `philosopher_used, seamstress_used, assassin_used, huntsman_used, professor_used, slayer_used, fool_used, virgin_used, golem_used, artist_used, fisherman_used`
+- `RoleState(playerId, ...)`: per-role memory such as `lastTarget` (Devil's Advocate), `lastChoiceNone` (Po), `shownTypes` (Balloonist), `grandchildId` (Grandmother), `soberAtDeath` and `moonchildUsed` (Moonchild), `startInfoPending` (role ids of start-information roles gained and not yet told: section 5.7; it replaced the Grandmother-only `grandmotherInfoPending` in v8)
+- `Effect(id, type, cause, sourcePlayerId, targetPlayerId, startNight, expiry)`; `type` in `poisoned | drunk | protected | devils_advocate | butler_master | witched`; `expiry` in `until_dusk | until_source_acts_again | while_source_alive_and_sober | until_removed`; `cause` in `poisoner | sailor | innkeeper | goon | philosopher | pukka | no_dashii | vigormortis | witch | organ_grinder | cannibal | own_character | admin` (used by the Mathematician; `organ_grinder` and `cannibal` are reserved for those roles).
 - `Setup(demonBluffs[3], redHerringId, lilMonstaMinionRole, lilMonstaTokenHolderId, mezephelesWord, mezephelesSpent, typeCountsOverride?, shabalothKills[], godfatherOutsiders (1 | -1 | null), damselGuessUsed, damselGuessResult)`
 - `DayRecord(dayNumber, executedPlayerId, demonVoted, jugglerCorrect, moonchildTargetId, mezephelesSayer, gossipStatement (none|true|false), notes)`
 - `NightState(number, collectingOpen, submissions{}, followUpAnswers{key: {choice, byAdmin, at}}, seed, reviewChoices{}, overrides{}, mathAdjust, resolution)`
@@ -246,20 +246,28 @@ Append-only `events` table (game_id, seq, timestamp, actor, type, payload). Ever
 - `Story`: see section 13.3.
 
 ### 5.7 Role definitions
-Static data in `shared/src/roles.ts` (`id, name, type, alignment, abilityText, setupModifier?, reminder?, usedFlag?, dayReminder?`) and both night orders as editable tables. `usedFlag: {key, auto}` puts a once-per-game ability in the Day panel's Ability tracker (`auto`: the engine sets it); `dayReminder` shows the role's `reminder` in the Day panel's reminders. Behaviour in `server/src/engine/roles/index.ts`, one module per role:
+Static data in `shared/src/roles.ts` (`id, name, type, alignment, abilityText, setupModifier?, reminder?, usedFlag?, dayReminder?, startInfo?`) and both night orders as editable tables. `usedFlag: {key, auto}` puts a once-per-game ability in the Day panel's Ability tracker (`auto`: the engine sets it); `dayReminder` shows the role's `reminder` in the Day panel's reminders. `startInfo` marks a role whose information comes only on night 0 (the Clockmaker, the Grandmother); see *Start information* below. Behaviour in `server/src/engine/roles/index.ts`, one module per role:
 
 ```ts
 interface RoleBehaviour {
   wakes?(ctx): boolean;            // extra condition for waking tonight
   spec?(ctx): ActionSpec | null;   // the player's input tonight (null = wakes without input)
   resolve?(run, actor): void;      // effects, kills, results, review items
-  actsWhileDead?: boolean;         // Ravenkeeper, Moonchild, Gossip
-  onExecution?(ctx: { s, executeeId, holderId, now }): void;
+  actsWhileDead?: boolean;         // Ravenkeeper, Moonchild, Gossip, Farmer
+  wakesOnNightDeath?: true;        // only on a night they die (Ravenkeeper, Farmer): impairment as of the death, no picker
+  onExecution?(ctx: { s, executeeId, holderId, now, real }): void;
                                    // after an execution kills, once per seated player with a real ability of this role
+  onExecutionBelieved?: true;      // also call onExecution, with real: false, for players who only believe they have it
 }
 ```
 
-Every role change goes through `changeRole(w, pid, roleId, reason, now, opts)` in `server/src/engine/world.ts`: new role, its alignment, no believed role, one history entry. By default it also clears the player's gained ability, dead-ability flag, role memory and the effects they caused; `keepAbilities` keeps the first two (a Demon change, the Huntsman's Damsel), `keepTies` keeps the last two (setup, a new Demon, the Huntsman's Damsel), and `clearFlags` also clears their used flags (a live reassignment).
+`onExecution` runs for real abilities only (`real: true`), so a Drunk who believes they are the role is skipped, unless the role opts in with `onExecutionBelieved`: then believed entries (a Drunk or Marionette's believed role, an ability eaten from an evil executee) get the call too, with `real: false`, for a role that must seem to work (the believed Cannibal eating). Abilities are counted as they work today (`abilityNightToday`), so a Philosopher who chose the Cannibal last night eats today.
+
+Action fields (`ActionField.kind`) are `player`, `role` or `option`: a fixed set of answers (e.g. Live / Die for a follow-up question) with optional `labels` (`{ id: text }`), shown on the phone as a row of buttons. The answer is the option id, a string, like every field (`server/src/intent-shape.ts`, then `validateChoice`).
+
+**Start information.** A player who gains a start-information role's ability other than at setup (the Philosopher's choice, the Huntsman's Damsel, the Cannibal's eat or the Storyteller's choice for it) is marked by `markStartInfo` (`server/src/engine/world.ts`) in `roleState.startInfoPending`. They get the information **the night the ability is gained**, in the role's slot, even though a gained ability otherwise works only from the next night and a player given a role tonight otherwise acts from the next night (the exception is for start-information roles only): a Philosopher's choosing night (both slots come after the Philosopher's), the Damsel's night. The Cannibal's case is the night after the execution, the first night the eat is active. The information is a normal result (false if impaired), and the mark clears, so it comes once. The Grandmother's link still starts when the ability does. The Clockmaker has an other-night slot for this alone ("Only if the ability was just gained"), beside the Grandmother's.
+
+Every role change goes through `changeRole(w, pid, roleId, reason, now, opts)` in `server/src/engine/world.ts`: new role, its alignment, no believed role, one history entry. By default it also clears the player's gained and eaten abilities, dead-ability flag, role memory and the effects they caused; `keepAbilities` keeps the first three (a Demon change, the Huntsman's Damsel), `keepTies` keeps the last two (setup, a new Demon, the Huntsman's Damsel), `keepAlignment` keeps the player's current alignment instead of the new role's, and `clearFlags` also clears their used flags (a live reassignment). A cleared eaten ability is left absent rather than null.
 
 The night-order reference shown to players is generated from the order tables, never hand-written separately.
 
@@ -319,7 +327,7 @@ resolveNight(state):                      // pure; clones the world
 ## 7. Setup phase
 
 ### 7.1 Role checklist
-- All 48 roles grouped by type with a checkbox each (default all enabled), plus All/None.
+- All 55 roles grouped by type with a checkbox each (default all enabled), plus All/None.
 - Unchecking a role removes it from the assignment dropdown, bluff candidates, the random suggestion and **the lists shown to players**.
 - Warnings (non-blocking): too few enabled roles of a type for the player count. No Demon enabled blocks Night 0 (unless forced).
 - After Night 0 the checklist can still be changed with a confirmation; player lists update live.
@@ -357,7 +365,7 @@ Modifiers (each applied when that role is assigned; Townsfolk absorb the differe
 - **Balloonist**: +1 Outsider.
 - **Vigormortis**: −1 Outsider.
 - **Lil' Monsta**: +1 Minion.
-- **Godfather**: −1 or +1 Outsider, chosen by the Admin (default +1). Only +1 is allowed when the chart has 0 Outsiders for the player count.
+- **Godfather**: −1 or +1 Outsider, chosen by the Admin (default +1), applied after every other modifier (Baron, Vigormortis, Balloonist). Only +1 is allowed when no Outsider is left to remove after those (`outsidersBeforeGodfather`): 7 players, no Outsiders; 7 players with the Baron, 1 or 3.
 
 **Admin override:** four number inputs that must add up to the player count, with "Reset to default chart". Modifiers apply only to the default chart. The Drunk counts as an Outsider, the Marionette as a Minion, the Damsel takes an Outsider slot. Counts are advisory: mismatches only warn.
 
@@ -418,7 +426,7 @@ The Review tab shows:
 ### 9.4 Follow-up questions (the Ravenkeeper's second round)
 A role can ask a player a question while the night is reviewed: its behaviour calls `NightRun.askFollowUp({ key, playerId, roleId, spec })`, which returns the answer if there is one, else null, and records the question in `resolution.followUps`. The player's phone shows each unanswered question (`PlayerView.me.followUps`) with the usual picker; the Storyteller sees one card per unanswered question with a picker to answer for them (`answer_follow_up` / `answer_follow_up_for`, both checked against the question's spec). Built-in rules: publishing is refused while a question is unanswered, unless forced (the player then gets no information); the countdown is extended by `followUpExtensionSeconds` (default 120) when questions appear on resolving; "Accept all defaults" never answers a question; re-opening collecting clears all answers.
 
-The Ravenkeeper uses it: if a Ravenkeeper (or a Drunk/Marionette who believes they are one) dies tonight, they are asked (key `ravenkeeper:<playerId>`) to choose a player. Their result uses their impairment at the moment of death.
+The Ravenkeeper uses it: if a Ravenkeeper (or a Drunk/Marionette who believes they are one) dies tonight, they are asked (key `ravenkeeper:<playerId>`) to choose a player. Their result uses their impairment at the moment of death. The Ravenkeeper and the Farmer share this "wakes only on a night they die" rule (`wakesOnNightDeath`).
 
 ### 9.5 Publish and send to Day
 One atomic step: the night's world is committed, the story is recorded, every result and notice is delivered, dead players get "You have died", revived players get "You are alive again", Lil' Monsta's Night 0 role change happens, the **dawn snapshot of deaths** (`publicDead`) is taken, and all phones switch to the Day screen.
@@ -473,13 +481,15 @@ Per-role inputs are in section 14.3.
 | Gossip's statement: None / True / False (per day, frozen when the night starts) | Gossip |
 | Slayer shot: pick a target ("registers as" selector for a sober Recluse), Resolve shot → day-kill dialog (5.12) | Slayer |
 | Witch's curse: the cursed player, "They nominated, apply curse" → day-kill dialog (uses up the curse) | Witch |
+| Cannibal: one row per player with the Cannibal's ability (real or believed) who has eaten: "X ate Y: the Empath ability from night 2", or after an evil executee "evil, poisoned; thinks they have no ability"; a character dropdown (default: the eaten ability, or Nothing) and **Confirm** (`set_cannibal_ability`; only Confirm sends) | Cannibal |
 | Record Damsel guess (once per game for the evil team) → banner: win / no effect / wrong, with **Retract guess** (clears the record; nothing is ever sent to players) | Damsel |
 | Notes | Story |
 
 - **Scarlet Woman prompt:** when the Demon is marked dead in the day with 5+ alive and a sober Scarlet Woman alive, a prompt asks whether she becomes the Demon. On yes her role changes immediately (grimoire) and she is told when the next night starts.
-- **Ability tracker:** chips "Unused/Used" for Virgin, Golem, Artist, Fool and Slayer (Admin toggles; the engine sets the Fool and Slayer itself), automatic chips for Assassin, Seamstress, Philosopher, Huntsman and Professor, and "Guess unused/used" for the Damsel guess (resettable).
+- **Eyes-closed voting:** a banner "Eyes-closed voting today" while the Organ Grinder's ability works (14.6; `AdminView.eyesClosedVoting`, optional).
+- **Ability tracker:** one row per once-per-game ability a player really has (their role, or one gained: a Philosopher who chose the Fisherman gets a Fisherman row), never a believed one; chips "Unused/Used" for Virgin, Golem, Artist, Fool, Slayer and Fisherman (Admin toggles; the engine sets the Fool and Slayer itself), automatic chips for Assassin, Seamstress, Philosopher, Huntsman and Professor, and "Guess unused/used" for the Damsel guess (resettable).
 - **Reminders:** Devil's Advocate protection, Butler's master, Witch's curse, the Fool, and day-only role reminders.
-- Day-only abilities (Virgin, Golem, Artist, Mastermind, Psychopath, Mayor's 3-player win, Butler vote restriction, Devil's Advocate execution protection, Fool surviving an execution) are **not enforced**; the Admin applies them at the table.
+- Day-only abilities (Virgin, Golem, Artist, Fisherman, Mastermind, Psychopath, Mayor's 3-player win, Butler vote restriction, Zealot's voting, Organ Grinder's secret tally, Devil's Advocate execution protection, Fool surviving an execution) are **not enforced**; the Admin applies them at the table.
 
 ---
 
@@ -518,6 +528,10 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 - Every kill comes before the Professor, except the Moonchild's. This is harmless: the Professor can choose only players dead at the start of the night, so a kill's place relative to the Professor only decides whether a Professor it kills has already acted.
 - The Professor comes before the Empath and Oracle.
 - The Grandmother comes after every Demon.
+- The Al-Hadikhia: other nights only, right after the Vigormortis and right before Lil' Monsta.
+- The Farmer, per the official night sheet: other nights only, right after the Huntsman and right before the Moonchild (so before the Grandmother), after every Demon.
+- The Organ Grinder, per the official night sheet: first night right after the Godfather, other nights right after the Gambler, before the Devil's Advocate both times.
+- A start-information role has a slot in both orders. The Clockmaker's other-night slot exists only for an ability just gained (the documented exception in the test), beside the Grandmother's.
 - The Mathematician is last.
 - Every role that resolves at night has a slot, and every slot names a real role.
 
@@ -530,27 +544,30 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 | Poisoner | 1 player | Any player, self allowed |
 | Innkeeper | 2 players | Two different players, self allowed, Night 1+ |
 | Gambler | 1 player and 1 role | Any other player and any enabled role, Night 1+ |
+| Organ Grinder | Drunk until dusk / Stay sober (buttons) | Either; no decline, and no submission counts as sober. Every night including Night 0 |
 | Devil's Advocate | 1 player | Any player except last night's choice |
 | Witch | 1 player | Any player, self allowed; only while 4+ players are alive at the start of the night |
 | Imp, Pukka, No Dashii, Vigormortis | 1 player | Any player, self allowed |
 | Shabaloth | 2 players | Two different players |
 | Po | 0 or 1 player; 3 after choosing no one | See card |
+| Al-Hadikhia | 3 different players, or "No one" | Any player, dead and self allowed. After the Mastermind jinx (14.8): 3 good players, dead allowed, no "No one" |
 | Lil' Monsta (token holder) | 1 living Minion and 1 player | Pass-to: a living Minion (self = keep). Victim: any player. Night 1+ |
 | Assassin | 1 player, or "Not tonight" | Any player, once per game, Night 1+ |
 | Godfather | 1 player | Any player, self allowed; only on Night 1+ when triggered |
 | Professor | 1 player, or "Not tonight" | Players dead at the start of the night, once per game, Night 1+ |
 | Huntsman | 1 player, or "Not tonight" | Any player, once per game, any night |
 | Ravenkeeper | 1 player | Any player, second round only |
+| Farmer | none (a review item for the Storyteller) | Any alive good player, or Nobody |
 | Fortune Teller | 2 players | Two different players, self allowed |
 | Seamstress | 2 players, or "Not tonight" | Two different players, not the Seamstress, once per game |
 | Butler | 1 player | Any player but self |
 | All others | none | They see "No night action tonight" |
 
-### 14.4 Townsfolk (24)
+### 14.4 Townsfolk (27)
 
 #### Clockmaker
 - Ability: "You start knowing how many steps from the Demon to its nearest Minion."
-- Night 0 only, no input. Result: the smallest number of seats (shorter way around, all seats counted, adjacent = 1) between whoever registers as the Demon and whoever registers as a Minion. A Recluse is a registration source.
+- Night 0 only, no input (or the night a player gains the ability: section 5.7). Result: the smallest number of seats (shorter way around, all seats counted, adjacent = 1) between whoever registers as the Demon and whoever registers as a Minion. A Recluse is a registration source.
 - Impaired: a whole number from 1 to half the player count, different from the truth.
 
 #### Sailor
@@ -575,7 +592,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 
 #### Philosopher
 - Ability: "Once per game, at night, choose a good character: gain that ability. If this character is in play, they are drunk."
-- Any night until used: one enabled good role (not the Philosopher), or "Not tonight". Choosing sets the used flag. Once the Philosopher has gained an ability, the choice never appears again (even if the Ability tracker chip is toggled back). If sober: gains the ability **from the next night** (acts at that role's slot with its input; gained passives also work), and every player whose actual role is that role gets a `drunk` effect (cause `philosopher`) that ends when the Philosopher dies or the Admin removes it. A gained ability already works by **day** on the day right after the choosing night: every day-time ability check (`abilityNightToday`: the Slayer shooting and the Recluse being shot, the Sailor, Tea Lady and Fool protections against day kills, the Moonchild's sobriety when they die by day) counts abilities starting the next night. Impairment is still checked as of the last night. So the Slayer's shot is recorded with the Day panel's Slayer button, and a Philosopher-Sailor survives the Witch's curse. Other day abilities (e.g. the Artist's question) are run by the Admin at the table. Choosing the Grandmother: learns a grandchild the following night.
+- Any night until used: one enabled good role (not the Philosopher), or "Not tonight". Choosing sets the used flag. Once the Philosopher has gained an ability, the choice never appears again (even if the Ability tracker chip is toggled back). If sober: gains the ability **from the next night** (acts at that role's slot with its input; gained passives also work), and every player whose actual role is that role gets a `drunk` effect (cause `philosopher`) that ends when the Philosopher dies or the Admin removes it. A gained ability already works by **day** on the day right after the choosing night: every day-time ability check (`abilityNightToday`: the Slayer shooting and the Recluse being shot, the Sailor, Tea Lady and Fool protections against day kills, the Moonchild's sobriety when they die by day) counts abilities starting the next night. Impairment is still checked as of the last night. So the Slayer's shot is recorded with the Day panel's Slayer button, and a Philosopher-Sailor survives the Witch's curse. Other day abilities (e.g. the Artist's question) are run by the Admin at the table. Choosing a start-information role (the Clockmaker, the Grandmother) is the exception: the information comes **that same night**, once, at that role's slot (false if the Philosopher is impaired there, e.g. poisoned later in the night); the ability itself, such as the Grandmother's link, still starts the next night (section 5.7).
 - Always told "You chose the X ability."
 - Impaired: the use is spent, nothing is gained, nobody is drunk.
 
@@ -643,11 +660,11 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 - **Night 0:** a review item recommends a random good player other than her (not the Drunk); the Admin may pick any good player. She is told "Your grandchild is X, the Y." (actual character; a Drunk shows as Drunk), and `grandchildId` is recorded.
 - Impaired on Night 0: false information (random other player and random enabled role, editable) and **no grandchild** is recorded. A Drunk or Marionette believing they are the Grandmother is always in this case.
 - **Link (Night 1+):** if the grandchild died tonight from `demon_attack` (including Mayor redirects, the Pukka's delayed kill and the Lil' Monsta kill) and she is alive and sober, a review item (default yes) runs `attemptKill(grandmother, grandchild_link)`: protections apply, no Mayor bounce. Not triggered by executions, Assassin, Godfather, Gossip, Moonchild, Slayer, Witch or Gambler deaths, or by day deaths. Impaired: she survives and an abnormal event is logged.
-- Reviving the grandchild keeps the link; the link ends if she dies. A player who gains the Grandmother later (Huntsman's Damsel: that same night; Philosopher: the following night) learns a grandchild through the same review item.
+- Reviving the grandchild keeps the link; the link ends if she dies. A player who gains the Grandmother later (Huntsman's Damsel or Philosopher: that same night) learns a grandchild through the same review item, once (`startInfoPending`, section 5.7); a Philosopher's link starts the next night.
 
 #### Huntsman
 - Ability: "Once per game, at night, choose a living player: the Damsel, if chosen, becomes a not-in-play Townsfolk. [+the Damsel]"
-- Any night until used (including Night 0): 1 player or "Not tonight". Requires the Damsel in play at setup. Choosing sets the used flag. If sober and the target's actual role is the Damsel, a review item recommends a random enabled Townsfolk not in play and not anyone's believed role; the Admin may pick another. Her role becomes it (good), she gets "Your role is now X" at publish and acts from the next night. With no Townsfolk left, nothing changes and the Admin sees a warning. Minions are not told.
+- Any night until used (including Night 0): 1 player or "Not tonight". Requires the Damsel in play at setup. Choosing sets the used flag. If sober and the target's actual role is the Damsel, a review item recommends a random enabled Townsfolk not in play and not anyone's believed role; the Admin may pick another. Her role becomes it (good), she gets "Your role is now X" at publish and acts from the next night; a start-information role (Clockmaker, Grandmother) gives her its information that same night (section 5.7). With no Townsfolk left, nothing changes and the Admin sees a warning. Minions are not told.
 - The Huntsman is told only "You chose X." Impaired: no change, use spent.
 
 #### Professor
@@ -659,7 +676,24 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 - Ability: "Once per game, during the day, publicly choose a player: if they are the Demon, they die."
 - Resolved in the Day panel; the Slayer must be alive. Resolving spends the shot (except Cancel). If the Slayer is sober and the target registers as the Demon (the Lil' Monsta token holder does; a sober Recluse uses the "registers as" selector; the red herring does not), the day-kill dialog runs (5.12). Otherwise "nothing happens". A Demon death triggers the Scarlet Woman prompt. The app does not announce a win.
 
-### 14.5 Outsiders (7)
+#### Cannibal
+- Ability: "You have the ability of the recently killed executee. If they are evil, you are poisoned until a good player dies by execution."
+- Never wakes as itself. When an execution kills (`onExecution`, with `onExecutionBelieved`), each living holder of the Cannibal's ability other than the executee eats: `eatenAbility = { roleId, fromNight: next night, executeeId, fake }` (5.6).
+  - Good executee (actual alignment): their role's ability from the next night, real (`fake: false`). Any Cannibal poison on the holder ends; the role's used flag on the holder is cleared (a fresh Slayer shot); a start-information role gives its information that night (5.7). Hidden: the pickers and results are titled "Cannibal" (5.6), except the Butler's and Zealot's (jinxes, 14.8).
+  - Evil executee: no ability (`roleId: null`, `fake: true`), and a real Cannibal is poisoned (cause `cannibal`, `until_removed`) until a good player dies by execution.
+  - A Drunk or Marionette who believes they are the Cannibal, or a Philosopher who chose it (from the day after), eats the same way; a believed Cannibal's ability is never real (false information) and they are never poisoned.
+  - An execution that doesn't kill changes nothing.
+- Day panel (12): the eat and its ability, and a dropdown + Confirm to change it (`set_cannibal_ability { playerId, roleId | null }`, by day only, for a player with the Cannibal's ability, real or believed, who has eaten; not the Cannibal itself). The change keeps whether the eat was real, so an ability given after an evil eat gives false information; it clears that role's used flag and marks start information like an eat.
+
+#### Farmer
+- Ability: "When you die at night, an alive good player becomes a Farmer."
+- Wakes only on a night they die (like the Ravenkeeper), at its slot (14.1), never by day. A real Farmer sober at the moment of death: a review item `farmer:<pid>`, "who becomes a Farmer?": every alive player whose actual alignment is good, plus Nobody, default a seeded random one who is not a Farmer already (Nobody if all are). The chosen player becomes the Farmer (`changeRole`, `keepAlignment`), acts again from the next night, and is told "You are now the Farmer" with the ability text. Impaired at death, or only believing they are the Farmer: nothing happens (an abnormal event when another character's impairment caused it), and the actor row says so.
+
+#### Fisherman
+- Ability: "Once per game, during the day, visit the Storyteller for some advice to help your team win."
+- Day ability, never wakes. The Admin gives the advice in person and ticks "Used" in the Ability tracker (`fisherman_used`, not set by the engine); the Day panel reminds them. A Philosopher may gain it (a row of their own in the tracker).
+
+### 14.5 Outsiders (8)
 
 #### Drunk
 - Ability: "You do not know you are the Drunk. You think you are a Townsfolk character, but you are not."
@@ -690,7 +724,11 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 - Never wakes; an Outsider. Minions (not the Marionette) learn "A Damsel is in play." on Night 0 (section 8).
 - The Admin records the evil team's single guess in the Day panel. Correct, and the Damsel alive and sober: banner "The Damsel was guessed: the good team loses. Apply at the table." Damsel impaired or dead: "no effect" banner. Otherwise: "Wrong guess, nothing happens." The app does not end the game. After a Huntsman conversion, a guess at that player is wrong.
 
-### 14.6 Minions (10)
+#### Zealot
+- Ability: "If there are 5 or more players alive, you must vote for every nomination."
+- Never wakes. A Day panel reminder only: the voting rule is not enforced.
+
+### 14.6 Minions (12)
 
 #### Mezepheles
 - Ability: "You start knowing a secret word. The 1st good player to say this word becomes evil that night."
@@ -735,7 +773,16 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 - Ability: "Each night, choose a player: if they nominate tomorrow, they die. If just 3 players live, you lose this ability."
 - Every night including Night 0, while 4+ players are alive at the start of the night (checked every night, nothing stored; revived players can bring it back from the next night). Any player, self allowed. At her slot, if 3 or fewer are alive she does nothing; otherwise, if sober, a `witched` effect (until dusk) on the target. The cursed player is not told; the curse persists if she dies. Day: the Admin presses "They nominated, apply curse" (day-kill dialog, once per curse). The Goon check applies. Told only "You chose X." Impaired: no curse.
 
-### 14.7 Demons (7)
+#### Organ Grinder
+- Ability: "All players keep their eyes closed when voting and the vote tally is secret. Each night, choose if you are drunk until dusk."
+- Every night including Night 0, at its slot (14.1): buttons "Drunk until dusk" / "Stay sober" (an `option` field), no decline; no submission counts as sober. Drunk: a `drunk` effect on themselves (cause `organ_grinder`, `until_dusk`), so they are drunk that night and the next day; the Mathematician does not count it (the Organ Grinder causes it). Impaired at their slot: choosing drunk does nothing.
+- Day: the Day panel shows "Eyes-closed voting today" while a living player with a real Organ Grinder ability (their role, or one gained, counted with `abilityNightToday`) is not drunk or poisoned as of the last night; checked live, so it goes when they die by day. A believed Organ Grinder never counts. The secret tally and the eyes-closed vote are run at the table (a Day panel reminder).
+
+#### Baron
+- Ability: "There are extra Outsiders in play. [+2 Outsiders]"
+- Setup only: +2 Outsiders, -2 Townsfolk in the suggested counts (7.4), stacking with every other modifier. Never wakes.
+
+### 14.7 Demons (8)
 
 Common: exactly one Demon at the start. Demon kills are `attemptKill(target, demon_attack)`. Kill roles marked `*` do not act on Night 0. An impaired Demon's kill silently does nothing. A new Demon (starpass, Scarlet Woman) receives Demon information.
 
@@ -772,6 +819,14 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 - Night 1+: the token holder alone chooses a living Minion to pass the token to (self = keep) and a victim (any player). If sober: the victim is attacked, then the token moves; a new holder is told "You hold Lil' Monsta's token". Impaired: no kill, token stays.
 - If the holder dies, the Scarlet Woman check runs; if she takes over she gets the token and keeps her role (the "Lil' Monsta & Scarlet Woman" jinx, 14.8). Otherwise the token stays with the dead holder; the Admin can move it in Grimoire → Game facts.
 
+#### Al-Hadikhia
+- Ability: "Each night*, you may choose 3 players (all players learn who): each silently chooses to live or die, but if all live, all die."
+- Night 1+: 3 different players, or "No one". Declining (or no input) does nothing and announces nothing.
+- At dawn every seated player is told "The Al-Hadikhia chose A, B and C."
+- During review, each chosen player in order gets a follow-up question (9.4), key `al_hadikhia:<ahId>:<targetId>`: "The Al-Hadikhia chose A, B and C. Do you choose to live or die?", Live or Die, dead players included. "Accept all defaults" answers none of them; publishing waits unless forced.
+- Live revives a dead player (`revive`) and does nothing to a living one. Die is `attemptKill(t, demon_attack)`, so every protection applies. If all three answered and all three are alive afterwards, including anyone whose "die" was stopped, all three are attacked.
+- An unanswered question at a forced publish has no effect for that player, and the "if all live, all die" rule needs all three answers. Impaired: the questions are still asked and the choice still announced, with no effect. The actor row says so in both cases.
+
 ### 14.8 Jinxes
 The official jinxes between roles in the app are the `JINXES` data in `shared/src/roles.ts`: the two roles, the official wording, how the app handles it and the page it was checked against. A change that adds a role adds its jinxes with roles already in the app, in the same change. Every message about a jinx is labelled `Jinx (A & B): …`. The role list (players' Roles tab, Storyteller reference) has a Jinxes section listing each jinx whose two roles are both on the script.
 
@@ -779,8 +834,12 @@ The official jinxes between roles in the app are the `JINXES` data in `shared/sr
 - **Marionette & Huntsman:** a Marionette who believes they are the Huntsman needs the Damsel in play (blocking Setup item, 7.5).
 - **Marionette & Balloonist:** a Marionette who believes they are the Balloonist gets a Setup warning that an Outsider may be added.
 - **Lil' Monsta & Scarlet Woman:** already how the Scarlet Woman check works (14.7, Lil' Monsta).
+- **Cannibal & Butler**, **Cannibal & Zealot** ("If the Cannibal gains the Butler [Zealot] ability, the Cannibal learns this."): when the Cannibal gains it (an eat, or the Storyteller's Confirm in the Day panel), a notice "Jinx (Cannibal & Butler): You have the Butler ability" with the ability text is queued and delivered when the next night starts, once. Changing the ability again the same day withdraws it. The eaten Butler's picker is titled "Butler", not "Cannibal".
+- **Scarlet Woman & Al-Hadikhia** ("If there would be two Demons, one of which was the Scarlet Woman, the Scarlet Woman becomes the Scarlet Woman again."): after any revive (at night, or the Storyteller's `mark_alive`), if two Demons are alive, one an Al-Hadikhia and one who became the Demon from the Scarlet Woman, she changes back (`changeRole`, `keepAbilities`, `keepTies`), is told "Jinx (Scarlet Woman & Al-Hadikhia): You are the Scarlet Woman again" with her ability text, and at night the actor row says so.
+- **Al-Hadikhia & Mastermind** ("If the Al-Hadikhia dies by execution, and the Mastermind is alive, the Al-Hadikhia chooses 3 good players tonight: if all 3 choose to live, evil wins. Otherwise, good wins."): the night after the Al-Hadikhia died by execution, with a living player who has a real Mastermind ability and no other living Demon (the execution ended the game), the dead Al-Hadikhia wakes with a picker of 3 actually-good players (`wakesDead`) and is an expected actor. Each gets the Live/Die question, nothing dies, and the actor row shows "evil wins" if all three chose to live, else "good wins". The app doesn't end the game: the Storyteller applies it at the table. An impaired Mastermind gets a note on the row. The dawn notice is sent as usual.
+- **Cannibal & Juggler** ("If the Juggler guesses on their first day and dies by execution, tonight the living Cannibal learns how many guesses the Juggler got correct."): already how it works: eating the Juggler on day 1 gives the Cannibal the Juggler's ability from night 1, which wakes on night 1 with that day's count (titled "Cannibal").
 
-The rest are `'reminder'`: shown in the role list only, applied by the Admin at the table.
+The rest are `'reminder'`: shown in the role list only, applied by the Admin at the table. They include **Butler & Organ Grinder** ("If the Organ Grinder is causing eyes closed voting, the Butler may raise their hand to vote but their vote is only counted if their master voted too."; Djinn page, revision 3106).
 
 ---
 
@@ -875,21 +934,26 @@ The rest are `'reminder'`: shown in the role list only, applied by the Admin at 
 
 ## 18. Tests
 
-225 automated tests (`./dev.sh npm test`: 216 server, 9 client), all passing:
+347 automated tests (`./dev.sh npm test`: 326 server, 21 client), all passing:
 - **Original worked examples:** poison makes false info; sober Sailor survives, poisoned Sailor dies; Innkeeper protects but not from the Assassin; Mayor tails redirect (may land on a protected player); Clockmaker 7 seats Demon 1 Minion 5 → 3; Goon; Po none then three; starpass suggests the Scarlet Woman and the Admin picks another; Shabaloth regurgitation; Lil' Monsta flow and the Fortune Teller reading the new holder; reconnect and rebind.
 - **Per-role tests** for every role with a night effect (true, impaired, registration cases), setup blocking, role reassignment, Ravenkeeper second round, Scarlet Woman night and day.
+- **Al-Hadikhia:** off the script it is never offered; the picker; declining; the questions and their order; "Accept all defaults" answers nothing and publishing waits unless forced; die, live revives, all-live kills all three, a Tea Lady-protected "die" counts as alive; a revived player killed again isn't told they are alive; impaired; reopening clears answers; a forced publish with a missing answer; dead players answer; the dawn notice; Live/Die reaches only the asked player; both jinxes; the night-order slot.
 - **Follow-up questions:** the question's key and spec and the timer extension, "Accept all defaults" leaves a question unanswered, re-opening collecting clears answers, the Storyteller answering for a player, only the asked player answering once with a legal choice, the v7 step.
-- **Abilities:** one test per source (own role; a Drunk or Marionette has their actual role's ability but not the believed one's; a Drunk believing the Empath wakes as it without the ability; a Philosopher's ability from `fromNight`; the Lil' Monsta token from night 1).
+- **Abilities:** one test per source (own role; a Drunk or Marionette has their actual role's ability but not the believed one's; a Drunk believing the Empath wakes as it without the ability; a Philosopher's ability from `fromNight`; the Lil' Monsta token from night 1); the Cannibal's eaten ability for a real, Philosopher-gained, Drunk and Marionette Cannibal (the eaten role from `fromNight`, `real` only for a real Cannibal's non-fake eat, nothing for a fake eat's ability or no ability), and its "Cannibal" title and `cannibal` key on pickers, submissions, messages and follow-up questions except for the Butler and Zealot, with the eaten role's id appearing nowhere in the player's view, while the admin view's result row keeps the eaten role ("Cannibal (as Fortune Teller)").
 - **Jinxes:** every jinx names two roles in the app and no pair twice; every `engine` jinx has a test named after its label; label and lookup helpers; the Marionette & Huntsman Setup item, the Marionette & Balloonist warning, and the Scarlet Woman taking Lil' Monsta's token; the role list's Jinxes section (client).
 - **Philosopher day abilities:** a Philosopher who chose the Slayer can shoot on the very next day (and only once), not before choosing, and the real Slayer is drunk that day; choosing another ability does not make them a Slayer. The day after choosing, a Philosopher-Sailor or -Fool survives the Witch's curse, a Philosopher-Tea Lady protects a good neighbour, a Philosopher-Recluse can register as the Demon to the Slayer, and a Philosopher-Moonchild executed by day has their sobriety recorded.
-- **Role changes and hooks:** `changeRole` for every combination of its options, to no role and for a player with no assignment; the `onExecution` hook runs once per holder of the real ability (including the executee) only when an execution kills.
-- **Night order:** the constraints in 14.1 on both orders, every resolving role has a slot, every slot's role exists once.
+- **Role changes and hooks:** `changeRole` for every combination of its options, to no role and for a player with no assignment; the eaten ability is kept only with `keepAbilities`, and `keepAlignment`; the `onExecution` hook runs once per holder of the real ability (including the executee) only when an execution kills, and for believed holders, with `real: false`, only when the role opts in.
+- **Fisherman, Zealot, Baron, Organ Grinder:** a script without them never offers them (picker options, bluffs, assignment, suggested distributions, a game saved before they existed); the Baron's counts alone and with the Godfather (±1, decided after the other modifiers, and accepted or refused accordingly), Vigormortis and Balloonist; the Organ Grinder's choice (drunk until dusk with its own cause, sober, no submission as sober, an illegal answer refused), eyes-closed voting only while alive and sober (not when drunk, poisoned, dead or only believed); (client) a Philosopher's gained Fisherman gets a tracker row, a believed one doesn't, the Fisherman, Zealot and Organ Grinder reminders, and the banner.
+- **Cannibal:** off the script it is never offered; a good eat used the next night under the title "Cannibal"; an evil eat poisons until a good player dies by execution (not through a non-killing execution); a non-killing execution keeps the old ability; a dead or executed Cannibal eats nothing; a used Slayer flag cleared by a Slayer eat; an eaten Grandmother or Clockmaker gives its information the next night; a Philosopher who chose the Cannibal eats the next day; a Drunk- and Marionette-Cannibal wake as the eaten role with false information and are never poisoned; `set_cannibal_ability` (who, when, which roles; kept not real after an evil eat; changing a good eat; clearing); the three jinxes (Butler notice once, on an eat or Confirm only, withdrawn on a change; Zealot notice; the Juggler on day 1 and not later); (client) the Day panel's Cannibal rows, summary and dropdown.
+- **Farmer:** a night death makes the chosen alive good player a Farmer who stays good, is told, and doesn't act again that night; the default never picks a Farmer (Nobody when only Farmers are left); Nobody; a day death, an impaired Farmer and a Drunk-Farmer do nothing; the Farmer's night-order slot.
+- **Night order:** the constraints in 14.1 on both orders, every resolving role has a slot, every slot's role exists once, start-information roles have slots in both orders and the just-gained-only Clockmaker slot sits by the Grandmother's.
+- **Start information:** a Philosopher who chooses the Clockmaker learns the distance that same night (night 0 or later), once; poisoned after choosing, false information and the mark still clears; the Huntsman's Damsel turned Clockmaker learns it that night, once; a Philosopher-Grandmother learns a grandchild that night with no link until the next night; other gained abilities still start the next night; the Clockmaker otherwise wakes on night 0 only.
 - **New-role worked examples:** Oracle (and after a Professor revive), Gossip (True/False/poisoned/killed earlier), Huntsman, Professor (Townsfolk only, not tonight's victims, Shabaloth list cleared), Slayer (kill, poisoned, red herring), Damsel (notices, banner, single guess), Godfather (info, trigger, counts ±1), Witch (curse, 3 alive, poisoned), Huntsman setup guard, Mathematician cap, Grandmother (link, Assassin no link, poisoned no grandchild), identical revives.
 - **Owner changes:** dead players in pickers, Vigormortis + Scarlet Woman, Balloonist names only, story contents (impairment, targets, information received) and Admin-only, Minions knowing each other, dawn snapshot of deaths.
-- **Updates:** last progress counts joins but not rebinds, an empty lobby is safe to restart at any age and is deleted (and noted in the `migrations` row) by the startup upgrade while a lobby with players is ended, the 4-hour abandoned rule, when a restart is safe, the status reply has no player details, the loopback check; the startup upgrade (in-progress games ended as abandoned or by the update, ended games kept and playable again, one backup, a second startup changes nothing, a failing step rolls back, too-new and too-old saves refused; one `migrations` row per upgrade and none otherwise; the startup line; each v4 fixture upgrades to a stored expected state), using v4 fixtures built by the v0.2.2 engine and v5 fixtures built by the withdrawn v0.3.0 engine at 9606d63 (`server/test/fixtures/`): an ended game with the Baron and Organ Grinder assigned and a Fisherman bluff, and a game left mid-day, both upgrade with no stored id of the four roles; the v5 step changes nothing on v4 data but the ended game's last night.
+- **Updates:** last progress counts joins but not rebinds, an empty lobby is safe to restart at any age and is deleted (and noted in the `migrations` row) by the startup upgrade while a lobby with players is ended, the 4-hour abandoned rule, when a restart is safe, the status reply has no player details, the loopback check; the startup upgrade (in-progress games ended as abandoned or by the update, ended games kept and playable again, one backup, a second startup changes nothing, a failing step rolls back, too-new and too-old saves refused; one `migrations` row per upgrade and none otherwise; the startup line; each v4, v5 and v7 fixture upgrades to a stored expected state; a v7 build refuses a v8 game with `Not starting: …` and changes nothing; the v8 step only stamps the version, and an upgraded v7 game plays again), using v4 fixtures built by the v0.2.2 engine and v5 fixtures built by the withdrawn v0.3.0 engine at 9606d63 (`server/test/fixtures/`): an ended game with the Baron and Organ Grinder assigned and a Fisherman bluff, and a game left mid-day, both upgrade with no stored id of the four roles; the v5 step changes nothing on v4 data but the ended game's last night. v7 fixtures are built by the engine at b9d25f0 (`generate-v7.ts`): an ended game with a Philosopher-Grandmother and a Ravenkeeper's follow-up, and a game left mid-day with the Grandmother information still pending.
 - **Script:** the v6 step, a new game has every role on, toggles and All/None, Play again keeps the script, an unknown id is left out of views, assignment, bluffs and the Setup checklist.
-- **Intent shapes:** for every intent type, each field with the wrong type is rejected as `Bad request.` with no state change or event; missing fields, unknown players, unknown types and non-objects are rejected; every intent the test helpers send must be well-formed.
-- **Ended screen** (client, rendered with `react-dom/server`): each `endedReason` message, and none when the Storyteller ended the game or an older server sends no reason; the update bar offers a reload and a dismiss button.
+- **Intent shapes:** for every intent type, each field with the wrong type is rejected as `Bad request.` with no state change or event; missing fields, unknown players, unknown types and non-objects are rejected; every intent the test helpers send must be well-formed; an `option` answer is its id as a string (a label or non-string is not).
+- **Ended screen** (client, rendered with `react-dom/server`): each `endedReason` message, and none when the Storyteller ended the game or an older server sends no reason; the update bar offers a reload and a dismiss button; an `option` field renders as buttons (labels, else ids), and an unknown field kind as a dropdown of ids.
 - **Day panel role data** (client): the Ability tracker's used flags, the day reminders and the impairment-cause names derived from `shared/src/roles.ts` match the lists the Day panel used to hard-code.
 - **Randomised games:** 60 random 5–15 player games of 5 nights each with random legal choices, checking no crashes and no hidden information in any player view (a one-off 400-game run was also clean).
 - **End-to-end:** `scripts/smoke.mjs` over HTTP and WebSocket against a running container.
@@ -919,6 +983,28 @@ Rule gaps (already folded into the cards above, listed here for review):
 - Pressing the Witch curse button uses up the curse whatever the dialog choice (except Cancel).
 - A dead Damsel being guessed counts as "no effect".
 - The Godfather ±1 choice must be made once (suggestions assume +1 until then).
+- The Godfather's −1/+1 is decided from the Outsider count after the other setup modifiers, not the default chart: with 7 players and the Baron the Storyteller can choose 1 or 3 Outsiders; with 8 players and the Vigormortis, only +1.
+- The Organ Grinder's choice: no submission counts as sober; an impaired Organ Grinder choosing drunk gets no effect (like any impaired ability); their own drunkenness is not abnormal for the Mathematician.
+- Eyes-closed voting is checked live during the day: it ends when the Organ Grinder dies by day, and uses impairment as of the last night.
+- A start-information role gained later gives its information once, the night it is gained (a Philosopher's choosing night, the Damsel's night; the Cannibal's the night after the execution), before the ability itself works; impaired, it is false and still used up. A Philosopher-Grandmother's link starts the next night, like any gained ability. A player who can't act that night (dead) keeps the mark until they can.
+- The Cannibal's eaten ability comes after a Philosopher's gained one in waking order; a Philosopher-Cannibal has it only once both are active. A believed Cannibal (Drunk or Marionette) wakes as the eaten role with no real ability; an eat from an evil executee is never real, even for the real Cannibal.
+- A hidden eaten ability goes by "cannibal" in titles, keys and role ids sent to the player; the picker's prompt and field labels are the eaten role's own (the player may work the role out from what they are asked, as at a real table). The script (`enabledRoles`, the same for every player) still lists every role id. Notices are not renamed: no role today sends a notice naming itself to its own player.
+- When one role comes from two sources (e.g. an eaten Empath on an Empath), the first source decides the title and key, so it is never hidden.
+- The Cannibal eats even when drunk or poisoned at the execution (the eaten ability is then impaired while they are); the Storyteller can change it in the Day panel. Eating the Drunk gives the Drunk's "ability", which does nothing here.
+- Re-recording the day's execution does not undo an eat: a new killing execution eats again (replacing it), and anything else is fixed with the Day panel's Cannibal row. Marking the executee alive again does not undo it either.
+- The Cannibal & Juggler jinx is applied only for a Juggler executed on day 1 (their ability wakes only on night 1). A Juggler eaten on a later day gives nothing; the Storyteller applies anything else at the table.
+- The Cannibal's poison after an evil eat is the Cannibal's own ability, so it is not abnormal for the Mathematician.
+- The Farmer's new Farmer is any alive player whose actual alignment is good (a Recluse included), and keeps their alignment; with only Farmers left the default is Nobody. A Farmer impaired at death, or a Drunk or Marionette who thinks they are the Farmer, makes nobody a Farmer: the review screen's actor row says so, and no review item is shown.
+- A real Farmer who dies after the Farmer's slot (the Moonchild's target, a Grandmother's link) acts once the night order has finished, with the same options, default and outcome (`alsoAfterOrder`). That includes a Farmer made earlier the same night. The Mathematician has already counted by then, so an impaired Farmer's abnormal event in that case is listed on the review screen but not in their number.
+- The Ravenkeeper and the Farmer wake if they are dead now and died tonight: revived later the same night they don't, and revived and then killed again the same night they do.
+- The Al-Hadikhia's dawn notice names the choice only. The official "How to Run" also declares who is alive and dead at dawn; the Storyteller does that at the table, like other public deaths (3.5).
+- Al-Hadikhia & Mastermind applies only if the execution ended the game: if a Scarlet Woman took over the Demon, or any other Demon is alive, the dead Al-Hadikhia doesn't wake and the living Demon acts normally. Its dawn notice is sent like any other Al-Hadikhia choice. With fewer than 3 good players the picker can be declined and the actor row leaves it to the Storyteller.
+- Al-Hadikhia & Princess (official) is not in `JINXES`: the Princess isn't in the app.
+- A player revived and killed again the same night (Live, then "all die") is listed as both revived and dead on the review screen, and gets neither "You are alive again" nor "You died in the night" if they were dead at dusk.
+- An eaten Juggler wakes only if the Storyteller entered a count for day 1: with none there is nothing to learn. The real Juggler always wakes on night 1 (the count defaults to 0).
+- A Philosopher who chose the Cannibal eats from the day after choosing (abilities counted with `abilityNightToday`, like the Slayer's shot).
+- A Philosopher-Cannibal who eats the executed real Cannibal gains nothing new: they already have that ability, and whatever they ate before is replaced as usual.
+- A Cannibal who chooses an ability as the eaten Philosopher keeps it only while they have the Philosopher's ability. When the eaten ability changes to anything else (a new eat, or `set_cannibal_ability`), the gained ability goes, with its pending start information and the drunkenness it caused, so that character is sober again. A gained Cannibal stays (it is the ability that eats). Changing back to the Philosopher does not restore any of this: they may choose again.
 
 Interpretation and UX choices:
 - Game state persisted as one JSON document per game (logical data model in 5.6).

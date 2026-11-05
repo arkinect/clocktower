@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { abilitiesOf, ROLE_BY_ID } from '@ct/shared';
+import { abilitiesOf, ROLE_BY_ID, type GameState } from '@ct/shared';
 import { send } from '../api';
 import { ImpairmentTags, TimedButton } from '../common';
 import { InactiveNote, Who, type AdminCtx } from './AdminApp';
@@ -18,6 +18,7 @@ export function DayPanel({ ctx }: { ctx: AdminCtx }) {
   return (
     <div className="cols">
       <div>
+        <EyesClosedBanner on={ctx.view.eyesClosedVoting} />
         {s.dayPrompts.map((dp) => (
           <section key={dp.id} className="card warn">
             <h3>{dp.title}</h3>
@@ -120,6 +121,7 @@ export function DayPanel({ ctx }: { ctx: AdminCtx }) {
           </label>
         </section>
         <DayAbilities ctx={ctx} />
+        <CannibalPanel ctx={ctx} />
         <AbilityTracker ctx={ctx} />
         <section className="card">
           <TimedButton className="primary big" onConfirm={() => send({ type: 'start_night' })}>Start Night {s.nightNumber + 1}</TimedButton>
@@ -129,24 +131,34 @@ export function DayPanel({ ctx }: { ctx: AdminCtx }) {
   );
 }
 
-export function AbilityTracker({ ctx }: { ctx: AdminCtx }) {
-  const { s, seated, roleOf, label } = ctx;
-  const rows = seated.flatMap((id) => {
-    const r = roleOf(id);
-    if (!r) return [];
-    const f = ROLE_BY_ID[r]?.usedFlag;
-    return f ? [{ id, r, k: f.key, manual: !f.auto }] : [];
+/**
+ * The Ability tracker's rows: one per once-per-game ability a player really has, now or later (their role, a
+ * Philosopher's gained ability, an eaten one), in seat order. A believed role (Drunk, Marionette) has no row.
+ */
+export function trackerRows(s: GameState, seated: string[]): { id: string; r: string; k: string; manual: boolean }[] {
+  return seated.flatMap((id) => {
+    const own = s.assignments[id]?.roleId;
+    const roles = [...new Set([...(own ? [own] : []), ...abilitiesOf(s, id, Infinity).filter((x) => x.real).map((x) => x.roleId)])];
+    return roles.flatMap((r) => {
+      const f = ROLE_BY_ID[r]?.usedFlag;
+      return f ? [{ id, r, k: f.key, manual: !f.auto }] : [];
+    });
   });
+}
+
+export function AbilityTracker({ ctx }: { ctx: AdminCtx }) {
+  const { s, seated, roleOf } = ctx;
+  const rows = trackerRows(s, seated);
   const damsel = seated.some((id) => roleOf(id) === 'damsel');
   if (!rows.length && !damsel) return null;
   return (
     <section className="card">
       <h2>Ability tracker</h2>
-      {rows.map(({ id, k, manual }) => {
+      {rows.map(({ id, r, k, manual }) => {
         const used = !!s.flags[id]?.[k];
         return (
-          <div key={id} className="row">
-            <span className="grow"><Who ctx={ctx} id={id} role /></span>
+          <div key={`${id}:${k}`} className="row">
+            <span className="grow"><Who ctx={ctx} id={id} role />{r !== roleOf(id) && <span className="muted small"> ({ROLE_BY_ID[r].name})</span>}</span>
             <button className={`chip ${used ? 'used' : ''}`} onClick={() => send({ type: 'set_flag', playerId: id, key: k, value: !used })}>{used ? 'Used' : 'Unused'}</button>
             {!manual && <span className="muted small">auto</span>}
           </div>
@@ -159,6 +171,71 @@ export function AbilityTracker({ ctx }: { ctx: AdminCtx }) {
         </div>
       )}
     </section>
+  );
+}
+
+export interface CannibalRow {
+  id: string;
+  executeeId: string;
+  /** The eaten ability (null: none). */
+  roleId: string | null;
+  fromNight: number;
+  /** The executee was evil: the ability (if the Storyteller gives one) is not real. */
+  evil: boolean;
+  /** Only believes they are the Cannibal (a Drunk or Marionette): never poisoned, nothing real. */
+  believed: boolean;
+  poisoned: boolean;
+}
+
+/** One row per player with the Cannibal's ability (real or believed) who has eaten, in seat order. */
+export function cannibalRows(s: GameState, seated: string[]): CannibalRow[] {
+  return seated.flatMap((id) => {
+    const eaten = s.assignments[id]?.eatenAbility;
+    const holder = abilitiesOf(s, id, Infinity).find((x) => x.roleId === 'cannibal' && x.source !== 'cannibal');
+    if (!eaten || !holder) return [];
+    return [{
+      id, executeeId: eaten.executeeId, roleId: eaten.roleId, fromNight: eaten.fromNight, evil: eaten.fake, believed: !holder.real,
+      poisoned: s.effects.some((e) => e.cause === 'cannibal' && e.targetPlayerId === id),
+    }];
+  });
+}
+
+/** What the Storyteller reads about an eat, after "X ate Y: ". */
+export function cannibalSummary(r: CannibalRow): string {
+  const ability = r.roleId ? `the ${ROLE_BY_ID[r.roleId]?.name ?? r.roleId} ability from night ${r.fromNight}` : 'no ability';
+  if (r.evil) return `evil, ${r.poisoned ? 'poisoned' : 'not poisoned'}; thinks they have ${ability}`;
+  return r.believed ? `${ability} (not real: they only think they are the Cannibal)` : ability;
+}
+
+/**
+ * The Cannibal's eats (design.md section 12): who was eaten and the ability, and a dropdown to change it (after an
+ * evil eat, the ability the Cannibal thinks they have; or to fix a re-recorded execution). Only Confirm sends.
+ */
+export function CannibalPanel({ ctx }: { ctx: AdminCtx }) {
+  const rows = cannibalRows(ctx.s, ctx.seated);
+  if (!rows.length) return null;
+  return (
+    <section className="card">
+      <h2>Cannibal</h2>
+      {rows.map((r) => <CannibalEat key={`${r.id}:${r.executeeId}:${r.roleId ?? ''}`} ctx={ctx} row={r} />)}
+    </section>
+  );
+}
+
+export function CannibalEat({ ctx, row }: { ctx: AdminCtx; row: CannibalRow }) {
+  const [choice, setChoice] = useState(row.roleId ?? '');
+  const roles = ctx.s.script.filter((r) => r !== 'cannibal' && ROLE_BY_ID[r]);
+  return (
+    <div className="field">
+      <span><Who ctx={ctx} id={row.id} role /> ate <Who ctx={ctx} id={row.executeeId} role />: {cannibalSummary(row)}</span>
+      <div className="row wrap">
+        <select value={choice} onChange={(e) => setChoice(e.target.value)} aria-label="Eaten ability">
+          <option value="">Nothing</option>
+          {roles.map((r) => <option key={r} value={r}>{ROLE_BY_ID[r].name}</option>)}
+        </select>
+        <button disabled={choice === (row.roleId ?? '')} onClick={() => send({ type: 'set_cannibal_ability', playerId: row.id, roleId: choice || null })}>Confirm</button>
+      </div>
+    </div>
   );
 }
 
@@ -266,20 +343,31 @@ function DayAbilities({ ctx }: { ctx: AdminCtx }) {
 }
 
 function Reminders({ ctx }: { ctx: AdminCtx }) {
-  const { s, label } = ctx;
+  const out = dayReminders(ctx.s, ctx.seated, ctx.label);
+  if (!out.length) return null;
+  return <ul className="reminders">{out.map((x, i) => <li key={i}>{x}</li>)}</ul>;
+}
+
+/** The Day panel's reminders: day effects, then each seated player's role reminder (dayReminder roles). */
+export function dayReminders(s: GameState, seated: string[], label: (id: string | null) => string): string[] {
   const out: string[] = [];
   for (const e of s.effects) {
     if (e.type === 'devils_advocate') out.push(`Devil's Advocate: ${label(e.targetPlayerId)} does not die if executed today.`);
     if (e.type === 'witched') out.push(`Witch: if ${label(e.targetPlayerId)} nominates today, they die (use the button above).`);
     if (e.type === 'butler_master') out.push(`Butler ${label(e.sourcePlayerId)} may only vote if ${label(e.targetPlayerId)} votes.`);
   }
-  for (const id of ctx.seated) {
-    const r = ctx.roleOf(id);
+  for (const id of seated) {
+    const r = s.assignments[id]?.roleId ?? null;
     if (r === 'fool' && !s.flags[id]?.fool_used) out.push(`${label(id)}: the first time they die (including execution), they don't.`);
-    if (r && ROLE_BY_ID[r].reminder && ROLE_BY_ID[r].dayReminder) out.push(`${label(id)}: ${ROLE_BY_ID[r].reminder}`);
+    if (r && ROLE_BY_ID[r]?.reminder && ROLE_BY_ID[r].dayReminder) out.push(`${label(id)}: ${ROLE_BY_ID[r].reminder}`);
   }
-  if (!out.length) return null;
-  return <ul className="reminders">{out.map((x, i) => <li key={i}>{x}</li>)}</ul>;
+  return out;
+}
+
+/** "Eyes-closed voting today" while the Organ Grinder's ability works (AdminView.eyesClosedVoting; absent on older servers). */
+export function EyesClosedBanner({ on }: { on: boolean | undefined }) {
+  if (!on) return null;
+  return <div className="banner no_effect" role="status"><b>Eyes-closed voting today.</b> Players keep their eyes closed when voting, and the vote tally is secret (Organ Grinder).</div>;
 }
 
 /** Drunk/poisoned (with causes) plus day-relevant effects, for the Day panel's status column. */

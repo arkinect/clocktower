@@ -1,6 +1,6 @@
 // Demon hand-over helpers shared by the night engine and Day panel actions.
-import { ROLE_BY_ID, type WorldState } from '@ct/shared';
-import { changeRole, nameOf, roleIdOf, roleName, seatedIds, typeOf } from './world';
+import { ROLE_BY_ID, jinxBetween, jinxLabel, type WorldState } from '@ct/shared';
+import { aliveIds, changeRole, isDemon, nameOf, roleIdOf, roleName, seatedIds, typeOf } from './world';
 
 /** Make `pid` the Demon in place of `oldDemon` (Scarlet Woman or starpass). */
 export function becomeDemon(w: WorldState, pid: string, oldDemon: string, now: number, notify: (pid: string, title: string, lines: string[]) => void) {
@@ -13,6 +13,19 @@ export function becomeDemon(w: WorldState, pid: string, oldDemon: string, now: n
   // A hand-over: the new Demon keeps any gained ability, memory and effects.
   changeRole(w, pid, newRole, 'became the Demon', now, { keepAbilities: true, keepTies: true });
   notify(pid, `You are now the ${roleName(newRole)}`, [ROLE_BY_ID[newRole].abilityText, ...demonInfoLines(w, pid)]);
+}
+
+/**
+ * Jinx (Scarlet Woman & Al-Hadikhia): "If there would be two Demons, one of which was the Scarlet Woman, the Scarlet
+ * Woman becomes the Scarlet Woman again." Checked after any revive. Returns the player who changed back, if any.
+ */
+export function scarletWomanAgain(w: WorldState, now: number, notify: (pid: string, title: string, lines: string[]) => void): string | null {
+  const demons = aliveIds(w).filter((id) => isDemon(w, id));
+  const was = demons.find((id) => w.assignments[id]?.history.some((h) => h.from === 'scarlet_woman' && h.to === roleIdOf(w, id)));
+  if (!was || !demons.some((id) => id !== was && roleIdOf(w, id) === 'al_hadikhia')) return null;
+  changeRole(w, was, 'scarlet_woman', 'a second Demon came back', now, { keepAbilities: true, keepTies: true });
+  notify(was, `${jinxLabel(jinxBetween('scarlet_woman', 'al_hadikhia')!)}: You are the Scarlet Woman again`, [ROLE_BY_ID.scarlet_woman.abilityText]);
+  return was;
 }
 
 export function demonInfoLines(w: WorldState, demonId: string): string[] {

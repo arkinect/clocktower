@@ -52,6 +52,42 @@ describe('changeRole', () => {
     expect(s.assignments[pid].history.at(-1)).toMatchObject({ from: 'philosopher', to: null });
   });
 
+  it('an eaten ability is cleared unless keepAbilities, and "none" is left absent', () => {
+    for (const keepAbilities of [false, true]) {
+      const { s, pid } = loaded();
+      const eaten = { roleId: 'empath', fromNight: 3, executeeId: 'p9', fake: false };
+      s.assignments[pid].eatenAbility = eaten;
+      changeRole(s, pid, 'imp', 'test', 1, { keepAbilities });
+      if (keepAbilities) expect(s.assignments[pid].eatenAbility).toEqual(eaten);
+      else expect('eatenAbility' in s.assignments[pid]).toBe(false);
+    }
+    const { s, pid } = loaded();
+    changeRole(s, pid, 'imp', 'test', 1, { keepAbilities: true });
+    expect('eatenAbility' in s.assignments[pid]).toBe(false);
+  });
+
+  it('keepAlignment keeps the player\'s alignment instead of the new role\'s', () => {
+    const { s, pid } = loaded();
+    s.assignments[pid].alignment = 'evil';
+    changeRole(s, pid, 'empath', 'test', 1, { keepAlignment: true });
+    expect(s.assignments[pid]).toMatchObject({ roleId: 'empath', alignment: 'evil' });
+    changeRole(s, pid, 'imp', 'test', 2);
+    s.assignments[pid].alignment = 'good'; // e.g. a Goon's change
+    changeRole(s, pid, 'poisoner', 'test', 3, { keepAlignment: true, keepAbilities: true, keepTies: true });
+    expect(s.assignments[pid]).toMatchObject({ roleId: 'poisoner', alignment: 'good' });
+    changeRole(s, pid, 'butler', 'test', 4);
+    expect(s.assignments[pid].alignment).toBe('good');
+    changeRole(s, pid, 'imp', 'test', 5, { keepAlignment: false });
+    expect(s.assignments[pid].alignment).toBe('evil');
+  });
+
+  it('keepAlignment for a player with no assignment yet uses the new role\'s alignment', () => {
+    const { s, pid } = loaded();
+    delete s.assignments[pid];
+    changeRole(s, pid, 'imp', 'setup', 7, { keepAlignment: true });
+    expect(s.assignments[pid].alignment).toBe('evil');
+  });
+
   it('a player with no assignment yet gets one', () => {
     const { s, pid } = loaded();
     delete s.assignments[pid];

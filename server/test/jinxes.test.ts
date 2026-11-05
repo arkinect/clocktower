@@ -102,7 +102,7 @@ describe('jinxes shown only', () => {
   it('reminder jinxes are not applied by the engine', () => {
     expect(JINXES.filter((j) => j.handling === 'reminder').map(jinxLabel)).toEqual([
       'Jinx (Mathematician & Drunk)', 'Jinx (Mathematician & Marionette)', 'Jinx (Marionette & Lil\' Monsta)',
-      'Jinx (Mastermind & Vigormortis)', 'Jinx (Lil\' Monsta & Psychopath)',
+      'Jinx (Mastermind & Vigormortis)', 'Jinx (Lil\' Monsta & Psychopath)', 'Jinx (Butler & Organ Grinder)',
     ]);
   });
 });

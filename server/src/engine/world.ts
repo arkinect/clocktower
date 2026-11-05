@@ -91,8 +91,11 @@ export function playersWithAbility(w: WorldState, roleId: string, night: number)
 }
 
 export interface ChangeRoleOpts {
-  /** Keep a Philosopher's gained ability and "keeps ability when dead" (the Demon hand-over, the Huntsman's Damsel). */
+  /** Keep a Philosopher's gained ability, a Cannibal's eaten ability and "keeps ability when dead" (the Demon
+   *  hand-over, the Huntsman's Damsel). */
   keepAbilities?: boolean;
+  /** Keep the player's current alignment instead of the new role's natural one. */
+  keepAlignment?: boolean;
   /** Keep the player's role memory (roleState) and the effects they caused. */
   keepTies?: boolean;
   /** Also clear the player's used-ability flags (the Storyteller reassigning a role mid-game). */
@@ -101,17 +104,20 @@ export interface ChangeRoleOpts {
 
 /**
  * The one way to change a player's role (null = no role): appends to their history, sets the role and its natural
- * alignment, and clears their believed role. Unless `opts` keeps them, it also clears their gained ability,
- * "keeps ability when dead", role memory and the effects they caused.
+ * alignment (or keeps theirs, with keepAlignment), and clears their believed role. Unless `opts` keeps them, it also
+ * clears their gained and eaten abilities, "keeps ability when dead", role memory and the effects they caused.
  */
 export function changeRole(w: WorldState, pid: string, newRoleId: string | null, reason: string, now: number, opts: ChangeRoleOpts = {}) {
   const prev = w.assignments[pid];
+  const eaten = opts.keepAbilities ? prev?.eatenAbility : undefined;
   w.assignments[pid] = {
     roleId: newRoleId,
     believedRoleId: null,
-    alignment: newRoleId ? ROLE_BY_ID[newRoleId].alignment : 'good',
+    alignment: opts.keepAlignment && prev ? prev.alignment : newRoleId ? ROLE_BY_ID[newRoleId].alignment : 'good',
     retainsAbilityWhenDead: opts.keepAbilities ? !!prev?.retainsAbilityWhenDead : false,
     grantedAbility: opts.keepAbilities ? prev?.grantedAbility ?? null : null,
+    // Absent means none (the field is newer than schema v7), so it is left out rather than set to null.
+    ...(eaten ? { eatenAbility: eaten } : {}),
     history: [...(prev?.history ?? []), { at: now, from: prev?.roleId ?? null, to: newRoleId, reason }],
   };
   if (!opts.keepTies) {
@@ -119,6 +125,31 @@ export function changeRole(w: WorldState, pid: string, newRoleId: string | null,
     w.effects = w.effects.filter((e) => e.sourcePlayerId !== pid);
   }
   if (opts.clearFlags) delete w.flags[pid];
+}
+
+/** Start-information roles (RoleData.startInfo) this player has gained and not yet had the information for. */
+export function startInfoPending(w: WorldState, pid: string): string[] {
+  const v = w.roleState[pid]?.startInfoPending;
+  return Array.isArray(v) ? (v as string[]) : [];
+}
+
+/**
+ * Call when a player gains `roleId`'s ability other than at setup (the Philosopher's choice, the Huntsman's Damsel,
+ * the Cannibal's eat). For a start-information role, marks it so the player wakes for it the first night the
+ * ability is active and gets the information then (NightRun clears the mark). Any other role: nothing.
+ */
+export function markStartInfo(w: WorldState, pid: string, roleId: string) {
+  if (!ROLE_BY_ID[roleId]?.startInfo) return;
+  const list = startInfoPending(w, pid);
+  if (!list.includes(roleId)) (w.roleState[pid] ??= {}).startInfoPending = [...list, roleId];
+}
+
+export function clearStartInfo(w: WorldState, pid: string, roleId: string) {
+  const list = startInfoPending(w, pid);
+  if (!list.includes(roleId)) return;
+  const rest = list.filter((r) => r !== roleId);
+  if (rest.length) w.roleState[pid].startInfoPending = rest;
+  else delete w.roleState[pid].startInfoPending;
 }
 
 /** Role ids this player wakes as (believed role for Drunk/Marionette, gained ability, Lil' Monsta token). */

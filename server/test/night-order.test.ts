@@ -7,7 +7,7 @@ import { BEHAVIOURS } from '../src/engine/roles';
 const ORDERS: [string, NightSlot[]][] = [['first night', FIRST_NIGHT_ORDER], ['other nights', OTHER_NIGHT_ORDER]];
 
 const MODIFIERS = ['philosopher', 'sailor', 'poisoner', 'innkeeper'];
-const DEMONS = ['imp', 'pukka', 'shabaloth', 'po', 'no_dashii', 'vigormortis', 'lil_monsta'];
+const DEMONS = ['imp', 'pukka', 'shabaloth', 'po', 'no_dashii', 'vigormortis', 'al_hadikhia', 'lil_monsta'];
 const KILLS = [...DEMONS, 'gambler', 'assassin', 'godfather', 'gossip', 'moonchild'];
 const INFORMATION = [
   'clockmaker', 'empath', 'fortune_teller', 'flowergirl', 'oracle', 'seamstress', 'juggler', 'balloonist', 'grandmother', 'mathematician',
@@ -15,6 +15,14 @@ const INFORMATION = [
 /** Kills allowed after the Professor. The Professor's picker lists only players dead at the start of the night, so a
  * kill's place relative to the Professor only decides whether a Professor it kills has already acted. */
 const AFTER_PROFESSOR = ['moonchild'];
+/**
+ * Exception: slots that exist on other nights only for an ability just gained. A start-information role
+ * (RoleData.startInfo) gives its night-0 information to a player who gains it later, on the first night it is
+ * active (startInfoPending), so it needs an other-night slot even when it has no other-night ability. The Clockmaker
+ * is such a role: its other-night slot never wakes anyone otherwise. It sits beside the Grandmother's, after every
+ * kill, so the information is about the night's final state, like hers.
+ */
+const JUST_GAINED_ONLY = ['clockmaker'];
 
 /** Position of each role slot, ignoring pseudo-slots such as Demon Info. */
 function positions(order: NightSlot[]): Map<string, number> {
@@ -72,6 +80,42 @@ describe('night order', () => {
       });
     });
   }
+
+  it('every start-information role has a slot on both orders; the just-gained-only slots say so and sit by the Grandmother', () => {
+    const startInfo = ROLES.filter((r) => r.startInfo).map((r) => r.id);
+    for (const [, order] of ORDERS) for (const r of startInfo) expect(positions(order).has(r), r).toBe(true);
+    for (const r of JUST_GAINED_ONLY) {
+      expect(startInfo).toContain(r);
+      const i = OTHER_NIGHT_ORDER.findIndex((s) => s.roleId === r);
+      expect(OTHER_NIGHT_ORDER[i].note).toBe('Only if the ability was just gained');
+      const near = OTHER_NIGHT_ORDER.slice(i - JUST_GAINED_ONLY.length, i + JUST_GAINED_ONLY.length + 1).map((s) => s.roleId);
+      expect(near, r).toContain('grandmother');
+    }
+  });
+
+  it('the Organ Grinder per the official night sheet: after the Godfather (first night) or Gambler (other nights), before the Devil’s Advocate', () => {
+    const at = (order: NightSlot[], id: string) => order.findIndex((s) => s.roleId === id);
+    expect(at(FIRST_NIGHT_ORDER, 'organ_grinder')).toBe(at(FIRST_NIGHT_ORDER, 'godfather') + 1);
+    expect(at(FIRST_NIGHT_ORDER, 'devils_advocate')).toBe(at(FIRST_NIGHT_ORDER, 'organ_grinder') + 1);
+    expect(at(OTHER_NIGHT_ORDER, 'organ_grinder')).toBe(at(OTHER_NIGHT_ORDER, 'gambler') + 1);
+    expect(at(OTHER_NIGHT_ORDER, 'devils_advocate')).toBe(at(OTHER_NIGHT_ORDER, 'organ_grinder') + 1);
+  });
+
+  it('the Al-Hadikhia: other nights only, right after the Vigormortis, right before Lil\' Monsta', () => {
+    const at = (id: string) => OTHER_NIGHT_ORDER.findIndex((s) => s.roleId === id);
+    expect(FIRST_NIGHT_ORDER.some((s) => s.roleId === 'al_hadikhia')).toBe(false);
+    expect(at('al_hadikhia')).toBe(at('vigormortis') + 1);
+    expect(at('lil_monsta')).toBe(at('al_hadikhia') + 1);
+  });
+
+  it('the Farmer per the official night sheet: other nights only, after the Huntsman, before the Moonchild and Grandmother', () => {
+    const at = (id: string) => OTHER_NIGHT_ORDER.findIndex((s) => s.roleId === id);
+    expect(FIRST_NIGHT_ORDER.some((s) => s.roleId === 'farmer')).toBe(false);
+    expect(at('farmer')).toBe(at('huntsman') + 1);
+    expect(at('moonchild')).toBe(at('farmer') + 1);
+    expect(at('farmer')).toBeLessThan(at('grandmother'));
+    expectBefore(OTHER_NIGHT_ORDER, DEMONS, ['farmer']);
+  });
 
   it('every role that resolves at night has a slot', () => {
     const slotted = new Set([...FIRST_NIGHT_ORDER, ...OTHER_NIGHT_ORDER].map((s) => s.roleId));
