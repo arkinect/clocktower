@@ -978,7 +978,7 @@ Rule gaps (already folded into the cards above, listed here for review):
 - Mayor's recommendation never redirects to the attacker.
 - No Dashii, Vigormortis, Shabaloth and Po may target themselves; Po with fewer than 3 players chooses as many as exist.
 - A starpass does not also trigger the Scarlet Woman check.
-- House rule: effects with a duration last their full time even if the source dies or changes role, unlike the official Poisoner example; only the Philosopher's drunk, No Dashii poison and Vigormortis poison end with their source (5.8). A Pukka's poison ends at the Pukka's slot, with no death, if the player who caused it doesn't act that night.
+- House rule: effects with a duration last their full time even if the source dies or changes role, unlike the official Poisoner example; only the Philosopher's drunk, the Cannibal's poison, No Dashii poison and Vigormortis poison end with their source (5.8). A Pukka's poison ends at the Pukka's slot, with no death, if the player who caused it doesn't act that night.
 - Scarlet Woman transforms immediately at the Demon's death during the night walk.
 - Mezepheles: dead or non-good targets default to "Skip".
 - Moonchild uses its sobriety at death (night or day); target must be alive when recorded.
