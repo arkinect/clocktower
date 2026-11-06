@@ -372,7 +372,7 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       const old = roleIdOf(s, i.playerId);
       if (old === i.roleId) return ok(s);
       const live = !inSetupish;
-      // Mid-game, the old role's flags, memory and effects go with it; during setup nothing else is touched.
+      // Mid-game, the old role's flags, memory and source-dependent effects go with it; during setup nothing else is touched.
       changeRole(s, i.playerId, i.roleId, live ? 'Admin reassignment' : 'setup', now, live ? { clearFlags: true } : { keepTies: true });
       if (live && s.settings.notifyOnRoleChange && i.roleId) {
         const r = ROLE_BY_ID[i.roleId];
