@@ -1,6 +1,6 @@
 // Start information on gaining an ability (design.md section 5.7): a role whose information comes only on night 0
 // (RoleData.startInfo: the Clockmaker, the Grandmother) gives it, once, the night the ability is gained, even before
-// the ability itself works. Other gained abilities still start the next night.
+// the ability itself works.
 import { describe, expect, it } from 'vitest';
 import { ROLES, type Resolution } from '@ct/shared';
 import { build, nextNight, resolve, resultFor, runNight, type TestGame } from './helpers';
@@ -70,7 +70,7 @@ describe('start information', () => {
     expect(row.trueLines).toEqual(ONE_STEP);
     expect(row.suggestedLines).not.toEqual(ONE_STEP);
     expect(row.suggestedLines[0]).toMatch(/^The Demon is \d steps? from its nearest Minion\.$/);
-    expect(g.s.assignments[g.p.philosopher].grantedAbility).toEqual({ roleId: 'clockmaker', fromNight: 2 });
+    expect(g.s.assignments[g.p.philosopher].grantedAbility).toEqual({ roleId: 'clockmaker', fromNight: 1 });
     expect(startInfoPending(g.s, g.p.philosopher)).toEqual([]);
     nextNight(g);
     expect(resultFor(resolve(g), g.p.philosopher, 'clockmaker')).toBeUndefined();
@@ -112,9 +112,9 @@ describe('start information', () => {
     expect(g.s.players.find((p) => p.id === g.p.philosopher)!.alive).toBe(false);
   });
 
-  it('a gained ability without start information still starts the next night', () => {
+  it('a gained ability without start information works that night, with no mark', () => {
     const { g, res } = philosopherChoosesOnNight1('empath');
-    expect(resultFor(res, g.p.philosopher, 'empath')).toBeUndefined();
+    expect(resultFor(res, g.p.philosopher, 'empath')).toBeDefined();
     expect(startInfoPending(g.s, g.p.philosopher)).toEqual([]);
     nextNight(g);
     expect(resultFor(resolve(g), g.p.philosopher, 'empath')).toBeDefined();

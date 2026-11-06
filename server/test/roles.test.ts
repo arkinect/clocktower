@@ -127,13 +127,13 @@ describe('information roles', () => {
 });
 
 describe('modifiers and protections', () => {
-  it('Philosopher gains an ability from next night and drunks the in-play holder', () => {
+  it('Philosopher gains an ability the night they choose it and drunks the in-play holder', () => {
     const g = build(['philosopher', 'empath', 'imp', 'butler', 'poisoner']);
     submit(g, { [g.p.philosopher]: { philosopher: ['empath'] } });
     let res = resolve(g);
-    expect(res.after.assignments[g.p.philosopher].grantedAbility).toEqual({ roleId: 'empath', fromNight: 1 });
+    expect(res.after.assignments[g.p.philosopher].grantedAbility).toEqual({ roleId: 'empath', fromNight: 0 });
     expect(resultFor(res, g.p.empath)!.impaired).toBe(true);
-    expect(resultFor(res, g.p.philosopher, 'empath')).toBeUndefined();
+    expect(resultFor(res, g.p.philosopher, 'empath')).toBeDefined();
     publishAndDay(g);
     nextNight(g);
     res = resolve(g);

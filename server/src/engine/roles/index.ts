@@ -105,13 +105,13 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
       if (!roleId) return;
       run.setFlag(a.pid, 'philosopher_used');
       if (run.sober(a.pid)) {
-        run.w.assignments[a.pid].grantedAbility = { roleId, fromNight: run.n + 1 };
+        run.w.assignments[a.pid].grantedAbility = { roleId, fromNight: run.n };
         markStartInfo(run.w, a.pid, roleId);
-        run.outcome(`gains the ${roleName(roleId)} ability from next night`);
+        run.outcome(`gains the ${roleName(roleId)} ability`);
         for (const pid of seatedIds(run.w)) {
           if (pid !== a.pid && roleIdOf(run.w, pid) === roleId) {
             run.addEffect('drunk', 'philosopher', a.pid, pid, 'until_removed');
-            run.outcome(`${run.name(pid)} (${roleName(roleId)}) is drunk while the Philosopher lives`);
+            run.outcome(`${run.name(pid)} (${roleName(roleId)}) is drunk while the Philosopher is alive and sober`);
           }
         }
         if (!BEHAVIOURS[roleId]?.spec && !BEHAVIOURS[roleId]?.resolve) run.outcome(`Reminder: ${roleName(roleId)} is a day/passive ability`);
@@ -649,7 +649,7 @@ export function godfatherTriggered(state: GameState, night: number): boolean {
 
 /**
  * The Organ Grinder's eyes-closed voting (design.md section 14.6): during the day, while a living player has a real
- * Organ Grinder ability (their role, or a Philosopher's from the next night: abilityNightToday) and is not drunk or
+ * Organ Grinder ability (their role, or one gained: abilityNightToday) and is not drunk or
  * poisoned as of the last night (an Organ Grinder who chose drunk is drunk until dusk).
  */
 export function eyesClosedVotingToday(state: GameState): boolean {
@@ -752,7 +752,7 @@ Object.assign(BEHAVIOURS, {
     resolve(run: NightRun, a: Actor) {
       if (run.startInfoDue(a)) {
         grandmotherInfo(run, a);
-        if (run.n === 0 || a.fromNight > run.n) return; // the link works once the ability does
+        return; // the link starts the next night
       }
       const gc = rs<string | null>(run.w, a.pid, 'grandchildId');
       if (!gc || run.deathCause[gc] !== 'demon_attack' || !isAlive(run.w, a.pid)) return;

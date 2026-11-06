@@ -29,8 +29,6 @@ export interface Actor {
   slot: string;
   /** Where the ability comes from (the first source, when several give the same role): decides the title shown. */
   source: AbilitySource;
-  /** The first night the ability works. Later than tonight only for start information given the night it's gained. */
-  fromNight: number;
   /** False when the player only believes they have it (a believed role, or an ability eaten from an evil executee). */
   real: boolean;
 }
@@ -401,6 +399,11 @@ export class NightRun {
     this.actors.push(row);
     this.currentActorRow = row;
     this.currentActor = actor;
+    if (this.lateInputPending(actor, row)) {
+      this.currentActorRow = null;
+      this.currentActor = null;
+      return;
+    }
     this.goonCheck(actor);
     const imp2 = this.impForActor(actor);
     row.impaired = imp2.impaired;
@@ -413,29 +416,48 @@ export class NightRun {
     this.currentActor = null;
   }
 
+  /**
+   * An ability that became active after collecting closed has no submission, so a role with input asks for it now, as a
+   * follow-up question (section 9.4), with the role's normal spec built against the night's world. The answer becomes
+   * the actor's choice. Returns true while it is unanswered: the ability then does nothing.
+   */
+  private lateInputPending(actor: Actor, row: ActorRow): boolean {
+    const b = BEHAVIOURS[actor.roleId];
+    if (actor.choice || b.wakesOnNightDeath || !this.activeSinceCollecting(actor)) return false;
+    const spec = b.spec?.({ w: this.w, pid: actor.pid, night: this.n, state: this.state });
+    if (!spec) return false;
+    const key = `late:${actor.pid}:${actor.roleId}`;
+    actor.choice = this.askFollowUp({ key, playerId: actor.pid, roleId: actor.roleId, spec });
+    if (actor.choice) return false;
+    row.outcome = `waiting for ${this.name(actor.pid)}'s choice`;
+    return true;
+  }
+
+  /** The Philosopher's ability chosen tonight: every other ability was there while collecting. */
+  private activeSinceCollecting(actor: Actor): boolean {
+    return actor.source === 'philosopher' && !this.state.assignments[actor.pid]?.grantedAbility;
+  }
+
   actorsFor(slotId: string, roleId: string): Actor[] {
     const b = BEHAVIOURS[roleId];
     const out: Actor[] = [];
     for (const pid of seatedIds(this.w)) {
-      // Start information comes the night the ability is gained (startInfoPending), even before the ability works: a
-      // Philosopher's choice, a Damsel given a new role tonight. Any other ability only once it works.
-      const pending = startInfoPending(this.w, pid).includes(roleId);
-      const ability = abilitiesOf(this.w, pid, pending ? Infinity : this.n).find((x) => x.roleId === roleId);
+      const ability = abilitiesOf(this.w, pid, this.n).find((x) => x.roleId === roleId);
       if (!ability) continue;
       const ctx = { w: this.w, pid, night: this.n, state: this.state };
       if (b.wakesOnNightDeath) {
         // Dead now, so not skipped for being revived or given this role earlier tonight, if they then died.
         if (!this.deaths.includes(pid) || isAlive(this.w, pid)) continue;
       } else {
-        if (this.noActTonight.has(pid) && !pending) continue;
+        // Start information comes the night the ability is gained (startInfoPending): a Damsel given a new role tonight.
+        if (this.noActTonight.has(pid) && !startInfoPending(this.w, pid).includes(roleId)) continue;
         if (!canAct(this.w, pid) && !b.actsWhileDead && !b.wakesDead?.(ctx)) continue;
       }
       if (b.wakes && !b.wakes(ctx)) continue;
       // Nothing is submitted for these: the Ravenkeeper's choice comes later, as a follow-up question (askFollowUp).
       const sub = b.wakesOnNightDeath ? undefined : this.night.submissions[pid];
       out.push({
-        pid, roleId, slot: slotId, choice: sub?.actions[abilityKey(ability)] ?? null, source: ability.source, fromNight: ability.fromNight,
-        real: ability.real,
+        pid, roleId, slot: slotId, choice: sub?.actions[abilityKey(ability)] ?? null, source: ability.source, real: ability.real,
       });
     }
     return out;

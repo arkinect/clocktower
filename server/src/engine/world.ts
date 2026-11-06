@@ -80,7 +80,7 @@ export function hasAbility(w: WorldState, id: string, roleId: string, night: num
 
 /**
  * The night to check abilities against during the day, given the last night: the next one, since an ability gained
- * last night (a Philosopher's, from the next night) already works today. Impairment stays at the last night.
+ * by now (a Philosopher's last night, a Cannibal's eat today) already works today. Impairment stays at the last night.
  */
 export function abilityNightToday(lastNight: number): number {
   return lastNight + 1;
