@@ -117,8 +117,8 @@ export interface Jinx { a: string; b: string; text: string; handling: 'reminder'
 const DJINN = 'https://wiki.bloodontheclocktower.com/Djinn';
 
 export const JINXES: Jinx[] = [
-  { a: 'mathematician', b: 'drunk', text: 'The Mathematician learns if the Drunk’s ability yielded false info or failed to work properly.', handling: 'reminder', source: DJINN },
-  { a: 'mathematician', b: 'marionette', text: 'The Mathematician learns if the Marionette\'s ability yielded false info or failed to work properly.', handling: 'reminder', source: DJINN },
+  { a: 'mathematician', b: 'drunk', text: 'The Mathematician learns if the Drunk’s ability yielded false info or failed to work properly.', handling: 'engine', source: DJINN },
+  { a: 'mathematician', b: 'marionette', text: 'The Mathematician learns if the Marionette\'s ability yielded false info or failed to work properly.', handling: 'engine', source: DJINN },
   { a: 'marionette', b: 'balloonist', text: 'If the Marionette thinks that they are the Balloonist, an Outsider might have been added during setup.', handling: 'engine', source: DJINN },
   { a: 'marionette', b: 'huntsman', text: 'If the Marionette thinks that they are the Huntsman, the Damsel was added during setup.', handling: 'engine', source: DJINN },
   { a: 'marionette', b: 'lil_monsta', text: 'If there would be a Marionette in play, they enter play after the Demon & must start as their neighbor.', handling: 'reminder', source: DJINN },

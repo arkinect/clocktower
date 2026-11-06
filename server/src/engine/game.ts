@@ -1,13 +1,13 @@
 // The game reducer: (GameState, actor, Intent) -> (GameState, events). Pure apart from `now` and `seed` inputs.
 import {
   CANNIBAL_LEARNS, ROLE_BY_ID, ROLES, SCHEMA_VERSION, TYPE_CHART, WORDS, abilitiesOf, jinxBetween, jinxLabel,
-  type AdminIntent, type GameState, type Intent, type JoinRequest, type NightState, type PlayerIntent,
+  type AbnormalEvent, type AdminIntent, type GameState, type Intent, type JoinRequest, type NightState, type PlayerIntent,
   type PlayerRec, type PrivateMessage, type RolePreference, type Settings, type StoryPlayer,
 } from '@ct/shared';
 import { actionSpecs, validateChoice, validateSubmission } from './actions';
 import { becomeDemon, demonInfoLines, scarletWomanAgain } from './demon';
-import { computeImpairment } from './impairment';
-import { previewDayKill, revivePlayer } from './lifecycle';
+import { computeImpairment, externalImpairment } from './impairment';
+import { previewDayKill, revivePlayer, type DayKillPreview } from './lifecycle';
 import { resolveNight } from './night';
 import { BEHAVIOURS, setEatenAbility } from './roles';
 import { makeRng, randomSeed } from './rng';
@@ -726,8 +726,9 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
       const night = Math.max(0, s.nightNumber);
       const imp = computeImpairment(s, night);
       const tname = findPlayer(s, i.targetId)!.name;
-      let effect: { wouldDie: boolean; reason: string; usesFool: boolean };
+      let effect: DayKillPreview;
       let witchedId: string | null = null;
+      const abnormal: AbnormalEvent[] = [];
       if (i.kind === 'slayer') {
         if (!hasAbility(s, i.sourceId, 'slayer', abilityNightToday(night))) return err('That player is not the Slayer.');
         if (flag(s, i.sourceId, 'slayer_used')) return err('The Slayer has already used their shot.');
@@ -737,6 +738,9 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
         if (imp[i.sourceId]?.impaired) effect = { wouldDie: false, reason: 'The Slayer is drunk or poisoned: nothing happens.', usesFool: false };
         else if (!regDemon) effect = { wouldDie: false, reason: `${tname} is not the Demon: nothing happens.`, usesFool: false };
         else effect = previewDayKill(s, i.targetId, night);
+        const ext = externalImpairment(s, night, i.sourceId);
+        if (ext.length) abnormal.push({ playerId: i.sourceId, cause: ext.join(','), detail: 'Slayer ability impaired' });
+        if (isRecluse && i.recluseAs === 'demon') abnormal.push({ playerId: i.sourceId, cause: 'recluse', detail: `${tname} (Recluse) registered as the Demon to the Slayer` });
       } else {
         const curse = s.effects.find((e) => e.type === 'witched' && e.targetPlayerId === i.targetId);
         if (!curse) return err('That player is not cursed (or the curse was already applied).');
@@ -744,6 +748,8 @@ function adminIntent(s: GameState, i: AdminIntent, ctx: Ctx): ApplyResult {
         effect = previewDayKill(s, i.targetId, night);
       }
       if (i.mode === 'preview') return ok(s, effect);
+      abnormal.push(...effect.failed ?? []);
+      if (abnormal.length) (dayRecord(s).abnormal ??= []).push(...abnormal);
       if (i.kind === 'slayer') (s.flags[i.sourceId] ??= {}).slayer_used = true;
       if (witchedId) s.effects = s.effects.filter((e) => e.id !== witchedId);
       const die = i.mode === 'force_death' || (i.mode === 'accept' && effect.wouldDie);

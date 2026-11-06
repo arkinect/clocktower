@@ -27,6 +27,13 @@ export function activeImpairingEffects(w: WorldState, night: number): Effect[] {
   return [...unconditional, ...derived];
 }
 
+/** Impairment caused by another character (not the player's own ability, own character, or a Storyteller edit). */
+export function externalImpairment(w: WorldState, night: number, pid: string): string[] {
+  return activeImpairingEffects(w, night)
+    .filter((e) => e.targetPlayerId === pid && e.sourcePlayerId !== pid && e.cause !== 'admin')
+    .map((e) => `${e.type}:${e.cause}`);
+}
+
 export function computeImpairment(w: WorldState, night: number): Record<string, Impairment> {
   const out: Record<string, Impairment> = {};
   for (const id of seatedIds(w)) out[id] = { impaired: false, causes: [] };

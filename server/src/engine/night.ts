@@ -6,7 +6,7 @@ import {
   type AbilitySource, type ActionChoice, type ActionSpec, type Alignment, type Cause, type Effect, type EffectExpiry, type EffectType, type GameState,
   type FollowUp, type NightSlot, type ReviewItem, type ReviewOption, type Resolution, type ResultRow, type ActorRow, type AbnormalEvent, type WorldState,
 } from '@ct/shared';
-import { activeImpairingEffects, computeImpairment, type Impairment } from './impairment';
+import { computeImpairment, externalImpairment, type Impairment } from './impairment';
 import { subRng, type Rng } from './rng';
 import {
   actingRoles, aliveIds, aliveNeighbours, alignmentOf, canAct, clearStartInfo, findPlayer, flag, getPlayer, hasAbility, isAlive,
@@ -57,6 +57,10 @@ export class NightRun {
   private goonTriggered = new Set<string>();
   private currentActorRow: ActorRow | null = null;
   private currentActor: Actor | null = null;
+  /** Result rows that only confirm a choice: they have no false version (result). */
+  private readonly confirmations = new Set<ResultRow>();
+  /** Players who made a real, non-declined choice with a believed role's ability tonight. */
+  private readonly believedChoosers = new Set<string>();
   private killSeq = 0;
 
   constructor(readonly state: GameState, readonly now: number) {
@@ -106,17 +110,27 @@ export class NightRun {
     this.abnormal.push({ playerId: pid, cause, detail });
   }
 
-  /** Impairment caused by another character (not the player's own ability, own character, or a Storyteller edit). */
-  externalImpairment(pid: string): string[] {
-    return activeImpairingEffects(this.w, this.n)
-      .filter((e) => e.targetPlayerId === pid && e.sourcePlayerId !== pid && e.cause !== 'admin')
-      .map((e) => `${e.type}:${e.cause}`);
-  }
-
   /** Mathematician: log an abnormal event only when another character caused the impairment. */
   abnormalIfExternal(pid: string, detail: string) {
-    const ext = this.externalImpairment(pid);
+    const ext = externalImpairment(this.w, this.n, pid);
     if (ext.length) this.addAbnormal(pid, ext.join(','), detail);
+  }
+
+  /**
+   * Jinxes Mathematician & Drunk, Mathematician & Marionette: their believed role's ability counts if it yielded false
+   * info (the final text, so sending the truth doesn't count) or failed to work: a real choice that got no information
+   * back. The Mathematician resolves last, so tonight's result rows all exist.
+   */
+  countBelievedAbilities() {
+    for (const pid of seatedIds(this.w)) {
+      const roleId = roleIdOf(this.w, pid);
+      if (roleId !== 'drunk' && roleId !== 'marionette') continue;
+      const cause = jinxLabel(jinxBetween('mathematician', roleId)!);
+      if (this.abnormal.some((e) => e.playerId === pid && e.cause === cause)) continue;
+      const rows = this.results.filter((r) => r.playerId === pid && r.roleId === this.w.assignments[pid].believedRoleId);
+      if (rows.some((r) => r.finalLines.join('\n') !== r.trueLines.join('\n'))) this.addAbnormal(pid, cause, `${roleName(roleId)}'s ability yielded false info`);
+      else if (this.believedChoosers.has(pid) && rows.every((r) => this.confirmations.has(r))) this.addAbnormal(pid, cause, `${roleName(roleId)}'s ability failed`);
+    }
   }
 
   outcome(text: string) {
@@ -159,11 +173,13 @@ export class NightRun {
     const roleId = actor.roleId;
     const key = `${actor.pid}:${roleId}`;
     const override = this.night.overrides[key];
-    this.results.push({
+    const row: ResultRow = {
       key, playerId: actor.pid, roleId, title, trueLines, suggestedLines: suggested,
       finalLines: override ?? suggested, impaired: imp.impaired, causes: imp.causes, overridden: !!override,
       alternatives,
-    });
+    };
+    this.results.push(row);
+    if (!falseLines) this.confirmations.add(row);
   }
 
   /** Whether a start-information role (RoleData.startInfo) gives its information tonight: night 0, or just gained. */
@@ -182,12 +198,12 @@ export class NightRun {
   }
 
   /** Returns 'truthful' | 'minion' | 'demon' for how `subject` registers to this asker. */
-  private recluseRegistration(askerKey: string, subject: string): 'truthful' | 'minion' | 'demon' {
+  private recluseRegistration(role: string, asker: string, subject: string): 'truthful' | 'minion' | 'demon' {
     if (!this.isRegistrationSource(subject)) return 'truthful';
     const chosen = this.review(
-      `reg:${askerKey}:${subject}`, 'registration',
+      `reg:${role}:${asker}:${subject}`, 'registration',
       `How does ${this.name(subject)} (Recluse) register?`,
-      `Asked by ${askerKey.split(':')[0].replace('_', ' ')} (${this.name(askerKey.split(':')[1])}). Applies to this query only.`,
+      `Asked by ${role.replace('_', ' ')} (${this.name(asker)}). Applies to this query only.`,
       [
         { id: 'truthful', label: 'Truthfully (good Outsider)' },
         { id: 'minion', label: 'As an evil Minion' },
@@ -195,38 +211,38 @@ export class NightRun {
       ],
       'truthful',
     ) as 'truthful' | 'minion' | 'demon';
-    if (chosen !== 'truthful') this.addAbnormal(subject, 'recluse', `registered as ${chosen} to ${askerKey}`);
+    if (chosen !== 'truthful') this.addAbnormal(asker, 'recluse', `${this.name(subject)} (Recluse) registered as ${chosen} to ${roleName(role)}`);
     return chosen;
   }
 
-  regAlignment(askerKey: string, subject: string): Alignment {
-    const r = this.recluseRegistration(askerKey, subject);
+  regAlignment(role: string, asker: string, subject: string): Alignment {
+    const r = this.recluseRegistration(role, asker, subject);
     return r === 'truthful' ? alignmentOf(this.w, subject) : 'evil';
   }
 
-  regIsDemon(askerKey: string, subject: string): boolean {
-    const r = this.recluseRegistration(askerKey, subject);
+  regIsDemon(role: string, asker: string, subject: string): boolean {
+    const r = this.recluseRegistration(role, asker, subject);
     return r === 'truthful' ? isDemon(this.w, subject) : r === 'demon';
   }
 
-  regIsMinion(askerKey: string, subject: string): boolean {
-    const r = this.recluseRegistration(askerKey, subject);
+  regIsMinion(role: string, asker: string, subject: string): boolean {
+    const r = this.recluseRegistration(role, asker, subject);
     return r === 'truthful' ? typeOf(this.w, subject) === 'minion' && !isDemon(this.w, subject) : r === 'minion';
   }
 
-  regRole(askerKey: string, subject: string): string {
+  regRole(role: string, asker: string, subject: string): string {
     const truth = roleIdOf(this.w, subject) ?? 'unknown';
     if (!this.isRegistrationSource(subject)) return truth;
     const evilRoles = this.enabledRoleIds.filter((r) => ROLE_BY_ID[r].type === 'minion' || ROLE_BY_ID[r].type === 'demon');
     const chosen = this.review(
-      `reg:${askerKey}:${subject}:role`, 'registration',
+      `reg:${role}:${asker}:${subject}:role`, 'registration',
       `Which character does ${this.name(subject)} (Recluse) register as?`,
-      `Asked by ${askerKey.split(':')[0].replace('_', ' ')} (${this.name(askerKey.split(':')[1])}).`,
+      `Asked by ${role.replace('_', ' ')} (${this.name(asker)}).`,
       [{ id: 'truthful', label: 'Truthfully (Recluse)' }, ...evilRoles.map((r) => ({ id: `role:${r}`, label: ROLE_BY_ID[r].name }))],
       'truthful',
     );
     if (chosen === 'truthful') return truth;
-    this.addAbnormal(subject, 'recluse', `registered as ${chosen} to ${askerKey}`);
+    this.addAbnormal(asker, 'recluse', `${this.name(subject)} (Recluse) registered as ${roleName(chosen.slice(5))} to ${roleName(role)}`);
     return chosen.slice(5);
   }
 
@@ -249,7 +265,7 @@ export class NightRun {
         if (!isAlive(this.w, tl)) continue;
         const nb = aliveNeighbours(this.w, tl);
         if (!nb.includes(target) || nb.length < 2) continue;
-        const bothGood = nb.every((x) => this.regAlignment(`tea_lady:${tl}`, x) === 'good');
+        const bothGood = nb.every((x) => this.regAlignment('tea_lady', tl, x) === 'good');
         if (!bothGood) continue;
         if (this.sober(tl)) { this.outcome(`${tname} survives: neighbour of the Tea Lady (${this.name(tl)})`); return false; }
         this.abnormalIfExternal(tl, 'Tea Lady protection failed');
@@ -409,6 +425,7 @@ export class NightRun {
     row.causes = imp2.causes;
     if (imp2.impaired && !(actor.choice?.decline) && !b.wakesOnNightDeath) this.abnormalIfExternal(actor.pid, `${roleName(actor.roleId)} ability impaired`);
     b.resolve!(this, actor);
+    if (actor.source === 'believed' && actor.choice && !actor.choice.decline) this.believedChoosers.add(actor.pid);
     // A start-information role has now given its information (true or false): it isn't pending any more.
     if (ROLE_BY_ID[actor.roleId]?.startInfo) clearStartInfo(this.w, actor.pid, actor.roleId);
     this.currentActorRow = null;

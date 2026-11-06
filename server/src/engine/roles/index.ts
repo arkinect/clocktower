@@ -179,8 +179,8 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
     wakes: (c) => c.night === 0 || startInfoPending(c.w, c.pid).includes('clockmaker'),
     resolve(run, a) {
       const ids = seatedIds(run.w);
-      const demons = ids.filter((id) => run.regIsDemon(`clockmaker:${a.pid}`, id));
-      const minions = ids.filter((id) => !demons.includes(id) && run.regIsMinion(`clockmaker:${a.pid}`, id));
+      const demons = ids.filter((id) => run.regIsDemon('clockmaker', a.pid, id));
+      const minions = ids.filter((id) => !demons.includes(id) && run.regIsMinion('clockmaker', a.pid, id));
       let truth = 0;
       if (demons.length && minions.length) {
         truth = Math.min(...demons.flatMap((d) => minions.map((m) => seatDistance(run.w, d, m))));
@@ -195,7 +195,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
   empath: {
     resolve(run, a) {
       const nb = aliveNeighbours(run.w, a.pid);
-      const truth = nb.filter((x) => run.regAlignment(`empath:${a.pid}`, x) === 'evil').length;
+      const truth = nb.filter((x) => run.regAlignment('empath', a.pid, x) === 'evil').length;
       const fake = otherNumbers(run, `empath:${a.pid}`, truth, 0, 2);
       const fmt = (n: number) => [`${n} of your alive neighbours ${n === 1 ? 'is' : 'are'} evil.`];
       run.result(a, 'Empath', fmt(truth), fmt(fake), numberAlternatives(0, 2, fmt));
@@ -207,7 +207,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
     resolve(run, a) {
       const ts = target(a);
       if (ts.length !== 2) return;
-      const yes = ts.some((t) => t === run.w.setup.redHerringId || run.regIsDemon(`fortune_teller:${a.pid}`, t));
+      const yes = ts.some((t) => t === run.w.setup.redHerringId || run.regIsDemon('fortune_teller', a.pid, t));
       const fmt = (v: boolean) => [`${ts.map((t) => run.name(t)).join(' and ')}: ${v ? 'Yes, one of them is a Demon.' : 'No, neither is a Demon.'}`];
       run.result(a, 'Fortune Teller', fmt(yes), fmt(!yes), [fmt(true), fmt(false)]);
     },
@@ -228,7 +228,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
       const ts = target(a);
       if (ts.length !== 2) return;
       run.setFlag(a.pid, 'seamstress_used');
-      const same = run.regAlignment(`seamstress:${a.pid}`, ts[0]) === run.regAlignment(`seamstress:${a.pid}`, ts[1]);
+      const same = run.regAlignment('seamstress', a.pid, ts[0]) === run.regAlignment('seamstress', a.pid, ts[1]);
       const fmt = (v: boolean) => [`${run.name(ts[0])} and ${run.name(ts[1])} are ${v ? 'the same alignment' : 'different alignments'}.`];
       run.result(a, 'Seamstress', fmt(same), fmt(!same), [fmt(true), fmt(false)]);
     },
@@ -276,8 +276,10 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
 
   mathematician: {
     resolve(run, a) {
+      run.countBelievedAbilities();
       const adj = run.night.mathAdjust;
-      const set = new Set(run.abnormal.map((e) => e.playerId));
+      // Since dawn: the day before this night (none before night 0), then tonight.
+      const set = new Set([...run.state.days[run.n]?.abnormal ?? [], ...run.abnormal].map((e) => e.playerId));
       for (const x of adj.add) set.add(x);
       for (const x of adj.remove) set.delete(x);
       const truth = set.size;
@@ -285,7 +287,8 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
       const capN = seatedIds(run.w).filter((id) => {
         if (id === a.pid) return false;
         const r = roleIdOf(run.w, id);
-        if (!r || r === 'drunk' || r === 'marionette') return false;
+        if (!r) return false;
+        if (r === 'drunk' || r === 'marionette') return !!BEHAVIOURS[run.w.assignments[id].believedRoleId ?? '']?.resolve;
         return passive.has(r) || !!BEHAVIOURS[r]?.resolve;
       }).length;
       const fake = capN === 0 ? 0 : otherNumbers(run, `mathematician:${a.pid}`, truth, 0, capN);
@@ -305,7 +308,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
       }
       const [t] = choice.decline ? [] : choice.values;
       if (!t) return;
-      const truth = run.regRole(`ravenkeeper:${a.pid}`, t);
+      const truth = run.regRole('ravenkeeper', a.pid, t);
       const opts = enabled(run.state).filter((r) => r !== truth);
       const fake = opts.length ? run.rng(`ravenkeeper:${a.pid}`).pick(opts) : truth;
       const fmt = (r: string) => [`${run.name(t)} is the ${roleName(r)}.`];
@@ -380,7 +383,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
       run.outcome(`target ${run.name(t)}`);
       if (!soberAtDeath) { run.outcome('impaired at death: no effect'); return; }
       if (!isAlive(run.w, t)) { run.outcome('target already dead'); return; }
-      if (run.regAlignment(`moonchild:${a.pid}`, t) === 'good') run.attemptKill(t, 'ability_kill', a.pid);
+      if (run.regAlignment('moonchild', a.pid, t) === 'good') run.attemptKill(t, 'ability_kill', a.pid);
       else run.outcome('target is not good: nothing happens');
     },
   },
@@ -725,7 +728,7 @@ Object.assign(BEHAVIOURS, {
   oracle: {
     resolve(run: NightRun, a: Actor) {
       const dead = seatedIds(run.w).filter((x) => !isAlive(run.w, x));
-      const truth = dead.filter((x) => run.regAlignment(`oracle:${a.pid}`, x) === 'evil').length;
+      const truth = dead.filter((x) => run.regAlignment('oracle', a.pid, x) === 'evil').length;
       const fake = dead.length ? otherNumbers(run, `oracle:${a.pid}`, truth, 0, dead.length) : 0;
       const fmt = (n: number) => [`${n} dead player${n === 1 ? ' is' : 's are'} evil.`];
       run.result(a, 'Oracle', fmt(truth), fmt(fake), numberAlternatives(0, dead.length, fmt));
@@ -816,8 +819,10 @@ Object.assign(BEHAVIOURS, {
         const outs = seatedIds(run.w).filter((x) => typeOf(run.w, x) === 'outsider');
         const listed = outs.filter((x) => {
           if (roleIdOf(run.w, x) !== 'recluse') return true;
-          return run.review(`godfather_recluse:${a.pid}:${x}`, 'godfather_recluse', `Godfather: list the Recluse (${run.name(x)})?`,
+          const list = run.review(`godfather_recluse:${a.pid}:${x}`, 'godfather_recluse', `Godfather: list the Recluse (${run.name(x)})?`,
             'The Recluse might not register as an Outsider.', [{ id: 'list', label: 'List it' }, { id: 'hide', label: 'Hide it' }], 'list') === 'list';
+          if (!list && run.sober(x)) run.addAbnormal(a.pid, 'recluse', `${run.name(x)} (Recluse) hidden from the Godfather`);
+          return list;
         }).map((x) => roleIdOf(run.w, x)!);
         const fmt = (rs2: string[]) => [rs2.length ? `Outsiders in play: ${rs2.map(roleName).join(', ')}` : 'No Outsiders in play.'];
         const inPlay = new Set(seatedIds(run.w).map((x) => roleIdOf(run.w, x)));

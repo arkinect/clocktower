@@ -41,7 +41,8 @@ describe('information roles', () => {
     expect(resultFor(res, g.p.empath)!.trueLines[0]).toMatch(/^0 /);
     res = resolve(g, { [item.key]: 'demon' });
     expect(resultFor(res, g.p.empath)!.trueLines[0]).toMatch(/^1 /);
-    expect(res.abnormal.some((e) => e.playerId === g.p.recluse)).toBe(true);
+    expect(res.abnormal.some((e) => e.playerId === g.p.empath)).toBe(true);
+    expect(res.abnormal.some((e) => e.playerId === g.p.recluse)).toBe(false);
   });
 
   it('Seamstress: once per game, the use is spent even when declined later', () => {

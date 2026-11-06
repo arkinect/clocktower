@@ -1,11 +1,12 @@
 // The night-engine rules fixes, one describe per fix: each is checked against the official wiki (design.md section 19).
 import { describe, expect, it } from 'vitest';
 import { ROLE_BY_ID } from '@ct/shared';
+import { actionSpecs } from '../src/engine/actions';
 import { makeRng } from '../src/engine/rng';
 import { enabledRoles, suggestDistribution, targetCounts } from '../src/engine/setup';
 import { minionIds, demonIds, typeOf } from '../src/engine/world';
 import { computeImpairment } from '../src/engine/impairment';
-import { act, build, nextNight, publishAndDay, resolve, resultFor, runNight, submit, tryAct, type TestGame } from './helpers';
+import { act, alive, build, nextNight, publishAndDay, resolve, resultFor, runNight, submit, tryAct, type TestGame } from './helpers';
 
 
 describe('Fix 1: Lil\' Monsta setup counts', () => {
@@ -271,4 +272,130 @@ describe('Fix 5: a Gossip killed before their slot kills nobody', () => {
     const item = resolve(g).reviewItems.find((i) => i.kind === 'gossip_victim')!;
     expect(resolve(g, { [item.key]: g.p.butler }).deaths).toEqual([g.p.empath, g.p.butler]);
   });
+});
+
+describe('Fix 7: Mathematician', () => {
+  const count = (g: TestGame) => Number(resultFor(g.s.night!.resolution!, g.p.mathematician)!.trueLines[0].split(' ')[0]);
+  const shoot = (g: TestGame, targetId: string, mode: 'preview' | 'accept', recluseAs?: 'demon') =>
+    act(g, { type: 'day_kill', kind: 'slayer', sourceId: g.p.slayer, targetId, mode, recluseAs });
+
+  describe('since dawn', () => {
+    function poisonedSlayer() {
+      const g = build(['mathematician', 'slayer', 'poisoner', 'imp', 'butler', 'empath']);
+      runNight(g, { [g.p.poisoner]: { poisoner: [g.p.slayer] } });
+      return g;
+    }
+
+    it('a Slayer poisoned by the Poisoner who shoots by day is counted that night', () => {
+      const g = poisonedSlayer();
+      shoot(g, g.p.imp, 'accept');
+      expect(g.s.days[1].abnormal).toMatchObject([{ playerId: g.p.slayer, detail: 'Slayer ability impaired' }]);
+      nextNight(g);
+      resolve(g);
+      expect(count(g)).toBe(1);
+    });
+
+    it('a shot that is only previewed, then cancelled, is not counted', () => {
+      const g = poisonedSlayer();
+      shoot(g, g.p.imp, 'preview');
+      expect(g.s.days[1].abnormal).toBeUndefined();
+      nextNight(g);
+      resolve(g);
+      expect(count(g)).toBe(0);
+    });
+
+    it('a Tea Lady poisoned by the Poisoner who fails to protect against a Slayer shot is counted', () => {
+      const g = build(['mathematician', 'tea_lady', 'recluse', 'slayer', 'poisoner', 'imp', 'butler']);
+      runNight(g, { [g.p.poisoner]: { poisoner: [g.p.tea_lady] } });
+      shoot(g, g.p.recluse, 'accept', 'demon');
+      expect(alive(g, g.p.recluse)).toBe(false);
+      expect(g.s.days[1].abnormal!.map((e) => e.playerId)).toEqual([g.p.slayer, g.p.tea_lady]);
+      nextNight(g);
+      resolve(g);
+      expect(count(g)).toBe(2);
+    });
+
+    it('a day event counts for that night only', () => {
+      const g = poisonedSlayer();
+      shoot(g, g.p.imp, 'accept');
+      nextNight(g);
+      resolve(g);
+      publishAndDay(g);
+      nextNight(g);
+      resolve(g);
+      expect(count(g)).toBe(0);
+    });
+  });
+
+  describe('Recluse', () => {
+    it('misleading the Empath and the Fortune Teller in one night counts 2, and not the Recluse', () => {
+      const g = build(['empath', 'recluse', 'fortune_teller', 'mathematician', 'imp', 'poisoner', 'butler']);
+      submit(g, { [g.p.fortune_teller]: { fortune_teller: [g.p.recluse, g.p.butler] } });
+      const res = resolve(g, {
+        [`reg:empath:${g.p.empath}:${g.p.recluse}`]: 'minion',
+        [`reg:fortune_teller:${g.p.fortune_teller}:${g.p.recluse}`]: 'demon',
+      });
+      expect(count(g)).toBe(2);
+      expect(res.abnormal.map((e) => e.playerId).sort()).toEqual([g.p.empath, g.p.fortune_teller].sort());
+    });
+
+    it('the Godfather\'s hidden Recluse counts the Godfather on night 0', () => {
+      const g = build(['godfather', 'recluse', 'mathematician', 'imp', 'empath', 'butler'], (x) => { act(x, { type: 'set_godfather_outsiders', value: 1 }); });
+      const res = resolve(g, { [`godfather_recluse:${g.p.godfather}:${g.p.recluse}`]: 'hide' });
+      expect(count(g)).toBe(1);
+      expect(res.abnormal.map((e) => e.playerId)).toEqual([g.p.godfather]);
+    });
+  });
+  type Believer = 'drunk' | 'marionette';
+  const believing = (role: Believer, believed: string) => build(['mathematician', role, 'imp', 'poisoner', 'butler', 'virgin'], (g) => {
+    act(g, { type: 'set_believed_role', playerId: g.p[role], roleId: believed });
+  });
+
+  /** A believed Empath: false info counts, the truth sent doesn't. */
+  function falseInfoCounts(role: Believer, name: string) {
+    const g = believing(role, 'empath');
+    const res = resolve(g);
+    expect(count(g)).toBe(1);
+    expect(res.abnormal).toMatchObject([{ playerId: g.p[role], detail: `${name}'s ability yielded false info` }]);
+    const row = resultFor(res, g.p[role], 'empath')!;
+    act(g, { type: 'override_result', key: row.key, lines: row.trueLines });
+    expect(count(g)).toBe(0);
+  }
+
+  /** A believed Sailor's choice failed to work: counted, and the Storyteller can remove it. */
+  function failedChoiceCounts(role: Believer, name: string) {
+    const g = believing(role, 'sailor');
+    submit(g, { [g.p[role]]: { sailor: [g.p.butler] } });
+    const res = resolve(g);
+    expect(count(g)).toBe(1);
+    expect(res.abnormal).toMatchObject([{ playerId: g.p[role], detail: `${name}'s ability failed` }]);
+    act(g, { type: 'math_adjust', add: [], remove: [g.p[role]] });
+    expect(count(g)).toBe(0);
+  }
+
+  function declineNotCounted(role: Believer) {
+    const g = believing(role, 'seamstress');
+    submit(g, { [g.p[role]]: { seamstress: 'decline' } });
+    resolve(g);
+    expect(count(g)).toBe(0);
+  }
+
+  /** The false-value cap includes them only when the believed role has a night ability. */
+  function capIncludes(role: Believer) {
+    const alternatives = (believed: string) => {
+      const g = believing(role, believed);
+      submit(g, { [g.p.poisoner]: { poisoner: [g.p.mathematician] } });
+      return resultFor(resolve(g), g.p.mathematician)!.alternatives.length;
+    };
+    expect(alternatives('empath')).toBe(alternatives('mayor') + 1);
+  }
+
+  it('Jinx (Mathematician & Drunk): false info is counted, unless the truth is sent', () => falseInfoCounts('drunk', 'Drunk'));
+  it('Jinx (Mathematician & Drunk): a Drunk-Sailor\'s choice is counted', () => failedChoiceCounts('drunk', 'Drunk'));
+  it('Jinx (Mathematician & Drunk): a declined choice is not counted', () => declineNotCounted('drunk'));
+  it('Jinx (Mathematician & Drunk): the false-value cap includes the Drunk', () => capIncludes('drunk'));
+  it('Jinx (Mathematician & Marionette): false info is counted, unless the truth is sent', () => falseInfoCounts('marionette', 'Marionette'));
+  it('Jinx (Mathematician & Marionette): a believed Sailor\'s choice is counted', () => failedChoiceCounts('marionette', 'Marionette'));
+  it('Jinx (Mathematician & Marionette): a declined choice is not counted', () => declineNotCounted('marionette'));
+  it('Jinx (Mathematician & Marionette): the false-value cap includes the Marionette', () => capIncludes('marionette'));
 });

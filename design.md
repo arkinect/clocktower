@@ -239,7 +239,7 @@ Append-only `events` table (game_id, seq, timestamp, actor, type, payload). Ever
 - `RoleState(playerId, ...)`: per-role memory such as `lastTarget` (Devil's Advocate), `lastChoiceNone` (Po), `shownTypes` (Balloonist), `grandchildId` (Grandmother), `soberAtDeath` and `moonchildUsed` (Moonchild), `startInfoPending` (role ids of start-information roles gained and not yet told: section 5.7; it replaced the Grandmother-only `grandmotherInfoPending` in v8)
 - `Effect(id, type, cause, sourcePlayerId, targetPlayerId, startNight, expiry)`; `type` in `poisoned | drunk | protected | devils_advocate | butler_master | witched`; `expiry` in `until_dusk | until_source_acts_again | while_source_alive_and_sober | until_removed`; `cause` in `poisoner | sailor | innkeeper | goon | philosopher | pukka | no_dashii | vigormortis | witch | organ_grinder | cannibal | own_character | admin` (used by the Mathematician; `organ_grinder` and `cannibal` are reserved for those roles).
 - `Setup(demonBluffs[3], redHerringId, lilMonstaMinionRole, lilMonstaTokenHolderId, mezephelesWord, mezephelesSpent, typeCountsOverride?, shabalothKills[], godfatherOutsiders (1 | -1 | null), damselGuessUsed, damselGuessResult)`
-- `DayRecord(dayNumber, executedPlayerId, demonVoted, jugglerCorrect, moonchildTargetId, mezephelesSayer, gossipStatement (none|true|false), notes)`
+- `DayRecord(dayNumber, executedPlayerId, demonVoted, jugglerCorrect, moonchildTargetId, mezephelesSayer, gossipStatement (none|true|false), notes, abnormal?)`; `abnormal` holds the day's abnormal abilities (day kills, 5.12) for that night's Mathematician.
 - `NightState(number, collectingOpen, submissions{}, followUpAnswers{key: {choice, byAdmin, at}}, seed, reviewChoices{}, overrides{}, mathAdjust, resolution)`
 - `Resolution(actors[], results[], reviewItems[], log[], deaths[], revived[], abnormal[], followUps[{key, playerId, roleId, spec, answered}], notices[], after: World)`
 - `Messages(playerId -> [{title, lines, night, kind: result|notice|starting}])`, `PendingNotices` (delivered when the next night starts), `DayPrompts` (Scarlet Woman day prompt)
@@ -280,7 +280,7 @@ The night-order reference shown to players is generated from the order tables, n
 - `until_dusk` effects are cleared when the next night starts. Poison "tonight and tomorrow day" is `until_dusk`.
 
 ### 5.9 Registration
-Only a **sober Recluse** (alive or dead) is a registration source with an Admin choice. When an ability asks about a Recluse, the engine creates a review item for that asker and that Recluse: "Truthfully (good Outsider)", "As an evil Minion" or "As an evil Demon" (default truthful); for "which character?" (Ravenkeeper) the options are truthful or any enabled Minion/Demon. The choice applies to that query only. A non-truthful choice logs an abnormal event for the Mathematician.
+Only a **sober Recluse** (alive or dead) is a registration source with an Admin choice. When an ability asks about a Recluse, the engine creates a review item for that asker and that Recluse: "Truthfully (good Outsider)", "As an evil Minion" or "As an evil Demon" (default truthful); for "which character?" (Ravenkeeper) the options are truthful or any enabled Minion/Demon. The choice applies to that query only. A non-truthful choice logs an abnormal event for the Mathematician against the **asker**, whose ability got wrong information, never the Recluse, whose ability worked normally. Two players misled by the same Recluse in one night count as 2.
 Fixed registrations (no choice): the red herring is a Demon to the Fortune Teller; the Lil' Monsta token holder is the Demon for every ability; the Goon is its current alignment.
 
 ### 5.10 Kill pipeline (night)
@@ -299,7 +299,7 @@ All night deaths go through `attemptKill(target, cause, attacker, options)`. Cau
 `revivePlayer(playerId)` is the only way a player comes back (Professor, Shabaloth, Admin "Mark alive"): alive again, `deadAt` and `deathCause` cleared, ghost vote restored, removed from `shabalothKills`, `retainsAbilityWhenDead` cleared, pending Moonchild data cleared. It fires no death trigger. The player is told "You are alive again" (at publish for a night revive, immediately for a day revive). A player revived at night (`NightRun.revive`: the Professor, the Shabaloth, the Al-Hadikhia's "live") **acts in every slot of theirs that comes after the revival**, with slot conditions and once-per-game flags as normal: a role with no input resolves as usual, and a role with input is asked as a follow-up question (key `late:<playerId>:<roleId>`, section 9.4) starting "You have been brought back to life." A player given a new role during a night (the Huntsman's Damsel, the Farmer's new Farmer, a Scarlet Woman changed back by the Al-Hadikhia jinx) waits until the next night (exception: start information, section 5.7).
 
 ### 5.12 Day kills
-`previewDayKill(target)` for the Slayer shot and the Witch's curse runs the normal protections except the Mayor bounce and the Innkeeper (both night only): sober Sailor, Tea Lady (true alignments, no Recluse prompt), unused sober Fool. The Admin sees the outcome in a dialog ("X would die", "X cannot die because …") with **Accept, Cancel, Force death, Force survive**. On confirm the death is recorded with `deadAt = {day, n}` and the normal triggers fire (Scarlet Woman prompt, Moonchild sobriety, Fool used flag, immediate "You have died" notice).
+`previewDayKill(target)` for the Slayer shot and the Witch's curse runs the normal protections except the Mayor bounce and the Innkeeper (both night only): sober Sailor, Tea Lady (true alignments, no Recluse prompt), unused sober Fool. The Admin sees the outcome in a dialog ("X would die", "X cannot die because …") with **Accept, Cancel, Force death, Force survive**. On confirm the death is recorded with `deadAt = {day, n}` and the normal triggers fire (Scarlet Woman prompt, Moonchild sobriety, Fool used flag, immediate "You have died" notice). When the shot or curse is applied (not on preview or Cancel), the day's `abnormal` list records the Slayer if impaired by another character, the Slayer if a sober Recluse registers as the Demon, and any protector whose protection would have saved the target but failed because another character impaired them.
 
 ### 5.13 Resolution algorithm
 
@@ -421,7 +421,7 @@ Admin presses **Start Night N** (from the day). The server records the day in th
 The Review tab shows:
 - **Decisions** (review items) with the recommendation marked; "Accept all defaults". Kinds: registration (Recluse), Sailor and Innkeeper "who is drunk", Mayor attack, starpass, Scarlet Woman, Shabaloth regurgitation, Vigormortis poison side, Balloonist player, Mezepheles conversion, Godfather trigger, Godfather Recluse list/hide, Gossip victim, Huntsman new role, Grandmother grandchild, Grandmother link.
 - **Information to send**: per result, the true value, the suggested value when impaired (with causes), what will be sent, quick-pick alternatives, free-text edit and reset. Everyone without a result gets "You learned nothing." The notices that will be sent are listed.
-- **Mathematician panel** (if one acted): detected abnormal players with checkboxes, and players to add.
+- **Mathematician panel** (if one acted): the day's and the night's detected abnormal players, with reasons and checkboxes, and players to add. Day abilities the app doesn't run (Virgin, Golem, Artist and the like) are added here by hand.
 - **Night walk**: every actor in order with input, impairment and outcome. Deaths and revivals.
 - **Reopen collecting** and **Publish and send to Day**.
 
@@ -582,8 +582,8 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 
 #### Mathematician
 - Ability: "Each night, you learn how many players' abilities worked abnormally (since dawn) due to another character's ability."
-- Every night, last, no input. Counts the distinct players with an abnormal event tonight: an ability used while impaired by **another** character's effect, a protection or passive (Sailor, Tea Lady, Fool, Mayor, Goon, Grandmother link) that failed because of such impairment, or a Recluse misregistered by the Admin. Not counted: the player's own ability (e.g. a self-drunk Sailor), the Drunk or Marionette's own character, Storyteller-added poison/drunk, a declined action, a Ravenkeeper's second-round pick, and day events. The Admin can add or remove players and override the number. The official jinxes with the Drunk and the Marionette (14.8) say the Mathematician does learn of their abilities working abnormally; the count above does not apply them yet, so they are shown as reminders and the Admin adds those players by hand.
-- Impaired: a number different from the truth, from 0 to N, where N is the number of in-play players other than the Mathematician, the Drunk and the Marionette whose role has a night ability or a tracked passive (Sailor, Tea Lady, Fool, Mayor, Goon, Recluse). The Slayer and Damsel are not counted.
+- Every night, last, no input. Counts the distinct players with an abnormal event since dawn: the day before (`days[N].abnormal`, 5.12; night 0 has no day) and tonight. An event is an ability used while impaired by **another** character's effect, a protection or passive (Sailor, Tea Lady, Fool, Mayor, Goon, Grandmother link) that failed because of such impairment, an asker misled by a Recluse (5.9; the Recluse's own ability worked normally), including a Slayer shooting a Recluse who registers as the Demon and a Godfather from whom a sober Recluse is hidden on night 0, or a Drunk or Marionette's believed ability (14.8). Not counted: the player's own ability (e.g. a self-drunk Sailor), Storyteller-added poison/drunk, a declined action and a Ravenkeeper's second-round pick. The Admin can add or remove players, on top of everything above, and override the number.
+- Impaired: a number different from the truth, from 0 to N, where N is the number of in-play players other than the Mathematician whose role has a night ability or a tracked passive (Sailor, Tea Lady, Fool, Mayor, Goon, Recluse), plus a Drunk or Marionette whose believed role has a night ability. The Slayer and Damsel are not counted.
 
 #### Flowergirl
 - Ability: "Each night*, you learn if a Demon voted today."
@@ -752,7 +752,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 
 #### Marionette
 - Ability: "You think you are a good character but you are not. The Demon knows who you are. [You neighbour the Demon]"
-- Evil, counts as a Minion, given a believed good role (like the Drunk), always impaired (`own_character`, not counted by the Mathematician). Told nothing as a Minion and not listed to other Minions; the Demon is told who they are. Setup warns if not next to the Demon. Can be chosen in a starpass (then told their real new role).
+- Evil, counts as a Minion, given a believed good role (like the Drunk), always impaired (`own_character`; the Mathematician counts their believed ability only as 14.8 says). Told nothing as a Minion and not listed to other Minions; the Demon is told who they are. Setup warns if not next to the Demon. Can be chosen in a starpass (then told their real new role).
 
 #### Scarlet Woman
 - Ability: "If there are 5 or more players alive & the Demon dies, you become the Demon. (Travellers don't count)"
@@ -835,6 +835,7 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 The official jinxes between roles in the app are the `JINXES` data in `shared/src/roles.ts`: the two roles, the official wording, how the app handles it and the page it was checked against. A change that adds a role adds its jinxes with roles already in the app, in the same change. Every message about a jinx is labelled `Jinx (A & B): …`. The role list (players' Roles tab, Storyteller reference) has a Jinxes section listing each jinx whose two roles are both on the script.
 
 `handling: 'engine'` jinxes are applied by the app, each with a test whose name starts with its label (`server/test/jinxes.test.ts` checks this):
+- **Mathematician & Drunk**, **Mathematician & Marionette** ("The Mathematician learns if the Drunk's [Marionette's] ability yielded false info or failed to work properly."): the player is counted when their believed role's ability, tonight, yielded false info (any of their result rows has `finalLines` different from `trueLines`, so the Storyteller sending the truth means not counted), or failed to work (a real, non-declined choice for a role whose result rows, if any, are only confirmations, e.g. a Drunk-Sailor's choice or a Drunk-Professor's revive). The panel lists these as "Drunk's ability failed", so the Storyteller can remove one that would have done nothing anyway.
 - **Marionette & Huntsman:** a Marionette who believes they are the Huntsman needs the Damsel in play (blocking Setup item, 7.5).
 - **Marionette & Balloonist:** a Marionette who believes they are the Balloonist gets a Setup warning that an Outsider may be added.
 - **Lil' Monsta & Scarlet Woman:** already how the Scarlet Woman check works (14.7, Lil' Monsta).
@@ -906,7 +907,7 @@ The rest are `'reminder'`: shown in the role list only, applied by the Admin at 
 | Red herring | App recommends, Admin may choose any good player |
 | Clockmaker | Shorter way around the circle, all seats counted |
 | Sailor | 50/50 coin recommends who is drunk, Admin accepts or picks the other |
-| Mathematician | Impairment by another character and Recluse misregistration only; false values capped |
+| Mathematician | Since dawn, day included: impairment by another character, the asker of a Recluse misregistration, and the Drunk and Marionette jinxes; false values capped, the Drunk and Marionette included |
 | Balloonist | Names only |
 | Philosopher | Gained ability from the night it is chosen (input as a follow-up question at its slot); the holder is drunk only while the Philosopher is alive and sober; cannot choose the Philosopher |
 | Goon | Any submission that includes the Goon counts, even from an impaired player |
@@ -998,6 +999,7 @@ Rule gaps (already folded into the cards above, listed here for review):
 - Re-recording the day's execution does not undo an eat: a new killing execution eats again (replacing it), and anything else is fixed with the Day panel's Cannibal row. Marking the executee alive again does not undo it either.
 - The Cannibal & Juggler jinx is applied only for a Juggler executed on day 1 (their ability wakes only on night 1). A Juggler eaten on a later day gives nothing; the Storyteller applies anything else at the table.
 - The Cannibal's poison after an evil eat is the Cannibal's own ability, so it is not abnormal for the Mathematician.
+- A Mathematician's "failed to work" for a Drunk or Marionette is recorded for any real choice with no information back, even one that would have done nothing (a Gambler's right guess); the Storyteller removes those in the panel.
 - The Farmer's new Farmer is any alive player whose actual alignment is good (a Recluse included), and keeps their alignment; with only Farmers left the default is Nobody. A Farmer impaired at death, or a Drunk or Marionette who thinks they are the Farmer, makes nobody a Farmer: the review screen's actor row says so, and no review item is shown.
 - A real Farmer who dies after the Farmer's slot (the Moonchild's target, a Grandmother's link) acts once the night order has finished, with the same options, default and outcome (`alsoAfterOrder`). That includes a Farmer made earlier the same night. The Mathematician has already counted by then, so an impaired Farmer's abnormal event in that case is listed on the review screen but not in their number.
 - The Ravenkeeper and the Farmer wake if they are dead now and died tonight: revived later the same night they don't, and revived and then killed again the same night they do.

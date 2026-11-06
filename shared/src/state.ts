@@ -63,6 +63,8 @@ export interface DayRecord {
   mezephelesSayer: string | null;
   gossipStatement: 'none' | 'true' | 'false';
   notes: string;
+  /** Abilities that worked abnormally today (day_kill), for that night's Mathematician. Absent means none. */
+  abnormal?: AbnormalEvent[];
 }
 
 export interface ReviewOption { id: string; label: string }
