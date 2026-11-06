@@ -195,13 +195,29 @@ describe('modifiers and protections', () => {
     expect(g.s.effects.some((e) => e.cause === 'pukka')).toBe(false);
   });
 
-  it('No Dashii poisons the nearest alive Townsfolk on each side', () => {
-    const g = build(['butler', 'empath', 'no_dashii', 'poisoner', 'sailor', 'clockmaker']);
-    const imp = computeImpairment(g.s, 0);
+  it('No Dashii poisons the closest Townsfolk on each side, alive or dead, past Outsiders and Minions', () => {
+    const g = build(['clockmaker', 'empath', 'butler', 'no_dashii', 'poisoner', 'sailor']);
+    let imp = computeImpairment(g.s, 0);
     expect(imp[g.p.empath].causes).toContain('poisoned:no_dashii');
     expect(imp[g.p.sailor].causes).toContain('poisoned:no_dashii');
     expect(imp[g.p.butler].impaired).toBe(false);
+    expect(imp[g.p.poisoner].impaired).toBe(false);
     expect(imp[g.p.clockmaker].impaired).toBe(false);
+    // A Townsfolk who dies stays poisoned, and the next Townsfolk along does not become poisoned.
+    act(g, { type: 'mark_alive', playerId: g.p.empath, alive: false });
+    imp = computeImpairment(g.s, 0);
+    expect(imp[g.p.empath].causes).toContain('poisoned:no_dashii');
+    expect(imp[g.p.clockmaker].impaired).toBe(false);
+  });
+
+  it('Vigormortis: the review offers the dead Minion\'s closest Townsfolk even if they are dead', () => {
+    const g = build(['vigormortis', 'empath', 'poisoner', 'butler', 'sailor', 'clockmaker']);
+    runNight(g, { [g.p.sailor]: { sailor: [g.p.sailor] } });
+    act(g, { type: 'mark_alive', playerId: g.p.empath, alive: false });
+    nextNight(g);
+    submit(g, { [g.p.vigormortis]: { vigormortis: [g.p.poisoner] } });
+    const item = resolve(g).reviewItems.find((i) => i.kind === 'vigormortis')!;
+    expect(item.options.map((o) => o.id)).toEqual([g.p.empath, g.p.sailor]);
   });
 
   it('Vigormortis: a killed Minion keeps their ability and poisons a Townsfolk neighbour', () => {

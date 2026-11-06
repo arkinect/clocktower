@@ -7,7 +7,7 @@ import { becomeDemon, demonInfoLines } from '../demon';
 import { enabledRoles } from '../setup';
 import { computeImpairment } from '../impairment';
 import {
-  abilityNightToday, aliveIds, aliveNeighbours, alignmentOf, changeRole, clearStartInfo, findPlayer, flag, isAlive, playersWithAbility, isDemon, markStartInfo, nameOf, nearestAliveMatching,
+  abilityNightToday, aliveIds, aliveNeighbours, alignmentOf, changeRole, clearStartInfo, findPlayer, flag, isAlive, playersWithAbility, isDemon, markStartInfo, nameOf, nearestMatching,
   roleIdOf, roleName, rs, seatDistance, seatedIds, startInfoPending, typeOf,
 } from '../world';
 
@@ -557,7 +557,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
       if (!died || typeOf(run.w, t) !== 'minion') return;
       run.w.assignments[t].retainsAbilityWhenDead = true;
       run.outcome(`${run.name(t)} (Minion) keeps their ability`);
-      const tf = nearestAliveMatching(run.w, t, (p) => typeOf(run.w, p) === 'townsfolk');
+      const tf = nearestMatching(run.w, t, (p) => typeOf(run.w, p) === 'townsfolk');
       if (!tf.length) return;
       const def = run.rng(`vigormortis:${t}`).pick(tf);
       const ch = run.review(`vigormortis:${t}`, 'vigormortis', `Vigormortis: which Townsfolk neighbour of ${run.name(t)} is poisoned?`,

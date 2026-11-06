@@ -1,6 +1,6 @@
 // Section 5.7. The only place that decides who is drunk or poisoned.
 import type { Effect, WorldState } from '@ct/shared';
-import { isAlive, nearestAliveMatching, roleIdOf, seatedIds, typeOf } from './world';
+import { isAlive, nearestMatching, roleIdOf, seatedIds, typeOf } from './world';
 
 export interface Impairment { impaired: boolean; causes: string[] }
 
@@ -20,7 +20,7 @@ export function activeImpairingEffects(w: WorldState, night: number): Effect[] {
   const derived: Effect[] = stored.filter((e) => dependsOnSource(e) && soberAlive(e.sourcePlayerId));
   for (const id of seatedIds(w)) {
     if (roleIdOf(w, id) !== 'no_dashii' || !soberAlive(id)) continue;
-    for (const t of nearestAliveMatching(w, id, (p) => typeOf(w, p) === 'townsfolk')) {
+    for (const t of nearestMatching(w, id, (p) => typeOf(w, p) === 'townsfolk')) {
       derived.push({ id: `nd-${id}-${t}`, type: 'poisoned', cause: 'no_dashii', sourcePlayerId: id, targetPlayerId: t, startNight: night, expiry: 'while_source_alive_and_sober' });
     }
   }

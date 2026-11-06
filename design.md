@@ -274,7 +274,7 @@ The night-order reference shown to players is generated from the order tables, n
 ### 5.8 Impairment
 `computeImpairment(world, night)` returns, per player, `{ impaired, causes[] }`. Roles read impairment only from this function.
 - A player is impaired if any active `poisoned` or `drunk` effect applies, or their actual role is Drunk or Marionette (cause `own_character`).
-- Two passes: first the unconditional effects; then effects that depend on their source being alive and sober (`while_source_alive_and_sober`, e.g. Vigormortis poison) and the derived No Dashii poison (nearest alive Townsfolk on each side of a sober, alive No Dashii).
+- Two passes: first the unconditional effects; then effects that depend on their source being alive and sober (`while_source_alive_and_sober`, e.g. Vigormortis poison) and the derived No Dashii poison (the closest Townsfolk on each side of a sober, alive No Dashii, alive or dead, going past Outsiders, Minions and Travellers).
 - A Philosopher's drunk effect (cause `philosopher`, stored as `until_removed`) depends on its source the same way, keyed on the cause: it applies only while the Philosopher is alive and not impaired in the first pass.
 - Effects are applied as the night order is walked, so a role that wakes later sees effects created earlier tonight.
 - `until_dusk` effects are cleared when the next night starts. Poison "tonight and tomorrow day" is `until_dusk`.
@@ -808,11 +808,11 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 
 #### No Dashii
 - Ability: "Each night*, choose a player: they die. Your 2 Townsfolk neighbours are poisoned."
-- Night 1+, any player. Continuous: while alive and sober, the nearest alive Townsfolk on each side (skipping non-Townsfolk and the dead) are poisoned (cause `no_dashii`), from Night 0 and recomputed live. Impaired: no kill and no poison.
+- Night 1+, any player. Continuous: while alive and sober, the closest Townsfolk on each side, alive or dead (skipping only non-Townsfolk), are poisoned (cause `no_dashii`), from Night 0 and recomputed live. A Townsfolk who dies stays poisoned, and the next one along does not become poisoned. Impaired: no kill and no poison.
 
 #### Vigormortis
 - Ability: "Each night*, choose a player: they die. Minions you kill keep their ability & poison 1 Townsfolk neighbour. [-1 Outsider]"
-- Night 1+, any player. If a Minion dies from its attack: `retainsAbilityWhenDead` (they keep acting while dead) and a review item picks one of the nearest alive Townsfolk on each side of that Minion to poison (cause `vigormortis`, while the Vigormortis is alive and sober). Impaired: no kill, no effect.
+- Night 1+, any player. If a Minion dies from its attack: `retainsAbilityWhenDead` (they keep acting while dead) and a review item picks one of the closest Townsfolk on each side of that Minion, alive or dead, to poison (cause `vigormortis`, while the Vigormortis is alive and sober). Impaired: no kill, no effect.
 - **Must not be in the same game as the Scarlet Woman** (7.3).
 
 #### Lil' Monsta
@@ -916,7 +916,7 @@ The rest are `'reminder'`: shown in the role list only, applied by the Admin at 
 | Pukka | Impaired Pukka still kills its previous target but poisons no one new |
 | Shabaloth | 1-in-3 regurgitation of any past victim, recommended then Admin chooses |
 | Po | None or exactly one; after none, exactly three |
-| No Dashii, Vigormortis | Only alive Townsfolk count as neighbours; Vigormortis poison lasts while it is alive and sober |
+| No Dashii, Vigormortis | The closest Townsfolk on each side count as neighbours, alive or dead; Vigormortis poison lasts while it is alive and sober |
 | Lil' Monsta | Simplified token model; holder passes alone; token stays with a dead holder unless the Scarlet Woman takes it |
 | Flowergirl, Juggler | Admin enters the day value |
 | Oracle | Dead evil players at its slot; false values 0 to the number dead |

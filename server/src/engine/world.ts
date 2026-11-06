@@ -182,8 +182,8 @@ export function aliveNeighbours(w: WorldState, id: string): string[] {
   return found;
 }
 
-/** Nearest alive player matching `pred` on each side (going past non-matching and dead players). */
-export function nearestAliveMatching(w: WorldState, id: string, pred: (pid: string) => boolean): string[] {
+/** Closest player matching `pred` on each side, alive or dead, going past non-matching seats. At most 2, no repeats. */
+export function nearestMatching(w: WorldState, id: string, pred: (pid: string) => boolean): string[] {
   const order = seatedIds(w);
   const i = order.indexOf(id);
   if (i < 0) return [];
@@ -192,7 +192,7 @@ export function nearestAliveMatching(w: WorldState, id: string, pred: (pid: stri
   for (const dir of [-1, 1]) {
     for (let k = 1; k < n; k++) {
       const cand = order[(i + dir * k + n * k) % n];
-      if (cand !== id && isAlive(w, cand) && pred(cand)) {
+      if (cand !== id && pred(cand)) {
         found.push(cand);
         break;
       }
