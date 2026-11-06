@@ -52,7 +52,7 @@ export class NightRun {
   readonly impairAtDeath: Record<string, Impairment> = {};
   /** Cause of each death tonight (Grandmother link needs demon_attack). */
   readonly deathCause: Record<string, string> = {};
-  /** Players revived or given a new role tonight: they act again from the next night. */
+  /** Players given a new role tonight: they act from the next night. */
   readonly noActTonight = new Set<string>();
   private goonTriggered = new Set<string>();
   private currentActorRow: ActorRow | null = null;
@@ -312,11 +312,10 @@ export class NightRun {
     if (isDemon(this.w, target) && !opts.noScarlet) this.scarletCheck(target, aliveBefore);
   }
 
-  /** Shared revive (Professor, Shabaloth, Al-Hadikhia). */
+  /** Shared revive (Professor, Shabaloth, Al-Hadikhia). The player acts in their slots later tonight. */
   revive(pid: string, reason: string): boolean {
     if (!revivePlayer(this.w, pid)) return false;
     this.revived.push(pid);
-    this.noActTonight.add(pid);
     this.outcome(`${this.name(pid)} is alive again (${reason})`);
     const back = scarletWomanAgain(this.w, this.now, (id, title, lines) => this.notice(id, title, lines));
     if (back) {
@@ -426,6 +425,7 @@ export class NightRun {
     if (actor.choice || b.wakesOnNightDeath || !this.activeSinceCollecting(actor)) return false;
     const spec = b.spec?.({ w: this.w, pid: actor.pid, night: this.n, state: this.state });
     if (!spec) return false;
+    if (this.revived.includes(actor.pid)) spec.prompt = `You have been brought back to life. ${spec.prompt}`;
     const key = `late:${actor.pid}:${actor.roleId}`;
     actor.choice = this.askFollowUp({ key, playerId: actor.pid, roleId: actor.roleId, spec });
     if (actor.choice) return false;
@@ -433,9 +433,9 @@ export class NightRun {
     return true;
   }
 
-  /** The Philosopher's ability chosen tonight: every other ability was there while collecting. */
+  /** A player revived tonight was dead while collecting, and a Philosopher's ability chosen tonight wasn't there yet. */
   private activeSinceCollecting(actor: Actor): boolean {
-    return actor.source === 'philosopher' && !this.state.assignments[actor.pid]?.grantedAbility;
+    return this.revived.includes(actor.pid) || (actor.source === 'philosopher' && !this.state.assignments[actor.pid]?.grantedAbility);
   }
 
   actorsFor(slotId: string, roleId: string): Actor[] {

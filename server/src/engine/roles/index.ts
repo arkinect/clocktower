@@ -794,7 +794,7 @@ Object.assign(BEHAVIOURS, {
   professor: {
     wakes: (c: SpecCtx) => c.night >= 1 && !flag(c.w, c.pid, 'professor_used'),
     spec: (c: SpecCtx) => players('professor', 'Professor', 'Once per game: choose a dead player. If they are a Townsfolk, they are resurrected.', 1,
-      seatedIds(c.state).filter((x) => !c.state.players.find((p) => p.id === x)?.alive), true, 'Not tonight'),
+      all(c).filter((x) => !isAlive(c.state, x) && !isAlive(c.w, x)), true, 'Not tonight'),
     resolve(run: NightRun, a: Actor) {
       const [t] = target(a);
       if (!t) return;

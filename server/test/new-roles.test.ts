@@ -37,8 +37,8 @@ describe('new roles', () => {
     expect(res.revived).toEqual([g.p.empath]);
     expect(resultFor(res, g.p.oracle)!.trueLines[0]).toMatch(/^1 /);
     expect(resultFor(res, g.p.professor)!.trueLines[0]).toMatch(/You chose/);
-    // revived Empath does not act tonight
-    expect(resultFor(res, g.p.empath)).toBeUndefined();
+    // the revived Empath acts later tonight
+    expect(resultFor(res, g.p.empath)).toBeDefined();
   });
 
   it('2. Gossip: True kills the chosen victim; Sailor survives; poisoned Gossip kills nobody', () => {

@@ -146,3 +146,104 @@ describe('Fix 2: Philosopher', () => {
     });
   });
 });
+
+describe('Fix 3: players revived at night act later that night', () => {
+  /** A game on night 1: `victim` died during day 1, and the Professor is about to choose them. */
+  function professorRevives(victim: string, others: string[] = []): TestGame {
+    const g = build(['professor', victim, 'imp', 'poisoner', 'butler', ...others]);
+    runNight(g, {});
+    act(g, { type: 'mark_alive', playerId: g.p[victim], alive: false });
+    nextNight(g);
+    submit(g, { [g.p.professor]: { professor: [g.p[victim]] } });
+    return g;
+  }
+
+  it('the Professor revives an Empath, who gets a result that night', () => {
+    const g = professorRevives('empath');
+    const res = resolve(g);
+    expect(res.revived).toEqual([g.p.empath]);
+    expect(res.followUps).toEqual([]);
+    expect(resultFor(res, g.p.empath, 'empath')).toBeDefined();
+  });
+
+  it('the Professor revives a Fortune Teller: asked as a follow-up, and publishing waits for the answer', () => {
+    const g = professorRevives('fortune_teller');
+    const key = `late:${g.p.fortune_teller}:fortune_teller`;
+    const res = resolve(g);
+    expect(res.followUps).toMatchObject([{ key, playerId: g.p.fortune_teller, answered: false }]);
+    expect(res.followUps[0].spec.prompt).toMatch(/^You have been brought back to life\. /);
+    expect(tryAct(g, { type: 'publish_night' })).toMatchObject({ ok: false });
+    act(g, { type: 'answer_follow_up', key, choice: { values: [g.p.imp, g.p.butler] } }, g.p.fortune_teller);
+    expect(resultFor(g.s.night!.resolution!, g.p.fortune_teller, 'fortune_teller')!.finalLines[0]).toMatch(/Yes/);
+    act(g, { type: 'publish_night' });
+    expect(g.s.phase).toBe('DAY');
+  });
+
+  it('the Storyteller can answer a revived player\'s question', () => {
+    const g = professorRevives('fortune_teller');
+    resolve(g);
+    act(g, { type: 'answer_follow_up_for', key: `late:${g.p.fortune_teller}:fortune_teller`, choice: { values: [g.p.imp, g.p.butler] } });
+    expect(resultFor(g.s.night!.resolution!, g.p.fortune_teller, 'fortune_teller')).toBeDefined();
+  });
+
+  it('the Professor revives a Sailor, whose slot has passed: no Sailor action that night', () => {
+    const g = professorRevives('sailor');
+    const res = resolve(g);
+    expect(res.revived).toEqual([g.p.sailor]);
+    expect(res.followUps).toEqual([]);
+    expect(res.actors.some((r) => r.playerId === g.p.sailor)).toBe(false);
+  });
+
+  it('the Shabaloth regurgitates a Fortune Teller, who is asked and acts that night', () => {
+    const g = build(['shabaloth', 'fortune_teller', 'poisoner', 'butler', 'virgin', 'empath', 'flowergirl']);
+    runNight(g, {});
+    nextNight(g);
+    runNight(g, { [g.p.shabaloth]: { shabaloth: [g.p.fortune_teller, g.p.virgin] } });
+    nextNight(g);
+    submit(g, { [g.p.shabaloth]: { shabaloth: [g.p.butler, g.p.empath] } });
+    resolve(g, { [`shabaloth:${g.p.shabaloth}`]: g.p.fortune_teller });
+    const key = `late:${g.p.fortune_teller}:fortune_teller`;
+    expect(g.s.night!.resolution!.followUps.map((f) => f.key)).toEqual([key]);
+    act(g, { type: 'answer_follow_up_for', key, choice: { values: [g.p.shabaloth, g.p.poisoner] } });
+    expect(resultFor(g.s.night!.resolution!, g.p.fortune_teller, 'fortune_teller')!.finalLines[0]).toMatch(/Yes/);
+  });
+
+  it('a Goon chosen by a revived player\'s late choice triggers as normal', () => {
+    const g = professorRevives('fortune_teller', ['goon']);
+    resolve(g);
+    act(g, { type: 'answer_follow_up_for', key: `late:${g.p.fortune_teller}:fortune_teller`, choice: { values: [g.p.goon, g.p.butler] } });
+    const res = g.s.night!.resolution!;
+    expect(res.after.effects.some((e) => e.cause === 'goon' && e.targetPlayerId === g.p.fortune_teller)).toBe(true);
+    expect(resultFor(res, g.p.fortune_teller, 'fortune_teller')!.impaired).toBe(true);
+  });
+
+  it('the Huntsman\'s Damsel still doesn\'t act that night', () => {
+    const g = build(['huntsman', 'damsel', 'imp', 'poisoner', 'butler']);
+    const { final } = runNight(g, { [g.p.huntsman]: { huntsman: [g.p.damsel] } }, { [`huntsman:${g.p.huntsman}`]: 'empath' });
+    expect(final.followUps).toEqual([]);
+    expect(resultFor(final, g.p.damsel, 'empath')).toBeUndefined();
+  });
+
+  it('a revived Professor is offered only players dead now who were dead when the night began', () => {
+    const g = build(['shabaloth', 'professor', 'poisoner', 'butler', 'virgin', 'empath', 'flowergirl']);
+    runNight(g, {});
+    nextNight(g);
+    runNight(g, { [g.p.shabaloth]: { shabaloth: [g.p.professor, g.p.virgin] } });
+    nextNight(g);
+    submit(g, { [g.p.shabaloth]: { shabaloth: [g.p.butler, g.p.empath] } });
+    resolve(g, { [`shabaloth:${g.p.shabaloth}`]: g.p.professor });
+    const [q] = g.s.night!.resolution!.followUps;
+    expect(q.key).toBe(`late:${g.p.professor}:professor`);
+    expect(q.spec.fields[0].options).toEqual([g.p.virgin]);
+  });
+
+  it('reopening collecting clears the late answers', () => {
+    const g = professorRevives('fortune_teller');
+    resolve(g);
+    const key = `late:${g.p.fortune_teller}:fortune_teller`;
+    act(g, { type: 'answer_follow_up_for', key, choice: { values: [g.p.imp, g.p.butler] } });
+    act(g, { type: 'reopen_collecting' });
+    expect(g.s.night!.followUpAnswers).toEqual({});
+    expect(resolve(g).followUps).toMatchObject([{ key, answered: false }]);
+  });
+});

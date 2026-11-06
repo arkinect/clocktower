@@ -1,6 +1,6 @@
 // The Al-Hadikhia (design.md section 14.7) and its jinxes (14.8).
 import { describe, expect, it } from 'vitest';
-import { act, alive, build, nextNight, resolve, runNight, submit, tryAct, type TestGame } from './helpers';
+import { act, alive, build, nextNight, resolve, resultFor, runNight, submit, tryAct, type TestGame } from './helpers';
 import { actionSpecs, wakingRoles } from '../src/engine/actions';
 import { expectedActors } from '../src/engine/game';
 import { bluffCandidates, enabledRoles } from '../src/engine/setup';
@@ -108,13 +108,14 @@ describe('Al-Hadikhia', () => {
     expect(res.after.players.find((p) => p.id === g.p.empath)).toMatchObject({ alive: false, deathCause: 'demon_attack' });
   });
 
-  it('live revives a dead player, who can then act from the next night', () => {
+  it('live revives a dead player, who acts in their slots later that night', () => {
     const g = night1(ROLES, (g) => { act(g, { type: 'record_execution', playerId: g.p.empath, died: true }); });
     chose(g, three(g));
     answer(g, g.p.empath, 'live');
     answer(g, g.p.gambler, 'die');
     answer(g, g.p.butler, 'live');
     expect(g.s.night!.resolution!.revived).toEqual([g.p.empath]);
+    expect(resultFor(g.s.night!.resolution!, g.p.empath, 'empath')).toBeDefined();
     expect(worldAlive(g, g.p.empath)).toBe(true);
     act(g, { type: 'publish_night' });
     expect(alive(g, g.p.empath)).toBe(true);
