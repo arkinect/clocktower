@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ROLES, ROLE_BY_ID, type RoleType } from '@ct/shared';
 import { send } from '../api';
-import { TimedButton, TYPE_LABEL, TYPE_ORDER } from '../common';
+import { StableLabel, TimedButton, TYPE_LABEL, TYPE_ORDER } from '../common';
 import { VigoScarletWarning, Who, type AdminCtx } from './AdminApp';
 
 export function SetupPanel({ ctx }: { ctx: AdminCtx }) {
@@ -78,7 +78,7 @@ function SeatingEditor({ ctx }: { ctx: AdminCtx }) {
       )}
       <div className="row">
         <button onClick={() => send({ type: 'randomise_seating' })}>Randomise</button>
-        <button className={published ? '' : 'primary'} onClick={() => send({ type: 'publish_seating' })}>{s.seatingPublished ? (published ? 'Published ✓' : 'Republish seating') : 'Publish seating'}</button>
+        <button className={`seatpublish${published ? '' : ' primary'}`} onClick={() => send({ type: 'publish_seating' })}><StableLabel labels={['Publish seating', 'Published ✓', 'Republish seating']} current={!s.seatingPublished ? 0 : published ? 1 : 2} /></button>
       </div>
     </section>
   );

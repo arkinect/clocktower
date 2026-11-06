@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { abilitiesOf, ROLE_BY_ID, type GameState } from '@ct/shared';
 import { send } from '../api';
-import { ImpairmentTags, TimedButton } from '../common';
+import { ImpairmentTags, StableLabel, TimedButton } from '../common';
 import { InactiveNote, Who, type AdminCtx } from './AdminApp';
 
 export function DayPanel({ ctx }: { ctx: AdminCtx }) {
@@ -43,7 +43,7 @@ export function DayPanel({ ctx }: { ctx: AdminCtx }) {
                     {/* Statuses that matter during the day. Death is shown by the red name. */}
                     <td><DayStatus ctx={ctx} id={id} /></td>
                     {/* Alive -> Dead -> Dead vote (used). Restoring a vote and revives live in the Grimoire. */}
-                    <td className="right">
+                    <td className="right slot">
                       {p.alive
                         ? <button className="danger" onClick={() => send({ type: 'mark_alive', playerId: id, alive: false })}>Dead</button>
                         : p.ghostVoteUsed
@@ -159,7 +159,7 @@ export function AbilityTracker({ ctx }: { ctx: AdminCtx }) {
         return (
           <div key={`${id}:${k}`} className="row">
             <span className="grow"><Who ctx={ctx} id={id} role />{r !== roleOf(id) && <span className="muted small"> ({ROLE_BY_ID[r].name})</span>}</span>
-            <button className={`chip ${used ? 'used' : ''}`} onClick={() => send({ type: 'set_flag', playerId: id, key: k, value: !used })}>{used ? 'Used' : 'Unused'}</button>
+            <button className={`chip ${used ? 'used' : ''}`} onClick={() => send({ type: 'set_flag', playerId: id, key: k, value: !used })}><StableLabel labels={['Unused', 'Used']} current={used ? 1 : 0} /></button>
             {!manual && <span className="muted small">auto</span>}
           </div>
         );
@@ -167,7 +167,7 @@ export function AbilityTracker({ ctx }: { ctx: AdminCtx }) {
       {damsel && (
         <div className="row">
           <span className="grow">Damsel guess (evil team)</span>
-          <button className={`chip ${s.setup.damselGuessUsed ? 'used' : ''}`} onClick={() => send({ type: 'set_damsel_guess_used', value: !s.setup.damselGuessUsed })}>{s.setup.damselGuessUsed ? 'Guess used' : 'Guess unused'}</button>
+          <button className={`chip ${s.setup.damselGuessUsed ? 'used' : ''}`} onClick={() => send({ type: 'set_damsel_guess_used', value: !s.setup.damselGuessUsed })}><StableLabel labels={['Guess unused', 'Guess used']} current={s.setup.damselGuessUsed ? 1 : 0} /></button>
         </div>
       )}
     </section>

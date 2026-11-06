@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { ROLES, ROLE_BY_ID, type AdminView, type GameState } from '@ct/shared';
 import { send } from '../api';
-import { EndedReason, NightOrder, RoleList, TimedButton } from '../common';
+import { EndedReason, NightOrder, RoleList, StableLabel, TimedButton } from '../common';
 import { SetupPanel } from './Setup';
 import { NightPanel, ReviewPanel } from './Night';
 import { DayPanel } from './Day';
@@ -150,7 +150,7 @@ export function AdminApp({ view, code }: { view: AdminView; code: string }) {
         </nav>
         {started && (
           <button className={`moretab${activeTucked ? ' on' : ''}${!activeTucked && phaseTab && tucked.includes(phaseTab) && started ? ' phase-hint' : ''}`} onClick={() => setMoreOpen(!moreOpen)} aria-expanded={moreOpen}>
-            {activeTucked ? activeTucked[1] : 'More'} ▾
+            <StableLabel labels={['More', ...menuItems.map(([, l]) => l)]} current={activeTucked ? menuItems.indexOf(activeTucked) + 1 : 0} /> ▾
           </button>
         )}
         {started && moreOpen && (

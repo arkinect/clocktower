@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { abilitiesOf, ROLES, ROLE_BY_ID } from '@ct/shared';
 import { api, send } from '../api';
-import { ImpairmentTags, TimedButton, TYPE_LABEL, TYPE_ORDER } from '../common';
+import { ImpairmentTags, StableLabel, TimedButton, TYPE_LABEL, TYPE_ORDER } from '../common';
 import { VigoScarletWarning, Who, type AdminCtx } from './AdminApp';
 import { Briefing } from './Setup';
 
@@ -48,7 +48,7 @@ export function Grimoire({ ctx, code }: { ctx: AdminCtx; code: string }) {
               {a?.retainsAbilityWhenDead && <div className="tag">keeps ability when dead</div>}
               <div className="row small">
                 <span>Alignment:</span>
-                <button className={`chip ${a?.alignment}`} onClick={() => a && send({ type: 'set_alignment', playerId: id, alignment: a.alignment === 'good' ? 'evil' : 'good' })}>{a?.alignment ?? '—'}</button>
+                <button className={`chip ${a?.alignment}`} onClick={() => a && send({ type: 'set_alignment', playerId: id, alignment: a.alignment === 'good' ? 'evil' : 'good' })}><StableLabel labels={['good', 'evil', '—']} current={!a ? 2 : a.alignment === 'evil' ? 1 : 0} /></button>
               </div>
               {imp?.impaired && <div className="small"><ImpairmentTags causes={imp.causes} /></div>}
               {effects.map((e) => (
@@ -65,7 +65,7 @@ export function Grimoire({ ctx, code }: { ctx: AdminCtx; code: string }) {
               {trackKey && (
                 <div className="row small">
                   <span>{r!.name}:</span>
-                  <button className={`chip ${s.flags[id]?.[trackKey] ? 'used' : ''}`} onClick={() => send({ type: 'set_flag', playerId: id, key: trackKey, value: !s.flags[id]?.[trackKey] })}>{s.flags[id]?.[trackKey] ? 'Used' : 'Unused'}</button>
+                  <button className={`chip ${s.flags[id]?.[trackKey] ? 'used' : ''}`} onClick={() => send({ type: 'set_flag', playerId: id, key: trackKey, value: !s.flags[id]?.[trackKey] })}><StableLabel labels={['Unused', 'Used']} current={s.flags[id]?.[trackKey] ? 1 : 0} /></button>
                 </div>
               )}
               {flags.filter((f) => f !== trackKey).length > 0 && <div className="small muted">flags: {flags.filter((f) => f !== trackKey).join(', ')}</div>}
@@ -74,10 +74,10 @@ export function Grimoire({ ctx, code }: { ctx: AdminCtx; code: string }) {
                 <button className="tiny" onClick={() => setReassign(id)}>Change role</button>
                 <button className="tiny" onClick={() => send({ type: 'add_effect', targetId: id, effectType: 'poisoned' })}>+ poison</button>
                 <button className="tiny" onClick={() => send({ type: 'add_effect', targetId: id, effectType: 'drunk' })}>+ drunk</button>
-                <button className="tiny" onClick={() => send({ type: 'mark_alive', playerId: id, alive: !p.alive })}>{p.alive ? 'Kill' : 'Revive'}</button>
+                <button className="tiny" onClick={() => send({ type: 'mark_alive', playerId: id, alive: !p.alive })}><StableLabel labels={['Kill', 'Revive']} current={p.alive ? 0 : 1} /></button>
                 {!p.alive && (
                   <button className={`tiny chip ${p.ghostVoteUsed ? 'used' : ''}`} onClick={() => send({ type: 'set_ghost_vote', playerId: id, used: !p.ghostVoteUsed })}>
-                    {p.ghostVoteUsed ? 'Vote used' : 'Vote available'}
+                    <StableLabel labels={['Vote available', 'Vote used']} current={p.ghostVoteUsed ? 1 : 0} />
                   </button>
                 )}
               </div>
