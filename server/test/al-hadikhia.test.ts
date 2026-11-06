@@ -120,7 +120,7 @@ describe('Al-Hadikhia', () => {
     expect(res.after.players.find((p) => p.id === g.p.empath)).toMatchObject({ alive: false, deathCause: 'demon_attack' });
   });
 
-  it('live revives a dead player, who acts in their slots later that night', () => {
+  it('live revives a dead Empath, who gets information that night', () => {
     const g = night1(ROLES, (g) => { act(g, { type: 'record_execution', playerId: g.p.empath, died: true }); });
     chose(g, three(g));
     answer(g, g.p.empath, 'live');
@@ -132,6 +132,36 @@ describe('Al-Hadikhia', () => {
     act(g, { type: 'publish_night' });
     expect(alive(g, g.p.empath)).toBe(true);
     expect(titles(g, g.p.empath)).toContain('You are alive again');
+  });
+
+  it('live revives a dead Fortune Teller: no Fortune Teller question tonight, and they act the next night', () => {
+    const roles = ['al_hadikhia', 'poisoner', 'fortune_teller', 'gambler', 'butler', 'seamstress', 'virgin'];
+    const g = night1(roles, (x) => { act(x, { type: 'record_execution', playerId: x.p.fortune_teller, died: true }); });
+    const ts = [g.p.fortune_teller, g.p.gambler, g.p.butler];
+    chose(g, ts);
+    answer(g, g.p.fortune_teller, 'live');
+    answer(g, g.p.gambler, 'die');
+    answer(g, g.p.butler, 'live');
+    const res = g.s.night!.resolution!;
+    expect(res.revived).toEqual([g.p.fortune_teller]);
+    expect(res.followUps.map((q) => q.key)).toEqual(ts.map((t) => key(g, t)));
+    expect(res.actors.some((r) => r.playerId === g.p.fortune_teller)).toBe(false);
+    act(g, { type: 'publish_night' });
+    nextNight(g);
+    expect(actionSpecs(g.s, g.p.fortune_teller).map((x) => x.key)).toEqual(['fortune_teller']);
+    submit(g, { [g.p.fortune_teller]: { fortune_teller: [g.p.al_hadikhia, g.p.virgin] } });
+    expect(resultFor(resolve(g), g.p.fortune_teller, 'fortune_teller')!.finalLines[0]).toMatch(/Yes/);
+  });
+
+  it('a Ravenkeeper revived by live and killed again is asked nothing', () => {
+    const roles = ['al_hadikhia', 'poisoner', 'ravenkeeper', 'gambler', 'butler', 'seamstress', 'virgin'];
+    const g = night1(roles, (x) => { act(x, { type: 'record_execution', playerId: x.p.ravenkeeper, died: true }); });
+    const ts = [g.p.ravenkeeper, g.p.gambler, g.p.butler];
+    chose(g, ts);
+    for (const t of ts) answer(g, t, 'live');
+    const res = g.s.night!.resolution!;
+    expect(res.deaths).toContain(g.p.ravenkeeper);
+    expect(res.followUps.map((q) => q.key)).toEqual(ts.map((t) => key(g, t)));
   });
 
   it('all three alive afterwards: all three die, a revived player too, who is not told they are alive', () => {

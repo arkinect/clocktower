@@ -28,6 +28,8 @@ export interface RoleBehaviour {
    * of the moment they died (NightRun.impairAtDeath), and they never get a picker of their own (wakingRoles).
    */
   wakesOnNightDeath?: true;
+  /** With wakesOnNightDeath: the ability asks a follow-up question when it acts (the Ravenkeeper). */
+  asksOnDeath?: true;
   /**
    * With wakesOnNightDeath: also acts, once the night order has finished, for a player with the real ability who died
    * after this role's slot. (The Ravenkeeper's slot comes after every death, so it doesn't need this.)
@@ -301,6 +303,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
   ravenkeeper: {
     actsWhileDead: true,
     wakesOnNightDeath: true,
+    asksOnDeath: true,
     resolve(run, a) {
       const choice = run.askFollowUp({ key: `ravenkeeper:${a.pid}`, playerId: a.pid, roleId: 'ravenkeeper', spec: ravenkeeperSpec(run.state) });
       if (!choice) {

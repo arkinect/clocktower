@@ -297,7 +297,7 @@ All night deaths go through `attemptKill(target, cause, attacker, options)`. Cau
 4. Otherwise the target dies: `deadAt = {night, n}`, `deathCause`, triggers: Ravenkeeper second round, Moonchild sobriety recorded, Scarlet Woman check (if the dead player is the Demon), Grandmother link (if the cause is `demon_attack`), Vigormortis and Shabaloth bookkeeping in their own modules.
 
 ### 5.11 Revive
-`revivePlayer(playerId)` is the only way a player comes back (Professor, Shabaloth, Admin "Mark alive"): alive again, `deadAt` and `deathCause` cleared, ghost vote restored, removed from `shabalothKills`, `retainsAbilityWhenDead` cleared, pending Moonchild data cleared. It fires no death trigger. The player is told "You are alive again" (at publish for a night revive, immediately for a day revive). A player revived at night (`NightRun.revive`: the Professor, the Shabaloth, the Al-Hadikhia's "live") **acts in every slot of theirs that comes after the revival**, with slot conditions and once-per-game flags as normal: a role with no input resolves as usual, and a role with input is asked as a follow-up question (key `late:<playerId>:<roleId>`, section 9.4) starting "You have been brought back to life." A player given a new role during a night (the Huntsman's Damsel, the Farmer's new Farmer, a Scarlet Woman changed back by the Al-Hadikhia jinx) waits until the next night (exception: start information, section 5.7).
+`revivePlayer(playerId)` is the only way a player comes back (Professor, Shabaloth, Admin "Mark alive"): alive again, `deadAt` and `deathCause` cleared, ghost vote restored, removed from `shabalothKills`, `retainsAbilityWhenDead` cleared, pending Moonchild data cleared. It fires no death trigger. The player is told "You are alive again" (at publish for a night revive, immediately for a day revive). A player revived at night (`NightRun.revive`: the Professor, the Shabaloth, the Al-Hadikhia's "live") **acts later that night only for abilities with no input**, in slots that come after the revival, with slot conditions and once-per-game flags as normal. An ability that needs input starts the next night: no follow-up question is ever sent to a revived player, including a Ravenkeeper revived and killed again. A player given a new role during a night (the Huntsman's Damsel, the Farmer's new Farmer, a Scarlet Woman changed back by the Al-Hadikhia jinx) waits until the next night (exception: start information, section 5.7).
 
 ### 5.12 Day kills
 `previewDayKill(target)` for the Slayer shot and the Witch's curse runs the normal protections except the Mayor bounce and the Innkeeper (both night only): sober Sailor, Tea Lady (true alignments, no Recluse prompt), unused sober Fool. The Admin sees the outcome in a dialog ("X would die", "X cannot die because …") with **Accept, Cancel, Force death, Force survive**. On confirm the death is recorded with `deadAt = {day, n}` and the normal triggers fire (Scarlet Woman prompt, Moonchild sobriety, Fool used flag, immediate "You have died" notice). When the shot or curse is applied (not on preview or Cancel), the day's `abnormal` list records the Slayer if impaired by another character, the Slayer if a sober Recluse registers as the Demon, and any protector whose protection would have saved the target but failed because another character impaired them.
@@ -312,9 +312,9 @@ resolveNight(state):                      // pure; clones the world
                                           // actual role, Philosopher-gained role (from the night
                                           // it is chosen), Lil' Monsta token; dead actors only if they
                                           // keep an ability, or Ravenkeeper/Moonchild rules;
-                                          // skips players given a new role earlier tonight
-      ask late input if the ability became active after collecting closed (revived, or a
-                                          // Philosopher's choice tonight): a follow-up question
+                                          // skips players given a new role earlier tonight, and
+                                          // players revived tonight for an ability that needs input
+      ask late input for a Philosopher's ability chosen tonight (a follow-up question)
       goonCheck(actor)                    // first chooser of a sober Goon becomes drunk
       log abnormal event if impaired by another character
       role.resolve(run, actor)            // effects, attemptKill, results, review items
@@ -429,7 +429,7 @@ The Review tab shows:
 ### 9.4 Follow-up questions (the Ravenkeeper's second round)
 A role can ask a player a question while the night is reviewed: its behaviour calls `NightRun.askFollowUp({ key, playerId, roleId, spec })`, which returns the answer if there is one, else null, and records the question in `resolution.followUps`. The player's phone shows each unanswered question (`PlayerView.me.followUps`) with the usual picker; the Storyteller sees one card per unanswered question with a picker to answer for them (`answer_follow_up` / `answer_follow_up_for`, both checked against the question's spec). Built-in rules: publishing is refused while a question is unanswered, unless forced (the player then gets no information); the countdown is extended by `followUpExtensionSeconds` (default 120) when questions appear on resolving; "Accept all defaults" never answers a question; re-opening collecting clears all answers.
 
-Late input uses it: an ability that became active after collecting closed (a Philosopher's choice, a revived player) asks for its input when the walk reaches its slot, with key `late:<playerId>:<roleId>` and the role's normal spec built against the night's world. A submission for that ability, if there is one, is used instead. Until it is answered the actor row says it is waiting and the ability does nothing.
+Late input uses it: a Philosopher's ability chosen tonight asks for its input once, when the walk reaches its slot, with key `late:<playerId>:<roleId>` and the role's normal spec built against the night's world. A submission for that ability, if there is one, is used instead. Until it is answered the actor row says it is waiting and the ability does nothing.
 
 The Ravenkeeper uses it: if a Ravenkeeper (or a Drunk/Marionette who believes they are one) dies tonight, they are asked (key `ravenkeeper:<playerId>`) to choose a player. Their result uses their impairment at the moment of death. The Ravenkeeper and the Farmer share this "wakes only on a night they die" rule (`wakesOnNightDeath`).
 
@@ -674,7 +674,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 
 #### Professor
 - Ability: "Once per game, at night*, choose a dead player: if they are a Townsfolk, they are resurrected."
-- Night 1+ until used: a player dead at the start of the night, or "Not tonight". Choosing sets the used flag. If sober and the target's actual role is a Townsfolk (the Drunk and Marionette are not; an evil-converted Townsfolk is), `revivePlayer`. The revived player is alive for later roles tonight and acts in their slots after the Professor's (section 5.11), so a Sailor, whose slot has passed, does not act that night.
+- Night 1+ until used: a player dead at the start of the night, or "Not tonight". Choosing sets the used flag. If sober and the target's actual role is a Townsfolk (the Drunk and Marionette are not; an evil-converted Townsfolk is), `revivePlayer`. The revived player is alive for later roles tonight and acts in slots after the Professor's only for abilities with no input (section 5.11): an Empath acts that night; a Fortune Teller, or a Sailor, whose slot has passed, starts the next night.
 - Told only "You chose X." Impaired: nothing, use spent.
 
 #### Slayer
@@ -801,7 +801,7 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 
 #### Shabaloth
 - Ability: "Each night*, choose 2 players: they die. A dead player you chose last night might be regurgitated."
-- Night 1+, two different players. If sober and any past victim is still dead: a 1-in-3 roll (seeded) recommends a random past victim or nobody; the review item lets the Admin choose any past victim or nobody (shown even when the roll fails). A regurgitated player is revived with `revivePlayer` and acts in their slots later that night (section 5.11). Then both targets are attacked; those who die join the list. Impaired: no kills, no regurgitation.
+- Night 1+, two different players. If sober and any past victim is still dead: a 1-in-3 roll (seeded) recommends a random past victim or nobody; the review item lets the Admin choose any past victim or nobody (shown even when the roll fails). A regurgitated player is revived with `revivePlayer` and acts later that night only for abilities with no input (section 5.11). Then both targets are attacked; those who die join the list. Impaired: no kills, no regurgitation.
 
 #### Po
 - Ability: "Each night*, you may choose a player: they die. If your last choice was no-one, choose 3 players tonight."
@@ -925,7 +925,7 @@ The rest are `'reminder'`: shown in the role list only, applied by the Admin at 
 | Gossip | Admin judges; Gossip alive at its slot; random victim recommended; protections and Mayor bounce apply |
 | Grandmother | Recommended good grandchild (not the Drunk); impaired Night 0 = no grandchild; dies on a Demon-attack death of the grandchild if sober; protections apply |
 | Huntsman | Never told whether it worked; converted Damsel acts from next night |
-| Professor | Players dead at night start; actual Townsfolk only; revived player acts in their slots later that night |
+| Professor | Players dead at night start; actual Townsfolk only; revived player acts later that night only with no input |
 | Revive | One shared function (Professor, Shabaloth, Admin) |
 | Godfather | Learns Outsider characters at Night 0 (publish); trigger = an Outsider died in the day, Admin can flip; −1/+1 Outsider, Admin chooses |
 | Witch | Works whenever 4+ are alive at her slot (a revive brings it back); a curse lasts until dusk if she dies or only 3 are then alive; applied by the Admin in the day |
@@ -985,7 +985,7 @@ Rule gaps (already folded into the cards above, listed here for review):
 - Philosopher always gets a confirmation; drunk applies only to actual holders of the chosen role.
 - Butler always gets "Your master is X".
 - Lil' Monsta's token notice only when the token changes hands; a holder with a Minion night ability gets both pickers.
-- Revived players act in their later slots that night, asked for any input as a follow-up question (Professor, Shabaloth, the Al-Hadikhia's "live"). Players given a new role do not act for the rest of that night; a Damsel turned Grandmother learns her grandchild that night.
+- Revived players (Professor, Shabaloth, the Al-Hadikhia's "live") act later that night only for abilities with no input; one that needs input starts the next night. This is so a revive never starts a chain of follow-up questions: an answer to one question could revive a player, whose question could revive another. A Philosopher's ability chosen tonight keeps its single follow-up. Players given a new role do not act for the rest of that night; a Damsel turned Grandmother learns her grandchild that night.
 - The Professor can't choose a player who died tonight (the picker lists only players dead at the start of the night), so a revive never starts a chain of follow-up questions.
 - Day kills use true alignments for the Tea Lady; the Slayer's Recluse choice is a selector in the Day panel.
 - Pressing the Witch curse button uses up the curse whatever the dialog choice (except Cancel).
@@ -1005,7 +1005,7 @@ Rule gaps (already folded into the cards above, listed here for review):
 - A Mathematician's "failed to work" for a Drunk or Marionette is recorded for any real choice with no information back, even one that would have done nothing (a Gambler's right guess); the Storyteller removes those in the panel.
 - The Farmer's new Farmer is any alive player whose actual alignment is good (a Recluse included), and keeps their alignment; with only Farmers left the default is Nobody. A Farmer impaired at death, or a Drunk or Marionette who thinks they are the Farmer, makes nobody a Farmer: the review screen's actor row says so, and no review item is shown.
 - A real Farmer who dies after the Farmer's slot (the Moonchild's target, a Grandmother's link) acts once the night order has finished, with the same options, default and outcome (`alsoAfterOrder`). That includes a Farmer made earlier the same night. The Mathematician has already counted by then, so an impaired Farmer's abnormal event in that case is listed on the review screen but not in their number.
-- The Ravenkeeper and the Farmer wake if they are dead now and died tonight: revived later the same night they don't, and revived and then killed again the same night they do.
+- The Ravenkeeper and the Farmer wake if they are dead now and died tonight: revived later the same night they don't, and revived and then killed again the same night the Farmer does, but the Ravenkeeper doesn't (no follow-up question goes to a revived player).
 - The Al-Hadikhia's dawn notice names the choice only. The official "How to Run" also declares who is alive and dead at dawn; the Storyteller does that at the table, like other public deaths (3.5).
 - Al-Hadikhia & Mastermind applies only if the execution ended the game: if a Scarlet Woman took over the Demon, or any other Demon is alive, the dead Al-Hadikhia doesn't wake and the living Demon acts normally. Its dawn notice is sent like any other Al-Hadikhia choice. With fewer than 3 good players the picker can be declined and the actor row leaves it to the Storyteller.
 - Al-Hadikhia & Princess (official) is not in `JINXES`: the Princess isn't in the app.

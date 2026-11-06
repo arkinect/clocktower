@@ -328,7 +328,7 @@ export class NightRun {
     if (isDemon(this.w, target) && !opts.noScarlet) this.scarletCheck(target, aliveBefore);
   }
 
-  /** Shared revive (Professor, Shabaloth, Al-Hadikhia). The player acts in their slots later tonight. */
+  /** Shared revive (Professor, Shabaloth, Al-Hadikhia). The player acts later tonight only with no input (actorsFor). */
   revive(pid: string, reason: string): boolean {
     if (!revivePlayer(this.w, pid)) return false;
     this.revived.push(pid);
@@ -455,7 +455,6 @@ export class NightRun {
     if (actor.choice || b.wakesOnNightDeath || !this.activeSinceCollecting(actor)) return false;
     const spec = b.spec?.({ w: this.w, pid: actor.pid, night: this.n, state: this.state });
     if (!spec) return false;
-    if (this.revived.includes(actor.pid)) spec.prompt = `You have been brought back to life. ${spec.prompt}`;
     const key = `late:${actor.pid}:${actor.roleId}`;
     actor.choice = this.askFollowUp({ key, playerId: actor.pid, roleId: actor.roleId, spec });
     if (actor.choice) return false;
@@ -463,9 +462,9 @@ export class NightRun {
     return true;
   }
 
-  /** A player revived tonight was dead while collecting, and a Philosopher's ability chosen tonight wasn't there yet. */
+  /** A Philosopher's ability chosen tonight wasn't there while collecting. */
   private activeSinceCollecting(actor: Actor): boolean {
-    return this.revived.includes(actor.pid) || (actor.source === 'philosopher' && !this.state.assignments[actor.pid]?.grantedAbility);
+    return actor.source === 'philosopher' && !this.state.assignments[actor.pid]?.grantedAbility;
   }
 
   actorsFor(slotId: string, roleId: string): Actor[] {
@@ -486,8 +485,11 @@ export class NightRun {
       if (b.wakes && !b.wakes(ctx)) continue;
       // Nothing is submitted for these: the Ravenkeeper's choice comes later, as a follow-up question (askFollowUp).
       const sub = b.wakesOnNightDeath ? undefined : this.night.submissions[pid];
+      const choice = sub?.actions[abilityKey(ability)] ?? null;
+      // No follow-up question ever goes to a player revived tonight: an ability that needs input starts the next night.
+      if (this.revived.includes(pid) && !choice && (b.asksOnDeath || b.spec?.(ctx))) continue;
       out.push({
-        pid, roleId, slot: slotId, choice: sub?.actions[abilityKey(ability)] ?? null, source: ability.source, real: ability.real,
+        pid, roleId, slot: slotId, choice, source: ability.source, real: ability.real,
       });
     }
     return out;
