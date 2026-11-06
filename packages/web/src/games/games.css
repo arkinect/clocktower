@@ -1,4 +1,4 @@
-/* The idle games, ported from the old client. Imported only by the lazily loaded games chunk. */
+/* The idle games. Imported only by the lazily loaded games chunk. */
 .minigame {
   position: relative;
   flex: 1;
