@@ -5,7 +5,7 @@ import path from 'node:path';
 import type { Writable } from 'node:stream';
 import helmet from '@fastify/helmet';
 import Fastify, { LogController } from 'fastify';
-import { allCards } from '@ct/rules';
+import { allCards, allJinxes } from '@ct/rules';
 import { Sessions } from './auth/sessions';
 import type { Config } from './config';
 import { Games } from './games/manager';
@@ -86,7 +86,8 @@ export async function buildApp(config: Config, logStream?: Writable): Promise<Bu
   }
 
   await app.ready();
-  const hub = new Hub(app.server as Server, config, games, sessions, allCards());
+  const jinxes = allJinxes().map(({ a, b, text }) => ({ a, b, text }));
+  const hub = new Hub(app.server as Server, config, games, sessions, allCards(), jinxes);
 
   return {
     async listen(port = config.port) {

@@ -54,6 +54,11 @@ export function registerRoutes(
   /** The site password: wrong ones wait longer each time, per address. */
   function passes(req: FastifyRequest, reply: FastifyReply, given: unknown): boolean {
     if (!config.sitePassword || sessionOf(req)) return true;
+    // Asking with no password yet is how a phone learns it needs one. It is not a wrong guess.
+    if (given === undefined) {
+      void reply.code(401).send({ ok: false, error: 'This game needs a password.' });
+      return false;
+    }
     const ip = ipOf(req);
     const now = Date.now();
     const wait = backoff.wait(ip, now);
@@ -92,7 +97,7 @@ export function registerRoutes(
     if (!gate(req, reply) || !passes(req, reply, req.headers['x-site-password'])) return reply;
     const game = games.get(req.params.code);
     if (!game) return reply.code(404).send({ ok: false, error: 'No such game.' });
-    return { ok: true, players: game.names() };
+    return { ok: true, players: game.names(), hasStoryteller: game.state.storytellerId !== null };
   });
 
   app.get<{ Params: { code: string } }>('/api/g/:code/session', (req) => {

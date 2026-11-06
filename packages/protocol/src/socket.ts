@@ -1,13 +1,16 @@
 // Client <-> server messages. Each carries the protocol version, so a stale phone is told to reload.
 import { z } from 'zod';
 import { Command } from './commands';
-import { RolePreference } from './ids';
+import { RoleId, RolePreference } from './ids';
 import { View, RoleCard } from './views';
 
 export const PROTOCOL_VERSION = 1;
 
 const v = z.literal(PROTOCOL_VERSION);
 const RequestId = z.string().min(1).max(64);
+
+export const Jinx = z.object({ a: RoleId, b: RoleId, text: z.string() });
+export type Jinx = z.infer<typeof Jinx>;
 
 export const ClientMessage = z.discriminatedUnion('type', [
   z.strictObject({ v, type: z.literal('hello'), buildId: z.string().max(64) }),
@@ -23,6 +26,7 @@ export const ServerMessage = z.discriminatedUnion('type', [
     buildId: z.string(),
     /** Every role the app knows. The client never has its own copy. */
     catalog: z.array(RoleCard),
+    jinxes: z.array(Jinx),
   }),
   z.object({ v, type: z.literal('view'), view: View }),
   z.object({

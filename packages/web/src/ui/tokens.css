@@ -1,0 +1,181 @@
+/* Design tokens. Dark is the default, because the game is played at night. */
+:root {
+  --bg: #14111f;
+  --bg2: #1d1930;
+  --card: #241f3a;
+  --line: #3a3358;
+  --text: #ece7f7;
+  --muted: #9d95b8;
+  --gold: #d4a54a;
+  --on-gold: #1b1408;
+  --good: #5aa9e6;
+  --evil: #e05a5a;
+  --ok: #5cb85c;
+  --warn: #e8a33d;
+  --danger-text: #ffb3bd;
+  --error: #ff9aa5;
+  --toast: #5a2531;
+  --townsfolk: #6fb1ff;
+  --outsider: #8fd3c7;
+  --minion: #f08a5d;
+  --demon: #ff5c5c;
+  --tabs: #0f0d18;
+  --night-top: #0b0914;
+  --night-glow: #2b2150;
+  --card-glow: #3a2f5c;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f6f3ec;
+    --bg2: #ffffff;
+    --card: #ffffff;
+    --line: #d9d2c3;
+    --text: #221d33;
+    --muted: #625b75;
+    --gold: #8a6416;
+    --on-gold: #ffffff;
+    --good: #1f6fb2;
+    --evil: #b3261e;
+    --ok: #2b7a2f;
+    --warn: #9a6200;
+    --danger-text: #9c1c2e;
+    --error: #a3122a;
+    --toast: #7c2336;
+    --townsfolk: #1b5fa8;
+    --outsider: #1d7a6b;
+    --minion: #b24a17;
+    --demon: #c01f1f;
+    --tabs: #efe9dc;
+    --night-top: #e9e3f5;
+    --night-glow: #cdbff0;
+    --card-glow: #efe6d2;
+    color-scheme: light;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font:
+    16px/1.45 system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0.4em 0;
+  font-weight: 650;
+}
+
+h2 {
+  font-size: 1.2rem;
+}
+
+h3 {
+  font-size: 1.02rem;
+}
+
+p {
+  margin: 0.35em 0;
+}
+
+a {
+  color: var(--gold);
+}
+
+select,
+input,
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 12px;
+  min-height: 40px;
+  width: 100%;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+label {
+  display: block;
+  margin: 8px 0;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
+.pad {
+  padding: 12px 16px;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+
+.error {
+  color: var(--error);
+  margin: 8px 0;
+}
+
+.type-townsfolk {
+  color: var(--townsfolk);
+}
+
+.type-outsider {
+  color: var(--outsider);
+}
+
+.type-minion {
+  color: var(--minion);
+}
+
+.type-demon {
+  color: var(--demon);
+}
+
+.type-traveller,
+.type-fabled,
+.type-loric {
+  color: var(--gold);
+}

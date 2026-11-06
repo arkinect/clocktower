@@ -35,4 +35,6 @@ jobs:
         env:
           FUZZ_GAMES: ${{ github.event_name == 'schedule' && '10000' || '500' }}
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -w @ct/web
       - run: npm audit --omit=dev

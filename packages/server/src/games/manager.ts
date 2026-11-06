@@ -158,7 +158,8 @@ export class LiveGame {
   }
 
   names() {
-    return Object.values(this.state.players).map((p) => ({ id: p.id, name: p.name }));
+    const storyteller = this.state.storytellerId;
+    return Object.values(this.state.players).map((p) => ({ id: p.id, name: p.name, isStoryteller: p.id === storyteller }));
   }
 }
 
