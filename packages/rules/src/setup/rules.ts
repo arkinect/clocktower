@@ -203,6 +203,8 @@ export function setupChecklist(s: GameState): CheckItem[] {
   return items;
 }
 
+const roleTypeName = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
 export function setupWarnings(s: GameState): string[] {
   const r = reader(s);
   const out: string[] = [];
@@ -224,8 +226,11 @@ export function setupWarnings(s: GameState): string[] {
   for (const id of ids) {
     const c = r.character(id);
     const type = c ? roleDef(c).setupRules?.neighbours : undefined;
-    if (type === 'demon' && demons.length && !demons.some((d) => r.areNeighbours(d, id))) {
-      out.push(`${r.roleName(c)} (${r.name(id)}) does not sit next to the Demon.`);
+    if (!type) continue;
+    const others = type === 'demon' ? demons : ids.filter((x) => x !== id && r.typeOf(x) === type);
+    if (others.length && !others.some((d) => r.areNeighbours(d, id))) {
+      const who = type === 'demon' ? 'the Demon' : `a ${roleTypeName(type)}`;
+      out.push(`${r.roleName(c)} (${r.name(id)}) does not sit next to ${who}.`);
     }
   }
   for (const a of r.instances) {

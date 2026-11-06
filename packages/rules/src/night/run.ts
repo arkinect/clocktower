@@ -268,12 +268,12 @@ export class Run {
   }
 
   notify(player: PlayerId, title: string, lines: string[], options: { pending?: boolean; starting?: boolean } = {}) {
-    if (this.isNight && !options.starting) {
-      this.notices.push({ playerId: player, title, lines });
-      return;
-    }
     if (options.pending) {
       this.world.pendingNotices.push({ playerId: player, title, lines });
+      return;
+    }
+    if (this.night && !options.starting) {
+      this.notices.push({ playerId: player, title, lines });
       return;
     }
     this.deliver(player, options.starting ? 'starting' : 'notice', title, lines);
@@ -382,6 +382,13 @@ export class Run {
     this.dirty();
   }
 
+  adoptConditions(from: string, to: string) {
+    for (const c of this.world.conditions) {
+      if (c.source.kind === 'ability' && c.source.id === from) c.source = { kind: 'ability', id: to as Instance['id'] };
+    }
+    this.dirty();
+  }
+
   // ---- abilities ----
   grant(holder: Holder, role: RoleId, origin: Origin, options: GrantOptions = {}): Instance {
     const w = this.world;
@@ -462,8 +469,8 @@ export class Run {
       p.alignment = role ? roleDef(role).alignment : 'good';
       p.self.alignment = p.alignment;
     }
-    this.buildCharacterAbilities(target, role, this.moment.n >= 0, survives);
-    if (this.isNight) this.noActTonight.add(target);
+    this.buildCharacterAbilities(target, role, !!o.startInfo, survives);
+    if (o.noActTonight) this.noActTonight.add(target);
     this.dirty();
     if (!role) return;
     for (const a of this.reader.instances) {
@@ -483,6 +490,7 @@ export class Run {
     if (role) {
       w.setup.bag[player] = role;
       p.self.character = role;
+      p.self.alignment = roleDef(role).alignment;
       this.grant(
         { kind: 'player', id: player },
         role,
@@ -494,6 +502,7 @@ export class Run {
     } else {
       delete w.setup.bag[player];
       p.self.character = null;
+      p.self.alignment = p.alignment;
     }
   }
 
@@ -610,7 +619,7 @@ export class Run {
   }
 
   // ---- jinxes ----
-  jinx(ctx: AbilityCtx<unknown>, point: JinxPoint, extra?: RoleId): boolean | PlayerId | null {
+  jinx(ctx: AbilityCtx<unknown>, point: JinxPoint, extra?: RoleId): boolean | PlayerId | SpecDraft | null {
     for (const j of allJinxes()) {
       const hook = j.hooks?.[point];
       if (!hook) continue;
@@ -618,13 +627,12 @@ export class Run {
       if (!other || !((j.a === ctx.ability.roleId && j.b === other) || (j.b === ctx.ability.roleId && j.a === other))) {
         continue;
       }
-      const reply = (hook as (c: AbilityCtx<unknown>, role: RoleId) => boolean | PlayerId | null | undefined)(
-        ctx,
-        other,
-      );
+      const reply = (
+        hook as (c: AbilityCtx<unknown>, role: RoleId) => boolean | PlayerId | SpecDraft | null | undefined
+      )(ctx, other);
       if (reply) return reply;
     }
-    return point === 'afterRevive' ? null : false;
+    return point === 'afterRevive' || point === 'replacePicker' ? null : false;
   }
 
   // ---- prompts ----
@@ -669,7 +677,8 @@ export class Run {
     const r = this.reader;
     const out: Instance[] = [];
     for (const pid of r.seated) {
-      const a = r.abilityOf(pid, def.id);
+      const held = r.abilitiesOf(pid).filter((x) => x.roleId === def.id);
+      const a = held.find((x) => this.wakesNow(x, def));
       if (!a) continue;
       const ctx = this.ctx(a);
       if (def.flags.wakesOnNightDeath) {
@@ -678,7 +687,6 @@ export class Run {
         if (this.noActTonight.has(pid) && !a.startInfoPending) continue;
         if (!this.canAct(a, def) && !def.ability.wakesDead?.(ctx)) continue;
       }
-      if (!this.wakesNow(a, def)) continue;
       const choice = def.flags.wakesOnNightDeath ? null : this.choiceOf(a);
       // No question ever goes to a player revived tonight: an ability that needs input starts next night.
       if (this.revived.includes(pid) && !choice && (def.flags.asksOnDeath || def.ability.picker?.(ctx))) continue;
@@ -794,6 +802,7 @@ export class Run {
 
   walk() {
     const sheet = nightSheet(this.n);
+    for (const a of this.reader.instances) roleDef(a.roleId).ability.nightStart?.(this.ctx(a));
     for (const def of sheet) {
       if (!def.ability.resolve) continue;
       const actors = this.actorsFor(def);
@@ -805,7 +814,7 @@ export class Run {
       if (!def.flags.afterOrder) continue;
       for (const a of this.actorsFor(def)) {
         const pid = a.holder.kind === 'player' ? a.holder.id : null;
-        if (!this.acted.has(`${pid}:${a.roleId}`)) this.act(def, a);
+        if (!this.acted.has(`${pid}:${a.roleId}`) && !this.reader.isBelieved(a)) this.act(def, a);
       }
     }
   }

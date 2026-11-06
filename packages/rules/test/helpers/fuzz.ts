@@ -14,14 +14,15 @@ export function seatedIds(s: GameStateT): PlayerId[] {
 export function randomActions(s: GameStateT, id: PlayerId, rng: Rng) {
   const actions: Record<string, { values: string[]; decline?: boolean }> = {};
   for (const spec of actionSpecs(s, id)) {
-    if (spec.allowDecline && rng.next() < 0.1) {
+    const stuck = spec.fields.some((f) => f.options.length === 0);
+    if (spec.allowDecline && (stuck || rng.next() < 0.1)) {
       actions[spec.key] = { decline: true, values: [] };
       continue;
     }
     const used: string[] = [];
     const values = spec.fields.map((f) => {
       const pool = spec.distinct ? f.options.filter((o) => !used.includes(o)) : f.options;
-      const v = rng.pick(pool.length ? pool : f.options);
+      const v = f.options.length ? rng.pick(pool.length ? pool : f.options) : '';
       used.push(v);
       return v;
     });

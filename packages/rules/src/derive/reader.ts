@@ -132,6 +132,16 @@ export class Reader {
     return this.eventsAt({ kind: 'day', n: this.moment.n });
   }
 
+  /** The latest value any holder of a role stored in a setup field, even one that has since gone. */
+  setupValue(role: RoleId, field: string): string | null {
+    let value: string | null = null;
+    for (const a of Object.values(this.w.abilities)) {
+      const s = a.state as { setup?: Record<string, string | null> } | undefined;
+      if (a.roleId === role && s?.setup?.[field]) value = s.setup[field] ?? null;
+    }
+    return value;
+  }
+
   /** Living players who are not Travellers: the count role text means by "players alive". */
   get aliveResidents(): PlayerId[] {
     return this.alive.filter((id) => this.typeOf(id) !== 'traveller');

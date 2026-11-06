@@ -148,6 +148,8 @@ export interface Hooks<S> {
   setup?(ctx: AbilityCtx<S>): void;
   /** Night 0 starts: start messages. */
   briefing?(ctx: AbilityCtx<S>): void;
+  /** The walk is about to begin: decisions that decide who wakes. */
+  nightStart?(ctx: AbilityCtx<S>): void;
   modifyEvilInfo?(ctx: HookCtx<S>, info: EvilInfoDraft): void;
   /** Whether it wakes tonight. Default: every night in its slot; start information only when due. */
   wakes?(ctx: AbilityCtx<S>): boolean;
@@ -212,6 +214,10 @@ export interface RoleFlags {
   quietImpairment?: boolean;
   /** Interception order; lower runs first. */
   interceptPriority?: number;
+  /** Has an ability that can go wrong without ever waking, for what a malfunction count can plausibly be. */
+  passive?: boolean;
+  /** The first choice when the Storyteller picks which Minion takes over from the Demon. */
+  demonHeir?: boolean;
 }
 
 export interface RoleDef<S = unknown> {

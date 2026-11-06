@@ -15,6 +15,7 @@ import type {
 } from '../abilities/define';
 import { roleDef } from '../abilities/registry';
 import type { Rng } from '../util/rng';
+import { demonInfoLines } from './evil-info';
 import type { Run } from './run';
 
 export type { DayActionOutcome, InterceptResult };
@@ -84,6 +85,10 @@ export interface ChangeOptions {
   keepGranted?: boolean;
   /** Keep what this player's abilities caused. */
   keepTies?: boolean;
+  /** The new character's start information is still due. */
+  startInfo?: boolean;
+  /** Changed during the walk: acts from the next night, apart from start information. */
+  noActTonight?: boolean;
 }
 
 export interface KillOptions {
@@ -132,9 +137,30 @@ export class AbilityCtx<S> extends HookCtx<S> {
     return this.n === 0 || this.ability.startInfoPending;
   }
 
-  /** The holder only believes in this ability (the Drunk's, the Marionette's). */
+  /** The holder only believes in this ability: a token they drew, or one that does nothing. */
   get believed(): boolean {
-    return this.isBelieved(this.ability);
+    return this.isBelieved(this.ability) || this.ability.perceivedOnly;
+  }
+
+  /** During the night's walk, rather than a command acting on the live game. */
+  get inWalk(): boolean {
+    return this.run.night !== null;
+  }
+
+  /** Every instance of this role there has ever been, for a fact the role shares across holders. */
+  get peers(): AbilityInstance<S>[] {
+    return Object.values(this.w.abilities).filter((a) => a.roleId === this.ability.roleId) as AbilityInstance<S>[];
+  }
+
+  /** Lets a day action appear once, however many holders the role has. */
+  get firstPeer(): boolean {
+    return this.instances.find((a) => a.roleId === this.ability.roleId)?.id === this.ability.id;
+  }
+
+  isImpaired = (id: PlayerId): boolean => this.run.impairment(id).impaired;
+
+  get aliveAtDuskIds(): PlayerId[] {
+    return this.seated.filter(this.aliveAtDusk);
   }
 
   /** Alive at the start of the night. */
@@ -230,6 +256,11 @@ export class AbilityCtx<S> extends HookCtx<S> {
     return this.run.attemptKill(target, cause, this.ability, options);
   }
 
+  /** A death nothing can stop: the Storyteller overrode the outcome. */
+  forceKill(target: PlayerId, cause: string) {
+    if (this.isAlive(target)) this.run.kill(target, cause);
+  }
+
   revive(player: PlayerId, reason: string): boolean {
     return this.run.revive(player, reason);
   }
@@ -253,6 +284,37 @@ export class AbilityCtx<S> extends HookCtx<S> {
   /** Move an ability to another player. */
   move(id: string, to: PlayerId) {
     this.run.move(id, to);
+  }
+
+  /** Keeps this ability in the game, held by nobody, once its holder loses it. */
+  grantToGame(role: RoleId, used: boolean, state: unknown) {
+    const a = this.run.grant({ kind: 'game' }, role, { kind: 'storyteller' }, { state });
+    a.used = used;
+  }
+
+  /** What an earlier ability caused now depends on this one. */
+  adoptConditions(from: string) {
+    this.run.adoptConditions(from, this.ability.id);
+  }
+
+  /** Drops messages queued for the next night, when what they announce has changed. */
+  dropPending(player: PlayerId, titleStart: string) {
+    const w = this.w;
+    w.pendingNotices = w.pendingNotices.filter((n) => n.playerId !== player || !n.title.startsWith(titleStart));
+  }
+
+  /** The lines a new Demon is told. */
+  demonInfo(player: PlayerId): string[] {
+    return demonInfoLines(this.run, player);
+  }
+
+  /** Whether a player made a real choice tonight with an ability they only believe they have. */
+  believedChose(player: PlayerId): boolean {
+    return this.abilitiesOf(player).some((a) => {
+      if (!this.isBelieved(a) || !this.run.acted.has(`${player}:${a.roleId}`)) return false;
+      const c = this.run.choiceOf(a);
+      return !!c && !c.decline;
+    });
   }
 
   changeCharacter(target: PlayerId, role: RoleId, options: ChangeOptions) {
@@ -319,7 +381,12 @@ export class AbilityCtx<S> extends HookCtx<S> {
   }
 }
 
-export type JinxPoint = 'onGain' | 'beforeMalfunctionCount' | 'replaceResolve' | 'afterRevive';
-export type JinxReply<K extends JinxPoint> = K extends 'afterRevive' ? PlayerId | null : boolean;
+export type JinxPoint =
+  'onGain' | 'beforeMalfunctionCount' | 'replaceResolve' | 'afterRevive' | 'wakesDead' | 'replacePicker';
+export type JinxReply<K extends JinxPoint> = K extends 'afterRevive'
+  ? PlayerId | null
+  : K extends 'replacePicker'
+    ? SpecDraft | null
+    : boolean;
 
 export type { KillAttempt };

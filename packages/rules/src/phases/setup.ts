@@ -16,8 +16,11 @@ function assign(ctx: Pick<CmdCtx<'setup'>, 's' | 'run'>, player: PlayerId, role:
     reason: live ? 'Storyteller reassignment' : 'setup',
     alignment: 'natural',
     keepGranted: false,
-    keepTies: !live,
   });
+  if (!live) {
+    // Nothing has happened yet, so an unassigned character leaves no trace.
+    for (const a of Object.values(ctx.s.abilities)) if (a.activeUntil === 'removed') delete ctx.s.abilities[a.id];
+  }
   if (live && ctx.s.settings.notifyOnRoleChange && role) {
     const def = roleDef(role);
     ctx.run().deliver(player, 'notice', 'Your role has changed', [`You are now the ${def.name}.`, def.abilityText]);
@@ -163,6 +166,9 @@ export const setupCommands = [
         need(believedOptions(ctx.base, cmd.playerId).includes(cmd.roleId), 'That character cannot be believed.');
       }
       ctx.run().setBelieved(cmd.playerId, cmd.roleId);
+      if (ctx.s.phase.kind === 'setup') {
+        for (const a of Object.values(ctx.s.abilities)) if (a.activeUntil === 'removed') delete ctx.s.abilities[a.id];
+      }
     },
   }),
   defineCommand({

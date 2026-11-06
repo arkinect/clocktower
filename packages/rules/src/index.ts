@@ -1,3 +1,5 @@
+import './roles';
+
 export { dispatch, replay, type DispatchResult, type Inputs, type LogEntry } from './dispatch';
 export { createGame } from './model/create';
 export { allCards, catalog, playerView, project, storytellerView } from './views/project';

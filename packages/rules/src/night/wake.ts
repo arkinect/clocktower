@@ -21,10 +21,9 @@ export function wakingAbilities(state: GameState, pid: PlayerId): Instance[] {
   const out: Instance[] = [];
   for (const def of nightSheet(phase.n)) {
     if (!def.ability.resolve || def.flags.wakesOnNightDeath) continue;
-    const a = run.reader.abilityOf(pid, def.id);
+    const a = run.reader.abilitiesOf(pid).find((x) => x.roleId === def.id && run.wakesNow(x, def));
     if (!a) continue;
-    if (!run.canAct(a, def) && !def.ability.wakesDead?.(run.ctx(a))) continue;
-    if (run.wakesNow(a, def)) out.push(a);
+    if (run.canAct(a, def) || def.ability.wakesDead?.(run.ctx(a))) out.push(a);
   }
   return out;
 }

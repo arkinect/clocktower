@@ -4,10 +4,12 @@ Session memory for the plan in `docs/rewrite/PLAN.md` (the working copy this ses
 
 ## Stage status
 
-| Stage         | Status | Gate                      |
-| ------------- | ------ | ------------------------- |
-| 0 Foundations | done   | passed, CI green          |
-| 1 Rules core  | done   | passed locally, see below |
+| Stage         | Status      | Gate                                          |
+| ------------- | ----------- | --------------------------------------------- |
+| 0 Foundations | done        | passed, CI green                              |
+| 1 Rules core  | done        | passed                                        |
+| 2 Framework   | done        | passed locally, see below                     |
+| 3 All roles   | in progress | roles and jinxes written; parity harness next |
 
 ## Baseline
 
@@ -27,6 +29,13 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 - `rules/test/core/fuzz.test.ts`: 1,000 random command sequences of 120 steps, reaching every phase. No throw, every state parses against the schema, every player view passes the hidden-information check.
 - Command-log replay: byte-identical, over the scripted game and 50 fuzzed games of 200 steps.
 
+### Stage 2
+
+- `docs/mechanics.md` written. The wiki pass covered the Character Types, Travellers, Fabled and Loric pages, not each character page.
+- `rules/test/framework/mechanics.test.ts`: every mechanics row, with throwaway characters.
+- Eight acceptance roles, tests in `rules/test/roles/`. `npm run check:role-ids`: no role id in core (added to CI).
+- Stale decisions, the mutual-dependency impairment pin and determinism are in the same framework file.
+
 ## Deviations
 
 - zod 4 and @fastify/static 10 rather than the versions first picked: `npm audit --omit=dev` is a CI step and the older versions fail it.
@@ -39,8 +48,12 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 - `ctx.require` is a plain function, `need()`, because TypeScript assertion signatures cannot be called through a contextually typed parameter.
 - The Resolution is never stored in state. It is memoised against the state object, and commands that cannot change it carry the memo forward.
 
+- Night positions are the old app's order with gaps, not the official sheet's numbers, so relative order stays identical to the old engine for parity. They can be renumbered in the role files later.
+- The old app has 14 jinxes, not the 15 the plan says. All 14 are ported.
+- Inboxes keep the full message history; the old app cleared them at dusk.
+
 ## Known gaps
 
 ## Next step
 
-Stage 2: ability framework, docs/mechanics.md, eight acceptance roles.
+Stage 3: parity harness against the old engine, 10,000 fuzzed games.

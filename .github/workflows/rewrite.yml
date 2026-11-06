@@ -30,6 +30,7 @@ jobs:
       - run: npm run format:check
       - run: npm run boundaries
       - run: npm run boundaries:selftest
+      - run: npm run check:role-ids
       - run: npm run test
         env:
           FUZZ_GAMES: ${{ github.event_name == 'schedule' && '10000' || '500' }}
