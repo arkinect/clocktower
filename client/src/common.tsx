@@ -4,6 +4,11 @@ import { ENDED_REASON_TEXT, FIRST_NIGHT_ORDER, jinxesAmong, jinxLabel, OTHER_NIG
 export const TYPE_LABEL: Record<RoleType, string> = { townsfolk: 'Townsfolk', outsider: 'Outsiders', minion: 'Minions', demon: 'Demons' };
 export const TYPE_ORDER: RoleType[] = ['townsfolk', 'outsider', 'minion', 'demon'];
 
+/** The singular: "Townsfolk", "Outsider", "Minion", "Demon". */
+export function typeName(t: RoleType): string {
+  return TYPE_LABEL[t].replace(/s$/, '');
+}
+
 export function RoleList({ enabled }: { enabled: string[] }) {
   const jinxes = jinxesAmong(enabled);
   return (
@@ -68,21 +73,35 @@ export function Seating({ names, published, dead }: { names: string[]; published
   );
 }
 
+/**
+ * Keeps a control the width of its longest label: every label sits in the same grid cell and only the current one
+ * is visible, so swapping the text moves nothing around it.
+ */
+export function StableLabel({ labels, current }: { labels: ReactNode[]; current: number }) {
+  return (
+    <span className="stable">
+      {labels.map((l, i) => <span key={i} className={i === current ? undefined : 'stable-off'} aria-hidden={i === current ? undefined : true}>{l}</span>)}
+    </span>
+  );
+}
+
 export function RoleCardView({ role, hiddenByDefault = true }: { role: RC | null; hiddenByDefault?: boolean }) {
   const [shown, setShown] = useState(!hiddenByDefault);
   if (!role) return <div className="rolecard empty">No role yet.</div>;
+  // Both faces share one grid cell, so the card is always the height of its revealed face. The hidden face must
+  // stay visibility: hidden (.stable-off): its text is the secret.
+  const face = (on: boolean) => ({ className: `rolecard-face${on ? '' : ' stable-off'}`, 'aria-hidden': on ? undefined : true });
   return (
-    <div className={`rolecard ${shown ? 'shown' : ''}`} onClick={() => setShown(!shown)}>
-      {shown ? (
-        <>
-          <div className={`rtype type-${role.type}`}>{TYPE_LABEL[role.type].replace(/s$/, '')}</div>
-          <div className="rname">{role.name}</div>
-          <p>{role.abilityText}</p>
-          <div className="muted small">Tap to hide</div>
-        </>
-      ) : (
+    <div className="rolecard" onClick={() => setShown(!shown)}>
+      <div {...face(shown)}>
+        <div className={`rtype type-${role.type}`}>{typeName(role.type)}</div>
+        <div className="rname">{role.name}</div>
+        <p>{role.abilityText}</p>
+        <div className="muted small">Tap to hide</div>
+      </div>
+      <div {...face(!shown)}>
         <div className="reveal">Tap to reveal your role</div>
-      )}
+      </div>
     </div>
   );
 }
@@ -121,7 +140,8 @@ export function Countdown({ endsAt, offset }: { endsAt: number | null; offset: n
   const left = Math.max(0, Math.round((endsAt - now) / 1000));
   const m = Math.floor(left / 60);
   const s = left % 60;
-  return <span className={`countdown ${left === 0 ? 'up' : ''}`}>{left === 0 ? 'Time is up' : `${m}:${String(s).padStart(2, '0')}`}</span>;
+  const text = left === 0 ? 'Time is up' : `${m}:${String(s).padStart(2, '0')}`;
+  return <span className={`countdown ${left === 0 ? 'up' : ''}`}><StableLabel labels={['Time is up', '88:88', text]} current={2} /></span>;
 }
 
 /** A picker for one or more actions. Used for real pickers, decoys and the Admin's submit-on-behalf. */
@@ -243,11 +263,44 @@ export function TimedButton({ onConfirm, children, className, disabled, seconds 
       style={{ ['--timed-ms' as string]: `${seconds * 1000}ms` }}
     >
       <span className="timed-fill" />
-      <span className="timed-label">{armed ? 'Cancel' : children}</span>
+      <span className="timed-label"><StableLabel labels={[children, 'Cancel']} current={armed ? 1 : 0} /></span>
     </button>
   );
 }
 
+
+/** A bottom sheet asking for one value. It closes once onSave succeeds, and Enter saves. */
+export function InputSheet({ title, label, initial, type = 'text', maxLength, onSave, onClose }: {
+  title: ReactNode;
+  label: string;
+  initial: string;
+  type?: 'text' | 'number';
+  maxLength?: number;
+  onSave: (value: string) => Promise<{ ok: boolean }>;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(initial);
+  const save = async () => {
+    if (!value.trim()) return;
+    const r = await onSave(value.trim());
+    if (r.ok) onClose();
+  };
+  return (
+    <div className="sheet" onClick={onClose}>
+      <div className="sheetbody" onClick={(e) => e.stopPropagation()}>
+        <h3>{title}</h3>
+        <label className="field">
+          <span>{label}</span>
+          <input type={type} value={value} maxLength={maxLength} autoFocus onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') save(); }} />
+        </label>
+        <div className="sheet-actions">
+          <button onClick={onClose}>Cancel</button>
+          <button className="primary" disabled={!value.trim()} onClick={save}>Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** "poisoned:poisoner" -> "Poisoned by the Poisoner"; "own_character" -> "Drunk/Marionette (own role)". */
 export function causeLabel(c: string): string {

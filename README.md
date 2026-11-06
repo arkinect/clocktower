@@ -37,7 +37,7 @@ mkdir -p data caddy/data caddy/config && sudo chown -R 1000:1000 data caddy
 docker compose up -d
 ```
 
-Open `https://<your domain>`. The first person to tick **"I am the admin"** becomes the Storyteller, so do that
+Open `https://<your domain>`. The first person to tick **"I am the Storyteller"** becomes the Storyteller, so do that
 yourself before sharing the address and password. Caddy fetches and renews the certificate automatically
 (`docker logs -f clocktower-caddy`).
 
@@ -113,12 +113,12 @@ With `docker compose`, set `CLOCKTOWER_DOMAIN` and `CLOCKTOWER_SITE_PASSWORD` in
 
 This is built for a group of friends, not as a public service:
 
-- One shared password gates joining, the player list and "I'm already in this game". Ten wrong guesses from one
+- One shared password gates joining, the player list and "Rejoin". Ten wrong guesses from one
   address lock it out for 15 minutes. Use a long password (five random words is plenty).
 - Players already in the game stay logged in with a random token stored on their device.
 - In the compose setup the app has no published port, runs as an unprivileged user on a read-only filesystem, and
   only Caddy can reach it.
-- Anyone with the password can join, and the first to tick "I am the admin" becomes the Storyteller.
+- Anyone with the password can join, and the first to tick "I am the Storyteller" becomes the Storyteller.
 
 ## Development
 

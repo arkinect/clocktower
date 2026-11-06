@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { abilitiesOf, ROLES, ROLE_BY_ID } from '@ct/shared';
+import { abilitiesOf, ROLES, ROLE_BY_ID, type Effect } from '@ct/shared';
 import { api, send } from '../api';
-import { ImpairmentTags, TimedButton, TYPE_LABEL, TYPE_ORDER } from '../common';
-import { VigoScarletWarning, Who, type AdminCtx } from './AdminApp';
+import { ImpairmentTags, StableLabel, TimedButton, TYPE_LABEL, TYPE_ORDER } from '../common';
+import { PHASE_LABEL, VigoScarletWarning, Who, type AdminCtx } from './AdminApp';
 import { Briefing } from './Setup';
 
 const CAUSE_LABEL: Record<string, string> = {
@@ -24,6 +24,8 @@ export function Grimoire({ ctx, code }: { ctx: AdminCtx; code: string }) {
           const r = a?.roleId ? ROLE_BY_ID[a.roleId] : null;
           const imp = view.impairment[id];
           const effects = s.effects.filter((e) => e.targetPlayerId === id);
+          // A chip already says what this effect does; its row adds only who caused it and when it ends.
+          const hasChip = (e: Effect) => (e.type === 'poisoned' || e.type === 'drunk') && !!imp?.causes.includes(`${e.type}:${e.cause}`);
           const flags = Object.entries(s.flags[id] ?? {}).filter(([, v]) => v).map(([k]) => k);
           const trackKey = r?.usedFlag?.key;
           return (
@@ -48,16 +50,19 @@ export function Grimoire({ ctx, code }: { ctx: AdminCtx; code: string }) {
               {a?.retainsAbilityWhenDead && <div className="tag">keeps ability when dead</div>}
               <div className="row small">
                 <span>Alignment:</span>
-                <button className={`chip ${a?.alignment}`} onClick={() => a && send({ type: 'set_alignment', playerId: id, alignment: a.alignment === 'good' ? 'evil' : 'good' })}>{a?.alignment ?? '—'}</button>
+                <button className={`chip ${a?.alignment}`} onClick={() => a && send({ type: 'set_alignment', playerId: id, alignment: a.alignment === 'good' ? 'evil' : 'good' })}><StableLabel labels={['good', 'evil', '—']} current={!a ? 2 : a.alignment === 'evil' ? 1 : 0} /></button>
               </div>
               {imp?.impaired && <div className="small"><ImpairmentTags causes={imp.causes} /></div>}
-              {effects.map((e) => (
-                <div key={e.id} className="small effect">
-                  {e.type === 'butler_master' ? `Butler's master (chosen by ${names[e.sourcePlayerId ?? ''] ?? '?'})`
-                    : e.type === 'devils_advocate' ? `Devil's Advocate: survives execution today (${names[e.sourcePlayerId ?? ''] ?? '?'})`
-                    : e.type === 'witched' ? `Witched: dies if they nominate today (${names[e.sourcePlayerId ?? ''] ?? '?'})`
-                    : e.type === 'protected' ? `protected tonight (Innkeeper ${names[e.sourcePlayerId ?? ''] ?? ''})`
-                    : `${e.type} (${CAUSE_LABEL[e.cause] ?? e.cause}${e.sourcePlayerId ? `, ${names[e.sourcePlayerId]}` : ''}, ${e.expiry.replace(/_/g, ' ')})`}
+              {[...effects.filter(hasChip), ...effects.filter((e) => !hasChip(e))].map((e) => (
+                <div key={e.id} className="small effect effect-row">
+                  <span className="grow">
+                    {hasChip(e) ? [e.sourcePlayerId ? names[e.sourcePlayerId] : null, e.expiry.replace(/_/g, ' ')].filter(Boolean).join(' · ')
+                      : e.type === 'butler_master' ? `Butler's master (chosen by ${names[e.sourcePlayerId ?? ''] ?? '?'})`
+                      : e.type === 'devils_advocate' ? `Devil's Advocate: survives execution today (${names[e.sourcePlayerId ?? ''] ?? '?'})`
+                      : e.type === 'witched' ? `Witched: dies if they nominate today (${names[e.sourcePlayerId ?? ''] ?? '?'})`
+                      : e.type === 'protected' ? `protected tonight (Innkeeper ${names[e.sourcePlayerId ?? ''] ?? ''})`
+                      : `${e.type} (${CAUSE_LABEL[e.cause] ?? e.cause}${e.sourcePlayerId ? `, ${names[e.sourcePlayerId]}` : ''}, ${e.expiry.replace(/_/g, ' ')})`}
+                  </span>
                   <button className="tiny" onClick={() => send({ type: 'remove_effect', effectId: e.id })}>✕</button>
                 </div>
               ))}
@@ -65,7 +70,7 @@ export function Grimoire({ ctx, code }: { ctx: AdminCtx; code: string }) {
               {trackKey && (
                 <div className="row small">
                   <span>{r!.name}:</span>
-                  <button className={`chip ${s.flags[id]?.[trackKey] ? 'used' : ''}`} onClick={() => send({ type: 'set_flag', playerId: id, key: trackKey, value: !s.flags[id]?.[trackKey] })}>{s.flags[id]?.[trackKey] ? 'Used' : 'Unused'}</button>
+                  <button className={`chip ${s.flags[id]?.[trackKey] ? 'used' : ''}`} onClick={() => send({ type: 'set_flag', playerId: id, key: trackKey, value: !s.flags[id]?.[trackKey] })}><StableLabel labels={['Unused', 'Used']} current={s.flags[id]?.[trackKey] ? 1 : 0} /></button>
                 </div>
               )}
               {flags.filter((f) => f !== trackKey).length > 0 && <div className="small muted">flags: {flags.filter((f) => f !== trackKey).join(', ')}</div>}
@@ -74,10 +79,10 @@ export function Grimoire({ ctx, code }: { ctx: AdminCtx; code: string }) {
                 <button className="tiny" onClick={() => setReassign(id)}>Change role</button>
                 <button className="tiny" onClick={() => send({ type: 'add_effect', targetId: id, effectType: 'poisoned' })}>+ poison</button>
                 <button className="tiny" onClick={() => send({ type: 'add_effect', targetId: id, effectType: 'drunk' })}>+ drunk</button>
-                <button className="tiny" onClick={() => send({ type: 'mark_alive', playerId: id, alive: !p.alive })}>{p.alive ? 'Kill' : 'Revive'}</button>
+                <button className="tiny" onClick={() => send({ type: 'mark_alive', playerId: id, alive: !p.alive })}><StableLabel labels={['Kill', 'Revive']} current={p.alive ? 0 : 1} /></button>
                 {!p.alive && (
                   <button className={`tiny chip ${p.ghostVoteUsed ? 'used' : ''}`} onClick={() => send({ type: 'set_ghost_vote', playerId: id, used: !p.ghostVoteUsed })}>
-                    {p.ghostVoteUsed ? 'Vote used' : 'Vote available'}
+                    <StableLabel labels={['Vote available', 'Vote used']} current={p.ghostVoteUsed ? 1 : 0} />
                   </button>
                 )}
               </div>
@@ -95,12 +100,14 @@ export function Grimoire({ ctx, code }: { ctx: AdminCtx; code: string }) {
           {s.setup.damselGuessResult && <p>Damsel guess: {s.setup.damselGuessResult.text}</p>}
           {s.setup.mezephelesWord && <p>Mezepheles word: "{s.setup.mezephelesWord}" {s.setup.mezephelesSpent ? '(spent)' : ''}</p>}
           {seated.some((id) => roleOf(id) === 'shabaloth') && <p>Shabaloth victims still dead: <span className="dead-name">{s.setup.shabalothKills.map((x) => names[x]).join(', ') || '—'}</span></p>}
-          <label className="field"><span>Lil' Monsta token holder</span>
-            <select value={s.setup.lilMonstaTokenHolderId ?? ''} onChange={(e) => send({ type: 'set_lil_monsta_holder', playerId: e.target.value || null })}>
-              <option value="">nobody</option>
-              {seated.map((id) => <option key={id} value={id} style={ctx.optStyle(id)}>{ctx.label(id)}</option>)}
-            </select>
-          </label>
+          {(s.script.includes('lil_monsta') || s.setup.lilMonstaTokenHolderId) && (
+            <label className="field"><span>Lil' Monsta token holder</span>
+              <select value={s.setup.lilMonstaTokenHolderId ?? ''} onChange={(e) => send({ type: 'set_lil_monsta_holder', playerId: e.target.value || null })}>
+                <option value="">nobody</option>
+                {seated.map((id) => <option key={id} value={id} style={ctx.optStyle(id)}>{ctx.label(id)}</option>)}
+              </select>
+            </label>
+          )}
         </section>
         <Settings ctx={ctx} code={code} />
       </div>
@@ -136,7 +143,7 @@ function Reassign({ ctx, pid, onClose }: { ctx: AdminCtx; pid: string; onClose: 
             <li>Logged in the event log.</li>
           </ul>
         </div>
-        <div className="row">
+        <div className="sheet-actions">
           <button onClick={onClose}>Cancel</button>
           <TimedButton className="primary" disabled={!roleId || roleId === old} onConfirm={async () => { const r = await send({ type: 'assign_role', playerId: pid, roleId }); if (r.ok) onClose(); }}>Confirm</TimedButton>
         </div>
@@ -173,7 +180,7 @@ function Settings({ ctx, code }: { ctx: AdminCtx; code: string }) {
         <summary>Force phase (if stuck)</summary>
         <div className="row wrap">
           {(['LOBBY', 'SETUP', 'DAY', 'ENDED'] as const).map((p) => (
-            <TimedButton key={p} className="danger" onConfirm={() => send({ type: 'force_phase', phase: p })}>{p}</TimedButton>
+            <TimedButton key={p} className="danger" onConfirm={() => send({ type: 'force_phase', phase: p })}>{PHASE_LABEL[p]}</TimedButton>
           ))}
         </div>
       </details>

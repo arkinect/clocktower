@@ -26,7 +26,7 @@ export function PlayerApp({ view }: { view: PlayerView }) {
   else home = <GameOver view={view} />;
 
   return (
-    <div className={`player ${isNight ? 'night' : 'daylight'}`}>
+    <div className="player">
       <main className={tab === 'home' && isNight && view.collectingOpen ? 'full' : ''}>
         {tab === 'home' && home}
         {tab === 'role' && (
@@ -88,11 +88,9 @@ function RoleReveal({ view }: { view: PlayerView }) {
 }
 
 function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: Record<string, string>; offset: number; dead: Set<string> }) {
-  const real = view.me.actions;
-  const specs = real;
+  const specs = view.me.actions;
   const [choice, setChoice] = useState<Record<string, ActionChoice>>(() => (view.me.submission?.actions ?? {}));
   const [sheet, setSheet] = useState(false);
-  const [roleOpen, setRoleOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const collecting = view.phase === 'NIGHT_COLLECTING';
 
@@ -100,8 +98,7 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
 
   const complete = specs.every((s) => choiceComplete(s, choice[s.key]));
   const submit = async () => {
-    if (!complete) { setSheet(true); return; }
-    const r = await send({ type: 'submit_night', actions: real.length ? choice : {} });
+    const r = await send({ type: 'submit_night', actions: specs.length ? choice : {} });
     if (r.ok) { setSheet(false); setEditing(false); }
   };
   const submitted = view.me.submitted && !editing;
@@ -111,13 +108,12 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
       <header className="nighthead">
         <span className="nightlabel">Night {view.nightNumber}</span>
         <Countdown endsAt={view.nightEndsAt} offset={offset} />
-        <button onClick={() => setRoleOpen(true)}>My role</button>
       </header>
       {/* Owner rule: games unlock only after the player has finished their night action (or the night has closed). */}
       {view.me.submitted || !collecting ? <NightGames code={view.gameCode} /> : (
         <div className="gamelock">
           <div className="gamelock-icon">☾</div>
-          <p>{real.length ? 'Make your night choice and submit it.' : 'Press Continue below.'}</p>
+          <p>{specs.length ? 'Make your night choice and submit it.' : 'Press Continue below.'}</p>
           <p className="muted small">The games unlock once you're done.</p>
         </div>
       )}
@@ -126,18 +122,15 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
         {submitted || !collecting ? (
           <div className="waiting">
             {view.me.submitted ? 'Submitted. Waiting for everyone.' : 'The night is ending.'}
-            {collecting && real.length > 0 && <button onClick={() => { setEditing(true); setSheet(true); }}>Change</button>}
+            {collecting && specs.length > 0 && <button onClick={() => { setEditing(true); setSheet(true); }}>Change</button>}
           </div>
-        ) : !real.length ? (
+        ) : !specs.length ? (
           <>
             <div className="waiting">No night action tonight.</div>
             <button className="primary" onClick={submit}>Continue</button>
           </>
         ) : (
-          <>
-            <button className="actionbtn" onClick={() => setSheet(true)}>Night action</button>
-            <button className="primary" onClick={submit}>Submit</button>
-          </>
+          <button className="primary" onClick={() => setSheet(true)}>Night action</button>
         )}
       </footer>
       {sheet && collecting && (
@@ -145,18 +138,10 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
           <div className="sheetbody" onClick={(e) => e.stopPropagation()}>
             <h3>Night action</h3>
             <ActionPicker specs={specs} names={names} value={choice} onChange={setChoice} dead={dead} />
-            <div className="row">
+            <div className="sheet-actions">
               <button onClick={() => setSheet(false)}>Close</button>
               <button className="primary" disabled={!complete} onClick={submit}>Submit</button>
             </div>
-          </div>
-        </div>
-      )}
-      {roleOpen && (
-        <div className="sheet" onClick={() => setRoleOpen(false)}>
-          <div className="sheetbody" onClick={(e) => e.stopPropagation()}>
-            <RoleCardView role={view.me.role} />
-            <button onClick={() => setRoleOpen(false)}>Close</button>
           </div>
         </div>
       )}
@@ -175,7 +160,9 @@ function FollowUpSheet({ specs, names, dead }: { specs: ActionSpec[]; names: Rec
     <div className="sheet">
       <div className="sheetbody">
         <ActionPicker specs={specs} names={names} value={choice} onChange={setChoice} dead={dead} />
-        <button className="primary big" disabled={!complete} onClick={submit}>Submit</button>
+        <div className="sheet-actions">
+          <button className="primary" disabled={!complete} onClick={submit}>Submit</button>
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { abilitiesOf, ROLE_BY_ID, storytellerLabel, type ActionChoice, type FollowUp, type ResultRow } from '@ct/shared';
 import { send } from '../api';
-import { ActionPicker, Countdown, ImpairmentTags, TimedButton, choiceComplete, useNow } from '../common';
+import { ActionPicker, Countdown, ImpairmentTags, InputSheet, StableLabel, TimedButton, choiceComplete, useNow } from '../common';
 import { InactiveNote, Who, type AdminCtx } from './AdminApp';
 
 function describe(ctx: AdminCtx, actions: Record<string, ActionChoice> | undefined): string {
@@ -15,6 +15,7 @@ function describe(ctx: AdminCtx, actions: Record<string, ActionChoice> | undefin
 export function NightPanel({ ctx }: { ctx: AdminCtx }) {
   const { s, view, names, seated } = ctx;
   const [proxy, setProxy] = useState<string | null>(null);
+  const [settingTime, setSettingTime] = useState(false);
   const offset = useMemo(() => view.serverNow - Date.now(), [view.serverNow]);
   const nowLocal = useNow(1000);
   if (!s.phase.startsWith('NIGHT') || !s.night) {
@@ -25,10 +26,11 @@ export function NightPanel({ ctx }: { ctx: AdminCtx }) {
   const pending = view.expectedActors.filter((id) => !night.submissions[id]);
   const timeUp = s.nightEndsAt !== null && nowLocal + offset >= s.nightEndsAt;
   const collecting = s.phase === 'NIGHT_COLLECTING';
+  const count = `${expected.size - pending.length}/${expected.size}`;
 
   return (
     <div>
-      <section className="card nightctl">
+      <section className="card">
         <div className="row wrap">
           <h2>Night {night.number}</h2>
           {night.collectingOpen && <Countdown endsAt={s.nightEndsAt} offset={offset} />}
@@ -36,7 +38,7 @@ export function NightPanel({ ctx }: { ctx: AdminCtx }) {
             <>
               <button onClick={() => send({ type: 'extend_countdown', seconds: 60 })}>+1 min</button>
               <button onClick={() => send({ type: 'extend_countdown', seconds: 180 })}>+3 min</button>
-              <button onClick={() => { const v = prompt('Countdown seconds (also the default for later nights)', String(s.settings.countdownSeconds)); if (v) send({ type: 'set_countdown', seconds: Number(v) }); }}>Set…</button>
+              <button onClick={() => setSettingTime(true)}>Set…</button>
             </>
           )}
         </div>
@@ -47,11 +49,18 @@ export function NightPanel({ ctx }: { ctx: AdminCtx }) {
           </div>
         )}
         {collecting && night.collectingOpen && (
-          <div className="row wrap">
-            <span>{expected.size - pending.length}/{expected.size} submitted.</span>
-            <button className="primary big" disabled={pending.length > 0 && !timeUp} onClick={() => send({ type: 'resolve_night' })}>Resolve night</button>
-            {pending.length > 0 && !timeUp && <TimedButton className="danger" onConfirm={() => send({ type: 'resolve_night', force: true })}>Force resolve</TimedButton>}
-          </div>
+          <>
+            <div className="submitted">
+              <StableLabel
+                labels={[<>{count} submitted.</>, <>{count} submitted · <span className="pending">Time is up. Nothing happens automatically.</span></>]}
+                current={timeUp ? 1 : 0}
+              />
+            </div>
+            <div className="row actions">
+              <button className="primary big" disabled={pending.length > 0 && !timeUp} onClick={() => send({ type: 'resolve_night' })}>Resolve night</button>
+              {pending.length > 0 && !timeUp && <TimedButton className="danger" onConfirm={() => send({ type: 'resolve_night', force: true })}>Force resolve</TimedButton>}
+            </div>
+          </>
         )}
         {night.number >= 1 && seated.some((id) => abilitiesOf(s, id, Infinity).some((x) => x.real && x.roleId === 'godfather')) && (
           <div className="row wrap">
@@ -60,11 +69,16 @@ export function NightPanel({ ctx }: { ctx: AdminCtx }) {
             {night.reviewChoices['godfather_trigger'] && <button onClick={() => send({ type: 'set_godfather_trigger', value: null })}>Use rule</button>}
           </div>
         )}
-        {s.phase === 'NIGHT_RESOLVING' && <p>Resolving. Go to the Review tab. <button onClick={() => send({ type: 'reopen_collecting' })}>Reopen collecting</button></p>}
-        {timeUp && collecting && night.collectingOpen && <div className="warnline">Time is up. Nothing happens automatically.</div>}
+        {s.phase === 'NIGHT_RESOLVING' && <p>Resolving. Go to the Review tab.</p>}
       </section>
 
-      <table className="tbl board">
+      <section className="card">
+        <h2>Players</h2>
+        <div className="board">
+          <table className="tbl nightboard">
+        <colgroup>
+          <col style={{ width: '28px' }} /><col style={{ width: '130px' }} /><col style={{ width: '150px' }} /><col style={{ width: '120px' }} /><col style={{ width: '130px' }} /><col /><col style={{ width: '150px' }} />
+        </colgroup>
         <thead><tr><th></th><th>Player</th><th>Role</th><th>Wakes as</th><th>Status</th><th>Choice</th><th></th></tr></thead>
         <tbody>
           {seated.map((id) => {
@@ -95,8 +109,14 @@ export function NightPanel({ ctx }: { ctx: AdminCtx }) {
             );
           })}
         </tbody>
-      </table>
+          </table>
+        </div>
+      </section>
       {proxy && <ProxySubmit ctx={ctx} pid={proxy} onClose={() => setProxy(null)} />}
+      {settingTime && (
+        <InputSheet title="Set countdown" label="Countdown seconds (also the default for later nights)" type="number" initial={String(s.settings.countdownSeconds)} onClose={() => setSettingTime(false)}
+          onSave={(v) => send({ type: 'set_countdown', seconds: Number(v) })} />
+      )}
     </div>
   );
 }
@@ -110,7 +130,7 @@ function ProxySubmit({ ctx, pid, onClose }: { ctx: AdminCtx; pid: string; onClos
       <div className="sheetbody" onClick={(e) => e.stopPropagation()}>
         <h3>Act for <Who ctx={ctx} id={pid} /></h3>
         {specs.length ? <ActionPicker specs={specs} names={ctx.names} value={value} onChange={setValue} dead={new Set(ctx.seated.filter(ctx.isDead))} /> : <p className="muted">This player has no choice tonight. Submitting records an acknowledgement.</p>}
-        <div className="row">
+        <div className="sheet-actions">
           <button onClick={onClose}>Cancel</button>
           <button className="primary" disabled={!complete} onClick={async () => { const r = await send({ type: 'submit_for', playerId: pid, actions: value }); if (r.ok) onClose(); }}>Submit</button>
         </div>
@@ -130,7 +150,7 @@ export function ReviewPanel({ ctx }: { ctx: AdminCtx }) {
       <section className="card">
         <div className="row wrap">
           <h2>Review Night {night.number}</h2>
-          <button onClick={() => send({ type: 'accept_all_defaults' })}>Accept all defaults{open ? ` (${open})` : ''}</button>
+          <button onClick={() => send({ type: 'accept_all_defaults' })}>Accept all defaults</button>
           <button onClick={() => send({ type: 'reopen_collecting' })}>Reopen collecting</button>
           {/* Publishing with a follow-up question unanswered (e.g. the Ravenkeeper's) sends that player no information. */}
           <TimedButton className="primary big" onConfirm={() => send({ type: 'publish_night', force: res.followUps.some((f) => !f.answered) })}>Publish and send to Day</TimedButton>
@@ -143,14 +163,14 @@ export function ReviewPanel({ ctx }: { ctx: AdminCtx }) {
 
       {res.reviewItems.length > 0 && (
         <section className="card">
-          <h2>Decisions</h2>
+          <h2>Decisions{open > 0 && <span className="muted"> · {open} open</span>}</h2>
           {res.reviewItems.map((it) => (
             <div key={it.key} className={`review ${it.chosen === null ? 'open' : ''}`}>
               <div><b>{it.title}</b> <span className="muted small">{it.description}</span></div>
               <select value={it.chosen ?? it.default} onChange={(e) => send({ type: 'choose_review', key: it.key, optionId: e.target.value })}>
                 {it.options.map((o) => <option key={o.id} value={o.id}>{o.label}{o.id === it.default ? ' (recommended)' : ''}</option>)}
               </select>
-              {it.chosen === null ? <button onClick={() => send({ type: 'choose_review', key: it.key, optionId: it.default })}>Accept</button> : <span className="ok small">✓ decided</span>}
+              {it.chosen === null ? <button onClick={() => send({ type: 'choose_review', key: it.key, optionId: it.default })}>Accept</button> : <span className="ok small decided">✓ decided</span>}
             </div>
           ))}
         </section>
@@ -207,13 +227,15 @@ function ResultEditor({ ctx, r }: { ctx: AdminCtx; r: ResultRow }) {
             {r.alternatives.map((alt, i) => <option key={i} value={i}>{alt.join(' ')}</option>)}
           </select>
         )}
-        <button onClick={() => { setText(r.finalLines.join('\n')); setEditing(!editing); }}>Edit text</button>
+        <button onClick={() => { setText(r.finalLines.join('\n')); setEditing(!editing); }}><StableLabel labels={['Edit text', 'Cancel']} current={editing ? 1 : 0} /></button>
         {r.overridden && <button onClick={() => send({ type: 'override_result', key: r.key, lines: null })}>Reset</button>}
       </div>
       {editing && (
-        <div>
+        <div className="editor">
           <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} />
-          <button className="primary" onClick={async () => { const res = await send({ type: 'override_result', key: r.key, lines: text.split('\n').filter(Boolean) }); if (res.ok) setEditing(false); }}>Save</button>
+          <div className="row">
+            <button className="primary" onClick={async () => { const res = await send({ type: 'override_result', key: r.key, lines: text.split('\n').filter(Boolean) }); if (res.ok) setEditing(false); }}>Save</button>
+          </div>
         </div>
       )}
     </div>

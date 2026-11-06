@@ -1,6 +1,6 @@
 // Admin circle view: the table as the players sit, with roles and statuses.
 import { ROLE_BY_ID } from '@ct/shared';
-import type { AdminCtx } from './AdminApp';
+import { phaseName, type AdminCtx } from './AdminApp';
 
 const short: Record<string, string> = { poisoned: 'poisoned', drunk: 'drunk', protected: 'protected', devils_advocate: "DA'd", butler_master: 'master', witched: 'cursed' };
 
@@ -13,7 +13,7 @@ export function CirclePanel({ ctx }: { ctx: AdminCtx }) {
     <div className="circlewrap">
       <div className="circle">
         <div className="circle-center">
-          <b>{s.phase.startsWith('NIGHT') ? `Night ${s.nightNumber}` : s.phase === 'DAY' ? `Day ${s.dayNumber}` : s.phase}</b>
+          <b>{phaseName(s)}</b>
           <div>{alive} / {n} alive</div>
           {s.setup.demonBluffs.length > 0 && <div className="muted small">Bluffs: {s.setup.demonBluffs.map((b) => ROLE_BY_ID[b].name).join(', ')}</div>}
         </div>

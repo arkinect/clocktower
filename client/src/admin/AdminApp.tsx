@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { ROLES, ROLE_BY_ID, type AdminView, type GameState } from '@ct/shared';
 import { send } from '../api';
-import { EndedReason, NightOrder, RoleList, TimedButton } from '../common';
+import { EndedReason, InputSheet, NightOrder, RoleList, StableLabel, TimedButton } from '../common';
 import { SetupPanel } from './Setup';
 import { NightPanel, ReviewPanel } from './Night';
 import { DayPanel } from './Day';
@@ -89,9 +89,26 @@ function defaultTab(phase: GameState['phase']): Tab {
   }
 }
 
-const PHASE_LABEL: Record<GameState['phase'], string> = {
-  LOBBY: 'Lobby', SETUP: 'Setup', NIGHT_COLLECTING: 'Night: collecting', NIGHT_RESOLVING: 'Night: review', DAY: 'Day', ENDED: 'Game over',
+export const PHASE_LABEL: Record<GameState['phase'], string> = {
+  LOBBY: 'Lobby', SETUP: 'Setup', NIGHT_COLLECTING: 'collecting', NIGHT_RESOLVING: 'review', DAY: 'Day', ENDED: 'Game over',
 };
+
+/** Sets `fade-left` / `fade-right` on a scrolling strip while it can scroll further that way. Rerun when its contents change. */
+function useScrollFades(ref: React.RefObject<HTMLElement>, contentKey: unknown) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => {
+      el.classList.toggle('fade-left', el.scrollLeft > 1);
+      el.classList.toggle('fade-right', el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+    };
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    const resize = new ResizeObserver(update);
+    resize.observe(el);
+    return () => { el.removeEventListener('scroll', update); resize.disconnect(); };
+  }, [ref, contentKey]);
+}
 
 export function AdminApp({ view, code }: { view: AdminView; code: string }) {
   const ctx = useAdminCtx(view);
@@ -113,6 +130,9 @@ export function AdminApp({ view, code }: { view: AdminView; code: string }) {
   const pick = (t: Tab) => { setTab(t); setMoreOpen(false); };
   // The tab that matches the current phase gets a highlight when you are elsewhere, so it's easy to get back.
   const phaseTab: Tab | null = s.phase === 'ENDED' ? null : defaultTab(s.phase);
+  const tabsRef = useRef<HTMLElement>(null);
+  useScrollFades(tabsRef, visible.length);
+  useEffect(() => { tabsRef.current?.querySelector('button.on')?.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }, [tab, visible.length]);
 
   return (
     <div className="admin">
@@ -123,14 +143,14 @@ export function AdminApp({ view, code }: { view: AdminView; code: string }) {
         <div className="muted small">{ctx.seated.length} seated · {Object.values(view.presence).filter(Boolean).length} online</div>
       </header>
       <div className="tabbar">
-        <nav className="admintabs">
+        <nav className="admintabs" ref={tabsRef}>
           {visible.map(([t, l]) => (
             <button key={t} className={tab === t ? 'on' : t === phaseTab ? 'phase-hint' : ''} title={t === phaseTab && tab !== t ? 'The game is here' : undefined} onClick={() => pick(t)}>{l}</button>
           ))}
         </nav>
         {started && (
           <button className={`moretab${activeTucked ? ' on' : ''}${!activeTucked && phaseTab && tucked.includes(phaseTab) && started ? ' phase-hint' : ''}`} onClick={() => setMoreOpen(!moreOpen)} aria-expanded={moreOpen}>
-            {activeTucked ? activeTucked[1] : 'More'} ▾
+            <StableLabel labels={['More', ...menuItems.map(([, l]) => l)]} current={activeTucked ? menuItems.indexOf(activeTucked) + 1 : 0} /> ▾
           </button>
         )}
         {started && moreOpen && (
@@ -187,35 +207,42 @@ function LobbyPanel({ ctx, code }: { ctx: AdminCtx; code: string }) {
   const { s, view } = ctx;
   const players = s.players.filter((p) => !p.isAdmin);
   const lobbyish = s.phase === 'LOBBY' || s.phase === 'SETUP';
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   return (
     <div className="cols">
       <div>
-        <h2>Players ({players.length})</h2>
-        <table className="tbl">
-          <tbody>
-            {players.map((p) => (
-              <tr key={p.id}>
-                <td><span className={`dot ${view.presence[p.id] ? 'on' : ''}`} /></td>
-                <td><Who ctx={ctx} id={p.id} /></td>
-                <td className="right">
-                  {lobbyish && (
-                    <>
-                      <button onClick={() => { const n = prompt('New name', p.name); if (n) send({ type: 'rename_player', playerId: p.id, name: n }); }}>Rename</button>
-                      <TimedButton className="danger" onConfirm={() => send({ type: 'remove_player', playerId: p.id })}>Remove</TimedButton>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {s.phase === 'LOBBY' && <button className="primary big" onClick={() => send({ type: 'go_setup' })}>Continue to setup →</button>}
+        <section className="card">
+          <h2>Players ({players.length})</h2>
+          <table className="tbl">
+            <tbody>
+              {players.map((p) => (
+                <tr key={p.id}>
+                  <td><span className={`dot ${view.presence[p.id] ? 'on' : ''}`} /></td>
+                  <td><Who ctx={ctx} id={p.id} /></td>
+                  <td className="right">
+                    {lobbyish && (
+                      <span className="btnrow">
+                        <button onClick={() => setRenaming({ id: p.id, name: p.name })}>Rename</button>
+                        <TimedButton className="danger" onConfirm={() => send({ type: 'remove_player', playerId: p.id })}>Remove</TimedButton>
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {s.phase === 'LOBBY' && <button className="primary big" onClick={() => send({ type: 'go_setup' })}>Continue to setup →</button>}
+        </section>
       </div>
       <div>
         <h2>Join</h2>
         <p className="muted">Players open this on the same wifi:</p>
         <JoinQr code={code} />
       </div>
+      {renaming && (
+        <InputSheet title={`Rename ${renaming.name}`} label="New name" initial={renaming.name} maxLength={24} onClose={() => setRenaming(null)}
+          onSave={(name) => send({ type: 'rename_player', playerId: renaming.id, name })} />
+      )}
     </div>
   );
 }

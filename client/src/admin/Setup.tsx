@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ROLES, ROLE_BY_ID, type RoleType } from '@ct/shared';
 import { send } from '../api';
-import { TimedButton, TYPE_LABEL, TYPE_ORDER } from '../common';
+import { StableLabel, TimedButton, TYPE_LABEL, TYPE_ORDER, typeName } from '../common';
 import { VigoScarletWarning, Who, type AdminCtx } from './AdminApp';
 
 export function SetupPanel({ ctx }: { ctx: AdminCtx }) {
@@ -33,7 +33,7 @@ function Checklist({ ctx }: { ctx: AdminCtx }) {
     <section className="card">
       <h2>Before Night 0</h2>
       <ul className="checklist">
-        {view.setupChecklist.map((c) => <li key={c.id} className={c.done ? 'done' : c.blocking ? 'todo' : 'warnitem'}>{c.done ? '✓' : c.blocking ? '○' : '!'} {c.label}</li>)}
+        {view.setupChecklist.map((c) => <li key={c.id} className={c.done ? 'done' : c.blocking ? 'todo' : 'warnitem'}><span className="glyph">{c.done ? '✓' : c.blocking ? '○' : '!'}</span>{c.label}</li>)}
       </ul>
       {view.warnings.map((w, i) => <div key={i} className="warnline">⚠ {w}</div>)}
       {s.phase === 'SETUP' && (
@@ -42,7 +42,7 @@ function Checklist({ ctx }: { ctx: AdminCtx }) {
           {!ready && <TimedButton className="danger" onConfirm={() => send({ type: 'begin_night0', force: true })}>Force</TimedButton>}
         </div>
       )}
-      {s.phase === 'LOBBY' && <button className="primary" onClick={() => send({ type: 'go_setup' })}>Go to setup</button>}
+      {s.phase === 'LOBBY' && <button className="primary big" onClick={() => send({ type: 'go_setup' })}>Continue to setup →</button>}
     </section>
   );
 }
@@ -67,8 +67,8 @@ function SeatingEditor({ ctx }: { ctx: AdminCtx }) {
           <li key={id} draggable onDragStart={() => setDrag(i)} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (drag !== null) move(drag, i); setDrag(null); }}>
             <span className="grip">⠿</span>
             <span className="grow"><Who ctx={ctx} id={id} /></span>
-            <button onClick={() => move(i, i - 1)}>↑</button>
-            <button onClick={() => move(i, i + 1)}>↓</button>
+            <button disabled={i === 0} onClick={() => move(i, i - 1)}>↑</button>
+            <button disabled={i === seated.length - 1} onClick={() => move(i, i + 1)}>↓</button>
             <button onClick={() => send({ type: 'set_seating', order: seated.filter((x) => x !== id) })}>Unseat</button>
           </li>
         ))}
@@ -78,7 +78,7 @@ function SeatingEditor({ ctx }: { ctx: AdminCtx }) {
       )}
       <div className="row">
         <button onClick={() => send({ type: 'randomise_seating' })}>Randomise</button>
-        <button className={published ? '' : 'primary'} onClick={() => send({ type: 'publish_seating' })}>{s.seatingPublished ? (published ? 'Published ✓' : 'Republish seating') : 'Publish seating'}</button>
+        <button className={`seatpublish${published ? '' : ' primary'}`} onClick={() => send({ type: 'publish_seating' })}><StableLabel labels={['Publish seating', 'Published ✓', 'Republish seating']} current={!s.seatingPublished ? 0 : published ? 1 : 2} /></button>
       </div>
     </section>
   );
@@ -91,14 +91,14 @@ function Assignment({ ctx }: { ctx: AdminCtx }) {
   const taken = new Set(seated.map(roleOf).filter(Boolean));
   const pref = (pid: string) => {
     const p = s.players.find((x) => x.id === pid)?.rolePreference;
-    return p && p !== 'none' ? `— wants ${TYPE_LABEL[p].replace(/s$/, '')} —` : '— none —';
+    return p && p !== 'none' ? `— wants ${typeName(p)} —` : '— none —';
   };
   const assign = (pid: string, roleId: string | null) => send({ type: 'assign_role', playerId: pid, roleId });
   return (
     <section className="card">
       <h2>Roles</h2>
       <VigoScarletWarning ctx={ctx} />
-      <table className="tbl">
+      <table className="tbl roles">
         <tbody>
           {seated.map((pid) => {
             const r = roleOf(pid);
@@ -115,7 +115,7 @@ function Assignment({ ctx }: { ctx: AdminCtx }) {
                     ))}
                   </select>
                 </td>
-                <td className={`small type-${r ? ROLE_BY_ID[r].type : ''}`}>{r ? ROLE_BY_ID[r].type : ''}</td>
+                <td className={`small type-${r ? ROLE_BY_ID[r].type : ''}`}>{r ? typeName(ROLE_BY_ID[r].type) : ''}</td>
               </tr>
             );
           })}
@@ -219,7 +219,7 @@ function SetupItems({ ctx }: { ctx: AdminCtx }) {
           <span>Marionette (<Who ctx={ctx} id={pid} />) believes they are</span>
           <select value={s.assignments[pid]?.believedRoleId ?? ''} onChange={(e) => send({ type: 'set_believed_role', playerId: pid, roleId: e.target.value || null })}>
             <option value="">Choose a good role not in play…</option>
-            {enabledOf((_t, a) => a === 'good').map((r) => <option key={r.id} value={r.id} disabled={believedTaken.has(r.id) && s.assignments[pid]?.believedRoleId !== r.id}>{r.name} ({r.type})</option>)}
+            {enabledOf((_t, a) => a === 'good').map((r) => <option key={r.id} value={r.id} disabled={believedTaken.has(r.id) && s.assignments[pid]?.believedRoleId !== r.id}>{r.name} ({typeName(r.type)})</option>)}
           </select>
         </label>
       ))}
