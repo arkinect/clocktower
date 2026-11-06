@@ -12,6 +12,13 @@ export function useSeats(view: StorytellerView) {
   }, [view.players]);
 }
 
+export function phaseText(view: StorytellerView) {
+  const { kind, n, stage } = view.phase;
+  if (kind === 'night') return `Night ${n}: ${stage}`;
+  if (kind === 'day') return `Day ${n}`;
+  return { lobby: 'Lobby', setup: 'Setup', ended: 'Game over' }[kind];
+}
+
 /** A player's name, marked when dead. With `role`, their character as well. */
 export function Who({ view, id, role }: { view: StorytellerView; id: string | null; role?: boolean }) {
   const names = useNames();

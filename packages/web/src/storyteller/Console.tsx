@@ -12,6 +12,7 @@ import { Night } from './Night';
 import { Review } from './Review';
 import { Setup } from './Setup';
 import { Log, Story } from './Story';
+import { phaseText } from './common';
 import styles from './console.module.css';
 
 const TABS = [
@@ -33,13 +34,6 @@ function phaseTab(view: StorytellerView): Tab {
   if (kind === 'night') return stage === 'review' ? 'review' : 'night';
   if (kind === 'ended') return 'grimoire';
   return kind;
-}
-
-function phaseText(view: StorytellerView) {
-  const { kind, n, stage } = view.phase;
-  if (kind === 'night') return `Night ${n}: ${stage}`;
-  if (kind === 'day') return `Day ${n}`;
-  return { lobby: 'Lobby', setup: 'Setup', ended: 'Game over' }[kind];
 }
 
 export default function Console({ view, tab }: { view: StorytellerView; tab: string | null }) {

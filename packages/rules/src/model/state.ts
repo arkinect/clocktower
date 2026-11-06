@@ -16,7 +16,7 @@ import {
 import { z } from 'zod';
 
 /** Bumped by hand when the state schema changes. */
-export const ENGINE_VERSION = 1;
+export const ENGINE_VERSION = 2;
 
 const ids = <T extends z.ZodType>(value: T) => z.record(z.string(), value);
 
@@ -152,6 +152,8 @@ export const Phase = z.discriminatedUnion('kind', [
     overrides: ids(z.object({ lines: z.array(z.string()), writtenAgainst: z.array(z.string()) })),
     answers: ids(Answer),
     malfunctionAdjust: z.object({ add: z.array(PlayerId), remove: z.array(PlayerId) }),
+    /** The deadline has had its one extension for follow-up questions. */
+    followUpsExtended: z.boolean(),
   }),
   z.object({ kind: z.literal('day'), n: z.number() }),
   z.object({

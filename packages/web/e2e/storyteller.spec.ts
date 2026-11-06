@@ -128,6 +128,14 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
   }
   await tab(page, 'Grimoire');
   await expect(page.getByRole('heading', { name: 'The circle' })).toBeVisible();
+  const seat = page.getByRole('button', { name: /^Seat 1: / });
+  await seat.click();
+  await expect(page.getByRole('dialog').getByText(/^Change character of /)).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
+  const first = await seat.boundingBox();
+  const second = await page.getByRole('button', { name: /^Seat 2: / }).boundingBox();
+  expect(second?.x ?? 0).toBeGreaterThan(first?.x ?? 0);
+  expect(second?.y ?? 0).toBeGreaterThan(first?.y ?? 0);
   await tab(page, 'Log');
   await expect(page.getByText('publish dawn').first()).toBeVisible();
   expect(problems).toEqual([]);

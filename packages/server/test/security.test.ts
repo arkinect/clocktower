@@ -1,7 +1,9 @@
 import { readFileSync, readdirSync } from 'node:fs';
+import { connect as dialTcp } from 'node:net';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PROTOCOL_VERSION } from '@ct/protocol';
+import { ENGINE_VERSION } from '@ct/rules';
 import { assertSafe, DEFAULT_LIMITS, loadConfig, StartupRefused } from '../src/config';
 import { LiveGame } from '../src/games/manager';
 import { originAllowed } from '../src/ws/hub';
@@ -108,6 +110,51 @@ describe('sockets', () => {
     extra[0]?.terminate();
     await vi.waitFor(() => expect(h.app.hub.socketCount()).toBe(3));
     await open(h, { origin: h.base, cookie: (cy.cookie as string).split(';')[0] as string });
+  });
+
+  it('do not lose a slot to an aborted handshake', async () => {
+    const h = await up(testConfig({}, { socketsPerIp: 2, socketsPerSession: 2 }));
+    const { ws, cookie } = await connect(h, 'Ann');
+    ws.terminate();
+    await vi.waitFor(() => expect(h.app.hub.socketCount()).toBe(0));
+
+    // Each is accepted by every check of ours, then aborted by ws for having no key, or by the client going away.
+    const aborted = (lines: string[], hangUp: boolean) =>
+      new Promise<void>((resolve) => {
+        const raw = dialTcp(Number(h.host.split(':')[1]), '127.0.0.1', () => {
+          raw.write([...lines, '', ''].join('\r\n'));
+          if (hangUp) raw.destroy();
+        });
+        raw.resume();
+        raw.on('close', () => resolve());
+        raw.on('error', () => resolve());
+      });
+    const start = [
+      'GET /ws HTTP/1.1',
+      `Host: ${h.host}`,
+      `Origin: ${h.base}`,
+      `Cookie: ${cookie}`,
+      'Connection: Upgrade',
+      'Upgrade: websocket',
+    ];
+    for (let i = 0; i < 5; i++)
+      await aborted(['GET /ws HTTP/1.1', ...start.slice(1), 'Sec-WebSocket-Version: 13'], false);
+    const full = [...start, 'Sec-WebSocket-Version: 13', 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=='];
+    for (let i = 0; i < 5; i++) await aborted(full, true);
+
+    await vi.waitFor(() => expect(h.app.hub.socketCount()).toBe(0));
+    const sockets = [await open(h, { origin: h.base, cookie }), await open(h, { origin: h.base, cookie })];
+    expect(sockets.every((x) => x.readyState === x.OPEN)).toBe(true);
+    expect(h.app.hub.socketCount()).toBe(2);
+  });
+
+  it('let 30 sessions on one address connect, as a table sharing one connection does', async () => {
+    expect(DEFAULT_LIMITS.socketsPerIp).toBe(200);
+    const h = await up(testConfig({}, { playersPerGame: 30 }));
+    const names = Array.from({ length: 30 }, (_, i) => `Player ${i + 1}`);
+    const clients = await Promise.all(names.map((name) => connect(h, name)));
+    expect(clients).toHaveLength(30);
+    expect(h.app.hub.socketCount()).toBe(30);
   });
 
   it('drop an oversized frame', async () => {
@@ -291,7 +338,7 @@ describe('HTTP', () => {
     const h = await up();
     const res = await fetch(`${h.base}/api/status`);
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ engineVersion: 1, games: [{ code: 'default' }] });
+    expect(await res.json()).toMatchObject({ engineVersion: ENGINE_VERSION, games: [{ code: 'default' }] });
     const proxied = await fetch(`${h.base}/api/status`, { headers: { 'x-forwarded-for': '1.2.3.4' } });
     expect(proxied.status).toBe(404);
   });

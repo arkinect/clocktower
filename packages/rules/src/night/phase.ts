@@ -17,5 +17,6 @@ export function newNightPhase(
     overrides: {},
     answers: {},
     malfunctionAdjust: { add: [], remove: [] },
+    followUpsExtended: false,
   };
 }

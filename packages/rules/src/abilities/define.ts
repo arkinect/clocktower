@@ -50,6 +50,7 @@ export interface DeathInfo {
   playerId: PlayerId;
   cause: string;
   wasDemon: boolean;
+  /** Living non-Travellers just before this death, the count role text means by "players alive". */
   aliveBefore: number;
   demonHandover: boolean;
   /** Whether the dying player's abilities were working at that moment. */

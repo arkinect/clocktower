@@ -25,7 +25,7 @@ RUN npm init -y >/dev/null && npm install --omit=dev better-sqlite3@11.10.0
 
 # ---- run ----
 FROM node:22-bookworm-slim
-LABEL app=clocktower-next
+LABEL app=clocktower
 LABEL org.opencontainers.image.source=https://github.com/arkinect/clocktower
 LABEL org.opencontainers.image.description="Blood on the Clocktower night assistant (unofficial fan tool)"
 LABEL org.opencontainers.image.licenses=MIT

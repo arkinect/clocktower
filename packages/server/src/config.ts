@@ -33,7 +33,7 @@ export const DEFAULT_LIMITS: Limits = {
   unauthRatePerIp: 5,
   unauthBurstPerIp: 60,
   socketsPerSession: 3,
-  socketsPerIp: 20,
+  socketsPerIp: 200,
   socketMessagesPerSecond: 10,
   socketBurst: 20,
   socketMaxPayload: 16 * 1024,

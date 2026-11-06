@@ -1,6 +1,6 @@
 # The built container behind a local Caddy, for the load test only. Plain HTTP, nothing here is for real use.
 services:
-  clocktower-next:
+  clocktower:
     build:
       context: ../../..
       dockerfile: packages/deploy/Dockerfile
@@ -21,7 +21,7 @@ services:
       - '127.0.0.1:18080:8080'
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-    depends_on: [clocktower-next]
+    depends_on: [clocktower]
 
 volumes:
   load-data:

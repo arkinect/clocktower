@@ -18,7 +18,7 @@ export function evilInfo(run: Run): EvilInfoDraft {
     minions: r.minions,
     demonSees: r.seated.filter((id) => r.typeOf(id) === 'minion' && !r.isDemon(id)),
     demonLines: [],
-    minionsLearnDemon: official && r.alive.length >= OFFICIAL_THRESHOLD,
+    minionsLearnDemon: official && r.aliveResidents.length >= OFFICIAL_THRESHOLD,
   };
   for (const a of r.instances) {
     const hook = roleDef(a.roleId).ability.modifyEvilInfo;

@@ -579,7 +579,7 @@ export class Run {
   kill(target: PlayerId, cause: string, demonHandover = false) {
     const r = this.reader;
     const p = r.player(target);
-    const aliveBefore = r.alive.length;
+    const aliveBefore = r.aliveResidents.length;
     const wasDemon = r.isDemon(target);
     const imp = this.impairment(target);
     this.impairAtDeath[target] = imp;

@@ -14,7 +14,7 @@
 	header -Server
 	header /assets/* Cache-Control "public, max-age=31536000, immutable"
 	header /icons/* Cache-Control "public, max-age=604800"
-	reverse_proxy clocktower-next:8080 {
+	reverse_proxy clocktower:8080 {
 		header_up X-Forwarded-For {remote_host}
 	}
 }

@@ -249,24 +249,65 @@
 }
 
 .circle {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
-  gap: 10px;
+  container-type: inline-size;
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  margin: 12px auto;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--night-glow), var(--bg2) 70%);
 }
 
-.seat {
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 8px 10px;
+.circleCentre {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 40%;
+  text-align: center;
+  font-size: clamp(11px, 2.4cqw, 16px);
+}
+
+.token {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
   min-width: 0;
-}
-
-.seat h3 {
+  min-height: 0;
   margin: 0;
+  padding: 2px 3px;
+  overflow: hidden;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: inherit;
+  font: inherit;
+  line-height: 1.15;
+  text-align: center;
+  cursor: pointer;
 }
 
-.seatDead {
+.tokenGood {
+  border-color: var(--good);
+}
+
+.tokenEvil {
   border-color: var(--evil);
+}
+
+.tokenName {
+  font-weight: 600;
+}
+
+.tokenName,
+.tokenLine {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .tags {

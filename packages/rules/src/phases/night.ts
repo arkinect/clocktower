@@ -6,7 +6,16 @@ import type { GameState, NightPhase, StoryRow } from '../model/state';
 import { Run, hashDecision, type Resolution } from '../night/run';
 import { newNightPhase } from '../night/phase';
 import { actionSpecs, expectedActors, resolveNight, validateChoice, validateSubmission } from '../night/wake';
-import { defineCommand, need } from './define';
+import { defineCommand, need, type CmdCtx } from './define';
+
+/** The first time this night has follow-up questions, whatever brought them, the countdown gets more time. */
+function extendForFollowUps(ctx: CmdCtx<'night'>) {
+  const p = ctx.phase;
+  if (p.stage !== 'review' || p.followUpsExtended) return;
+  if (!resolveNight(clone(ctx.s)).questions.length) return;
+  p.followUpsExtended = true;
+  p.deadline = Math.max(p.deadline ?? ctx.now, ctx.now) + ctx.s.settings.followUpExtensionSeconds * 1000;
+}
 
 const collecting = (p: NightPhase) => p.stage === 'collecting' || p.stage === 'briefing';
 
@@ -119,6 +128,7 @@ export const nightCommands = [
         need(!pending.length || timeUp, `Waiting for ${pending.length} player(s). Wait for the countdown or force.`);
       }
       p.stage = 'review';
+      extendForFollowUps(ctx);
     },
   }),
   defineCommand({
@@ -207,6 +217,7 @@ export const nightCommands = [
       const hash = hashDecision(ctx.phase.n, cmd.key);
       if (cmd.option === null) delete ctx.phase.decisions[hash];
       else ctx.phase.decisions[hash] = { key: cmd.key, option: cmd.option };
+      extendForFollowUps(ctx);
     },
   }),
   defineCommand({
@@ -219,6 +230,7 @@ export const nightCommands = [
       for (const d of resolveNight(ctx.base).decisions) {
         if (d.chosen === null && !d.stale) ctx.phase.decisions[d.hash] = { key: d.key, option: d.default };
       }
+      extendForFollowUps(ctx);
     },
   }),
   defineCommand({
@@ -246,6 +258,7 @@ export const nightCommands = [
         add: cmd.add.filter((id) => ctx.r.isSeated(id)),
         remove: cmd.remove.filter((id) => ctx.r.isSeated(id)),
       };
+      extendForFollowUps(ctx);
     },
   }),
   defineCommand({

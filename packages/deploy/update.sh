@@ -1,5 +1,5 @@
 #!/bin/sh
-# Pulls the images, and restarts unless the rewrite has seen activity in the last 4 hours.
+# Pulls this stack's images, and restarts it unless the app has seen activity in the last 4 hours.
 #   --force   restart without checking
 # A saved game from another engine version is archived at startup, and a fresh lobby opens.
 # Example cron (Wednesdays 04:30):  30 4 * * 3 /path/to/deploy/update.sh >> /path/to/update.log 2>&1
@@ -19,7 +19,7 @@ docker compose pull
 
 if [ "$FORCE" = 0 ]; then
   # From inside the container, as /api/status answers the machine itself only.
-  idle=$(docker compose exec -T clocktower-next node -e "
+  idle=$(docker compose exec -T clocktower node -e "
     fetch('http://127.0.0.1:8080/api/status')
       .then((r) => r.json())
       .then((s) => console.log(Math.floor((Date.now() - s.lastActivity) / 60000)))
@@ -36,5 +36,5 @@ if [ "$FORCE" = 0 ]; then
   esac
 fi
 
+# Compose touches this project only. Nothing here prunes images, as that would reach other stacks.
 docker compose up -d
-docker image prune -f --filter dangling=true

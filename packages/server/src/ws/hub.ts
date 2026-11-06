@@ -83,11 +83,12 @@ export class Hub {
     const { socketsPerSession, socketsPerIp } = this.config.limits;
     if ((this.bySession.get(session.hash) ?? 0) >= socketsPerSession) return refuse(socket, '429 Too Many Requests');
     if ((this.byIp.get(ip) ?? 0) >= socketsPerIp) return refuse(socket, '429 Too Many Requests');
-    this.bump(this.bySession, session.hash, 1);
-    this.bump(this.byIp, ip, 1);
-    this.wss.handleUpgrade(req, socket, head, (ws) =>
-      this.accept(ws, session.code, session.playerId, session.hash, ip),
-    );
+    // Counted here because ws calls back only for a finished handshake, and only then does close give the slot back.
+    this.wss.handleUpgrade(req, socket, head, (ws) => {
+      this.bump(this.bySession, session.hash, 1);
+      this.bump(this.byIp, ip, 1);
+      this.accept(ws, session.code, session.playerId, session.hash, ip);
+    });
   }
 
   private bump(map: Map<string, number>, key: string, by: number) {

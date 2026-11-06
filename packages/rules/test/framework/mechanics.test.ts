@@ -305,6 +305,39 @@ const QUIZ = fake({
   },
 });
 
+const SHY_QUIZ = fake({
+  id: roleId('x-shy-quiz'),
+  name: 'Shy Quizzer',
+  type: 'townsfolk',
+  abilityText: 'If the Storyteller agrees, asks the player after you a question.',
+  night: { first: 1301 },
+  ability: {
+    resolve(ctx) {
+      const t = ctx.aliveNeighbours(ctx.holder)[1] as PlayerId;
+      const go = ctx.decide({
+        key: { kind: 'x_shy' },
+        title: 'Ask?',
+        description: 'Should the Quizzer ask?',
+        options: [
+          { id: 'no', label: 'No' },
+          { id: 'yes', label: 'Yes' },
+        ],
+        default: 'no',
+      });
+      if (go !== 'yes') return;
+      ctx.ask({
+        to: t,
+        asksOther: true,
+        spec: {
+          title: 'Shy',
+          prompt: 'Yes or no?',
+          fields: [{ kind: 'option', label: 'Answer', options: ['y', 'n'] }],
+        },
+      });
+    },
+  },
+});
+
 const BROKEN = fake({
   id: roleId('x-broken'),
   name: 'Broken',
@@ -480,6 +513,56 @@ describe('mechanics', () => {
     expect(official.g.view('b' as PlayerId).me.messages.length).toBeGreaterThanOrEqual(
       house.g.view('b' as PlayerId).me.messages.length,
     );
+  });
+
+  it('evil information: Travellers do not count towards the official 7', () => {
+    const six = { a: 'd1', b: 'm1', c: 'm2', d: 't1', e: 't2', f: 't3' };
+    const withTraveller = scene({ ...six, g: TRAVELLER[0] as string }, { evilInfoPolicy: 'official' }).start();
+    expect(withTraveller.state.seats).toHaveLength(7);
+    expect(withTraveller.inbox('b').join(' ')).not.toContain('The Demon is');
+    const seven = scene({ ...six, g: 't4' }, { evilInfoPolicy: 'official' }).start();
+    expect(seven.inbox('b').join(' ')).toContain('The Demon is');
+  });
+
+  it('follow-up questions extend the deadline when they first appear, once a night', () => {
+    const ask = () => {
+      const s = scene({ a: QUIZ, b: 't1', c: 'd1', d: 't2', e: 't3' }).start();
+      s.g.st({ type: 'set_settings', followUpExtensionSeconds: 60 });
+      return s;
+    };
+    const s = ask();
+    const opened = s.night.deadline as number;
+    s.g.now = opened + 5_000;
+    s.review();
+    expect(s.res.questions).toHaveLength(1);
+    expect(s.night.deadline).toBe(s.g.now + 60_000);
+
+    const extended = s.night.deadline as number;
+    s.g.st({ type: 'reopen_collecting' });
+    s.review();
+    expect(s.night.deadline).toBe(extended);
+
+    const before = ask();
+    const left = before.night.deadline as number;
+    before.review();
+    expect(before.night.deadline).toBe(left + 60_000);
+
+    const none = scene({ a: 't1', b: 't2', c: 'd1', d: 't3', e: 't4' }).start();
+    const same = none.night.deadline;
+    none.review();
+    expect(none.night.deadline).toBe(same);
+  });
+
+  it('follow-up questions that only a decision brings still extend the deadline', () => {
+    const s = scene({ a: SHY_QUIZ, b: 't1', c: 'd1', d: 't2', e: 't3' }).start();
+    s.g.st({ type: 'set_settings', followUpExtensionSeconds: 60 });
+    const opened = s.night.deadline as number;
+    s.review();
+    expect(s.res.questions).toHaveLength(0);
+    expect(s.night.deadline).toBe(opened);
+    s.decide('x_shy', 'yes');
+    expect(s.res.questions).toHaveLength(1);
+    expect(s.night.deadline).toBe(opened + 60_000);
   });
 
   it('day events with hooks', () => {

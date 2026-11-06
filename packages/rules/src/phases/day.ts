@@ -101,7 +101,7 @@ export const dayCommands = [
       const run = ctx.run();
       let demonDiedAliveBefore: number | null = null;
       if (id && cmd.died && ctx.r.isAlive(id)) {
-        if (ctx.r.isDemon(id)) demonDiedAliveBefore = ctx.r.alive.length;
+        if (ctx.r.isDemon(id)) demonDiedAliveBefore = ctx.r.aliveResidents.length;
         run.kill(id, 'execution');
         fireDayEvent(run, { kind: 'execution', playerId: id, died: true, demonDiedAliveBefore });
       } else {

@@ -1,7 +1,9 @@
-# Clocktower: the existing app and Caddy, plus the rewrite on its own hostname. See README.md here.
+# Clocktower: the app and Caddy on the existing hostname. This replaces the old stack. See README.md here.
+name: clocktower
 services:
   clocktower:
-    image: ghcr.io/arkinect/clocktower:latest
+    # Roll back by setting CLOCKTOWER_IMAGE_TAG in .env to an earlier tag.
+    image: ghcr.io/arkinect/clocktower:${CLOCKTOWER_IMAGE_TAG:-next}
     container_name: clocktower
     restart: unless-stopped
     user: '1000:1000'
@@ -17,35 +19,11 @@ services:
       - DEFAULT_GAME_CODE=default
       - PUBLIC_URL=https://${CLOCKTOWER_DOMAIN:?set CLOCKTOWER_DOMAIN in .env}
       - SITE_PASSWORD=${CLOCKTOWER_SITE_PASSWORD:?set CLOCKTOWER_SITE_PASSWORD in .env}
-      - TRUST_PROXY=1
-    volumes:
-      # Must be writable by uid 1000: mkdir -p data && sudo chown 1000:1000 data
-      - ./data:/data
-    networks: [clocktower]
-    # No published port: only Caddy can reach the app.
-
-  clocktower-next:
-    image: ghcr.io/arkinect/clocktower:next
-    container_name: clocktower-next
-    restart: unless-stopped
-    user: '1000:1000'
-    read_only: true
-    tmpfs: ['/tmp']
-    cap_drop: [ALL]
-    security_opt: ['no-new-privileges:true']
-    mem_limit: 512m
-    pids_limit: 200
-    environment:
-      - PORT=8080
-      - DATA_DIR=/data
-      - DEFAULT_GAME_CODE=default
-      - PUBLIC_URL=https://${CLOCKTOWER_NEXT_DOMAIN:?set CLOCKTOWER_NEXT_DOMAIN in .env}
-      - SITE_PASSWORD=${CLOCKTOWER_NEXT_SITE_PASSWORD:?set CLOCKTOWER_NEXT_SITE_PASSWORD in .env}
       # Only this peer's X-Forwarded-For is believed. The name is resolved again every minute.
-      - TRUST_PROXY=caddy
+      - TRUST_PROXY=${CLOCKTOWER_TRUST_PROXY:-caddy}
     volumes:
-      # A named volume, so the new app can never touch the old one's data.
-      - clocktower-next-data:/data
+      # Never ./data: the old app's file there has the same name and different tables.
+      - ${CLOCKTOWER_DATA:-clocktower-data}:/data
     networks: [clocktower]
     # No published port: only Caddy can reach the app.
 
@@ -60,7 +38,6 @@ services:
     security_opt: ['no-new-privileges:true']
     environment:
       - CLOCKTOWER_DOMAIN=${CLOCKTOWER_DOMAIN}
-      - CLOCKTOWER_NEXT_DOMAIN=${CLOCKTOWER_NEXT_DOMAIN}
     ports:
       # Caddy runs unprivileged on high ports inside the container. Change the host side
       # (e.g. "8444:8443") if 80/443 are taken, and forward your router's external ports to them.
@@ -72,12 +49,12 @@ services:
       - ./caddy/data:/data
       - ./caddy/config:/config
     networks: [clocktower]
-    depends_on: [clocktower, clocktower-next]
+    depends_on: [clocktower]
 
 networks:
   clocktower:
     name: clocktower
 
 volumes:
-  clocktower-next-data:
-    name: clocktower-next-data
+  clocktower-data:
+    name: clocktower-data
