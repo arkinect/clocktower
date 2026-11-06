@@ -42,7 +42,7 @@ function Checklist({ ctx }: { ctx: AdminCtx }) {
           {!ready && <TimedButton className="danger" onConfirm={() => send({ type: 'begin_night0', force: true })}>Force</TimedButton>}
         </div>
       )}
-      {s.phase === 'LOBBY' && <button className="primary" onClick={() => send({ type: 'go_setup' })}>Go to setup</button>}
+      {s.phase === 'LOBBY' && <button className="primary big" onClick={() => send({ type: 'go_setup' })}>Continue to setup →</button>}
     </section>
   );
 }

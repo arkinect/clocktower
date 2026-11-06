@@ -18,7 +18,7 @@ export function StoryPanel({ ctx }: { ctx: AdminCtx }) {
         const isOpen = open[key] ?? true;
         if (e.kind === 'day') {
           return (
-            <section key={key} className="card story-day">
+            <section key={key} className="card">
               <h2>☀ Day {e.day}</h2>
               <p>Execution: {e.executedPlayerId ? <span className="dead-name">{names[e.executedPlayerId]}</span> : 'none'}</p>
               <p>Died during the day: {e.deaths.length ? e.deaths.map((d, i) => <span key={d.playerId} className="dead-name">{i ? ', ' : ''}{names[d.playerId]}{d.cause ? ` (${d.cause.replace(/_/g, ' ')})` : ''}</span>) : 'nobody'}</p>

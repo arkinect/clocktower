@@ -30,7 +30,7 @@ export function NightPanel({ ctx }: { ctx: AdminCtx }) {
 
   return (
     <div>
-      <section className="card nightctl">
+      <section className="card">
         <div className="row wrap">
           <h2>Night {night.number}</h2>
           {night.collectingOpen && <Countdown endsAt={s.nightEndsAt} offset={offset} />}
@@ -69,7 +69,7 @@ export function NightPanel({ ctx }: { ctx: AdminCtx }) {
             {night.reviewChoices['godfather_trigger'] && <button onClick={() => send({ type: 'set_godfather_trigger', value: null })}>Use rule</button>}
           </div>
         )}
-        {s.phase === 'NIGHT_RESOLVING' && <p>Resolving. Go to the Review tab. <button onClick={() => send({ type: 'reopen_collecting' })}>Reopen collecting</button></p>}
+        {s.phase === 'NIGHT_RESOLVING' && <p>Resolving. Go to the Review tab.</p>}
       </section>
 
       <section className="card">

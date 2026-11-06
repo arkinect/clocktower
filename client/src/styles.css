@@ -144,7 +144,7 @@ label.check input { width: auto; min-height: 0; }
 .minigame canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
 .minigame .score { position: absolute; top: 8px; right: 14px; color: var(--gold); z-index: 1; pointer-events: none; }
 .minigame .hint { position: absolute; bottom: 6px; width: 100%; text-align: center; color: #ffffff40; font-size: 0.8rem; pointer-events: none; }
-.nightbar { display: flex; gap: 10px; padding: 10px 12px calc(10px + 0px); background: #0b0914ee; }
+.nightbar { display: flex; gap: 10px; padding: 10px 12px; background: #0b0914ee; }
 .nightbar > button { flex: 1; min-height: 52px; font-size: 1.05rem; }
 .nightbar .waiting { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); min-height: 52px; }
 /* Text plus one button: the text takes the room, so it stays on one line. */
@@ -258,7 +258,7 @@ label.check input { width: auto; min-height: 0; }
 .log td { font-size: 0.85rem; }
 details summary { cursor: pointer; color: var(--muted); margin-top: 10px; }
 
-.banner { margin: 8px 0; padding: 10px 14px; border-radius: 10px; font-weight: 650; border: 1px solid var(--line); }
+.banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 8px 0; padding: 10px 14px; border-radius: 10px; font-weight: 650; border: 1px solid var(--line); }
 .banner.win { background: #5a2531; border-color: var(--evil); color: #fff; }
 .banner.no_effect { background: #4a3a14; border-color: var(--warn); }
 .banner.wrong { background: var(--bg2); }
@@ -333,8 +333,6 @@ details summary { cursor: pointer; color: var(--muted); margin-top: 10px; }
 .combo-warning { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 12px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--warn); border-left-width: 5px; background: #e8a33d1a; color: #f3d9a8; font-size: 0.92rem; }
 .combo-warning b { color: var(--warn); }
 
-.tbl td.actcol { width: 130px; }
-.banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .tbl.fixedcols { table-layout: fixed; }
 .tbl.fixedcols td { overflow-wrap: anywhere; }
 /* Phones: name and action slot on one line, the status chips full width below them. */
