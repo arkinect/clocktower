@@ -792,7 +792,7 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 
 #### Imp
 - Ability: "Each night*, choose a player: they die. If you kill yourself this way, a Minion becomes the Imp."
-- Night 1+, any player (self allowed). Starpass (self, sober, and the self-kill succeeds): review item suggesting a living Scarlet Woman, else a random living Minion, listing every living Minion plus "Nobody". The chosen Minion becomes the Imp and gets "You are now the Imp" with Demon information. Impaired: no kill, no starpass.
+- Night 1+, any player (self allowed). Starpass (self, sober, and the self-kill succeeds): review item suggesting a living Scarlet Woman, else a random living Minion, listing every living Minion. The chosen Minion becomes the Imp and gets "You are now the Imp" with Demon information. Impaired: no kill, no starpass.
 
 #### Pukka
 - Ability: "Each night, choose a player: they are poisoned. The previously poisoned player dies then becomes healthy."
@@ -976,7 +976,7 @@ Rule gaps (already folded into the cards above, listed here for review):
 - Gambler's self-kill goes through protections, no Mayor bounce.
 - Mayor's recommendation never redirects to the attacker.
 - No Dashii, Vigormortis, Shabaloth and Po may target themselves; Po with fewer than 3 players chooses as many as exist.
-- Starpass has a "Nobody" option; a starpass does not also trigger the Scarlet Woman check.
+- A starpass does not also trigger the Scarlet Woman check.
 - Scarlet Woman transforms immediately at the Demon's death during the night walk.
 - Mezepheles: dead or non-good targets default to "Skip".
 - Moonchild uses its sobriety at death (night or day); target must be alive when recorded.

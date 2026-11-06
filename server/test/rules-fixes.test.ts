@@ -456,3 +456,41 @@ describe('Fix 9: the Gambler may choose themselves', () => {
     expect(res.actors.find((r) => r.playerId === g.p.drunk)!.outcome).toContain('impaired: does not die');
   });
 });
+
+describe('Fix 10: a starpass must pick a living Minion', () => {
+  function starpass(roles: string[]) {
+    const g = build(roles);
+    runNight(g, {});
+    nextNight(g);
+    submit(g, { [g.p.imp]: { imp: [g.p.imp] } });
+    return g;
+  }
+  const ROLES = ['imp', 'poisoner', 'assassin', 'empath', 'butler', 'virgin', 'oracle'];
+
+  it('the review\'s options are exactly the living Minions', () => {
+    const g = starpass(ROLES);
+    const item = resolve(g).reviewItems.find((i) => i.kind === 'starpass')!;
+    expect(item.options.map((o) => o.id).sort()).toEqual([g.p.poisoner, g.p.assassin].sort());
+  });
+
+  it('a stored choice of none falls back to the default Minion, who becomes the Imp', () => {
+    const g = starpass(ROLES);
+    const key = `starpass:${g.p.imp}`;
+    const res = resolve(g, { [key]: 'none' });
+    const item = res.reviewItems.find((i) => i.kind === 'starpass')!;
+    expect(item.chosen).toBeNull();
+    expect(res.after.assignments[item.default].roleId).toBe('imp');
+  });
+
+  it('with no living Minion nobody becomes the Imp, and the actor row says so', () => {
+    const g = build(['imp', 'poisoner', 'empath', 'butler', 'virgin']);
+    runNight(g, {});
+    act(g, { type: 'mark_alive', playerId: g.p.poisoner, alive: false });
+    nextNight(g);
+    submit(g, { [g.p.imp]: { imp: [g.p.imp] } });
+    const res = resolve(g);
+    expect(res.reviewItems.some((i) => i.kind === 'starpass')).toBe(false);
+    expect(res.actors.find((r) => r.playerId === g.p.imp)!.outcome).toContain('starpass: no living Minion');
+    expect(Object.values(res.after.assignments).filter((a) => a.roleId === 'imp')).toHaveLength(1); // the dead Imp
+  });
+});

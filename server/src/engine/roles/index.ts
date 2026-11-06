@@ -481,8 +481,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
       const def = sw ?? run.rng(`starpass:${a.pid}`).pick(minions);
       const ch = run.review(`starpass:${a.pid}`, 'starpass', 'Starpass: which Minion becomes the Imp?',
         `${run.name(a.pid)} killed themselves.`,
-        [...minions.map((m) => ({ id: m, label: `${run.name(m)} (${roleName(roleIdOf(run.w, m))})` })), { id: 'none', label: 'Nobody' }], def);
-      if (ch === 'none') return;
+        minions.map((m) => ({ id: m, label: `${run.name(m)} (${roleName(roleIdOf(run.w, m))})` })), def);
       becomeDemon(run.w, ch, a.pid, run.now, (pid, title, lines) => run.notice(pid, title, lines));
       run.outcome(`${run.name(ch)} becomes the Imp`);
     },
