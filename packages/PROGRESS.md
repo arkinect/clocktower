@@ -4,12 +4,13 @@ Session memory for the plan in `docs/rewrite/PLAN.md` (the working copy this ses
 
 ## Stage status
 
-| Stage         | Status | Gate                      |
-| ------------- | ------ | ------------------------- |
-| 0 Foundations | done   | passed, CI green          |
-| 1 Rules core  | done   | passed                    |
-| 2 Framework   | done   | passed locally, see below |
-| 3 All roles   | done   | passed locally, see below |
+| Stage         | Status | Gate                                              |
+| ------------- | ------ | ------------------------------------------------- |
+| 0 Foundations | done   | passed, CI green                                  |
+| 1 Rules core  | done   | passed                                            |
+| 2 Framework   | done   | passed locally, see below                         |
+| 3 All roles   | done   | passed, a format failure in CI fixed with Stage 4 |
+| 4 Server      | done   | passed locally, see below                         |
 
 ## Baseline
 
@@ -45,7 +46,22 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 - Differences it found, all fixed in the new engine: a dead Godfather keeping their ability through the Vigormortis; a Drunk or Marionette staying drunk after becoming the Demon; the Moonchild's target belonging to every holder; a Moonchild regurgitated the same night still acting; a Mayor attacked twice in a night needing two decisions; re-eating the same ability refreshing it.
 - Vigormortis and Scarlet Woman: `roles/vigormortis.test.ts`. The harness stops comparing a game once that ruling applies.
 
+### Stage 4
+
+- Headless game over real sockets, lobby to ended with real characters: `server/test/game.test.ts`.
+- Security tests in `server/test/security.test.ts`: no token in view, export, log or database; wrong Origin refused; spoofed X-Forwarded-For from a non-Caddy peer ignored; backoff grows and resets; exposed without a password refuses to start. Also socket caps, payload cap, message rate, stale phones, bounded queue, CSP and body caps.
+- Load test, `npm run load -w @ct/server` against the built bundle: 50 connections flooding join (about 8,000 requests a second, all but one refused) and 31,000 refused sockets, while a scripted game ran. p50 6ms, p95 12ms, max 62ms. Limit 250ms. Run on this machine, without Caddy; repeat it behind Caddy in Stage 7 if available.
+- Restart restores games and sessions. Another engine version, or a snapshot failing the schema, is archived and a fresh lobby starts.
+- `rules/test/core/schema.test.ts` hashes the GameState schema against ENGINE_VERSION.
+
 ## Deviations
+
+- `GET /api/g/:code/names` reads the site password from an `X-Site-Password` header. The plan only says GET; a query string would put the password in logs and history.
+- `TRUST_PROXY` is now a list of addresses or hostnames (resolved at boot), since the plan needs the peer compared with the configured Caddy address. The old app treated it as a flag.
+- Added to the plan: `GET /api/g/:code/session`, for a phone to learn who its HttpOnly cookie makes it. A game with no sockets and six idle hours gives up its slot when a fifth game wants one, or abandoned codes would hold all four slots until a restart.
+- Per-request logging is off altogether, so addresses and URLs stay out of the logs. Each command logs the player id and command type.
+- `@fastify/static` is imported only when there is a client directory. Its dependencies are ES modules that `require` cannot load on this machine's Node 22.7; the esbuild bundle and newer Node are unaffected.
+- Server messages past the socket rate limit are dropped with no ack, as the limit is there to shed work. The client treats a missing ack as a timeout.
 
 - zod 4 and @fastify/static 10 rather than the versions first picked: `npm audit --omit=dev` is a CI step and the older versions fail it.
 - `@ct/rules` depends on zod directly, for the GameState schema (the plan lists protocol and immer).
@@ -63,6 +79,8 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 
 ## Known gaps
 
+- If Caddy is restarted with a new container address, `TRUST_PROXY` resolved at boot goes stale and every client looks like one address until this server restarts. Give Caddy a fixed address or restart both.
+
 ## Next step
 
-Stage 4: server.
+Stage 5: client foundations and player app.

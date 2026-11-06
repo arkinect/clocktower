@@ -48,7 +48,6 @@ export interface Difference {
   next: unknown;
 }
 
-
 export class Pair {
   rng: Rng;
   now = 1000;
