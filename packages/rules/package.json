@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@ct/protocol": "*",
-    "immer": "^10.1.1",
+    "immer": "^11.2.9",
     "zod": "^4.6.7"
   }
 }
