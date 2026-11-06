@@ -92,7 +92,7 @@ export const ROLES: RoleData[] = [
   r('po', 'Po', D, 'Each night*, you may choose a player: they die. If your last choice was no-one, choose 3 players tonight.'),
   r('no_dashii', 'No Dashii', D, 'Each night*, choose a player: they die. Your 2 Townsfolk neighbours are poisoned.'),
   r('vigormortis', 'Vigormortis', D, 'Each night*, choose a player: they die. Minions you kill keep their ability & poison 1 Townsfolk neighbour. [-1 Outsider]', { setupModifier: { outsiders: -1 } }),
-  r('lil_monsta', 'Lil\' Monsta', D, 'Each night, Minions choose who babysits Lil\' Monsta\'s token & "is the Demon". A player dies each night*. [+1 Minion]', { setupModifier: { minions: 1 } }),
+  r('lil_monsta', 'Lil\' Monsta', D, 'Each night, Minions choose who babysits Lil\' Monsta\'s token & "is the Demon". A player dies each night*. [+1 Minion]'),
   r('al_hadikhia', 'Al-Hadikhia', D, 'Each night*, you may choose 3 players (all players learn who): each silently chooses to live or die, but if all live, all die.'),
 ];
 

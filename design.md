@@ -364,7 +364,7 @@ Outside 5–15 the nearest row is used and Townsfolk absorb the difference.
 Modifiers (each applied when that role is assigned; Townsfolk absorb the difference):
 - **Balloonist**: +1 Outsider.
 - **Vigormortis**: −1 Outsider.
-- **Lil' Monsta**: +1 Minion.
+- **Lil' Monsta**: none. The chart is used unchanged, because the Lil' Monsta player takes the Demon slot and becomes the extra Minion at publish.
 - **Godfather**: −1 or +1 Outsider, chosen by the Admin (default +1), applied after every other modifier (Baron, Vigormortis, Balloonist). Only +1 is allowed when no Outsider is left to remove after those (`outsidersBeforeGodfather`): 7 players, no Outsiders; 7 players with the Baron, 1 or 3.
 
 **Admin override:** four number inputs that must add up to the player count, with "Reset to default chart". Modifiers apply only to the default chart. The Drunk counts as an Outsider, the Marionette as a Minion, the Damsel takes an Outsider slot. Counts are advisory: mismatches only warn.
@@ -814,7 +814,7 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 #### Lil' Monsta
 - Ability: "Each night, Minions choose who babysits Lil' Monsta's token & "is the Demon". A player dies each night*. [+1 Minion]"
 - Deliberately simplified. The **token holder** registers as the Demon for every ability and their death counts as the Demon dying. After Night 0 no player has a Demon role.
-- Setup: +1 Minion; the Admin chooses the Minion role the Lil' Monsta player becomes.
+- Setup: the plain chart (7.4). The Lil' Monsta player takes the Demon slot and is the extra Minion; the Admin chooses the Minion role they become at publish.
 - Night 0: the Lil' Monsta player gets the Demon's information; at publish they become the chosen Minion ("Your role is now X") and hold the token.
 - Night 1+: the token holder alone chooses a living Minion to pass the token to (self = keep) and a victim (any player). If sober: the victim is attacked, then the token moves; a new holder is told "You hold Lil' Monsta's token". Impaired: no kill, token stays.
 - If the holder dies, the Scarlet Woman check runs; if she takes over she gets the token and keeps her role (the "Lil' Monsta & Scarlet Woman" jinx, 14.8). Otherwise the token stays with the dead holder; the Admin can move it in Grimoire → Game facts.
