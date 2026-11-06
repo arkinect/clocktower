@@ -126,9 +126,7 @@ export function NightOrder({ script, catalog }: { script: string[]; catalog: Rol
 
 export function Seating({ view, catalog }: { view: PlayerView; catalog: RoleCard[] }) {
   if (!view.seatingPublished) return <p className="muted">The Storyteller has not published the seating yet.</p>;
-  const seats = view.players
-    .filter((p) => p.seat !== null)
-    .sort((a, b) => (a.seat as number) - (b.seat as number));
+  const seats = view.players.filter((p) => p.seat !== null).sort((a, b) => (a.seat as number) - (b.seat as number));
   const first = seats[0];
   const last = seats.at(-1);
   return (

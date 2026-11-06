@@ -8,7 +8,15 @@ const SAVE_KEY = 'ct_2048_save';
 const LEGACY_BEST_KEY = 'ct_2048_best';
 const SLIDE_MS = 110;
 
-interface Tile { id: number; v: number; r: number; c: number; isNew?: boolean; merged?: boolean; dying?: boolean }
+interface Tile {
+  id: number;
+  v: number;
+  r: number;
+  c: number;
+  isNew?: boolean;
+  merged?: boolean;
+  dying?: boolean;
+}
 type Dir = 'left' | 'right' | 'up' | 'down';
 
 let nextId = 1;
@@ -28,10 +36,14 @@ function newGame(): Tile[] {
 /** Cell (r, c) for position j along line k when sliding toward `dir`. */
 function cellAt(dir: Dir, k: number, j: number): [number, number] {
   switch (dir) {
-    case 'left': return [k, j];
-    case 'right': return [k, N - 1 - j];
-    case 'up': return [j, k];
-    case 'down': return [N - 1 - j, k];
+    case 'left':
+      return [k, j];
+    case 'right':
+      return [k, N - 1 - j];
+    case 'up':
+      return [j, k];
+    case 'down':
+      return [N - 1 - j, k];
   }
 }
 
@@ -72,14 +84,23 @@ function canMove(tiles: Tile[]): boolean {
   return (['left', 'right', 'up', 'down'] as Dir[]).some((d) => move(tiles, d).moved);
 }
 
-interface Save { owner: string; tiles: { v: number; r: number; c: number }[]; score: number; best: number }
+interface Save {
+  owner: string;
+  tiles: { v: number; r: number; c: number }[];
+  score: number;
+  best: number;
+}
 
 function loadSave(owner: string | null): { tiles: Tile[]; score: number; best: number } {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     const s = raw ? (JSON.parse(raw) as Save) : null;
     if (owner && s?.owner === owner && Array.isArray(s.tiles) && s.tiles.length) {
-      return { tiles: s.tiles.map((t) => ({ id: nextId++, v: t.v, r: t.r, c: t.c })), score: s.score || 0, best: s.best || 0 };
+      return {
+        tiles: s.tiles.map((t) => ({ id: nextId++, v: t.v, r: t.r, c: t.c })),
+        score: s.score || 0,
+        best: s.best || 0,
+      };
     }
     // Before saves existed the best score was kept on its own; carry it over once.
     const best = raw ? 0 : Number(localStorage.getItem(LEGACY_BEST_KEY)) || 0;
@@ -117,12 +138,18 @@ export function Game2048({ owner }: { owner: string | null }) {
     });
   }, []);
 
-  useEffect(() => { setBest((b) => Math.max(b, score)); }, [score]);
+  useEffect(() => {
+    setBest((b) => Math.max(b, score));
+  }, [score]);
 
   useEffect(() => {
     if (!owner) return;
     const save: Save = { owner, tiles: tiles.filter((t) => !t.dying).map(({ v, r, c }) => ({ v, r, c })), score, best };
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch { /* private mode */ }
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+    } catch {
+      /* private mode */
+    }
   }, [owner, tiles, score, best]);
 
   useEffect(() => {
@@ -137,37 +164,69 @@ export function Game2048({ owner }: { owner: string | null }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [go]);
 
-  const onDown = (e: React.PointerEvent) => { start.current = { x: e.clientX, y: e.clientY }; };
+  const onDown = (e: React.PointerEvent) => {
+    start.current = { x: e.clientX, y: e.clientY };
+  };
   const onUp = (e: React.PointerEvent) => {
     const s = start.current;
     start.current = null;
     if (!s) return;
-    const dx = e.clientX - s.x, dy = e.clientY - s.y;
+    const dx = e.clientX - s.x,
+      dy = e.clientY - s.y;
     if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
-    go(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+    go(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up');
   };
-  const restart = () => { setTiles(newGame()); setScore(0); };
+  const restart = () => {
+    setTiles(newGame());
+    setScore(0);
+  };
 
   return (
-    <div className="minigame g2048" onPointerDown={onDown} onPointerUp={onUp} onPointerCancel={() => { start.current = null; }}>
+    <div
+      className="minigame g2048"
+      onPointerDown={onDown}
+      onPointerUp={onUp}
+      onPointerCancel={() => {
+        start.current = null;
+      }}
+    >
       <div className="g2048-head">
-        <span className="score2048">✦ {score} <span className="muted small">· best {best}</span></span>
-        <button type="button" onClick={restart}>New game</button>
+        <span className="score2048">
+          ✦ {score} <span className="muted small">· best {best}</span>
+        </span>
+        <button type="button" onClick={restart}>
+          New game
+        </button>
       </div>
       <div className="g2048-board">
-        {Array.from({ length: N * N }, (_, i) => <div key={i} className="cell2048" />)}
+        {Array.from({ length: N * N }, (_, i) => (
+          <div key={i} className="cell2048" />
+        ))}
         <div className="tiles2048">
           {tiles.map((t) => (
-            <div key={t.id} className={`tilepos${t.dying ? ' dying' : ''}`} style={{ transform: `translate(calc(${t.c} * (100% + var(--gap2048))), calc(${t.r} * (100% + var(--gap2048))))` }}>
+            <div
+              key={t.id}
+              className={`tilepos${t.dying ? ' dying' : ''}`}
+              style={{
+                transform: `translate(calc(${t.c} * (100% + var(--gap2048))), calc(${t.r} * (100% + var(--gap2048))))`,
+              }}
+            >
               {/* Keyed by value so the pop animation replays on merge. */}
-              <div key={t.v} className={`tile t${Math.min(t.v, 4096)}${t.isNew ? ' appear' : ''}${t.merged ? ' pop' : ''}`}>{t.v}</div>
+              <div
+                key={t.v}
+                className={`tile t${Math.min(t.v, 4096)}${t.isNew ? ' appear' : ''}${t.merged ? ' pop' : ''}`}
+              >
+                {t.v}
+              </div>
             </div>
           ))}
         </div>
         {(over || won) && (
           <div className="g2048-over">
             <div>{won && !over ? 'You made 2048!' : 'No moves left'}</div>
-            <button type="button" onClick={restart}>{won && !over ? 'Start over' : 'Try again'}</button>
+            <button type="button" onClick={restart}>
+              {won && !over ? 'Start over' : 'Try again'}
+            </button>
             {won && !over && <span className="muted small">or keep sliding</span>}
           </div>
         )}

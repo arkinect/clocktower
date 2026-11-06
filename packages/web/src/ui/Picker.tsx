@@ -41,7 +41,9 @@ export function Picker({
         const cur = value[spec.key] ?? { values: [] };
         const set = (c: Choice) => onChange({ ...value, [spec.key]: c });
         const pick = (i: number, v: string) => {
-          const values = Array.from({ length: spec.fields.length }, (_, j) => (cur.decline ? '' : cur.values[j] ?? ''));
+          const values = Array.from({ length: spec.fields.length }, (_, j) =>
+            cur.decline ? '' : (cur.values[j] ?? ''),
+          );
           values[i] = v;
           set({ values });
         };
@@ -49,7 +51,7 @@ export function Picker({
           <fieldset key={spec.key} className={styles['spec']}>
             <legend>{spec.prompt}</legend>
             {spec.fields.map((f, i) => {
-              const picked = cur.decline ? '' : cur.values[i] ?? '';
+              const picked = cur.decline ? '' : (cur.values[i] ?? '');
               const taken = spec.distinct ? cur.values.filter((_, j) => j !== i) : [];
               if (f.kind === 'option') {
                 return (

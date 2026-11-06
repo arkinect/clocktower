@@ -40,7 +40,8 @@ export const api = {
     call<{ players: NameRow[]; hasStoryteller: boolean }>(`/api/g/${encodeURIComponent(code)}/names`, {
       headers: password ? { 'x-site-password': password } : {},
     }),
-  join: (code: string, body: JoinRequest) => post<{ playerId: string }>(`/api/g/${encodeURIComponent(code)}/join`, body),
+  join: (code: string, body: JoinRequest) =>
+    post<{ playerId: string }>(`/api/g/${encodeURIComponent(code)}/join`, body),
   rejoin: (code: string, body: RejoinRequest) =>
     post<{ playerId: string }>(`/api/g/${encodeURIComponent(code)}/rejoin`, body),
 };

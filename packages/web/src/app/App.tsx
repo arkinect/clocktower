@@ -44,7 +44,9 @@ function Screens({ route, onSignedOut }: { route: Route; onSignedOut: () => void
 
 export function App() {
   const route = parseRoute(usePath());
-  const [config, setConfig] = useState<{ buildId: string; passwordRequired: boolean; defaultGame: string } | null>(null);
+  const [config, setConfig] = useState<{ buildId: string; passwordRequired: boolean; defaultGame: string } | null>(
+    null,
+  );
   const [session, setSession] = useState<string | null | undefined>(undefined);
   const [notice, setNotice] = useState<string | null>(null);
   const code = route?.code ?? null;

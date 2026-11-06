@@ -52,7 +52,6 @@ export function Join({
   useEffect(() => {
     if (unlocked) void load(password);
     // The password only matters when it is first entered.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unlocked, mode, load]);
 
   const title = (
@@ -136,7 +135,13 @@ export function Join({
           >
             <label>
               Your name
-              <input value={name} maxLength={24} autoFocus placeholder="Name" onChange={(e) => setName(e.target.value)} />
+              <input
+                value={name}
+                maxLength={24}
+                autoFocus
+                placeholder="Name"
+                onChange={(e) => setName(e.target.value)}
+              />
             </label>
             <label>
               Role type you would like

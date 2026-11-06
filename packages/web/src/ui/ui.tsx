@@ -96,15 +96,7 @@ export function Segments<T extends string>({
 }
 
 /** A bottom sheet. Escape closes it when it can be closed. */
-export function Sheet({
-  title,
-  children,
-  onClose,
-}: {
-  title: ReactNode;
-  children: ReactNode;
-  onClose?: () => void;
-}) {
+export function Sheet({ title, children, onClose }: { title: ReactNode; children: ReactNode; onClose?: () => void }) {
   useEffect(() => {
     if (!onClose) return;
     const key = (e: KeyboardEvent) => {

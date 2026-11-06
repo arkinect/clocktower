@@ -10,7 +10,8 @@ Session memory for the plan in `docs/rewrite/PLAN.md` (the working copy this ses
 | 1 Rules core  | done   | passed                                            |
 | 2 Framework   | done   | passed locally, see below                         |
 | 3 All roles   | done   | passed, a format failure in CI fixed with Stage 4 |
-| 4 Server      | done   | passed locally, see below                         |
+| 4 Server      | done   | passed, CI checked at gate                        |
+| 5 Player app  | done   | passed locally, see below                         |
 
 ## Baseline
 
@@ -54,11 +55,22 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 - Restart restores games and sessions. Another engine version, or a snapshot failing the schema, is archived and a fresh lobby starts.
 - `rules/test/core/schema.test.ts` hashes the GameState schema against ENGINE_VERSION.
 
+### Stage 5
+
+- Picker component tests cover all three field kinds, distinct and decline: `web/test/picker.test.tsx`.
+- Playwright (`web/e2e/player.spec.ts`, added to CI): five browser contexts and a scripted Storyteller play to the end against the built bundle, at 360 px with no side scroll, in both themes, with no console or CSP errors. The games chunk is checked to load only after submitting. Reload, keyboard join and rejoin are covered too.
+- `web/test/tokens.test.ts` checks text contrast of at least 4.5:1 in both themes.
+
 ## Deviations
 
 - `GET /api/g/:code/names` reads the site password from an `X-Site-Password` header. The plan only says GET; a query string would put the password in logs and history.
 - `TRUST_PROXY` is now a list of addresses or hostnames (resolved at boot), since the plan needs the peer compared with the configured Caddy address. The old app treated it as a flag.
 - Added to the plan: `GET /api/g/:code/session`, for a phone to learn who its HttpOnly cookie makes it. A game with no sockets and six idle hours gives up its slot when a fifth game wants one, or abandoned codes would hold all four slots until a restart.
+- The welcome message also carries the jinx list, for the Roles tab. Jinxes are not in the view.
+- The Night order tab lists roles from the catalog's numbers, without the old list's "Minion info" and "Demon info" steps, which are not roles.
+- The theme follows the phone's setting. There is no in-app switch. The old app was dark only.
+- The idle games keep one plain stylesheet, `games/games.css`, ported from the old client rather than a CSS module per component. It loads only with their chunk.
+- A request with no password at all gets a 401 without starting the backoff, so a phone can find out it needs one.
 - Per-request logging is off altogether, so addresses and URLs stay out of the logs. Each command logs the player id and command type.
 - `@fastify/static` is imported only when there is a client directory. Its dependencies are ES modules that `require` cannot load on this machine's Node 22.7; the esbuild bundle and newer Node are unaffected.
 - Server messages past the socket rate limit are dropped with no ack, as the limit is there to shed work. The client treats a missing ack as a timeout.
@@ -83,4 +95,4 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 
 ## Next step
 
-Stage 5: client foundations and player app.
+Stage 6: Storyteller console.

@@ -103,7 +103,9 @@ function Lobby({ view }: { view: PlayerView }) {
     <div className="pad">
       <h2>Welcome, {view.me.name}</h2>
       <Card>
-        <p>{view.phase.kind === 'setup' ? 'The Storyteller is setting up the game.' : 'Waiting for the Storyteller.'}</p>
+        <p>
+          {view.phase.kind === 'setup' ? 'The Storyteller is setting up the game.' : 'Waiting for the Storyteller.'}
+        </p>
         {!view.hasStoryteller && (
           <>
             <p>Nobody is the Storyteller yet.</p>

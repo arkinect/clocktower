@@ -1,7 +1,14 @@
 // Sockets. Everything is checked at upgrade, before anything is allocated.
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
-import { ClientMessage, PROTOCOL_VERSION, type Jinx, type PlayerId, type RoleCard, type ServerMessage } from '@ct/protocol';
+import {
+  ClientMessage,
+  PROTOCOL_VERSION,
+  type Jinx,
+  type PlayerId,
+  type RoleCard,
+  type ServerMessage,
+} from '@ct/protocol';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { Sessions } from '../auth/sessions';
 import { readCookie } from '../auth/sessions';
@@ -122,7 +129,13 @@ export class Hub {
       this.bump(this.byIp, ip, -1);
       this.games.get(code)?.remove(c);
     });
-    send({ v: PROTOCOL_VERSION, type: 'welcome', buildId: this.config.buildId, catalog: this.catalog, jinxes: this.jinxes });
+    send({
+      v: PROTOCOL_VERSION,
+      type: 'welcome',
+      buildId: this.config.buildId,
+      catalog: this.catalog,
+      jinxes: this.jinxes,
+    });
     game?.add(c);
     game?.sendView(c);
   }
