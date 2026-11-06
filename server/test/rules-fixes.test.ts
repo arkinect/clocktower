@@ -247,3 +247,28 @@ describe('Fix 3: players revived at night act later that night', () => {
     expect(resolve(g).followUps).toMatchObject([{ key, answered: false }]);
   });
 });
+
+describe('Fix 5: a Gossip killed before their slot kills nobody', () => {
+  function trueStatement() {
+    const g = build(['gossip', 'imp', 'poisoner', 'empath', 'butler', 'virgin', 'flowergirl']);
+    runNight(g, {});
+    act(g, { type: 'set_day_fact', key: 'gossipStatement', value: 'true' });
+    nextNight(g);
+    return g;
+  }
+
+  it('the Demon kills the Gossip that night: no Gossip kill and no review item', () => {
+    const g = trueStatement();
+    submit(g, { [g.p.imp]: { imp: [g.p.gossip] } });
+    const res = resolve(g);
+    expect(res.deaths).toEqual([g.p.gossip]);
+    expect(res.reviewItems.some((i) => i.kind === 'gossip_victim')).toBe(false);
+  });
+
+  it('the Gossip alive at their slot kills as before', () => {
+    const g = trueStatement();
+    submit(g, { [g.p.imp]: { imp: [g.p.empath] } });
+    const item = resolve(g).reviewItems.find((i) => i.kind === 'gossip_victim')!;
+    expect(resolve(g, { [item.key]: g.p.butler }).deaths).toEqual([g.p.empath, g.p.butler]);
+  });
+});

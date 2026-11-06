@@ -733,8 +733,7 @@ Object.assign(BEHAVIOURS, {
   },
 
   gossip: {
-    actsWhileDead: true,
-    wakes: (c: SpecCtx) => c.night >= 1 && c.state.days[c.night]?.gossipStatement === 'true' && !!c.state.players.find((p) => p.id === c.pid)?.alive,
+    wakes: (c: SpecCtx) => c.night >= 1 && c.state.days[c.night]?.gossipStatement === 'true',
     resolve(run: NightRun, a: Actor) {
       run.outcome('statement was true');
       if (!run.sober(a.pid)) { run.outcome('impaired: no death'); return; }

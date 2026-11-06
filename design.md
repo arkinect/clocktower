@@ -253,7 +253,7 @@ interface RoleBehaviour {
   wakes?(ctx): boolean;            // extra condition for waking tonight
   spec?(ctx): ActionSpec | null;   // the player's input tonight (null = wakes without input)
   resolve?(run, actor): void;      // effects, kills, results, review items
-  actsWhileDead?: boolean;         // Ravenkeeper, Moonchild, Gossip, Farmer
+  actsWhileDead?: boolean;         // Ravenkeeper, Moonchild, Farmer
   wakesOnNightDeath?: true;        // only on a night they die (Ravenkeeper, Farmer): impairment as of the death, no picker
   onExecution?(ctx: { s, executeeId, holderId, now, real }): void;
                                    // after an execution kills, once per seated player with a real ability of this role
@@ -310,7 +310,7 @@ resolveNight(state):                      // pure; clones the world
     for actor in actors(slot):            // acting role = believed role (Drunk/Marionette),
                                           // actual role, Philosopher-gained role (from the night
                                           // it is chosen), Lil' Monsta token; dead actors only if they
-                                          // keep an ability, or Ravenkeeper/Moonchild/Gossip rules;
+                                          // keep an ability, or Ravenkeeper/Moonchild rules;
                                           // skips players given a new role earlier tonight
       ask late input if the ability became active after collecting closed (revived, or a
                                           // Philosopher's choice tonight): a follow-up question
@@ -657,7 +657,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 
 #### Gossip
 - Ability: "Each day, you may make a public statement. Tonight, if it was true, a player dies."
-- No picker. The Admin enters None/True/False for the day. On the following night, if True and the Gossip was alive when the night began (even if killed earlier that night) and is sober at the slot, a review item recommends a random alive player other than the Gossip; the Admin approves or picks any alive player; `attemptKill(victim, ability_kill)` (protections and the Mayor bounce apply). The Gossip is told nothing. Impaired: no death.
+- No picker. The Admin enters None/True/False for the day. On the following night, if True and the Gossip is alive and sober at their slot, a review item recommends a random alive player other than the Gossip; the Admin approves or picks any alive player; `attemptKill(victim, ability_kill)` (protections and the Mayor bounce apply). The Gossip is told nothing. Impaired: no death.
 
 #### Grandmother
 - Ability: "You start knowing a good player & their character. If the Demon kills them, you die too."
@@ -920,7 +920,7 @@ The rest are `'reminder'`: shown in the role list only, applied by the Admin at 
 | Lil' Monsta | Simplified token model; holder passes alone; token stays with a dead holder unless the Scarlet Woman takes it |
 | Flowergirl, Juggler | Admin enters the day value |
 | Oracle | Dead evil players at its slot; false values 0 to the number dead |
-| Gossip | Admin judges; Gossip alive at night start; random victim recommended; protections and Mayor bounce apply |
+| Gossip | Admin judges; Gossip alive at its slot; random victim recommended; protections and Mayor bounce apply |
 | Grandmother | Recommended good grandchild (not the Drunk); impaired Night 0 = no grandchild; dies on a Demon-attack death of the grandchild if sober; protections apply |
 | Huntsman | Never told whether it worked; converted Damsel acts from next night |
 | Professor | Players dead at night start; actual Townsfolk only; revived player acts in their slots later that night |

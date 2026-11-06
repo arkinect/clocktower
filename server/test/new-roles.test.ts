@@ -52,11 +52,12 @@ describe('new roles', () => {
     expect(item).toBeTruthy();
     res = resolve(g, { [item.key]: g.p.empath });
     expect(res.deaths).toEqual([g.p.empath]);
-    // Gossip killed by the Imp earlier still resolves
+    // Gossip killed by the Imp earlier: no ability at their slot, so no Gossip kill
     act(g, { type: 'reopen_collecting' });
     submit(g, { [g.p.imp]: { imp: [g.p.gossip] } });
     res = resolve(g, { [item.key]: g.p.butler });
-    expect(res.deaths.sort()).toEqual([g.p.gossip, g.p.butler].sort());
+    expect(res.deaths).toEqual([g.p.gossip]);
+    expect(res.reviewItems.some((i) => i.kind === 'gossip_victim')).toBe(false);
     // Poisoned gossip
     act(g, { type: 'reopen_collecting' });
     act(g, { type: 'clear_submission', playerId: g.p.imp });
