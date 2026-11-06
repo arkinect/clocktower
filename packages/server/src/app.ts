@@ -62,7 +62,7 @@ export async function buildApp(config: Config, logStream?: Writable): Promise<Bu
       },
     },
     referrerPolicy: { policy: 'no-referrer' },
-    strictTransportSecurity: config.secureCookies,
+    strictTransportSecurity: config.hsts ? { maxAge: 15_552_000, includeSubDomains: false } : false,
   });
 
   const isLoopback = (req: { socket: { remoteAddress?: string | undefined }; headers: Record<string, unknown> }) => {

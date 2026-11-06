@@ -176,9 +176,10 @@ export interface Hooks<S> {
   /** Dead tonight, but wakes anyway. */
   wakesDead?(ctx: AbilityCtx<S>): boolean;
   /**
-   * Stops another ability waking tonight, on the wake list and in the walk. Only an ability that acts earlier in the
-   * night order can do this, and only while it would wake, can act and is not impaired. It stops that one ability: the
-   * holder still wakes for any other.
+   * Stops another ability waking tonight, when the night resolves. Pickers do not change while players submit, so
+   * nobody learns anything from one vanishing: the stopped ability's choice is simply ignored. Only an ability that
+   * acts earlier in the night order can do this, and only while it would wake, can act and is not impaired. It stops
+   * that one ability: the holder still wakes for any other.
    */
   stopsWaking?(ctx: AbilityCtx<S>, target: Instance, def: RoleDef): boolean;
   /** That ability acts a second time tonight, after its first. It asks again, as a question, if it has a picker. */

@@ -1,4 +1,4 @@
-# Build from the repository root:  docker build -f packages/deploy/Dockerfile -t clocktower:next .
+# Build from the repository root:  docker build -f packages/deploy/Dockerfile -t clocktower:local .
 # The old engine is copied into the build stage only, for the parity tests. Those files go at cutover.
 
 # ---- build and test (runs on the build machine's architecture; the output is plain JS) ----

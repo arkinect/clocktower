@@ -39,7 +39,7 @@ export const DEFAULT_LIMITS: Limits = {
   socketMaxPayload: 16 * 1024,
   heartbeatMs: 20_000,
   heartbeatMisses: 2,
-  playersPerGame: 20,
+  playersPerGame: 30,
   liveGames: 4,
   nameLength: 24,
   commandsPerGame: 20_000,
@@ -64,6 +64,8 @@ export interface Config {
   allowedOrigins: string[];
   buildId: string;
   secureCookies: boolean;
+  /** Off by default: HSTS binds the whole host name, on every port, so it breaks plain-HTTP services sharing it. */
+  hsts: boolean;
   limits: Limits;
 }
 
@@ -95,6 +97,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     allowedOrigins: publicUrl ? [new URL(publicUrl).origin] : [],
     buildId: env['BUILD_ID'] ?? 'dev',
     secureCookies: publicUrl.startsWith('https://'),
+    hsts: env['HSTS'] === '1' || env['HSTS'] === 'true',
     limits: DEFAULT_LIMITS,
   };
   assertSafe(config);

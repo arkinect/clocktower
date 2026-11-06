@@ -344,15 +344,21 @@ describe('per-character pass: waking', () => {
     return s;
   };
 
-  it('stopsWaking takes the ability off the wake list and out of the walk', () => {
+  it('stopsWaking leaves pickers alone while collecting, and ignores the choice when the night resolves', () => {
     const s = stopped();
     expect(s.specs('b')).toHaveLength(1);
-    s.submit({ b: ['c'] });
     s.submit({ a: ['b'] });
-    expect(s.specs('b')).toHaveLength(0);
+    expect(s.specs('b')).toHaveLength(1);
+    s.submit({ b: ['c'] });
     s.review();
     expect(s.res.deaths).toEqual([]);
     expect(s.res.actors.some((x) => x.playerId === 'b')).toBe(false);
+  });
+
+  it('stopsWaking: the stopped player is still waited for, like anyone else', () => {
+    const s = stopped().submit({ a: ['b'] });
+    for (const id of ['c', 'd', 'e'] as PlayerId[]) s.g.st({ type: 'submit_for', playerId: id, actions: {} });
+    expect(s.g.rejected('st' as PlayerId, { type: 'close_collecting', force: false })).toMatch(/Waiting for 1/);
   });
 
   it('stopsWaking leaves the ability alone when it chose someone else', () => {
@@ -377,9 +383,11 @@ describe('per-character pass: waking', () => {
     const s = scene({ a: STOPPER, b: TWO_FACED, ...rest })
       .start()
       .nextNight();
-    expect(s.specs('b').map((x) => x.roleId)).toEqual([KILLER, COMPANION]);
     s.submit({ a: ['b'] });
-    expect(s.specs('b').map((x) => x.roleId)).toEqual([COMPANION]);
+    expect(s.specs('b').map((x) => x.roleId)).toEqual([KILLER, COMPANION]);
+    s.submit({ b: { [KILLER]: ['c'], [COMPANION]: ['d'] } }).review();
+    expect(s.res.deaths).toEqual([]);
+    expect(s.res.actors.filter((x) => x.playerId === 'b').map((x) => x.roleId)).toEqual([COMPANION]);
   });
 
   it('wokeTonight counts a wake for an ability, and not a stopped one', () => {

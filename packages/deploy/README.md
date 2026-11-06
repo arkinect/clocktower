@@ -25,33 +25,59 @@ docker compose -f load/compose.yml down -v
 
 Do this when no game is on. Players keep the same address.
 
-1. Merge to main. `.github/workflows/next.yml` then builds and pushes `ghcr.io/arkinect/clocktower:next`, and the same image as `:sha-<commit>`.
-2. On the server, stop the old stack from the repository root. The new stack takes over its container names and ports:
+First, on GitHub, in one pull request to main, change the workflows. `next.yml` will not publish a release until this is merged, and the old ones would overwrite the new `:latest`:
+
+| Workflow      | At cutover               | Why                                                                                                           |
+| ------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `release.yml` | Delete                   | Builds the old app from the root `Dockerfile` and publishes `:edge`, `:<version>` and `:latest` on every tag. |
+| `refresh.yml` | Delete                   | Rebuilds the newest tag from the root `Dockerfile` every Tuesday and publishes it as `:latest`.               |
+| `ci.yml`      | Delete with the old code | Runs the old app's tests. It can stay until then.                                                             |
+| `next.yml`    | Keep                     | Publishes the new app.                                                                                        |
+| `rewrite.yml` | Keep                     | Tests the new app.                                                                                            |
+
+Then:
+
+1. Tag the first release, above the old app's last tag, `v0.4.2`, so that the weekly rebuild picks it. For example `v0.5.0`. `next.yml` publishes `:0.5.0` and `:latest`. Wait for it to finish: until then `:latest` is still the old app.
+2. On the server, replace the cron line that runs the old update script. The old `scripts/update.sh` drives the old compose file, which has the same container names, so leaving it would bring the old stack back:
+
+   ```sh
+   # Remove:
+   30 4 * * 3 /path/to/clocktower/scripts/update.sh >> /path/to/update.log 2>&1
+   # Add:
+   30 4 * * 3 /path/to/deploy/update.sh >> /path/to/update.log 2>&1
+   ```
+
+3. Stop the old stack from the repository root. The new stack takes over its container names and ports:
 
    ```sh
    docker compose down
    ```
 
-3. Copy `docker-compose.yml`, `Caddyfile`, `update.sh` and `.env.example` from this folder to the directory you will run from. Move the existing `caddy/` folder there so the certificates carry over.
-4. `cp .env.example .env`, then fill in the same hostname and site password as the old `.env`.
-5. Start it:
+4. Copy `docker-compose.yml`, `update.sh` and `.env.example` from this folder to the directory you will run from, which is the folder the cron line names. Move the existing `caddy/` folder there so the certificates carry over.
+5. Bring in `Caddyfile` without overwriting what the server has. Merge any extra site blocks or options from the server's existing Caddyfile into this one, such as other sites on the same Caddy, or the `tls` block for a server that cannot forward port 80.
+6. `cp .env.example .env`, then fill in the same hostname and site password as the old `.env`.
+7. Start it:
 
    ```sh
    docker compose up -d
    ```
 
-6. Open `https://<hostname>/healthz`, then the app. `docker compose logs clocktower` shows player ids and command types only.
+8. Open `https://<hostname>/healthz`, then the app. `docker compose logs clocktower` shows player ids and command types only.
 
 The new app keeps its games in the `clocktower-data` volume. Leave the old `data/` folder where it is: games do not carry across, and it is what a rollback to the old app reads. The two must never share a folder, because both use a file called `clocktower.db` with different tables.
 
+## HSTS
+
+The server does not send Strict-Transport-Security, because it applies to the whole host name on every port and would break any plain-HTTP service sharing it. To send it, set `HSTS=1` in `.env`.
+
 ## Rolling back
 
-Run the previous image tag. `:sha-<commit>` tags stay in the registry; the old app's are its release tags, such as `:latest`.
+Run the previous image tag, never `:latest`, which is always the newest release. Each new release stays as `:<version>`, and each push to main as `:sha-<commit>`.
 
 To an earlier build of the new app, set the tag in `.env` and restart:
 
 ```sh
-CLOCKTOWER_IMAGE_TAG=sha-<commit>
+CLOCKTOWER_IMAGE_TAG=0.5.0
 ```
 
 ```sh
@@ -60,10 +86,10 @@ docker compose up -d
 
 If that build has a different engine version, the game in progress is archived and a fresh lobby opens.
 
-To the old app, also point it at its own data and its own proxy setting, in the same `.env`:
+To the old app, whose last release is `v0.4.2`, also point it at its own data and its own proxy setting, in the same `.env`:
 
 ```sh
-CLOCKTOWER_IMAGE_TAG=latest
+CLOCKTOWER_IMAGE_TAG=0.4.2
 CLOCKTOWER_DATA=./data
 CLOCKTOWER_TRUST_PROXY=1
 ```

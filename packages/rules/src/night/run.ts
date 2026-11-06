@@ -123,6 +123,8 @@ export class Run {
   private currentChoice = new Map<string, Choice | null>();
   private readonly chosenThisRun = new Set<string>();
   private killSeq = 0;
+  /** Resolving the night, rather than answering who is asked to submit. */
+  private walking = false;
   /** The ability on its second act tonight, which keeps its results and decisions apart from the first. */
   private acting: string | null = null;
   /** Set when a day command is only being previewed. */
@@ -716,7 +718,7 @@ export class Run {
 
   /** Whether this instance would wake right now; the same rule for the wake list and the walk. */
   wakesNow(a: Instance, def: RoleDef): boolean {
-    if (this.wakeStopped(a, def)) return false;
+    if (this.walking && this.wakeStopped(a, def)) return false;
     const c = this.ctx(a);
     if (def.ability.wakes) return def.ability.wakes(c);
     if (def.flags.startInfo) return c.startInfoDue;
@@ -888,6 +890,7 @@ export class Run {
   }
 
   walk() {
+    this.walking = true;
     const sheet = nightSheet(this.n);
     for (const a of this.reader.instances) roleDef(a.roleId).ability.nightStart?.(this.ctx(a));
     for (const def of sheet) {

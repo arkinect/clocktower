@@ -77,6 +77,26 @@ describe('tokens', () => {
   });
 });
 
+describe('Strict-Transport-Security', () => {
+  const header = async (config = testConfig()) => {
+    const h = await up(config);
+    return (await fetch(`${h.base}/healthz`)).headers.get('strict-transport-security');
+  };
+
+  it('is absent by default, even behind HTTPS', async () => {
+    expect(await header()).toBeNull();
+    expect(await header(testConfig({ secureCookies: true }))).toBeNull();
+    expect(loadConfig({}).hsts).toBe(false);
+    expect(loadConfig({ HSTS: '0' }).hsts).toBe(false);
+  });
+
+  it('is sent only when HSTS turns it on, and never for subdomains', async () => {
+    expect(loadConfig({ HSTS: '1' }).hsts).toBe(true);
+    expect(loadConfig({ HSTS: 'true' }).hsts).toBe(true);
+    expect(await header(testConfig({ hsts: true }))).toBe('max-age=15552000');
+  });
+});
+
 describe('sockets', () => {
   it('reject a wrong or missing Origin', async () => {
     const h = await up();
@@ -150,7 +170,8 @@ describe('sockets', () => {
 
   it('let 30 sessions on one address connect, as a table sharing one connection does', async () => {
     expect(DEFAULT_LIMITS.socketsPerIp).toBe(200);
-    const h = await up(testConfig({}, { playersPerGame: 30 }));
+    expect(DEFAULT_LIMITS.playersPerGame).toBe(30);
+    const h = await up();
     const names = Array.from({ length: 30 }, (_, i) => `Player ${i + 1}`);
     const clients = await Promise.all(names.map((name) => connect(h, name)));
     expect(clients).toHaveLength(30);

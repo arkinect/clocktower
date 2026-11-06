@@ -43,6 +43,7 @@ export function testConfig(over: Partial<Config> = {}, limits: Partial<Limits> =
     allowedOrigins: [],
     buildId: 'test',
     secureCookies: false,
+    hsts: false,
     limits: { ...DEFAULT_LIMITS, ...limits },
     ...over,
   };

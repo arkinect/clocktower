@@ -2,8 +2,8 @@
 name: clocktower
 services:
   clocktower:
-    # Roll back by setting CLOCKTOWER_IMAGE_TAG in .env to an earlier tag.
-    image: ghcr.io/arkinect/clocktower:${CLOCKTOWER_IMAGE_TAG:-next}
+    # The newest release. Roll back by setting CLOCKTOWER_IMAGE_TAG in .env to an earlier tag.
+    image: ghcr.io/arkinect/clocktower:${CLOCKTOWER_IMAGE_TAG:-latest}
     container_name: clocktower
     restart: unless-stopped
     user: '1000:1000'
@@ -21,6 +21,8 @@ services:
       - SITE_PASSWORD=${CLOCKTOWER_SITE_PASSWORD:?set CLOCKTOWER_SITE_PASSWORD in .env}
       # Only this peer's X-Forwarded-For is believed. The name is resolved again every minute.
       - TRUST_PROXY=${CLOCKTOWER_TRUST_PROXY:-caddy}
+      # Off unless you set HSTS=1 in .env. It would bind every port on this host name to HTTPS.
+      - HSTS=${HSTS:-0}
     volumes:
       # Never ./data: the old app's file there has the same name and different tables.
       - ${CLOCKTOWER_DATA:-clocktower-data}:/data

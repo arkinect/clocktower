@@ -94,6 +94,18 @@ Each change asked for after the stages, on 2026-11-06.
 
 Checks after these changes: all gates pass, with 250 rules, 37 server, 57 component and 4 browser tests. Parity over 10,000 fuzzed games has no unexplained differences. The built container behind Caddy, flooded as the README says: p95 23ms, max 36ms. `docker compose config` passes with the default and the rollback settings, and `caddy validate` passes. `update.sh` ran against a stand-in for Docker: it defers at 10 idle minutes, restarts at 300, restarts when the app does not answer, and `--force` skips the check. Its status check ran for real inside the container. Neither the cutover nor a rollback has been run.
 
+### Second round of changes
+
+On 2026-11-06.
+
+1. **HSTS is opt-in.** The server no longer sends Strict-Transport-Security unless `HSTS` is `1` or `true`, as the old Caddyfile chose. Tests cover it absent by default, even with secure cookies, and present when on. It never covers subdomains.
+2. **Release flow for after cutover.** `next.yml` now also publishes `:<version>` and `:latest` from `packages/deploy/Dockerfile` on version tags, and rebuilds the newest tag every Tuesday. The compose file defaults to `:latest`. The README names `v0.4.2` as the old app's last release (`:0.4.2` is in the registry) and lists what happens to each old workflow.
+3. **`playersPerGame` is 30.**
+4. **`stopsWaking` applies only when the night resolves.** A stopped Demon keeps their picker, is waited for, and has their choice ignored. This replaces the behaviour in the known limit recorded earlier.
+5. **Cut-over steps.** The README now replaces the cron line that ran the old `scripts/update.sh`, and says to merge the server's existing Caddyfile rather than overwrite it.
+
+Checks after these changes: all gates pass, with 251 rules, 39 server, 57 component and 4 browser tests. The three `stopsWaking` tests fail on the old code. `next.yml` passes actionlint. The release and weekly jobs have not run.
+
 ## Deviations
 
 - `GET /api/g/:code/names` reads the site password from an `X-Site-Password` header. The plan only says GET; a query string would put the password in logs and history.
@@ -107,6 +119,7 @@ Checks after these changes: all gates pass, with 250 rules, 37 server, 57 compon
 - The Log tab reads the export endpoint, not StorytellerView, because the view does not carry the command log. Its Report a problem button downloads the same export. Everything else in the console reads the view.
 - The console's Grimoire lists seats in order as cards, rather than drawing a round circle.
 - The follow-up extension differs from the old app in two ways, as a ruling: it also fires when a decision brings the first question, and it does not fire again after reopening collecting.
+- The release flow lives in `next.yml`, not a new workflow file, because this session may commit only the two new workflows and may not edit the old ones. Its release job refuses a tag while `release.yml` or `refresh.yml` exist, and the weekly run skips, because until they are deleted they own those tags, and the old tags have no `packages/deploy/Dockerfile` to build. The first version tag must sort above `v0.4.2`.
 - Stage 7 files live in `packages/deploy/`, not a top-level `deploy/`, because this session may commit only under `packages/`, `docs/` and the two workflow files.
 - The compose file there replaces the root one. The root file is untouched, so `README.md` in that folder has the steps to cut over: stop the old stack first, since container names and ports are shared.
 - The Report a problem button is on the console's Log tab.
@@ -146,8 +159,8 @@ The app rebuilt under `packages/` to replace the old one on its hostname, around
 **Done**
 
 - Stage 0: monorepo, tooling, boundary checks, CI.
-- Stages 1 to 3: protocol, rules core, ability framework, all 55 roles and 14 jinxes. 250 rules tests. Parity with the old engine over 10,000 fuzzed games, with no unexplained differences.
-- Stage 4: server with sessions, limits, persistence and sockets. 37 tests, including a headless full game and the security tests. Under flood, p95 round trip is 12ms directly and 25ms in the container behind Caddy.
+- Stages 1 to 3: protocol, rules core, ability framework, all 55 roles and 14 jinxes. 251 rules tests. Parity with the old engine over 10,000 fuzzed games, with no unexplained differences.
+- Stage 4: server with sessions, limits, persistence and sockets. 39 tests, including a headless full game and the security tests. Under flood, p95 round trip is 12ms directly and 25ms in the container behind Caddy.
 - Stage 5: phone app, thin over PlayerView, with the idle games in a lazy chunk. 57 component tests. Playwright plays a full game with five browsers at 360 px in both themes.
 - Stage 6: Storyteller console from StorytellerView, with no custom role panels. Playwright runs lobby to publishing night 2 with a changed decision, a stale override and an execution.
 - Stage 7: Dockerfile, compose, Caddyfile, `next.yml`, `update.sh`, README. Build, validation and the load test passed locally.
@@ -160,10 +173,11 @@ The app rebuilt under `packages/` to replace the old one on its hostname, around
 - No real people have played it. That is the point of Stage 8.
 - The browser tests drive a handful of roles. The other roles are covered in the engine tests, not through the console.
 - `next.yml` has never run, and neither has the cutover. `update.sh` ran against a stand-in for Docker only.
+- The release and weekly jobs in `next.yml` cannot run until cutover, so they have only been linted.
 - The 19 new primitives have no real character using them yet: 128 of the 183 characters are unbuilt.
 - The parity harness does not compare false suggestions, notices, game-end suggestions or Storyteller edits. See `docs/mechanics.md` and the rulings.
 
-**Left for people (Stage 8):** the local test, cutover, the playtest and deleting the old code.
+**Left for people (Stage 8):** the local test, deleting `release.yml` and `refresh.yml`, the first release tag, cutover, the playtest and deleting the old code.
 
 Rulings are in `docs/rulings.md`, and deviations from the plan are in `packages/PROGRESS.md`.
 

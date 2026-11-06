@@ -73,8 +73,8 @@ table and the engine only records the result, so a role file would be a reminder
 
 Known limits:
 
-- `stopsWaking` runs while players submit, so a Demon may have chosen before the Exorcist does. Their choice is then
-  ignored. Their picker disappears if they have not.
+- `stopsWaking` applies only when the night resolves. A stopped Demon still sees a picker, is waited for like anyone
+  else, and has their choice ignored, so a vanishing picker never tells them anything early.
 - `adjustVote` needs the voters. A count with no names is kept as entered.
 - `hidesCharacter` hides the character card only. A picker's title can still give the role away, so a role file needs
   `shownAs` as well.
