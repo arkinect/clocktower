@@ -20,6 +20,7 @@ import { DEFAULT_LIMITS, type Config, type Limits } from '../../src/config';
 export interface Target {
   base: string;
   host: string;
+  password?: string;
 }
 
 export interface Harness extends Target {
@@ -65,7 +66,7 @@ export async function join(h: Target, name: string, extra: Record<string, unknow
   const res = await fetch(`${h.base}/api/g/${code}/join`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name, ...extra }),
+    body: JSON.stringify({ name, ...(h.password ? { password: h.password } : {}), ...extra }),
   });
   const cookie = res.headers.get('set-cookie');
   return { status: res.status, cookie, body: (await res.json()) as { ok: boolean; playerId: string; error?: string } };

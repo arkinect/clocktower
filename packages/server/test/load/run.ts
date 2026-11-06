@@ -11,6 +11,9 @@ import { table, type Target } from '../helpers/client';
 
 const SECONDS = Number(process.env['LOAD_SECONDS'] ?? 15);
 const LIMIT_MS = 250;
+/** Set to test a server already running, such as the container behind Caddy. */
+const TARGET = process.env['LOAD_TARGET'];
+const PASSWORD = process.env['LOAD_PASSWORD'];
 
 const freePort = () =>
   new Promise<number>((resolve) => {
@@ -58,17 +61,19 @@ async function socketFlood(host: string, until: number) {
 
 async function main() {
   const port = await freePort();
-  const host = `127.0.0.1:${port}`;
-  const target: Target = { base: `http://${host}`, host };
-  const server = spawn(process.execPath, ['dist/main.cjs'], {
-    env: {
-      ...process.env,
-      PORT: String(port),
-      DATA_DIR: mkdtempSync(path.join(tmpdir(), 'ct-load-')),
-      LOG_LEVEL: 'warn',
-    },
-    stdio: 'inherit',
-  });
+  const host = TARGET ? new URL(TARGET).host : `127.0.0.1:${port}`;
+  const target: Target = { base: `http://${host}`, host, ...(PASSWORD ? { password: PASSWORD } : {}) };
+  const server = TARGET
+    ? null
+    : spawn(process.execPath, ['dist/main.cjs'], {
+        env: {
+          ...process.env,
+          PORT: String(port),
+          DATA_DIR: mkdtempSync(path.join(tmpdir(), 'ct-load-')),
+          LOG_LEVEL: 'warn',
+        },
+        stdio: 'inherit',
+      });
   try {
     await waitUp(target.base);
     const { st, players } = await table(target);
@@ -82,7 +87,7 @@ async function main() {
       url: `${target.base}/api/g/default/join`,
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: 'Flood' }),
+      body: JSON.stringify({ name: 'Flood', ...(PASSWORD ? { password: 'wrong' } : {}) }),
       connections: 50,
       duration: SECONDS,
     });
@@ -114,7 +119,7 @@ async function main() {
     console.log(JSON.stringify(report));
     process.exitCode = p95 < LIMIT_MS ? 0 : 1;
   } finally {
-    server.kill();
+    server?.kill();
     setTimeout(() => process.exit(), 200);
   }
 }

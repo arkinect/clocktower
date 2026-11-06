@@ -4,15 +4,17 @@ Session memory for the plan in `docs/rewrite/PLAN.md` (the working copy this ses
 
 ## Stage status
 
-| Stage         | Status | Gate                                              |
-| ------------- | ------ | ------------------------------------------------- |
-| 0 Foundations | done   | passed, CI green                                  |
-| 1 Rules core  | done   | passed                                            |
-| 2 Framework   | done   | passed locally, see below                         |
-| 3 All roles   | done   | passed, a format failure in CI fixed with Stage 4 |
-| 4 Server      | done   | passed, CI checked at gate                        |
-| 5 Player app  | done   | passed, CI checked at gate                        |
-| 6 Storyteller | done   | passed locally, see below                         |
+| Stage                  | Status      | Gate                                              |
+| ---------------------- | ----------- | ------------------------------------------------- |
+| 0 Foundations          | done        | passed, CI green                                  |
+| 1 Rules core           | done        | passed                                            |
+| 2 Framework            | done        | passed locally, see below                         |
+| 3 All roles            | done        | passed, a format failure in CI fixed with Stage 4 |
+| 4 Server               | done        | passed, CI checked at gate                        |
+| 5 Player app           | done        | passed, CI checked at gate                        |
+| 6 Storyteller          | done        | passed, CI checked at gate                        |
+| 7 Deploy files         | done        | passed locally, nothing deployed or published     |
+| 8 Playtest and cutover | not started | for people, not this session                      |
 
 ## Baseline
 
@@ -69,10 +71,19 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 - `docs/role-panels.md`: no custom panels.
 - The full game gate ("any of the 55 roles") rests on the generic panels. The browser test drives Balloonist, Slayer, Empath, Poisoner and Imp, not all 55.
 
+### Stage 7
+
+- Files are in `packages/deploy/`, and `.github/workflows/next.yml`. Written, never run.
+- `docker build` passes, including the type check, boundaries and tests inside the build (50 fuzz games there).
+- `docker compose config` passes for both compose files. `caddy validate` passes, run from the `caddy:2-alpine` image.
+- Load test against the built container behind a real Caddy, read-only root filesystem, non-root: 65,000 wrong-password joins and 1,700 refused sockets with a scripted game running. p50 13ms, p95 25ms, max 43ms. Limit 250ms.
+- Through Caddy: `/api/status` answers 404, and inside the container it answers. CSP, nosniff and Referrer-Policy reach the client. Assets are cached for a year, and the page itself is not.
+- `update.sh` passed `sh -n` only. It has not been run against a real stack.
+
 ## Deviations
 
 - `GET /api/g/:code/names` reads the site password from an `X-Site-Password` header. The plan only says GET; a query string would put the password in logs and history.
-- `TRUST_PROXY` is now a list of addresses or hostnames (resolved at boot), since the plan needs the peer compared with the configured Caddy address. The old app treated it as a flag.
+- `TRUST_PROXY` is now a list of addresses or hostnames (resolved at boot and every minute), since the plan needs the peer compared with the configured Caddy address. The old app treated it as a flag.
 - Added to the plan: `GET /api/g/:code/session`, for a phone to learn who its HttpOnly cookie makes it. A game with no sockets and six idle hours gives up its slot when a fifth game wants one, or abandoned codes would hold all four slots until a restart.
 - The welcome message also carries the jinx list, for the Roles tab. Jinxes are not in the view.
 - The Night order tab lists roles from the catalog's numbers, without the old list's "Minion info" and "Demon info" steps, which are not roles.
@@ -81,6 +92,10 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 - A request with no password at all gets a 401 without starting the backoff, so a phone can find out it needs one.
 - The Log tab reads the export endpoint, not StorytellerView, because the view does not carry the command log. Its Report a problem button downloads the same export. Everything else in the console reads the view.
 - The console's Grimoire lists seats in order as cards, rather than drawing a round circle.
+- Stage 7 files live in `packages/deploy/`, not a top-level `deploy/`, because this session may commit only under `packages/`, `docs/` and the two workflow files.
+- The compose file there replaces the root one. The root file is untouched, so `README.md` in that folder has the steps to move across: stop the old stack first, since container names and ports are shared.
+- The Report a problem button is on the console's Log tab.
+- The image build copies `shared/` and `server/src/engine` for the parity tests, in the build stage only. Those lines go at cutover.
 - Per-request logging is off altogether, so addresses and URLs stay out of the logs. Each command logs the player id and command type.
 - `@fastify/static` is imported only when there is a client directory. Its dependencies are ES modules that `require` cannot load on this machine's Node 22.7; the esbuild bundle and newer Node are unaffected.
 - Server messages past the socket rate limit are dropped with no ack, as the limit is there to shed work. The client treats a missing ack as a timeout.
@@ -101,8 +116,38 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 
 ## Known gaps
 
-- If Caddy is restarted with a new container address, `TRUST_PROXY` resolved at boot goes stale and every client looks like one address until this server restarts. Give Caddy a fixed address or restart both.
-
 ## Next step
 
-Stage 7: deploy files.
+Stage 8, by people: deploy `:next`, playtest, cut over. See `deploy/README.md` and the plan.
+
+## Pull request text
+
+gh is not installed here, so no pull request was opened. Open one from `rewrite/session-1` to `main` with this text.
+
+**Title:** Rewrite as four packages, Stages 0 to 7
+
+The app rebuilt under `packages/` beside the old one, around a pure rules engine where each character is one file. Nothing under the old app changed, and nothing has been deployed or published.
+
+**Done**
+
+- Stage 0: monorepo, tooling, boundary checks, CI.
+- Stages 1 to 3: protocol, rules core, ability framework, all 55 roles and 14 jinxes. 221 rules tests. Parity with the old engine over 10,000 fuzzed games, with no unexplained differences.
+- Stage 4: server with sessions, limits, persistence and sockets. 35 tests, including a headless full game and the security tests. Under flood, p95 round trip is 12ms directly and 25ms in the container behind Caddy.
+- Stage 5: phone app, thin over PlayerView, with the idle games in a lazy chunk. 27 component tests. Playwright plays a full game with five browsers at 360 px in both themes.
+- Stage 6: Storyteller console from StorytellerView, with no custom role panels. Playwright runs lobby to publishing night 2 with a changed decision, a stale override and an execution.
+- Stage 7: Dockerfile, compose, Caddyfile, `next.yml`, `update.sh`, README. Build, validation and the load test passed locally.
+
+**Gates failed:** none at the end. Stage 3 first failed CI on formatting; that was fixed in the Stage 4 commit.
+
+**Not proven**
+
+- No real people have played it. That is the point of Stage 8.
+- The browser tests drive a handful of roles. The other roles are covered in the engine tests, not through the console.
+- `next.yml` and `update.sh` have never run. `update.sh` passed a syntax check only.
+- The parity harness does not compare false suggestions, notices, game-end suggestions or Storyteller edits. See `docs/mechanics.md` and the rulings.
+
+**Left for people (Stage 8):** DNS, deploying `:next`, the playtest, cutover and deleting the old code.
+
+Rulings are in `docs/rulings.md`, and deviations from the plan are in `packages/PROGRESS.md`.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)

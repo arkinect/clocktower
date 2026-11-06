@@ -17,7 +17,14 @@ async function resolveProxies(names: string[]) {
 
 async function main() {
   const config = loadConfig(process.env);
-  config.trustedProxies = await resolveProxies(config.trustedProxies);
+  const names = config.trustedProxies;
+  config.trustedProxies = await resolveProxies(names);
+  // Caddy can come back on a new address, and every client would then look like one.
+  setInterval(() => {
+    void resolveProxies(names).then((found) => {
+      config.trustedProxies = found;
+    });
+  }, 60_000).unref();
   const app = await buildApp(config);
   await app.listen();
   const stop = () => void app.close().then(() => process.exit(0));

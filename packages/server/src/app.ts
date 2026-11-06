@@ -75,13 +75,20 @@ export async function buildApp(config: Config, logStream?: Writable): Promise<Bu
   if (web && fs.existsSync(web)) {
     // Loaded only when there is a client to serve: the tests run on a Node that cannot require its ES dependencies.
     const { default: fastifyStatic } = await import('@fastify/static');
-    await app.register(fastifyStatic, { root: path.resolve(web), prefix: '/', wildcard: false, index: false });
+    await app.register(fastifyStatic, {
+      root: path.resolve(web),
+      prefix: '/',
+      wildcard: false,
+      index: false,
+      cacheControl: false,
+    });
     app.get('/', (_req, reply) => reply.redirect(`/g/${config.defaultGame}`));
     app.setNotFoundHandler((req, reply) => {
       if (req.url.startsWith('/api/') || req.url.startsWith('/ws')) {
         return reply.code(404).send({ ok: false, error: 'Not found' });
       }
-      return reply.sendFile('index.html');
+      // Caddy sets long caching for assets. The page must always be fresh, so a new build reaches phones.
+      return reply.header('Cache-Control', 'no-cache').sendFile('index.html');
     });
   }
 
