@@ -1,0 +1,8 @@
+# Move to .github/dependabot.yml when merging. It lives here because the rewrite session may only commit under
+# packages/, docs/ and its two workflow files.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /packages
+    schedule:
+      interval: weekly
