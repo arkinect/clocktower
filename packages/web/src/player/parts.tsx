@@ -21,23 +21,22 @@ export function RoleIcon({ id }: { id: string }) {
   return <img className={styles['roleIcon']} src={`/icons/${id}.png`} alt="" loading="lazy" />;
 }
 
-/** Tap to reveal. The hidden face stays out of the page, so a shoulder surfer sees nothing. */
+/** Tap to reveal. Both faces keep their place, and the hidden one is invisible, so nothing moves. */
 export function RoleCardView({ role }: { role: RoleCard | null }) {
   const [shown, setShown] = useState(false);
   if (!role) return <div className={styles['roleCard']}>No role yet.</div>;
   return (
     <button type="button" className={styles['roleCard']} aria-expanded={shown} onClick={() => setShown(!shown)}>
-      {shown ? (
-        <>
-          <span className={`${styles['roleType']} type-${role.type}`}>{typeName(role.type)}</span>
-          <RoleIcon id={role.roleId} />
-          <span className={styles['roleName']}>{role.name}</span>
-          <span>{role.abilityText}</span>
-          <span className="muted small">Tap to hide</span>
-        </>
-      ) : (
+      <span className={`${styles['roleFace']} ${shown ? '' : styles['offFace']}`} aria-hidden={!shown || undefined}>
+        <span className={`${styles['roleType']} type-${role.type}`}>{typeName(role.type)}</span>
+        <RoleIcon id={role.roleId} />
+        <span className={styles['roleName']}>{role.name}</span>
+        <span>{role.abilityText}</span>
+        <span className="muted small">Tap to hide</span>
+      </span>
+      <span className={`${styles['roleFace']} ${shown ? styles['offFace'] : ''}`} aria-hidden={shown || undefined}>
         <span className={styles['reveal']}>Tap to reveal your role</span>
-      )}
+      </span>
     </button>
   );
 }

@@ -116,7 +116,7 @@ export function playerView(s: GameState, id: PlayerId, now: number): PlayerView 
     seatingPublished: s.seatingPublished,
     deadAtDawn: started ? s.publicDead.slice() : [],
     announcedDeaths: s.settings.announceDeaths && started ? s.publicDead.slice() : null,
-    script: s.script.slice(),
+    script: s.script.filter((id) => findRole(id)),
     hasStoryteller: !!s.storytellerId,
   };
 }
@@ -129,7 +129,7 @@ function abilityView(r: Reader, a: Instance): AbilityView {
     name: def.name,
     shownAs: a.shownAs,
     origin: a.origin.kind,
-    perceivedOnly: a.perceivedOnly,
+    perceivedOnly: a.perceivedOnly || r.isBelieved(a),
     used: a.used,
     active: r.isActive(a),
     oncePerGame: !!def.flags.oncePerGame,
@@ -294,7 +294,7 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
     settings: s.settings,
     players,
     storytellerAbilities: r.instances.filter((a) => a.holder.kind !== 'player').map((a) => abilityView(r, a)),
-    script: s.script.slice(),
+    script: s.script.filter((id) => findRole(id)),
     seatingPublished: s.seatingPublished,
     setup: {
       checklist: setupChecklist(s),

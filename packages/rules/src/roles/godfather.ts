@@ -1,11 +1,15 @@
 import { roleId, type PlayerId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
+import type { Reader } from '../derive/reader';
 import type { AbilityCtx } from '../night/context';
 import { modifiedCounts } from '../setup/rules';
 import { choosePlayers } from './lib';
 
 const GODFATHER = roleId('godfather');
 const TRIGGER = { kind: 'godfather_trigger' };
+
+/** Whether an Outsider is left to remove, after the other setup modifiers. */
+const removable = (r: Reader) => modifiedCounts(r.w, r.seated.length, r.inPlay, false)[1] > 0;
 
 const outsiderDiedToday = (ctx: AbilityCtx<unknown>) =>
   ctx.n >= 1 &&
@@ -41,19 +45,22 @@ export const godfather = defineRole({
       field: 'outsiders',
       title: 'Godfather: Outsiders -1 or +1',
       kind: 'option',
-      options: () => [
+      options: (r) => [
         { id: '+1', label: '+1 Outsider' },
-        { id: '-1', label: '-1 Outsider' },
+        ...(removable(r) ? [{ id: '-1', label: '-1 Outsider' }] : []),
       ],
       validate(r, value) {
-        if (value !== '-1' || modifiedCounts(r.w, r.seated.length, r.inPlay, false)[1] > 0) return null;
+        if (value !== '-1' || removable(r)) return null;
         return 'There are no Outsiders to remove (after the other setup modifiers), so only +1 is possible.';
       },
+      // A -1 chosen when there was an Outsider to remove counts as +1 once there is none.
+      shown: (r, value) => (value === '-1' && !removable(r) ? '+1' : value),
     },
   ],
   ability: {
     checklist(ctx) {
-      const chosen = ctx.field('outsiders');
+      const field = ctx.field('outsiders');
+      const chosen = field === '-1' && !removable(ctx) ? '+1' : field;
       return [
         {
           id: 'godfather',

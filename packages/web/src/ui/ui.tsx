@@ -64,7 +64,14 @@ export function HoldButton({
   return (
     <Button variant={variant} disabled={disabled ?? false} onClick={press} className={armed ? styles['armed'] : ''}>
       <span className={styles['fill']} style={{ animationDuration: `${seconds}s` }} />
-      <span className={styles['label']}>{armed ? 'Cancel' : children}</span>
+      <span className={styles['label']}>
+        <span className={armed ? styles['off'] : ''} aria-hidden={armed || undefined}>
+          {children}
+        </span>
+        <span className={armed ? '' : styles['off']} aria-hidden={!armed || undefined}>
+          Cancel
+        </span>
+      </span>
     </Button>
   );
 }
@@ -151,6 +158,23 @@ export function Banner({ tone, children }: { tone: 'warn' | 'gold'; children: Re
     <div className={cx(styles['banner'], styles[tone])} role="status">
       {children}
     </div>
+  );
+}
+
+/** Says a new version is ready. Dismissing it only hides it until the next load. */
+export function UpdateBar() {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+  return (
+    <Banner tone="gold">
+      A new version is ready.{' '}
+      <Button tiny onClick={() => location.reload()}>
+        Reload
+      </Button>{' '}
+      <Button tiny aria-label="Dismiss" onClick={() => setDismissed(true)}>
+        ×
+      </Button>
+    </Banner>
   );
 }
 

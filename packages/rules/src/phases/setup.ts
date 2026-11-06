@@ -297,15 +297,18 @@ export function setupFields(r: import('../derive/reader').Reader) {
     const def = roleDef(a.roleId);
     return (def.setupFields ?? [])
       .filter((f) => f.when?.(r) ?? true)
-      .map((f) => ({
-        abilityId: a.id,
-        field: f.field,
-        title: f.title,
-        kind: f.kind,
-        options: f.options(r),
-        value: new HookCtx(r, a).field(f.field),
-        suggestible: !!f.suggest,
-      }));
+      .map((f) => {
+        const value = new HookCtx(r, a).field(f.field);
+        return {
+          abilityId: a.id,
+          field: f.field,
+          title: f.title,
+          kind: f.kind,
+          options: f.options(r),
+          value: f.shown ? f.shown(r, value) : value,
+          suggestible: !!f.suggest,
+        };
+      });
   });
 }
 

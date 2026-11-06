@@ -3,7 +3,7 @@ import type { GrimoirePlayer, RoleId, StorytellerView } from '@ct/protocol';
 import { useCommand, useNames } from '../app/store';
 import { Button, HoldButton, Sheet, SheetActions } from '../ui/ui';
 import { seatPlace } from './circle';
-import { Lines, Section, phaseText, useSeats } from './common';
+import { Lines, Section, causeLabel, causesWithoutRow, phaseText, useSeats } from './common';
 import styles from './console.module.css';
 
 const CONDITIONS = ['drunk', 'poisoned', 'mad'] as const;
@@ -63,7 +63,9 @@ function Seat({ view, p }: { view: StorytellerView; p: GrimoirePlayer }) {
       </p>
       {believes && <p className="muted small">Believes they are the {believes}</p>}
       {p.deathCause && <p className="muted small">Died: {p.deathCause}</p>}
-      {p.impaired && <p className={styles['warn']}>Impaired: {p.causes.join(', ')}</p>}
+      {p.impaired && causesWithoutRow(p).length > 0 && (
+        <p className={styles['warn']}>Impaired: {causesWithoutRow(p).map(causeLabel).join(', ')}</p>
+      )}
       <label className={styles['inline']}>
         <span>Change character of {p.name}</span>
         <select

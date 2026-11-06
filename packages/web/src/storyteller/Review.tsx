@@ -3,7 +3,7 @@ import type { Choice, PlayerId, QuestionView, ResultView, ReviewItem, ReviewView
 import { useCommand, useNames } from '../app/store';
 import { Picker, choiceComplete } from '../ui/Picker';
 import { Button, Card, HoldButton, Segments } from '../ui/ui';
-import { InputSheet, Lines, PlayerSelect, Section, Who, useSeats } from './common';
+import { InputSheet, Lines, PlayerSelect, Section, Who, causeLabel, useSeats } from './common';
 import styles from './console.module.css';
 
 const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
@@ -17,7 +17,7 @@ function Result({ view, r }: { view: StorytellerView; r: ResultView }) {
       <h3>
         <Who view={view} id={r.playerId} role />: {r.title}
       </h3>
-      {r.impaired && <p className={styles['warn']}>Impaired: {r.causes.join(', ')}</p>}
+      {r.impaired && <p className={styles['warn']}>Impaired: {r.causes.map(causeLabel).join(', ')}</p>}
       <div className={styles['truthGrid']}>
         <div>
           <span className="muted small">Truth</span>
@@ -280,7 +280,7 @@ export function Review({ view }: { view: StorytellerView }) {
             {review.actors.map((a, i) => (
               <li key={i}>
                 <Who view={view} id={a.playerId} role />: {a.input} {a.outcome}
-                {a.impaired ? ` (impaired: ${a.causes.join(', ')})` : ''}
+                {a.impaired ? ` (impaired: ${a.causes.map(causeLabel).join(', ')})` : ''}
               </li>
             ))}
           </ul>

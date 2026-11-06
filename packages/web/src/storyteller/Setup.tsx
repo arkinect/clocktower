@@ -242,7 +242,7 @@ function Bluffs({ view }: { view: StorytellerView }) {
   );
 }
 
-function Field({ spec }: { spec: SetupFieldSpec }) {
+export function Field({ spec }: { spec: SetupFieldSpec }) {
   const { run, pending } = useCommand();
   const set = (value: string | null) =>
     void run({ type: 'set_setup_field', abilityId: spec.abilityId, field: spec.field, value });

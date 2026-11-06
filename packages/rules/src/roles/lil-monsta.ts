@@ -56,6 +56,23 @@ export const lilMonsta = defineRole({
       ctx.grant(me, LIL_MONSTA);
     },
     wakes: (ctx) => isToken(ctx.ability.origin),
+    dayActions(ctx) {
+      if (!isToken(ctx.ability.origin)) return [];
+      return [
+        {
+          action: 'move_token',
+          title: "Lil' Monsta token holder",
+          prompt: 'Who should hold the token?',
+          preview: false,
+          fields: [{ kind: 'player', label: 'Holder', options: ctx.seated }],
+        },
+      ];
+    },
+    applyDayAction(ctx, _action, values) {
+      const to = values[0] as PlayerId;
+      ctx.move(ctx.ability.id, to);
+      return { summary: `${ctx.name(to)} holds Lil' Monsta's token.`, effective: true };
+    },
     picker: (ctx) => ({
       title: "Lil' Monsta",
       prompt:

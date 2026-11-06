@@ -12,6 +12,22 @@ export function useSeats(view: StorytellerView) {
   }, [view.players]);
 }
 
+const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** An impairment cause ("poisoned:Poisoner") in plain words. */
+export function causeLabel(cause: string) {
+  const [type = '', source = ''] = cause.split(':');
+  if (source === 'storyteller') return `${titleCase(type)} (set by you)`;
+  if (source === 'Drunk' || source === 'Marionette') return 'Drunk/Marionette (own role)';
+  return `${titleCase(type)} by the ${source}`;
+}
+
+/** Causes with no condition row of their own, such as the No Dashii's. */
+export const causesWithoutRow = (p: GrimoirePlayer) =>
+  p.causes.filter(
+    (cause) => !p.conditions.some((c) => `${c.type}:${c.sourceLabel}`.toLowerCase() === cause.toLowerCase()),
+  );
+
 export function phaseText(view: StorytellerView) {
   const { kind, n, stage } = view.phase;
   if (kind === 'night') return `Night ${n}: ${stage}`;

@@ -61,8 +61,18 @@
   animation-fill-mode: forwards;
 }
 
+/* Both labels share one cell, so arming the button does not change its width. */
 .label {
   position: relative;
+  display: inline-grid;
+}
+
+.label > span {
+  grid-area: 1 / 1;
+}
+
+.off {
+  visibility: hidden;
 }
 
 @keyframes wipe {

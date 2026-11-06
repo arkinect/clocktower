@@ -29,7 +29,7 @@ interface Preview {
 }
 
 /** Any role's day action: the same three field kinds as the night, plus preview and accept when it has consequences. */
-function DayAction({ view, spec }: { view: StorytellerView; spec: DayActionSpec }) {
+export function DayAction({ view, spec }: { view: StorytellerView; spec: DayActionSpec }) {
   const names = useNames();
   const { dead } = useSeats(view);
   const { run, pending } = useCommand();
@@ -353,10 +353,11 @@ function Travellers({ view, seated }: { view: StorytellerView; seated: GrimoireP
   );
 }
 
-function Usage({ seated }: { seated: GrimoirePlayer[] }) {
+export function Usage({ seated }: { seated: GrimoirePlayer[] }) {
   const { run, pending } = useCommand();
-  const held = seated.flatMap((p) => p.abilities.map((a) => ({ p, a }))).filter(({ a }) => a.oncePerGame);
-  const reminders = seated.flatMap((p) => p.abilities.map((a) => ({ p, a }))).filter(({ a }) => a.reminder && a.active);
+  const real = seated.flatMap((p) => p.abilities.map((a) => ({ p, a }))).filter(({ a }) => !a.perceivedOnly);
+  const held = real.filter(({ a }) => a.oncePerGame);
+  const reminders = real.filter(({ a }) => a.reminder && a.active);
   if (!held.length && !reminders.length) return null;
   return (
     <Section title="Abilities">

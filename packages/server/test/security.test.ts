@@ -8,7 +8,7 @@ import { assertSafe, DEFAULT_LIMITS, loadConfig, StartupRefused } from '../src/c
 import { LiveGame } from '../src/games/manager';
 import { originAllowed } from '../src/ws/hub';
 import { BucketMap, PasswordBackoff, TokenBucket, clientIp } from '../src/limits/limits';
-import { Client, connect, join, open, start, table, testConfig, tokenOf, type Harness } from './helpers/client';
+import { Client, connect, dial, join, open, start, table, testConfig, tokenOf, type Harness } from './helpers/client';
 
 const opened: Harness[] = [];
 const up = async (config = testConfig()) => {
@@ -362,5 +362,25 @@ describe('HTTP', () => {
     expect(await res.json()).toMatchObject({ engineVersion: ENGINE_VERSION, games: [{ code: 'default' }] });
     const proxied = await fetch(`${h.base}/api/status`, { headers: { 'x-forwarded-for': '1.2.3.4' } });
     expect(proxied.status).toBe(404);
+  });
+
+  it('/api/status names nobody, and only a command counts as activity', async () => {
+    const h = await up();
+    const status = async () =>
+      (await (await fetch(`${h.base}/api/status`)).json()) as { lastActivity: number; games: { players: number }[] };
+    const live = () => h.app.games.get('default') as LiveGame;
+    const st = await connect(h, 'Zebedee', { wantsStoryteller: true });
+    const text = JSON.stringify(await status());
+    expect(text).not.toContain('Zebedee');
+    expect((await status()).games[0]?.players).toBe(1);
+
+    live().lastActivity = 5;
+    const again = await dial(h, st.cookie, st.id);
+    expect((await status()).lastActivity).toBe(5);
+
+    await st.do({ type: 'open_setup' });
+    expect((await status()).lastActivity).toBeGreaterThan(5);
+    again.close();
+    st.close();
   });
 });

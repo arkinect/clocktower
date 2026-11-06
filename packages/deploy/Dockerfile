@@ -12,8 +12,6 @@ COPY packages/server/package.json server/
 COPY packages/web/package.json web/
 RUN npm ci
 COPY packages ./
-COPY shared ../shared
-COPY server/src/engine ../server/src/engine
 RUN npm run typecheck && npm run boundaries && npm run build
 RUN FUZZ_GAMES=50 npm test
 

@@ -1,4 +1,4 @@
-// A seeded generator of legal-looking commands, used by the fuzz, invariant and parity tests.
+// A seeded generator of legal-looking commands, used by the fuzz and invariant tests.
 import type { Command, PlayerId, RoleId } from '@ct/protocol';
 import { actionSpecs, type GameStateT } from '../../src';
 import { makeRng, type Rng } from '../../src/util/rng';

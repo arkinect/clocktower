@@ -311,7 +311,7 @@ function Day({ view }: { view: PlayerView }) {
   );
 }
 
-function Ended({ view }: { view: PlayerView }) {
+export function Ended({ view }: { view: PlayerView }) {
   const { winner, endedReason } = view.phase;
   return (
     <div className="pad">

@@ -128,6 +128,8 @@ export interface SetupField {
   validate?(r: Reader, value: string): string | null;
   /** Hidden until this says so. */
   when?(r: Reader): boolean;
+  /** What a stored value means now, if that can change with the rest of the setup. */
+  shown?(r: Reader, value: string | null): string | null;
 }
 
 export interface SetupQuery {

@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { Join } from '../player/Join';
 import { PlayerApp } from '../player/PlayerApp';
-import { Banner, Button } from '../ui/ui';
+import { Banner, UpdateBar } from '../ui/ui';
 import { api, sessionFor } from './http';
 import { navigate, parseRoute, usePath, type Route } from './router';
 import { GameProvider, ToastProvider, useGame } from './store';
@@ -23,14 +23,7 @@ function Screens({ route, onSignedOut }: { route: Route; onSignedOut: () => void
   return (
     <>
       {status === 'offline' && <Banner tone="warn">Reconnecting…</Banner>}
-      {reload && (
-        <Banner tone="gold">
-          A new version is ready.{' '}
-          <Button tiny onClick={() => location.reload()}>
-            Reload
-          </Button>
-        </Banner>
-      )}
+      {reload && <UpdateBar />}
       {!view && <p className="pad muted">Connecting…</p>}
       {view?.kind === 'player' && <PlayerApp view={view} />}
       {view?.kind === 'storyteller' && (
