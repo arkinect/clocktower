@@ -21,12 +21,14 @@ export const mayor = defineRole({
         return 'pass';
       }
       const name = ctx.name(me);
-      const rng = ctx.rng(`bounce:${kill.attackerAbility}:${kill.cause}`);
+      // One attacker can reach the Mayor twice in a night (the Al-Hadikhia), and each attempt is its own decision.
+      const attempt = ctx.run.attempt(`mayor:${me}:${kill.attackerAbility}:${kill.cause}`);
+      const rng = ctx.rng(`bounce:${kill.attackerAbility}:${kill.cause}:${attempt}`);
       const heads = rng.coin();
       const pool = ctx.alive.filter((x) => x !== me && x !== kill.attacker);
       const bounce = !heads && pool.length ? rng.pick(pool) : null;
       const chosen = ctx.decide<string>({
-        key: { kind: 'mayor', detail: `${kill.attackerAbility}:${kill.cause}` },
+        key: { kind: 'mayor', detail: `${kill.attackerAbility}:${kill.cause}:${attempt}` },
         title: `Mayor ${name} is attacked`,
         description: `Coin: ${heads ? 'heads, the Mayor dies' : `tails, redirect to ${ctx.name(bounce)}`}. Redirects still go through protections.`,
         options: [

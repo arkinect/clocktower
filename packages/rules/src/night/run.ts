@@ -93,6 +93,7 @@ export interface RunOptions {
 }
 
 export class Run {
+  private attempts = new Map<string, number>();
   readonly world: GameState;
   readonly reader: Reader;
   readonly start: GameState;
@@ -779,6 +780,22 @@ export class Run {
         if (hook) hook(this.ctx(held), { player: chooser, ability: a.id });
       }
     }
+  }
+
+  /** Gives an ability a fresh start: unused, with its start information due again. */
+  refresh(id: string) {
+    const a = this.world.abilities[id];
+    if (!a) return;
+    a.used = false;
+    a.startInfoPending = !!roleDef(a.roleId).flags.startInfo;
+    this.dirty();
+  }
+
+  /** How many times this has come up in the run, from 0. */
+  attempt(key: string): number {
+    const n = this.attempts.get(key) ?? 0;
+    this.attempts.set(key, n + 1);
+    return n;
   }
 
   markChosen(key: string): boolean {

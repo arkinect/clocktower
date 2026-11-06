@@ -4,12 +4,12 @@ Session memory for the plan in `docs/rewrite/PLAN.md` (the working copy this ses
 
 ## Stage status
 
-| Stage         | Status      | Gate                                          |
-| ------------- | ----------- | --------------------------------------------- |
-| 0 Foundations | done        | passed, CI green                              |
-| 1 Rules core  | done        | passed                                        |
-| 2 Framework   | done        | passed locally, see below                     |
-| 3 All roles   | in progress | roles and jinxes written; parity harness next |
+| Stage         | Status | Gate                      |
+| ------------- | ------ | ------------------------- |
+| 0 Foundations | done   | passed, CI green          |
+| 1 Rules core  | done   | passed                    |
+| 2 Framework   | done   | passed locally, see below |
+| 3 All roles   | done   | passed locally, see below |
 
 ## Baseline
 
@@ -36,6 +36,15 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 - Eight acceptance roles, tests in `rules/test/roles/`. `npm run check:role-ids`: no role id in core (added to CI).
 - Stale decisions, the mutual-dependency impairment pin and determinism are in the same framework file.
 
+### Stage 3
+
+- All 55 roles and 14 jinxes, each role with its own file in `rules/test/roles/`, jinxes in `jinxes.test.ts`.
+- Parity harness (`rules/test/parity/`): 10,000 fuzzed games, 54,509 nights, 6.6 million comparisons, 31,133 pinned decisions, 8,435 answered questions: no unexplained difference. A deliberate change to the Empath's text was caught, so the harness is not vacuous.
+- It compares true result lines, result impairment, deaths, revivals, pickers and their options, questions, decisions asked, and after each dawn and day: alive, character, alignment, impairment.
+- It does not compare suggested false information (random in both, by the plan), notices, game-end suggestions, or Storyteller edits such as `set_cannibal_ability`. Virgin, Golem and Witch prompts are new, so they have scenario tests only.
+- Differences it found, all fixed in the new engine: a dead Godfather keeping their ability through the Vigormortis; a Drunk or Marionette staying drunk after becoming the Demon; the Moonchild's target belonging to every holder; a Moonchild regurgitated the same night still acting; a Mayor attacked twice in a night needing two decisions; re-eating the same ability refreshing it.
+- Vigormortis and Scarlet Woman: `roles/vigormortis.test.ts`. The harness stops comparing a game once that ruling applies.
+
 ## Deviations
 
 - zod 4 and @fastify/static 10 rather than the versions first picked: `npm audit --omit=dev` is a CI step and the older versions fail it.
@@ -56,4 +65,4 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 
 ## Next step
 
-Stage 3: parity harness against the old engine, 10,000 fuzzed games.
+Stage 4: server.

@@ -10,7 +10,8 @@ export const philosopher = defineRole({
   night: { first: 10, other: 10 },
   flags: { oncePerGame: 'auto' },
   ability: {
-    wakes: (ctx) => !ctx.ability.used,
+    wakes: (ctx) =>
+      !ctx.ability.used && !ctx.instances.some((a) => a.origin.kind === 'granted' && a.origin.by === ctx.ability.id),
     picker: (ctx) => ({
       title: 'Philosopher',
       prompt: 'Choose a good character to gain its ability, or wait.',

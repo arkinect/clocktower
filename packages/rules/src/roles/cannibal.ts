@@ -16,9 +16,15 @@ const JINX = 'Jinx (Cannibal & ';
 
 /** The one way what a Cannibal ate changes. The old ability goes, with whatever it gained. */
 function setEaten(ctx: AbilityCtx<State>, role: RoleId | null, fake: boolean) {
-  if (ctx.state.eaten) ctx.revoke(ctx.state.eaten);
   const me = ctx.holder;
   ctx.dropPending(me, JINX);
+  // The same ability again is the one they have, freshly: what it gained stays, and a spent use comes back.
+  if (ctx.state.eaten && role === ctx.state.roleId) {
+    ctx.refresh(ctx.state.eaten);
+    ctx.setState({ ate: true, fake, eaten: ctx.state.eaten, roleId: role });
+    return;
+  }
+  if (ctx.state.eaten) ctx.revoke(ctx.state.eaten);
   const reveal = role !== null && ctx.jinx('onGain', role);
   const gained = role
     ? ctx.grant(me, role, {

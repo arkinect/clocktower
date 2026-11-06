@@ -13,3 +13,14 @@ caused (`roles/vigormortis.ts`). Test: `roles/vigormortis.test.ts`, "ruling".
 
 The text says [+1 Minion]. The old app keeps the type counts as they are, because the player in the Demon slot becomes
 a Minion at the first dawn and holds the token. That already is the extra Minion, so the counts do not change.
+
+## Decisions are keyed by what they decide
+
+The old app numbered its Mayor decisions by kill order, so a choice could silently land on a different attack if an
+earlier answer changed the night. The new key is the attacker, the cause and the attempt. An attack the Storyteller has
+already ruled on keeps that ruling when other answers change.
+
+## Nominations
+
+The old app left the Virgin, the Golem and a Witch's curse for the Storyteller to apply by hand. Recording a nomination
+now raises a prompt for each, and the Storyteller still decides. Nothing happens without their answer.

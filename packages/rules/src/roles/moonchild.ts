@@ -1,10 +1,15 @@
 import { roleId, type PlayerId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
+import type { AbilityCtx } from '../night/context';
 
 interface State {
   target: { day: number; player: PlayerId } | null;
   soberAtDeath: boolean | null;
 }
+
+/** Today's public choice, which belongs to every holder of the ability. */
+const target = (ctx: AbilityCtx<State>) =>
+  ctx.peers.find((a) => a.state.target?.day === ctx.n)?.state.target?.player ?? null;
 
 export const moonchild = defineRole<State>({
   id: roleId('moonchild'),
@@ -23,7 +28,7 @@ export const moonchild = defineRole<State>({
     onRevive(ctx, id) {
       if (id === ctx.holder) ctx.setState({ soberAtDeath: null });
     },
-    wakes: (ctx) => !ctx.isAlive(ctx.holder) && ctx.state.target?.day === ctx.n && !ctx.ability.used,
+    wakes: (ctx) => !ctx.aliveAtDusk(ctx.holder) && !!target(ctx) && !ctx.ability.used,
     dayActions(ctx) {
       if (ctx.isAlive(ctx.holder) || ctx.ability.used) return [];
       return [
@@ -41,7 +46,7 @@ export const moonchild = defineRole<State>({
       return { summary: `Moonchild's target: ${ctx.name(values[0])}.`, effective: true };
     },
     resolve(ctx) {
-      const t = ctx.state.target?.player;
+      const t = target(ctx);
       if (!t) return;
       ctx.markUsed();
       ctx.outcome(`target ${ctx.name(t)}`);

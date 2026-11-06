@@ -64,7 +64,7 @@ export const godfather = defineRole({
       ];
     },
     nightStart(ctx) {
-      if (ctx.n < 1 || !ctx.isAlive(ctx.holder)) return;
+      if (ctx.n < 1 || !ctx.canAct) return;
       const derived = outsiderDiedToday(ctx);
       ctx.decide({
         key: TRIGGER,

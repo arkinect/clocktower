@@ -72,3 +72,14 @@ export function dayKill(
   if (force === 'fail') return { summary: `${ctx.name(target)} survives (forced).`, effective: false };
   return outcomeOfKill(ctx, target, ctx.attemptKill(target, cause));
 }
+
+/** A character who is drunk for as long as they are this character. */
+export function drunkFromTheStart(ctx: AbilityCtx<unknown>) {
+  if (ctx.ability.origin.kind === 'character' && !ctx.believed) {
+    ctx.addCondition(ctx.holder, 'drunk', { until: 'removed' });
+  }
+}
+
+export function soberOnChange(ctx: AbilityCtx<unknown>) {
+  for (const c of ctx.conditionsFrom('drunk')) ctx.removeCondition(c);
+}

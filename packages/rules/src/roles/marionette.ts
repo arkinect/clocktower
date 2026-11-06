@@ -1,5 +1,6 @@
 import { roleId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
+import { drunkFromTheStart, soberOnChange } from './lib';
 
 export const marionette = defineRole({
   id: roleId('marionette'),
@@ -10,10 +11,8 @@ export const marionette = defineRole({
   believes: { allowed: (r) => r.alignment === 'good', label: "the Marionette's believed good role" },
   setupRules: { neighbours: 'demon' },
   ability: {
-    setup(ctx) {
-      if (ctx.ability.origin.kind === 'character' && !ctx.believed)
-        ctx.addCondition(ctx.holder, 'drunk', { until: 'removed' });
-    },
+    setup: drunkFromTheStart,
+    onCharacterChange: soberOnChange,
     modifyEvilInfo(ctx, info) {
       const me = ctx.holder;
       info.minions = info.minions.filter((x) => x !== me);

@@ -142,6 +142,11 @@ export class AbilityCtx<S> extends HookCtx<S> {
     return this.isBelieved(this.ability) || this.ability.perceivedOnly;
   }
 
+  /** Whether the holder can use this ability now: alive, or keeping it past death. */
+  get canAct(): boolean {
+    return this.run.canAct(this.ability, roleDef(this.ability.roleId));
+  }
+
   /** During the night's walk, rather than a command acting on the live game. */
   get inWalk(): boolean {
     return this.run.night !== null;
@@ -284,6 +289,11 @@ export class AbilityCtx<S> extends HookCtx<S> {
   /** Move an ability to another player. */
   move(id: string, to: PlayerId) {
     this.run.move(id, to);
+  }
+
+  /** Gives an ability a fresh start, as if just gained. */
+  refresh(id: string) {
+    this.run.refresh(id);
   }
 
   /** Keeps this ability in the game, held by nobody, once its holder loses it. */
