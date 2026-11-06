@@ -1,5 +1,4 @@
 // Night idle games. The choice is a per-device convenience kept in localStorage.
-// FlapGame.tsx ("Night Flight") is kept in the codebase but no longer offered (owner request).
 import { useState } from 'react';
 import { SliceGame } from './MiniGame';
 import { Game2048 } from './Game2048';

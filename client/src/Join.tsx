@@ -77,7 +77,7 @@ export function Join({ code, onJoined }: { code: string; onJoined: (token: strin
       <h1 className="title">Clocktower<br /><span>Night Assistant</span></h1>
       <div className="seg">
         <button className={mode === 'new' ? 'on' : ''} onClick={() => setMode('new')}>Join</button>
-        <button className={mode === 'existing' ? 'on' : ''} onClick={() => setMode('existing')}>I'm already in this game</button>
+        <button className={mode === 'existing' ? 'on' : ''} onClick={() => setMode('existing')}>Rejoin</button>
       </div>
       {notice && <div className="card notice">{notice}</div>}
       {mode === 'new' ? (
@@ -98,7 +98,7 @@ export function Join({ code, onJoined }: { code: string; onJoined: (token: strin
           {names && !names.hasAdmin && (
             <label className="check">
               <input type="checkbox" checked={wantsAdmin} onChange={(e) => setWantsAdmin(e.target.checked)} />
-              I am the admin (Storyteller)
+              I am the Storyteller
             </label>
           )}
           {error && <div className="error">{error}</div>}

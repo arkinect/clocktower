@@ -68,7 +68,7 @@ export function joinPlayer(state: GameState, req: JoinRequest, token: string, no
   const s = structuredClone(state);
   const name = cleanName(req.name);
   if (!name) return { ok: false, error: 'Enter a name of 1 to 24 characters.' };
-  if (nameTaken(s, name)) return { ok: false, error: 'That name is already taken. If it is you, use "I\'m already in this game".' };
+  if (nameTaken(s, name)) return { ok: false, error: 'That name is already taken. If it is you, use "Rejoin".' };
   const prefs: RolePreference[] = ['townsfolk', 'outsider', 'minion', 'demon', 'none'];
   let notice: string | undefined;
   let isAdmin = false;

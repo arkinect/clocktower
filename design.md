@@ -118,13 +118,13 @@ This document describes the app **as built**: the rules it implements, every dec
 Mobile-first web app, no install, opened at the host's address (section 16).
 
 Player screens (bottom tab bar: **Night/Day/Game**, **My role**, **Roles**, **Order**, **Seats**):
-1. **Join**: name, role-type preference (Townsfolk / Outsider / Minion / Demon / No preference) and, only while nobody is the Storyteller yet, an "I am the admin" checkbox. A second mode, "I'm already in this game", lists names to rebind (section 3.4).
+1. **Join**: name, role-type preference (Townsfolk / Outsider / Minion / Demon / No preference) and, only while nobody is the Storyteller yet, an "I am the Storyteller" checkbox. A second mode, **Rejoin**, lists names to rebind (section 3.4).
 2. **Lobby**: names of joined players and a waiting message. If nobody is the Storyteller yet, a "Become Storyteller" button. Role preferences are **not** shown here.
 3. **Roles**: all *enabled* roles grouped by type, alphabetical within each type, each with ability text. Disabled roles are hidden. (The Admin's Reference tab uses the same list.)
 4. **Order**: the order in which **roles** wake on Night 0 and on later nights, generated from the order data and filtered to enabled roles. It never shows who holds a role or whether a role is in play.
 5. **Seats**: names in seat order, shown after the Admin publishes seating. **Dead players' names are red**, using the dawn snapshot (section 3.5).
 6. **My role (private)**: tap-to-reveal card with role, type and ability text, plus permanent starting information (Demon info, fellow Minions, Damsel notice, secret word). A Drunk or Marionette sees their *believed* role, and the word "Drunk" or "Marionette" never appears on their device.
-7. **Night screen** (section 10): countdown, "My role" button, the night action area, and the mini-games once the action is done.
+7. **Night screen** (section 10): countdown, the night action area, and the mini-games once the action is done.
 8. **Day screen**: dawn banner ("☀ Dawn — Day N"), the player's own information from last night (or "You learned nothing."), and a private "You have died" card if they are dead, with an **I used my vote** button (one-way; shows "You have used your vote." afterwards; only the Storyteller can restore it). There is **no public list of dead players**.
 9. **Game over**: shown when the Admin ends the game.
 
@@ -158,7 +158,7 @@ Same app, Admin console. Before the game starts the tab bar shows **Lobby, Setup
 ### 3.4 Reconnection (hard requirement)
 - On join the server issues a **player token** (random UUID) stored in `localStorage` and in a long-lived HttpOnly cookie.
 - A returning token restores the exact current screen with no re-entry. If `localStorage` is lost but the cookie survives, the app silently rebinds.
-- If both are lost, the Join screen's "I'm already in this game" lists the names (the Admin labelled "Storyteller"). Picking one rebinds that person to the new device (good-faith trust). Multiple devices per player are allowed.
+- If both are lost, the Join screen's **Rejoin** lists the names (the Admin labelled "Storyteller"). Picking one rebinds that person to the new device (good-faith trust). Multiple devices per player are allowed.
 - The server never removes a player for disconnecting or being idle. Presence is a green or grey dot visible only to the Admin.
 - Realtime uses WebSocket with automatic reconnect. On connect the client gets a full state snapshot.
 - All state is persisted to disk on every change, so a container restart does not lose the game.
@@ -440,17 +440,16 @@ One atomic step: the night's world is committed, the story is recorded, every re
 
 ## 10. Night experience
 
-**Layout (every player):** header with "Night N", the countdown and a "My role" button; the main area; a bottom bar.
+**Layout (every player):** header with "Night N" and the countdown; the main area; a bottom bar. The role card is on the **My role** tab.
 
 **Night action:**
-- A player whose role acts tonight with a choice gets a **real picker** (dropdowns; legal options only, section 11) behind a **Night action** button, and **Submit**.
+- A player whose role acts tonight with a choice gets a **real picker** (dropdowns; legal options only, section 11) behind one **Night action** button, which opens a sheet; **Submit** is in the sheet.
 - A player with no choice tonight (including roles that wake only to receive information, e.g. Empath, Clockmaker) sees "**No night action tonight.**" and a **Continue** button. There are no decoy pickers. (Owner decision: this does reveal who has a choice; the goal is eyes on screens.)
 - After submitting: "Submitted. Waiting for everyone." with a **Change** button (real actors only) while collecting is open.
 
 **Mini-games:** locked until the player has submitted (or the night has closed). Before that the main area shows a moon and "Make your night choice and submit it." / "Press Continue below." with "The games unlock once you're done." Once unlocked, a switch offers two games, remembered per device:
 - **Lantern Slice:** swipe to slice glowing shapes launched in arcs; score counter.
 - **2048:** swipe (or arrow keys) to slide and merge tiles on a fixed-size 4×4 board; tiles slide, pop when they merge and grow in when new; New game; best score kept on the device.
-- **Night Flight** (tap-to-flap, a bat between clock-tower spires) is kept in `client/src/player/FlapGame.tsx` but not offered. Phones that had it selected fall back to Lantern Slice.
 Games are canvas/DOM only, with no sound, no network, and nothing sent to the server.
 
 ---
@@ -853,7 +852,7 @@ The rest are `'reminder'`: shown in the role list only, applied by the Admin at 
 
 | Screen | Audience | Key elements |
 |---|---|---|
-| Join | Player | Name, preference, admin checkbox; rebind by name |
+| Join | Player | Name, preference, Storyteller checkbox; rebind by name |
 | Lobby | Player | Names, waiting message, Become Storyteller (if none) |
 | Roles / Order / Seats | Player | Enabled roles; role night order; seat order with dead in red (dawn snapshot) |
 | My role | Player | Tap-to-reveal card and starting information |
@@ -896,7 +895,7 @@ The rest are `'reminder'`: shown in the role list only, applied by the Admin at 
 | Deaths seen by players | Red names from a dawn snapshot; no public death list |
 | Deaths seen by the Admin | Immediate, red names everywhere |
 | Night screen | Real picker for real choices; otherwise "No night action tonight" + Continue (no decoys) |
-| Night games | Locked until the player submits; Lantern Slice and 2048 (Night Flight kept but unused) |
+| Night games | Locked until the player submits; Lantern Slice and 2048 |
 | Night pickers | Include dead players (except the Sailor, Devil's Advocate, Huntsman, Lil' Monsta pass-to and the Professor) |
 | Minion information | Minions (not the Marionette) learn each other on Night 0, not the Demon. The Demon learns the Minions, the Marionette and the bluffs. |
 | Damsel notice | Minions (not the Marionette) learn a Damsel is in play, not who |
@@ -1022,6 +1021,10 @@ Interpretation and UX choices:
 - A Scarlet Woman who becomes the Demon by day is told when the next night starts; a player marked dead by day is told immediately.
 - Renaming/removing players allowed in Setup as well as Lobby; "New game (erase)" added.
 - Pickers are dropdowns; drag-to-reorder seating works with a mouse, ↑/↓ on phones.
+- Owner request (UI review, Nov 2026): the player night bar has one **Night action** button, and submitting happens only in its sheet.
+- Owner request (UI review, Nov 2026): no "My role" button in the player night header; the **My role** tab is directly below it.
+- Owner request (UI review, Nov 2026): Join reads **Rejoin** and **I am the Storyteller**.
+- Owner request (UI review, Nov 2026): Night Flight is removed from the codebase. A phone that had it selected falls back to Lantern Slice.
 
 Known limits:
 - No undo or replay from the event log.

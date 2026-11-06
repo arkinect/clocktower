@@ -91,7 +91,6 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
   const specs = view.me.actions;
   const [choice, setChoice] = useState<Record<string, ActionChoice>>(() => (view.me.submission?.actions ?? {}));
   const [sheet, setSheet] = useState(false);
-  const [roleOpen, setRoleOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const collecting = view.phase === 'NIGHT_COLLECTING';
 
@@ -99,7 +98,6 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
 
   const complete = specs.every((s) => choiceComplete(s, choice[s.key]));
   const submit = async () => {
-    if (!complete) { setSheet(true); return; }
     const r = await send({ type: 'submit_night', actions: specs.length ? choice : {} });
     if (r.ok) { setSheet(false); setEditing(false); }
   };
@@ -110,7 +108,6 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
       <header className="nighthead">
         <span className="nightlabel">Night {view.nightNumber}</span>
         <Countdown endsAt={view.nightEndsAt} offset={offset} />
-        <button onClick={() => setRoleOpen(true)}>My role</button>
       </header>
       {/* Owner rule: games unlock only after the player has finished their night action (or the night has closed). */}
       {view.me.submitted || !collecting ? <NightGames code={view.gameCode} /> : (
@@ -133,10 +130,7 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
             <button className="primary" onClick={submit}>Continue</button>
           </>
         ) : (
-          <>
-            <button onClick={() => setSheet(true)}>Night action</button>
-            <button className="primary" onClick={submit}>Submit</button>
-          </>
+          <button className="primary" onClick={() => setSheet(true)}>Night action</button>
         )}
       </footer>
       {sheet && collecting && (
@@ -147,16 +141,6 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
             <div className="sheet-actions">
               <button onClick={() => setSheet(false)}>Close</button>
               <button className="primary" disabled={!complete} onClick={submit}>Submit</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {roleOpen && (
-        <div className="sheet" onClick={() => setRoleOpen(false)}>
-          <div className="sheetbody" onClick={(e) => e.stopPropagation()}>
-            <RoleCardView role={view.me.role} />
-            <div className="sheet-actions">
-              <button onClick={() => setRoleOpen(false)}>Close</button>
             </div>
           </div>
         </div>
