@@ -984,6 +984,7 @@ Rule gaps (already folded into the cards above, listed here for review):
 - Butler always gets "Your master is X".
 - Lil' Monsta's token notice only when the token changes hands; a holder with a Minion night ability gets both pickers.
 - Revived players act in their later slots that night, asked for any input as a follow-up question (Professor, Shabaloth, the Al-Hadikhia's "live"). Players given a new role do not act for the rest of that night; a Damsel turned Grandmother learns her grandchild that night.
+- The Professor can't choose a player who died tonight (the picker lists only players dead at the start of the night), so a revive never starts a chain of follow-up questions.
 - Day kills use true alignments for the Tea Lady; the Slayer's Recluse choice is a selector in the Day panel.
 - Pressing the Witch curse button uses up the curse whatever the dialog choice (except Cancel).
 - A dead Damsel being guessed counts as "no effect".
