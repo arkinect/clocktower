@@ -827,7 +827,7 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 - Ability: "Each night*, you may choose 3 players (all players learn who): each silently chooses to live or die, but if all live, all die."
 - Night 1+: 3 different players, or "No one". Declining (or no input) does nothing and announces nothing.
 - At dawn every seated player is told "The Al-Hadikhia chose A, B and C."
-- During review, each chosen player in order gets a follow-up question (9.4), key `al_hadikhia:<ahId>:<targetId>`: "The Al-Hadikhia chose A, B and C. Do you choose to live or die?", Live or Die, dead players included. "Accept all defaults" answers none of them; publishing waits unless forced.
+- During review, each chosen player in order gets a follow-up question (9.4), key `al_hadikhia:<ahId>:<targetId>`, naming only the picks up to and including them, in pick order: "The Al-Hadikhia chose you." / "chose A, then you." / "chose A, B, then you.", then "Do you choose to live or die?", Live or Die, dead players included. The same goes on the Mastermind jinx night (14.8). Only the dawn notice names all three. "Accept all defaults" answers none of them; publishing waits unless forced.
 - Live revives a dead player (`revive`) and does nothing to a living one. Die is `attemptKill(t, demon_attack)`, so every protection applies. If all three answered and all three are alive afterwards, including anyone whose "die" was stopped, all three are attacked.
 - An unanswered question at a forced publish has no effect for that player, and the "if all live, all die" rule needs all three answers. Impaired: the questions are still asked and the choice still announced, with no effect. The actor row says so in both cases.
 

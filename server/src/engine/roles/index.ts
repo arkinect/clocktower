@@ -588,12 +588,12 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
       const [x, y, z] = ts.map((t) => run.name(t));
       const list = `${x}, ${y} and ${z}`;
       for (const pid of seatedIds(run.w)) run.notice(pid, 'Al-Hadikhia', [`The Al-Hadikhia chose ${list}.`]);
-      if (jinx) { mastermindJinx(run, a, ts, list); return; }
+      if (jinx) { mastermindJinx(run, a, ts); return; }
       const works = a.real && run.sober(a.pid);
       if (!works) run.outcome(`${a.real ? 'impaired' : 'not really the Al-Hadikhia'}: questions asked, the answers have no effect`);
       let answers = 0;
       for (const t of ts) {
-        const answer = liveOrDie(run, a, t, list);
+        const answer = liveOrDie(run, a, t, ts);
         if (!answer) { run.outcome(`${run.name(t)} has not answered: no effect for them`); continue; }
         answers++;
         run.outcome(`${run.name(t)} chose to ${answer}`);
@@ -676,12 +676,14 @@ function mastermindJinxTonight(state: GameState, pid: string, night: number): bo
     && !aliveIds(state).some((id) => id !== pid && isDemon(state, id));
 }
 
-/** The Al-Hadikhia's question to one chosen player. Returns their answer, once given. */
-function liveOrDie(run: NightRun, a: Actor, t: string, list: string): string | null {
+/** The Al-Hadikhia's question to one chosen player, who sees only the picks up to them. Returns their answer, once given. */
+function liveOrDie(run: NightRun, a: Actor, t: string, ts: string[]): string | null {
+  const before = ts.slice(0, ts.indexOf(t)).map((x) => run.name(x));
+  const chosen = before.length ? `${before.join(', ')}, then you` : 'you';
   const choice = run.askFollowUp({
     key: `al_hadikhia:${a.pid}:${t}`, playerId: t, roleId: 'al_hadikhia', asksOther: true,
     spec: {
-      key: 'al_hadikhia', roleId: 'al_hadikhia', title: 'Al-Hadikhia', prompt: `The Al-Hadikhia chose ${list}. Do you choose to live or die?`,
+      key: 'al_hadikhia', roleId: 'al_hadikhia', title: 'Al-Hadikhia', prompt: `The Al-Hadikhia chose ${chosen}. Do you choose to live or die?`,
       fields: [{ kind: 'option', label: 'Your choice', options: ['live', 'die'], labels: { live: 'Live', die: 'Die' } }],
       distinct: false, allowDecline: false,
     },
@@ -690,8 +692,8 @@ function liveOrDie(run: NightRun, a: Actor, t: string, list: string): string | n
 }
 
 /** Nothing dies and the app doesn't end the game: the review says who wins, for the Storyteller to apply at the table. */
-function mastermindJinx(run: NightRun, a: Actor, ts: string[], list: string) {
-  const answers = ts.map((t) => liveOrDie(run, a, t, list));
+function mastermindJinx(run: NightRun, a: Actor, ts: string[]) {
+  const answers = ts.map((t) => liveOrDie(run, a, t, ts));
   ts.forEach((t, i) => run.outcome(`${run.name(t)} ${answers[i] ? `chose to ${answers[i]}` : 'has not answered'}`));
   if (answers.every(Boolean)) run.outcome(`${JINX_AH_MASTERMIND}: ${answers.every((x) => x === 'live') ? 'evil wins' : 'good wins'}. Apply this at the table.`);
   else run.outcome(`${JINX_AH_MASTERMIND}: waiting for all three answers`);
