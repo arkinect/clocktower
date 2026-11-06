@@ -145,7 +145,7 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
           <div className="sheetbody" onClick={(e) => e.stopPropagation()}>
             <h3>Night action</h3>
             <ActionPicker specs={specs} names={names} value={choice} onChange={setChoice} dead={dead} />
-            <div className="row">
+            <div className="sheet-actions">
               <button onClick={() => setSheet(false)}>Close</button>
               <button className="primary" disabled={!complete} onClick={submit}>Submit</button>
             </div>
@@ -156,7 +156,9 @@ function NightScreen({ view, names, offset, dead }: { view: PlayerView; names: R
         <div className="sheet" onClick={() => setRoleOpen(false)}>
           <div className="sheetbody" onClick={(e) => e.stopPropagation()}>
             <RoleCardView role={view.me.role} />
-            <button onClick={() => setRoleOpen(false)}>Close</button>
+            <div className="sheet-actions">
+              <button onClick={() => setRoleOpen(false)}>Close</button>
+            </div>
           </div>
         </div>
       )}
@@ -175,7 +177,9 @@ function FollowUpSheet({ specs, names, dead }: { specs: ActionSpec[]; names: Rec
     <div className="sheet">
       <div className="sheetbody">
         <ActionPicker specs={specs} names={names} value={choice} onChange={setChoice} dead={dead} />
-        <button className="primary big" disabled={!complete} onClick={submit}>Submit</button>
+        <div className="sheet-actions">
+          <button className="primary" disabled={!complete} onClick={submit}>Submit</button>
+        </div>
       </div>
     </div>
   );

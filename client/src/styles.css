@@ -32,6 +32,8 @@ h1, h2, h3 { margin: 0.4em 0; font-weight: 650; }
 h2 { font-size: 1.2rem; }
 h3 { font-size: 1.02rem; }
 p { margin: 0.35em 0; }
+a { color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }
+a:hover { color: var(--text); }
 button, select, input, textarea {
   font: inherit; color: var(--text); background: var(--bg2); border: 1px solid var(--line);
   border-radius: 8px; padding: 7px 12px; min-height: 40px;
@@ -42,7 +44,8 @@ button:disabled { opacity: 0.45; cursor: default; }
 button.primary { background: var(--gold); color: #1b1408; border-color: var(--gold); font-weight: 650; }
 button.danger { border-color: #7a3040; color: #ffb3bd; }
 button.big { padding: 12px 20px; font-size: 1.05rem; width: 100%; margin-top: 8px; }
-button.tiny { min-height: 28px; padding: 2px 8px; font-size: 0.8rem; }
+/* The one compact button size; 40px is the default. */
+button.tiny, button.chip, .gamepick button, .seatlist li button { min-height: 32px; padding: 2px 10px; font-size: 0.8rem; }
 /* StableLabel: all labels in one cell, so the control is as wide as the longest. */
 .stable { display: inline-grid; justify-items: center; max-width: 100%; }
 .stable > * { grid-area: 1 / 1; }
@@ -54,6 +57,7 @@ label.check { display: flex; gap: 8px; align-items: center; }
 label.check input { width: auto; min-height: 0; }
 .field > span { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 4px; }
 .field { margin: 10px 0; }
+.field input[type=number] { max-width: 140px; }
 .field > .seg { margin: 0; }
 .muted { color: var(--muted); }
 .small { font-size: 0.85rem; }
@@ -143,9 +147,19 @@ label.check input { width: auto; min-height: 0; }
 .nightbar { display: flex; gap: 10px; padding: 10px 12px calc(10px + 0px); background: #0b0914ee; }
 .nightbar > button { flex: 1; min-height: 52px; font-size: 1.05rem; }
 .nightbar .waiting { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); min-height: 52px; }
+/* Text plus one button: the text takes the room, so it stays on one line. */
+.nightbar .waiting + button, .nightbar .waiting > button { flex: none; min-width: 112px; }
+.nightbar .waiting > button { min-height: 52px; font-size: 1.05rem; }
 .sheet { position: fixed; inset: 0; background: #000a; display: flex; align-items: flex-end; justify-content: center; z-index: 50; }
 .sheetbody { background: var(--bg2); width: 100%; max-width: 560px; max-height: 88vh; overflow: auto; border-radius: 16px 16px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); border: 1px solid var(--line); }
 .sheetbody > * + * { margin-top: 8px; }
+/* Every sheet's footer: dismiss first, the main action last. */
+.sheet-actions { display: flex; gap: 8px; margin-top: 14px; }
+.sheet-actions > button { flex: 1 1 0; min-width: 0; padding-inline: 6px; }
+@media (min-width: 600px) {
+  .sheet-actions { justify-content: flex-end; }
+  .sheet-actions > button { flex: none; padding-inline: 12px; }
+}
 .picker .pickspec { margin: 8px 0 14px; }
 .picker .pickhead { font-weight: 600; margin-bottom: 6px; }
 
@@ -176,6 +190,21 @@ label.check input { width: auto; min-height: 0; }
 .tbl.story td, .tbl.log td { vertical-align: top; }
 .tbl th { color: var(--muted); font-weight: 500; font-size: 0.85rem; }
 .tbl.counts input { width: 64px; }
+/* Phones: name and type on one line, the role dropdown full width below, so role names stay readable. */
+@media (max-width: 599px) {
+  .tbl.roles, .tbl.roles tbody { display: block; }
+  .tbl.roles tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .tbl.roles td { display: block; padding: 0; border-bottom: 0; }
+  .tbl.roles td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+}
+/* Assigned numbers line up with the text in the boxes above: cell padding + input padding + border. */
+.tbl.counts tbody tr:last-child td + td { padding-left: 21px; }
+@media (max-width: 599px) {
+  .tbl.counts th, .tbl.counts td { padding-inline: 3px; }
+  .tbl.counts th { font-size: 0.72rem; }
+  .tbl.counts input { width: 100%; padding-inline: 6px; }
+  .tbl.counts tbody tr:last-child td + td { padding-left: 10px; }
+}
 .tbl .bad { color: #ff8f8f; font-weight: 700; }
 .board { display: block; overflow-x: auto; }
 /* Fixed columns and a row height that fits a button: nothing shifts as collecting opens or choices come in. */
@@ -185,20 +214,20 @@ label.check input { width: auto; min-height: 0; }
 .submitted .stable { display: grid; justify-items: start; }
 .deadrow { opacity: 0.6; }
 .checklist { list-style: none; padding: 0; }
-.checklist li { padding: 3px 0; }
+.checklist li { display: flex; padding: 3px 0; }
+.checklist .glyph { flex: none; width: 1.2em; }
 .checklist .done { color: var(--ok); }
 .checklist .todo { color: var(--text); }
 .checklist .warnitem { color: var(--warn); }
 .warnline { color: var(--warn); font-size: 0.9rem; margin: 4px 0; }
 /* Bold in every state, not only while primary, so it keeps its width. */
 .seatpublish { font-weight: 650; }
-.seatlist { padding-left: 28px; }
-.seatlist li { margin: 4px 0; }
-.seatlist li > * { vertical-align: middle; }
-.seatlist li { display: list-item; }
-.seatlist li .grip { cursor: grab; color: var(--muted); margin-right: 6px; }
-.seatlist li button { min-height: 32px; padding: 2px 10px; margin-left: 4px; }
-.seatlist li .grow { display: inline-block; min-width: 120px; }
+/* A grid has no list marker, so the seat numbers are a counter. */
+.seatlist { list-style: none; padding: 0; counter-reset: seat; }
+.seatlist li { display: grid; grid-template-columns: 1.6em auto minmax(0, 1fr) auto auto auto; align-items: center; gap: 4px; margin: 4px 0; counter-increment: seat; }
+.seatlist li::before { content: counter(seat) "."; text-align: right; }
+.seatlist li .grip { cursor: grab; color: var(--muted); margin: 0 2px; }
+.seatlist li .grow { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .checkgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0 12px; }
 .checkgrid label { margin: 3px 0; }
 .proposal { border-top: 1px solid var(--line); margin-top: 10px; }
@@ -211,7 +240,7 @@ label.check input { width: auto; min-height: 0; }
 .result.impaired { background: #e05a5a10; }
 .result .final { margin: 4px 0; }
 .result .editor .row { margin-top: 8px; }
-.chip { min-height: 28px; padding: 2px 12px; border-radius: 99px; font-size: 0.8rem; }
+.chip { border-radius: 99px; }
 .chip.used { background: #5a2531; border-color: var(--evil); }
 .chip.good { border-color: var(--good); color: var(--good); }
 .chip.evil { border-color: var(--evil); color: var(--evil); }
@@ -221,6 +250,7 @@ label.check input { width: auto; min-height: 0; }
 .grimcard.dead { opacity: 0.65; background: #1a1628; }
 .grimrole { font-size: 1.15rem; font-weight: 700; }
 .effect { color: #ffb48a; }
+.effect-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
 .qr { text-align: center; }
 .qr img { background: #fff; padding: 8px; border-radius: 8px; max-width: 240px; width: 100%; }
 .reminders { color: #e9d9a8; font-size: 0.9rem; padding-left: 18px; }
@@ -234,7 +264,7 @@ details summary { cursor: pointer; color: var(--muted); margin-top: 10px; }
 .banner.wrong { background: var(--bg2); }
 .games { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .gamepick { display: flex; gap: 6px; padding: 4px 12px; justify-content: center; }
-.gamepick button { min-height: 30px; padding: 2px 12px; font-size: 0.8rem; background: transparent; color: var(--muted); border-radius: 99px; }
+.gamepick button { background: transparent; color: var(--muted); border-radius: 99px; }
 .gamepick button.on { color: var(--gold); border-color: var(--gold); }
 
 .dead-name { color: #ff6b6b; }

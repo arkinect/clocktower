@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { abilitiesOf, ROLES, ROLE_BY_ID } from '@ct/shared';
 import { api, send } from '../api';
 import { ImpairmentTags, StableLabel, TimedButton, TYPE_LABEL, TYPE_ORDER } from '../common';
-import { VigoScarletWarning, Who, type AdminCtx } from './AdminApp';
+import { PHASE_LABEL, VigoScarletWarning, Who, type AdminCtx } from './AdminApp';
 import { Briefing } from './Setup';
 
 const CAUSE_LABEL: Record<string, string> = {
@@ -52,12 +52,14 @@ export function Grimoire({ ctx, code }: { ctx: AdminCtx; code: string }) {
               </div>
               {imp?.impaired && <div className="small"><ImpairmentTags causes={imp.causes} /></div>}
               {effects.map((e) => (
-                <div key={e.id} className="small effect">
-                  {e.type === 'butler_master' ? `Butler's master (chosen by ${names[e.sourcePlayerId ?? ''] ?? '?'})`
-                    : e.type === 'devils_advocate' ? `Devil's Advocate: survives execution today (${names[e.sourcePlayerId ?? ''] ?? '?'})`
-                    : e.type === 'witched' ? `Witched: dies if they nominate today (${names[e.sourcePlayerId ?? ''] ?? '?'})`
-                    : e.type === 'protected' ? `protected tonight (Innkeeper ${names[e.sourcePlayerId ?? ''] ?? ''})`
-                    : `${e.type} (${CAUSE_LABEL[e.cause] ?? e.cause}${e.sourcePlayerId ? `, ${names[e.sourcePlayerId]}` : ''}, ${e.expiry.replace(/_/g, ' ')})`}
+                <div key={e.id} className="small effect effect-row">
+                  <span className="grow">
+                    {e.type === 'butler_master' ? `Butler's master (chosen by ${names[e.sourcePlayerId ?? ''] ?? '?'})`
+                      : e.type === 'devils_advocate' ? `Devil's Advocate: survives execution today (${names[e.sourcePlayerId ?? ''] ?? '?'})`
+                      : e.type === 'witched' ? `Witched: dies if they nominate today (${names[e.sourcePlayerId ?? ''] ?? '?'})`
+                      : e.type === 'protected' ? `protected tonight (Innkeeper ${names[e.sourcePlayerId ?? ''] ?? ''})`
+                      : `${e.type} (${CAUSE_LABEL[e.cause] ?? e.cause}${e.sourcePlayerId ? `, ${names[e.sourcePlayerId]}` : ''}, ${e.expiry.replace(/_/g, ' ')})`}
+                  </span>
                   <button className="tiny" onClick={() => send({ type: 'remove_effect', effectId: e.id })}>✕</button>
                 </div>
               ))}
@@ -136,7 +138,7 @@ function Reassign({ ctx, pid, onClose }: { ctx: AdminCtx; pid: string; onClose: 
             <li>Logged in the event log.</li>
           </ul>
         </div>
-        <div className="row">
+        <div className="sheet-actions">
           <button onClick={onClose}>Cancel</button>
           <TimedButton className="primary" disabled={!roleId || roleId === old} onConfirm={async () => { const r = await send({ type: 'assign_role', playerId: pid, roleId }); if (r.ok) onClose(); }}>Confirm</TimedButton>
         </div>
@@ -173,7 +175,7 @@ function Settings({ ctx, code }: { ctx: AdminCtx; code: string }) {
         <summary>Force phase (if stuck)</summary>
         <div className="row wrap">
           {(['LOBBY', 'SETUP', 'DAY', 'ENDED'] as const).map((p) => (
-            <TimedButton key={p} className="danger" onConfirm={() => send({ type: 'force_phase', phase: p })}>{p}</TimedButton>
+            <TimedButton key={p} className="danger" onConfirm={() => send({ type: 'force_phase', phase: p })}>{PHASE_LABEL[p]}</TimedButton>
           ))}
         </div>
       </details>

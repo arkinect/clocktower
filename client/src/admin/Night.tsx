@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { abilitiesOf, ROLE_BY_ID, storytellerLabel, type ActionChoice, type FollowUp, type ResultRow } from '@ct/shared';
 import { send } from '../api';
-import { ActionPicker, Countdown, ImpairmentTags, StableLabel, TimedButton, choiceComplete, useNow } from '../common';
+import { ActionPicker, Countdown, ImpairmentTags, InputSheet, StableLabel, TimedButton, choiceComplete, useNow } from '../common';
 import { InactiveNote, Who, type AdminCtx } from './AdminApp';
 
 function describe(ctx: AdminCtx, actions: Record<string, ActionChoice> | undefined): string {
@@ -15,6 +15,7 @@ function describe(ctx: AdminCtx, actions: Record<string, ActionChoice> | undefin
 export function NightPanel({ ctx }: { ctx: AdminCtx }) {
   const { s, view, names, seated } = ctx;
   const [proxy, setProxy] = useState<string | null>(null);
+  const [settingTime, setSettingTime] = useState(false);
   const offset = useMemo(() => view.serverNow - Date.now(), [view.serverNow]);
   const nowLocal = useNow(1000);
   if (!s.phase.startsWith('NIGHT') || !s.night) {
@@ -37,7 +38,7 @@ export function NightPanel({ ctx }: { ctx: AdminCtx }) {
             <>
               <button onClick={() => send({ type: 'extend_countdown', seconds: 60 })}>+1 min</button>
               <button onClick={() => send({ type: 'extend_countdown', seconds: 180 })}>+3 min</button>
-              <button onClick={() => { const v = prompt('Countdown seconds (also the default for later nights)', String(s.settings.countdownSeconds)); if (v) send({ type: 'set_countdown', seconds: Number(v) }); }}>Set…</button>
+              <button onClick={() => setSettingTime(true)}>Set…</button>
             </>
           )}
         </div>
@@ -71,8 +72,10 @@ export function NightPanel({ ctx }: { ctx: AdminCtx }) {
         {s.phase === 'NIGHT_RESOLVING' && <p>Resolving. Go to the Review tab. <button onClick={() => send({ type: 'reopen_collecting' })}>Reopen collecting</button></p>}
       </section>
 
-      <div className="board">
-      <table className="tbl nightboard">
+      <section className="card">
+        <h2>Players</h2>
+        <div className="board">
+          <table className="tbl nightboard">
         <colgroup>
           <col style={{ width: '28px' }} /><col style={{ width: '130px' }} /><col style={{ width: '150px' }} /><col style={{ width: '120px' }} /><col style={{ width: '130px' }} /><col /><col style={{ width: '150px' }} />
         </colgroup>
@@ -106,9 +109,14 @@ export function NightPanel({ ctx }: { ctx: AdminCtx }) {
             );
           })}
         </tbody>
-      </table>
-      </div>
+          </table>
+        </div>
+      </section>
       {proxy && <ProxySubmit ctx={ctx} pid={proxy} onClose={() => setProxy(null)} />}
+      {settingTime && (
+        <InputSheet title="Set countdown" label="Countdown seconds (also the default for later nights)" type="number" initial={String(s.settings.countdownSeconds)} onClose={() => setSettingTime(false)}
+          onSave={(v) => send({ type: 'set_countdown', seconds: Number(v) })} />
+      )}
     </div>
   );
 }
@@ -122,7 +130,7 @@ function ProxySubmit({ ctx, pid, onClose }: { ctx: AdminCtx; pid: string; onClos
       <div className="sheetbody" onClick={(e) => e.stopPropagation()}>
         <h3>Act for <Who ctx={ctx} id={pid} /></h3>
         {specs.length ? <ActionPicker specs={specs} names={ctx.names} value={value} onChange={setValue} dead={new Set(ctx.seated.filter(ctx.isDead))} /> : <p className="muted">This player has no choice tonight. Submitting records an acknowledgement.</p>}
-        <div className="row">
+        <div className="sheet-actions">
           <button onClick={onClose}>Cancel</button>
           <button className="primary" disabled={!complete} onClick={async () => { const r = await send({ type: 'submit_for', playerId: pid, actions: value }); if (r.ok) onClose(); }}>Submit</button>
         </div>

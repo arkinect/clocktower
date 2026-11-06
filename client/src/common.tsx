@@ -4,6 +4,11 @@ import { ENDED_REASON_TEXT, FIRST_NIGHT_ORDER, jinxesAmong, jinxLabel, OTHER_NIG
 export const TYPE_LABEL: Record<RoleType, string> = { townsfolk: 'Townsfolk', outsider: 'Outsiders', minion: 'Minions', demon: 'Demons' };
 export const TYPE_ORDER: RoleType[] = ['townsfolk', 'outsider', 'minion', 'demon'];
 
+/** The singular: "Townsfolk", "Outsider", "Minion", "Demon". */
+export function typeName(t: RoleType): string {
+  return TYPE_LABEL[t].replace(/s$/, '');
+}
+
 export function RoleList({ enabled }: { enabled: string[] }) {
   const jinxes = jinxesAmong(enabled);
   return (
@@ -89,7 +94,7 @@ export function RoleCardView({ role, hiddenByDefault = true }: { role: RC | null
   return (
     <div className="rolecard" onClick={() => setShown(!shown)}>
       <div {...face(shown)}>
-        <div className={`rtype type-${role.type}`}>{TYPE_LABEL[role.type].replace(/s$/, '')}</div>
+        <div className={`rtype type-${role.type}`}>{typeName(role.type)}</div>
         <div className="rname">{role.name}</div>
         <p>{role.abilityText}</p>
         <div className="muted small">Tap to hide</div>
@@ -263,6 +268,39 @@ export function TimedButton({ onConfirm, children, className, disabled, seconds 
   );
 }
 
+
+/** A bottom sheet asking for one value. It closes once onSave succeeds, and Enter saves. */
+export function InputSheet({ title, label, initial, type = 'text', maxLength, onSave, onClose }: {
+  title: ReactNode;
+  label: string;
+  initial: string;
+  type?: 'text' | 'number';
+  maxLength?: number;
+  onSave: (value: string) => Promise<{ ok: boolean }>;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(initial);
+  const save = async () => {
+    if (!value.trim()) return;
+    const r = await onSave(value.trim());
+    if (r.ok) onClose();
+  };
+  return (
+    <div className="sheet" onClick={onClose}>
+      <div className="sheetbody" onClick={(e) => e.stopPropagation()}>
+        <h3>{title}</h3>
+        <label className="field">
+          <span>{label}</span>
+          <input type={type} value={value} maxLength={maxLength} autoFocus onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') save(); }} />
+        </label>
+        <div className="sheet-actions">
+          <button onClick={onClose}>Cancel</button>
+          <button className="primary" disabled={!value.trim()} onClick={save}>Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** "poisoned:poisoner" -> "Poisoned by the Poisoner"; "own_character" -> "Drunk/Marionette (own role)". */
 export function causeLabel(c: string): string {

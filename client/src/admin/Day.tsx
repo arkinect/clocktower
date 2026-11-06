@@ -329,11 +329,11 @@ function DayAbilities({ ctx }: { ctx: AdminCtx }) {
             <h3>{dialog.req.kind === 'slayer' ? 'Slayer shot' : 'Witch\'s curse'}: <Who ctx={ctx} id={dialog.req.targetId} /></h3>
             <p><b>{dialog.preview.reason}</b></p>
             {dialog.req.kind === 'slayer' && <p className="muted small">The Slayer's shot is spent whichever you choose (except Cancel).</p>}
-            <div className="row wrap">
-              <button className="primary" onClick={() => finish('accept')}>Accept</button>
+            <div className="sheet-actions">
               <button onClick={() => setDialog(null)}>Cancel</button>
-              <button className="danger" onClick={() => finish('force_death')}>Force death</button>
               <button onClick={() => finish('force_survive')}>Force survive</button>
+              <button className="danger" onClick={() => finish('force_death')}>Force death</button>
+              <button className="primary" onClick={() => finish('accept')}>Accept</button>
             </div>
           </div>
         </div>
