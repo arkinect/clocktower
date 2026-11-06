@@ -1,0 +1,17 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "protocol"
+    },
+    {
+      "path": "rules"
+    },
+    {
+      "path": "server"
+    },
+    {
+      "path": "web"
+    }
+  ]
+}

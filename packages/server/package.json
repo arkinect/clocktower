@@ -1,0 +1,26 @@
+{
+  "name": "@ct/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "esbuild src/main.ts --bundle --platform=node --format=cjs --target=node22 --external:better-sqlite3 --outfile=dist/main.cjs",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@ct/protocol": "*",
+    "@ct/rules": "*",
+    "@fastify/helmet": "^13.0.0",
+    "@fastify/static": "^10.1.10",
+    "better-sqlite3": "^11.5.0",
+    "fastify": "^5.1.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/ws": "^8.5.13",
+    "esbuild": "^0.24.0",
+    "tsx": "^4.19.2"
+  }
+}
