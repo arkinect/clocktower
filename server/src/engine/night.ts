@@ -374,7 +374,9 @@ export class NightRun {
     }
     for (const slot of order) {
       if (!slot.roleId || !BEHAVIOURS[slot.roleId]?.resolve) continue;
-      for (const actor of this.actorsFor(slot.id, slot.roleId)) this.act(slot, actor);
+      const actors = this.actorsFor(slot.id, slot.roleId);
+      for (const actor of actors) this.act(slot, actor);
+      if (slot.roleId === 'pukka') this.endUnclaimedPukkaPoison(actors);
     }
     // Deaths after a role's slot (the Moonchild's target, a Grandmother's link): it acts once the order has finished.
     for (const slot of order) {
@@ -390,6 +392,17 @@ export class NightRun {
       deaths: this.deaths, revived: this.revived, abnormal: this.abnormal, followUps: this.followUps,
       notices: this.notices, after,
     };
+  }
+
+  /**
+   * A Pukka's poison lasts until the player who caused it acts again. If they didn't act at the Pukka's slot tonight
+   * (dead, or a Scarlet Woman has taken over), the poison ends here and the target doesn't die.
+   */
+  private endUnclaimedPukkaPoison(actors: Actor[]) {
+    const ended = this.w.effects.filter((e) => e.cause === 'pukka' && !actors.some((a) => a.pid === e.sourcePlayerId));
+    if (!ended.length) return;
+    this.w.effects = this.w.effects.filter((e) => !ended.includes(e));
+    for (const e of ended) this.log.push(`${this.name(e.targetPlayerId)} is healthy: no Pukka took up the poison`);
   }
 
   private act(slot: NightSlot, actor: Actor) {

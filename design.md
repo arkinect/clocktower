@@ -267,7 +267,7 @@ Action fields (`ActionField.kind`) are `player`, `role` or `option`: a fixed set
 
 **Start information.** A player who gains a start-information role's ability other than at setup (the Philosopher's choice, the Huntsman's Damsel, the Cannibal's eat or the Storyteller's choice for it) is marked by `markStartInfo` (`server/src/engine/world.ts`) in `roleState.startInfoPending`. They get the information **the night the ability is gained**, in the role's slot, even though a gained ability otherwise works only from the next night and a player given a role tonight otherwise acts from the next night (the exception is for start-information roles only): a Philosopher's choosing night (both slots come after the Philosopher's), the Damsel's night. The Cannibal's case is the night after the execution, the first night the eat is active. The information is a normal result (false if impaired), and the mark clears, so it comes once. The Grandmother's link still starts when the ability does. The Clockmaker has an other-night slot for this alone ("Only if the ability was just gained"), beside the Grandmother's.
 
-Every role change goes through `changeRole(w, pid, roleId, reason, now, opts)` in `server/src/engine/world.ts`: new role, its alignment, no believed role, one history entry. By default it also clears the player's gained and eaten abilities, dead-ability flag, role memory and the effects they caused; `keepAbilities` keeps the first three (a Demon change, the Huntsman's Damsel), `keepTies` keeps the last two (setup, a new Demon, the Huntsman's Damsel), `keepAlignment` keeps the player's current alignment instead of the new role's, and `clearFlags` also clears their used flags (a live reassignment). A cleared eaten ability is left absent rather than null.
+Every role change goes through `changeRole(w, pid, roleId, reason, now, opts)` in `server/src/engine/world.ts`: new role, its alignment, no believed role, one history entry. By default it also clears the player's gained and eaten abilities, dead-ability flag, role memory and the effects that depend on them as their source (cause `philosopher`, `while_source_alive_and_sober`, `until_source_acts_again`; timed effects they caused stay, 5.8); `keepAbilities` keeps the first three (a Demon change, the Huntsman's Damsel), `keepTies` keeps the last two (setup, a new Demon, the Huntsman's Damsel), `keepAlignment` keeps the player's current alignment instead of the new role's, and `clearFlags` also clears their used flags (a live reassignment). A cleared eaten ability is left absent rather than null.
 
 The night-order reference shown to players is generated from the order tables, never hand-written separately.
 
@@ -278,6 +278,7 @@ The night-order reference shown to players is generated from the order tables, n
 - A Philosopher's drunk effect ends when the Philosopher dies.
 - Effects are applied as the night order is walked, so a role that wakes later sees effects created earlier tonight.
 - `until_dusk` effects are cleared when the next night starts. Poison "tonight and tomorrow day" is `until_dusk`.
+- **House rule:** an effect with a duration (until dusk, until removed) lasts its full time even if its source dies or changes role. Effects that exist only while the source lives end with it: the Philosopher's drunk, No Dashii poison and Vigormortis poison. This deliberately differs from the official Poisoner example. `becomeDemon` keeping effects is correct. A Pukka's poison follows the Pukka's own rule (14.7).
 
 ### 5.9 Registration
 Only a **sober Recluse** (alive or dead) is a registration source with an Admin choice. When an ability asks about a Recluse, the engine creates a review item for that asker and that Recluse: "Truthfully (good Outsider)", "As an evil Minion" or "As an evil Demon" (default truthful); for "which character?" (Ravenkeeper) the options are truthful or any enabled Minion/Demon. The choice applies to that query only. A non-truthful choice logs an abnormal event for the Mathematician.
@@ -771,7 +772,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 
 #### Witch
 - Ability: "Each night, choose a player: if they nominate tomorrow, they die. If just 3 players live, you lose this ability."
-- Every night including Night 0, while 4+ players are alive at the start of the night (checked every night, nothing stored; revived players can bring it back from the next night). Any player, self allowed. At her slot, if 3 or fewer are alive she does nothing; otherwise, if sober, a `witched` effect (until dusk) on the target. The cursed player is not told; the curse persists if she dies. Day: the Admin presses "They nominated, apply curse" (day-kill dialog, once per curse). The Goon check applies. Told only "You chose X." Impaired: no curse.
+- Every night including Night 0, while 4+ players are alive at the start of the night (checked every night, nothing stored; she can curse whenever 4 or more are alive, so a revive brings it back from the next night). Any player, self allowed. At her slot, if 3 or fewer are alive she does nothing; otherwise, if sober, a `witched` effect (until dusk) on the target. The cursed player is not told; a curse already cast lasts until dusk if she dies, or even if only 3 are then alive. Day: the Admin presses "They nominated, apply curse" (day-kill dialog, once per curse). The Goon check applies. Told only "You chose X." Impaired: no curse.
 
 #### Organ Grinder
 - Ability: "All players keep their eyes closed when voting and the vote tally is secret. Each night, choose if you are drunk until dusk."
@@ -792,7 +793,7 @@ Common: exactly one Demon at the start. Demon kills are `attemptKill(target, dem
 
 #### Pukka
 - Ability: "Each night, choose a player: they are poisoned. The previously poisoned player dies then becomes healthy."
-- Every night, any player. (1) The previous Pukka target, if alive, is attacked (`demon_attack`) and the poison removed, **even if the Pukka is impaired**; (2) if sober, the new target is poisoned (cause `pukka`, `until_source_acts_again`). Night 0 only poisons.
+- Every night, any player. (1) The previous Pukka target, if alive, is attacked (`demon_attack`) and the poison removed, **even if the Pukka is impaired**; (2) if sober, the new target is poisoned (cause `pukka`, `until_source_acts_again`). Night 0 only poisons. If no player with the Pukka ability who caused a poison acts on the next night (the Pukka was executed, or a Scarlet Woman became the Pukka), that poison ends at the Pukka's slot that night and the target does not die; a new Pukka's first choice is only poisoned.
 
 #### Shabaloth
 - Ability: "Each night*, choose 2 players: they die. A dead player you chose last night might be regurgitated."
@@ -909,7 +910,7 @@ The rest are `'reminder'`: shown in the role list only, applied by the Admin at 
 | Mezepheles | First word only; word spent even if impaired |
 | Scarlet Woman | Alive count includes the dying Demon; by day she is told at the next night start |
 | Mayor | 50/50 recommendation, Admin chooses any outcome; redirects may hit protected players and still go through protections |
-| Pukka | Impaired Pukka still kills its previous target but poisons no one new |
+| Pukka | Impaired Pukka still kills its previous target but poisons no one new; with no Pukka who caused it to act, the poison ends at the Pukka's slot and the target does not die |
 | Shabaloth | 1-in-3 regurgitation of any past victim, recommended then Admin chooses |
 | Po | None or exactly one; after none, exactly three |
 | No Dashii, Vigormortis | Only alive Townsfolk count as neighbours; Vigormortis poison lasts while it is alive and sober |
@@ -922,7 +923,7 @@ The rest are `'reminder'`: shown in the role list only, applied by the Admin at 
 | Professor | Players dead at night start; actual Townsfolk only; revived player acts from next night |
 | Revive | One shared function (Professor, Shabaloth, Admin) |
 | Godfather | Learns Outsider characters at Night 0 (publish); trigger = an Outsider died in the day, Admin can flip; −1/+1 Outsider, Admin chooses |
-| Witch | Works only while 4+ alive at her slot; curse persists if she dies; applied by the Admin in the day |
+| Witch | Works whenever 4+ are alive at her slot (a revive brings it back); a curse lasts until dusk if she dies or only 3 are then alive; applied by the Admin in the day |
 | Day kills (Slayer, Witch) | Protections apply except Mayor and Innkeeper; Admin confirms every one |
 | Slayer | Shot spent either way; kills only a target that registers as the Demon |
 | Damsel guess | One per game for the evil team; app shows the outcome, does not end the game |
@@ -971,6 +972,7 @@ Rule gaps (already folded into the cards above, listed here for review):
 - Gambler's self-kill goes through protections, no Mayor bounce.
 - Mayor's recommendation never redirects to the attacker.
 - No Dashii, Vigormortis, Shabaloth and Po may target themselves; Po with fewer than 3 players chooses as many as exist.
+- House rule: effects with a duration last their full time even if the source dies or changes role, unlike the official Poisoner example; only the Philosopher's drunk, No Dashii poison and Vigormortis poison end with their source (5.8). A Pukka's poison ends at the Pukka's slot, with no death, if the player who caused it doesn't act that night.
 - Starpass has a "Nobody" option; a starpass does not also trigger the Scarlet Woman check.
 - Scarlet Woman transforms immediately at the Demon's death during the night walk.
 - Mezepheles: dead or non-good targets default to "Skip".
