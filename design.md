@@ -547,7 +547,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 | Sailor | 1 player | Any alive player, self allowed |
 | Poisoner | 1 player | Any player, self allowed |
 | Innkeeper | 2 players | Two different players, self allowed, Night 1+ |
-| Gambler | 1 player and 1 role | Any other player and any enabled role, Night 1+ |
+| Gambler | 1 player and 1 role | Any player (self allowed) and any enabled role, Night 1+ |
 | Organ Grinder | Drunk until dusk / Stay sober (buttons) | Either; no decline, and no submission counts as sober. Every night including Night 0 |
 | Devil's Advocate | 1 player | Any living player except last night's choice |
 | Witch | 1 player | Any player, self allowed; only while 4+ players are alive at the start of the night |
@@ -591,7 +591,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 
 #### Gambler
 - Ability: "Each night*, choose a player & guess their character: if you guess wrong, you die."
-- Night 1+, another player and a role. Compared to the target's **actual** role (a Drunk is "Drunk"). Wrong and sober: `attemptKill(self, self_gamble)` (protections apply, no Mayor bounce). Told nothing either way.
+- Night 1+, a player (self allowed) and a role. Compared to the target's **actual** role (a Drunk is "Drunk"). Wrong and sober: `attemptKill(self, self_gamble)` (protections apply, no Mayor bounce). Told nothing either way.
 - Impaired: does not die.
 
 #### Philosopher

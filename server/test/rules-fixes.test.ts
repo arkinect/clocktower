@@ -426,3 +426,33 @@ describe('Fix 8: alive-only pickers for the Sailor, Devil\'s Advocate and Huntsm
     expect(actionSpecs(g.s, g.p.devils_advocate)[0].fields[0].options).not.toContain(g.p.butler);
   });
 });
+
+describe('Fix 9: the Gambler may choose themselves', () => {
+  function gamblerNight1(role: 'gambler' | 'drunk') {
+    const g = build([role, 'imp', 'poisoner', 'empath', 'butler'], (x) => {
+      if (role === 'drunk') act(x, { type: 'set_believed_role', playerId: x.p.drunk, roleId: 'gambler' });
+    });
+    runNight(g, {});
+    nextNight(g);
+    return g;
+  }
+
+  it('the Gambler\'s options include themselves', () => {
+    const g = gamblerNight1('gambler');
+    expect(actionSpecs(g.s, g.p.gambler)[0].fields[0].options).toContain(g.p.gambler);
+  });
+
+  it('guessing your own role right does nothing', () => {
+    const g = gamblerNight1('gambler');
+    submit(g, { [g.p.gambler]: { gambler: [g.p.gambler, 'gambler'] } });
+    expect(resolve(g).deaths).toEqual([]);
+  });
+
+  it('a Drunk who believes they are the Gambler guesses Gambler: wrong, and the impaired path means no death', () => {
+    const g = gamblerNight1('drunk');
+    submit(g, { [g.p.drunk]: { gambler: [g.p.drunk, 'gambler'] } });
+    const res = resolve(g);
+    expect(res.deaths).toEqual([]);
+    expect(res.actors.find((r) => r.playerId === g.p.drunk)!.outcome).toContain('impaired: does not die');
+  });
+});

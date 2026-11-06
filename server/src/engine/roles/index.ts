@@ -158,7 +158,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
     spec: (c) => ({
       key: 'gambler', roleId: 'gambler', title: 'Gambler', prompt: 'Choose a player and guess their character. If you guess wrong, you die.',
       fields: [
-        { kind: 'player', label: 'Player', options: all(c).filter((x) => x !== c.pid) },
+        { kind: 'player', label: 'Player', options: all(c) },
         { kind: 'role', label: 'Character', options: enabled(c.state) },
       ],
       distinct: false, allowDecline: false,
