@@ -1,6 +1,7 @@
 // Role behaviour modules (section 14). Each role declares its night input (spec) and how it resolves.
 // Owner decision: night pickers list dead players too (abilities can be wasted on bodies), except where a role
-// needs a specific group (Lil' Monsta passes only to living Minions, the Professor picks only the dead).
+// says otherwise or needs a specific group (the Sailor, Devil's Advocate and Huntsman choose alive players, Lil' Monsta
+// passes only to living Minions, the Professor picks only the dead).
 import { ROLE_BY_ID, abilitiesOf, jinxBetween, jinxLabel, type ActionSpec, type Assignment, type GameState, type WorldState } from '@ct/shared';
 import type { Actor, NightRun } from '../night';
 import { becomeDemon, demonInfoLines } from '../demon';
@@ -121,7 +122,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
   },
 
   sailor: {
-    spec: (c) => players('sailor', 'Sailor', 'Choose a player: either you or they are drunk until dusk.', 1, all(c)),
+    spec: (c) => players('sailor', 'Sailor', 'Choose a player: either you or they are drunk until dusk.', 1, alive(c)),
     resolve(run, a) {
       const [t] = target(a);
       if (!t) return;
@@ -404,7 +405,7 @@ export const BEHAVIOURS: Record<string, RoleBehaviour> = {
     spec: (c) => {
       const last = rs<{ night: number; target: string }>(c.w, c.pid, 'lastTarget');
       const exclude = last && last.night === c.night - 1 ? last.target : null;
-      return players('devils_advocate', 'Devil\'s Advocate', 'Choose a player (different to last night): if executed tomorrow, they don\'t die.', 1, all(c).filter((x) => x !== exclude));
+      return players('devils_advocate', 'Devil\'s Advocate', 'Choose a player (different to last night): if executed tomorrow, they don\'t die.', 1, alive(c).filter((x) => x !== exclude));
     },
     resolve(run, a) {
       const [t] = target(a);
@@ -771,7 +772,7 @@ Object.assign(BEHAVIOURS, {
 
   huntsman: {
     wakes: (c: SpecCtx) => !flag(c.w, c.pid, 'huntsman_used'),
-    spec: (c: SpecCtx) => players('huntsman', 'Huntsman', 'Once per game: choose a player. The Damsel, if chosen, becomes a not-in-play Townsfolk.', 1, all(c), true, 'Not tonight'),
+    spec: (c: SpecCtx) => players('huntsman', 'Huntsman', 'Once per game: choose a player. The Damsel, if chosen, becomes a not-in-play Townsfolk.', 1, alive(c), true, 'Not tonight'),
     resolve(run: NightRun, a: Actor) {
       const [t] = target(a);
       if (!t) return;

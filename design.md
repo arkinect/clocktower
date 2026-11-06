@@ -462,7 +462,7 @@ General:
 - Only the Admin can change phase, assign roles, edit state, resolve and publish.
 - A player may only submit for their own player id and their own acting roles. A Drunk or Marionette submits against the believed role's input rules; the server stores it under their real player.
 - Submissions are accepted only while collecting (answers to follow-up questions only while their question is open) and only for roles that act on this night number. A player without a real action can only acknowledge (any content is discarded, with an identical response).
-- **Dead players appear in night pickers.** Abilities can be wasted on dead players ("already dead" for kills). Exceptions: Lil' Monsta's "pass the token to" lists only living Minions; the Professor lists only players dead at the start of the night. The Admin's own pickers (Moonchild target, Gossip victim, Mayor redirect) list alive players.
+- **Dead players appear in night pickers.** Abilities can be wasted on dead players ("already dead" for kills). Exceptions: the Sailor, the Devil's Advocate and the Huntsman list only living players (their abilities say so; players who died during the day are left out, which leaks nothing because day deaths are public at the table); Lil' Monsta's "pass the token to" lists only living Minions; the Professor lists only players dead at the start of the night. The Admin's own pickers (Moonchild target, Gossip victim, Mayor redirect) list alive players.
 - An action with no legal choice (an empty option list, or more distinct players needed than are eligible) becomes declinable ("No legal choice").
 - Once-per-game abilities cannot be used when their flag is set.
 - Players can never read another player's data; every private read checks the token.
@@ -544,12 +544,12 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 | Role | Input | Legal choices |
 |---|---|---|
 | Philosopher | 1 role, or "Not tonight" | Enabled good roles except the Philosopher, once per game |
-| Sailor | 1 player | Any player, self allowed |
+| Sailor | 1 player | Any alive player, self allowed |
 | Poisoner | 1 player | Any player, self allowed |
 | Innkeeper | 2 players | Two different players, self allowed, Night 1+ |
 | Gambler | 1 player and 1 role | Any other player and any enabled role, Night 1+ |
 | Organ Grinder | Drunk until dusk / Stay sober (buttons) | Either; no decline, and no submission counts as sober. Every night including Night 0 |
-| Devil's Advocate | 1 player | Any player except last night's choice |
+| Devil's Advocate | 1 player | Any living player except last night's choice |
 | Witch | 1 player | Any player, self allowed; only while 4+ players are alive at the start of the night |
 | Imp, Pukka, No Dashii, Vigormortis | 1 player | Any player, self allowed |
 | Shabaloth | 2 players | Two different players |
@@ -559,7 +559,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 | Assassin | 1 player, or "Not tonight" | Any player, once per game, Night 1+ |
 | Godfather | 1 player | Any player, self allowed; only on Night 1+ when triggered |
 | Professor | 1 player, or "Not tonight" | Players dead at the start of the night, once per game, Night 1+ |
-| Huntsman | 1 player, or "Not tonight" | Any player, once per game, any night |
+| Huntsman | 1 player, or "Not tonight" | Any living player, once per game, any night |
 | Ravenkeeper | 1 player | Any player, second round only |
 | Farmer | none (a review item for the Storyteller) | Any alive good player, or Nobody |
 | Fortune Teller | 2 players | Two different players, self allowed |
@@ -576,7 +576,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 
 #### Sailor
 - Ability: "Each night, choose an alive player: either you or they are drunk until dusk. You can't die."
-- Every night, 1 player (self allowed). If sober: a `drunk` effect (cause `sailor`, `until_dusk`) on the Sailor or the chosen player. A 50/50 coin (seeded, logged) recommends which; the Admin accepts or picks the other. Choosing self makes the Sailor drunk.
+- Every night, 1 alive player (self allowed). If sober: a `drunk` effect (cause `sailor`, `until_dusk`) on the Sailor or the chosen player. A 50/50 coin (seeded, logged) recommends which; the Admin accepts or picks the other. Choosing self makes the Sailor drunk.
 - Passive: while sober, the Sailor cannot die (night and day kills; not the Assassin).
 - Impaired: the choice has no effect.
 
@@ -668,7 +668,7 @@ Constraints that must hold, checked by `server/test/night-order.test.ts` (its ro
 
 #### Huntsman
 - Ability: "Once per game, at night, choose a living player: the Damsel, if chosen, becomes a not-in-play Townsfolk. [+the Damsel]"
-- Any night until used (including Night 0): 1 player or "Not tonight". Requires the Damsel in play at setup. Choosing sets the used flag. If sober and the target's actual role is the Damsel, a review item recommends a random enabled Townsfolk not in play and not anyone's believed role; the Admin may pick another. Her role becomes it (good), she gets "Your role is now X" at publish and acts from the next night; a start-information role (Clockmaker, Grandmother) gives her its information that same night (section 5.7). With no Townsfolk left, nothing changes and the Admin sees a warning. Minions are not told.
+- Any night until used (including Night 0): 1 living player or "Not tonight". Requires the Damsel in play at setup. Choosing sets the used flag. If sober and the target's actual role is the Damsel, a review item recommends a random enabled Townsfolk not in play and not anyone's believed role; the Admin may pick another. Her role becomes it (good), she gets "Your role is now X" at publish and acts from the next night; a start-information role (Clockmaker, Grandmother) gives her its information that same night (section 5.7). With no Townsfolk left, nothing changes and the Admin sees a warning. Minions are not told.
 - The Huntsman is told only "You chose X." Impaired: no change, use spent.
 
 #### Professor
@@ -896,7 +896,7 @@ The rest are `'reminder'`: shown in the role list only, applied by the Admin at 
 | Deaths seen by the Admin | Immediate, red names everywhere |
 | Night screen | Real picker for real choices; otherwise "No night action tonight" + Continue (no decoys) |
 | Night games | Locked until the player submits; Lantern Slice and 2048 (Night Flight kept but unused) |
-| Night pickers | Include dead players (except Lil' Monsta pass-to and the Professor) |
+| Night pickers | Include dead players (except the Sailor, Devil's Advocate, Huntsman, Lil' Monsta pass-to and the Professor) |
 | Minion information | Minions (not the Marionette) learn each other on Night 0, not the Demon. The Demon learns the Minions, the Marionette and the bluffs. |
 | Damsel notice | Minions (not the Marionette) learn a Damsel is in play, not who |
 | Vigormortis + Scarlet Woman | Never suggested together; manual assignment shows a setup warning about known bugs |

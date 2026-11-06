@@ -399,3 +399,30 @@ describe('Fix 7: Mathematician', () => {
   it('Jinx (Mathematician & Marionette): a declined choice is not counted', () => declineNotCounted('marionette'));
   it('Jinx (Mathematician & Marionette): the false-value cap includes the Marionette', () => capIncludes('marionette'));
 });
+
+describe('Fix 8: alive-only pickers for the Sailor, Devil\'s Advocate and Huntsman', () => {
+  it.each(['sailor', 'devils_advocate', 'huntsman'])('%s: a player dead at the start of the night isn\'t offered, and is refused', (role) => {
+    const g = build([role, 'imp', 'poisoner', 'empath', 'butler', 'damsel', 'virgin']);
+    runNight(g, {});
+    act(g, { type: 'mark_alive', playerId: g.p.empath, alive: false });
+    nextNight(g);
+    const spec = actionSpecs(g.s, g.p[role]).find((x) => x.key === role)!;
+    expect(spec.fields[0].options).not.toContain(g.p.empath);
+    expect(spec.fields[0].options).toContain(g.p.butler);
+    const actions = { [role]: { values: [g.p.empath] } };
+    expect(tryAct(g, { type: 'submit_night', actions }, g.p[role])).toMatchObject({ ok: false });
+    expect(tryAct(g, { type: 'submit_for', playerId: g.p[role], actions })).toMatchObject({ ok: false });
+  });
+
+  it('the Sailor may still choose themselves', () => {
+    const g = build(['sailor', 'imp', 'poisoner', 'empath', 'butler']);
+    expect(actionSpecs(g.s, g.p.sailor)[0].fields[0].options).toContain(g.p.sailor);
+  });
+
+  it('the Devil\'s Advocate still can\'t repeat last night\'s choice', () => {
+    const g = build(['devils_advocate', 'imp', 'poisoner', 'empath', 'butler']);
+    runNight(g, { [g.p.devils_advocate]: { devils_advocate: [g.p.butler] } });
+    nextNight(g);
+    expect(actionSpecs(g.s, g.p.devils_advocate)[0].fields[0].options).not.toContain(g.p.butler);
+  });
+});
