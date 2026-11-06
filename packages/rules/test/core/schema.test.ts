@@ -7,7 +7,7 @@ import { ENGINE_VERSION, GameState } from '../../src';
 // ENGINE_VERSION, and this file records the shape each version shipped with.
 const SHAPES: Record<number, string> = {
   1: 'c504111005337482',
-  2: '77837ca573a63ec9',
+  2: '249a23b56f34e5f8',
 };
 
 describe('the saved game shape', () => {

@@ -55,6 +55,9 @@ function nightStory(s: GameState, res: Resolution, n: number): StoryRow[] {
     });
 }
 
+const appearsDead = (run: Run, id: PlayerId) =>
+  run.reader.abilitiesOf(id).some((a) => roleDef(a.roleId).ability.appearsDead?.(run.ctx(a)));
+
 /** One atomic step that commits the night and sends everyone to the day. */
 function publish(s: GameState, res: Resolution, n: number, seed: number, now: number) {
   const before = new Set(s.seats.map((x) => x.playerId).filter((id) => s.players[id]?.life.alive));
@@ -96,7 +99,7 @@ function publish(s: GameState, res: Resolution, n: number, seed: number, now: nu
   for (const pid of run.reader.seated) {
     if (!told.has(pid)) say(pid, 'result', 'Tonight', ['You learned nothing.']);
   }
-  s.publicDead = run.reader.seated.filter((id) => !run.reader.isAlive(id));
+  s.publicDead = run.reader.seated.filter((id) => !run.reader.isAlive(id) || appearsDead(run, id));
   for (const g of res.gameEnd) {
     if (!s.dismissedGameEnd.includes(g.key) && !s.gameEnd.some((x) => x.key === g.key)) s.gameEnd.push(g);
   }
@@ -308,6 +311,12 @@ export const nightCommands = [
     handle(ctx) {
       const s = ctx.s;
       const n = ctx.phase.n;
+      const dusk = ctx.r.instances.filter((a) => roleDef(a.roleId).ability.onDusk);
+      if (dusk.length) {
+        const run = ctx.run();
+        for (const a of dusk) roleDef(a.roleId).ability.onDusk?.(run.ctx(a));
+        run.commitDay();
+      }
       s.conditions = s.conditions.filter((c) => c.until !== 'dusk');
       const notices = s.pendingNotices;
       s.pendingNotices = [];

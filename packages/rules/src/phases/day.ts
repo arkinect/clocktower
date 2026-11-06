@@ -70,7 +70,8 @@ export const dayCommands = [
     by: 'storyteller',
     phases: ['day'],
     handle(ctx, cmd) {
-      need(ctx.r.isSeated(cmd.nominator) && ctx.r.isSeated(cmd.nominee), 'Not a seated player.');
+      need(cmd.nominator === null || ctx.r.isSeated(cmd.nominator), 'Not a seated player.');
+      need(ctx.r.isSeated(cmd.nominee), 'Not a seated player.');
       ctx.s.events.push({ kind: 'nomination', at: ctx.moment, nominator: cmd.nominator, nominee: cmd.nominee });
       const run = ctx.run();
       fireDayEvent(run, { kind: 'nomination', nominator: cmd.nominator, nominee: cmd.nominee });
@@ -83,9 +84,14 @@ export const dayCommands = [
     phases: ['day'],
     handle(ctx, cmd) {
       need(ctx.r.isSeated(cmd.nominee), 'Not a seated player.');
-      const { nominee, count, voters } = cmd;
-      ctx.s.events.push({ kind: 'vote', at: ctx.moment, nominee, count, voters });
+      const { nominee, voters } = cmd;
       const run = ctx.run();
+      let count = cmd.count;
+      for (const a of run.reader.instances) {
+        const hook = roleDef(a.roleId).ability.adjustVote;
+        count = hook?.(run.ctx(a), { nominee, voters, count }) ?? count;
+      }
+      ctx.s.events.push({ kind: 'vote', at: ctx.moment, nominee, count, voters });
       fireDayEvent(run, { kind: 'vote', nominee, count, voters });
       run.commitDay();
     },

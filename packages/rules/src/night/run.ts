@@ -123,6 +123,8 @@ export class Run {
   private currentChoice = new Map<string, Choice | null>();
   private readonly chosenThisRun = new Set<string>();
   private killSeq = 0;
+  /** The ability on its second act tonight, which keeps its results and decisions apart from the first. */
+  private acting: string | null = null;
   /** Set when a day command is only being previewed. */
   dayDeaths: PlayerId[] = [];
 
@@ -168,6 +170,9 @@ export class Run {
 
   impairmentOf(a: Instance): Impairment {
     if (a.holder.kind !== 'player') return { impaired: false, causes: [] };
+    if (a.tiedToSource && a.origin.kind === 'granted' && !this.sourceWorks(a.origin.by)) {
+      return { impaired: true, causes: [...this.impairment(a.holder.id).causes, 'source not working'] };
+    }
     if (roleDef(a.roleId).flags.wakesOnNightDeath) {
       const at = this.impairAtDeath[a.holder.id];
       if (at) return at;
@@ -176,13 +181,22 @@ export class Run {
     return a.perceivedOnly ? { impaired: true, causes: [...imp.causes, 'perceived only'] } : imp;
   }
 
+  private sourceWorks(id: string): boolean {
+    const source = this.world.abilities[id];
+    if (!source || source.activeUntil === 'removed') return false;
+    return (
+      source.holder.kind !== 'player' || (this.reader.isAlive(source.holder.id) && !this.impairmentOf(source).impaired)
+    );
+  }
+
   // ---- decisions ----
   private hash(a: Instance | null, key: DecideInput<string>['key']): { hash: string; full: DecisionKey } {
+    const again = !!a && this.acting === a.id;
     const full: DecisionKey = {
       kind: key.kind,
       ability: (key.ability === undefined ? (a?.id ?? null) : key.ability) as DecisionKey['ability'],
       subject: key.subject ?? null,
-      detail: key.detail ?? null,
+      detail: again ? `${key.detail ?? ''}:again` : (key.detail ?? null),
     };
     return { hash: hashDecision(this.n, full), full };
   }
@@ -297,7 +311,7 @@ export class Run {
     const imp = this.impairmentOf(a);
     const falseLines = input.falseLines ?? null;
     const suggested = imp.impaired && falseLines ? falseLines : input.truth;
-    const key = a.id as string;
+    const key = this.acting === a.id ? `${a.id}:again` : (a.id as string);
     const override = this.night?.overrides[key];
     this.results.push({
       key,
@@ -405,6 +419,7 @@ export class Run {
       activeUntil: null,
       used: false,
       startInfoPending: !!options.startInfo && !!def.flags.startInfo,
+      tiedToSource: !!options.whileSourceWorks,
       survivesDeath: false,
       state: options.state ?? def.initialState(),
     };
@@ -466,8 +481,9 @@ export class Run {
     p.character = role;
     p.self.character = role && roleDef(role).believes ? null : role;
     delete w.setup.bag[target];
-    if (o.alignment === 'natural') {
-      p.alignment = role ? roleDef(role).alignment : 'good';
+    const natural = role ? roleDef(role).alignment : 'good';
+    if (o.alignment === 'natural' && !this.alignmentGuarded(target, natural, o.reason)) {
+      p.alignment = natural;
       p.self.alignment = p.alignment;
     }
     this.buildCharacterAbilities(target, role, !!o.startInfo, survives);
@@ -507,11 +523,39 @@ export class Run {
     }
   }
 
-  changeAlignment(target: PlayerId, alignment: 'good' | 'evil', reason: string) {
+  private alignmentGuarded(target: PlayerId, to: 'good' | 'evil', reason: string): boolean {
+    if (this.reader.player(target).alignment === to) return false;
+    return this.reader.instances.some((a) =>
+      roleDef(a.roleId).ability.guardsAlignment?.(this.ctx(a), { target, to, reason }),
+    );
+  }
+
+  /** False when an ability stopped it. */
+  changeAlignment(target: PlayerId, alignment: 'good' | 'evil', reason: string): boolean {
     const p = this.reader.player(target);
+    if (this.alignmentGuarded(target, alignment, reason)) {
+      this.outcome(`${this.reader.name(target)} stays ${p.alignment}`);
+      return false;
+    }
     p.history.push({ kind: 'alignment', at: this.moment, from: p.alignment, to: alignment, reason });
     p.alignment = alignment;
     p.self.alignment = alignment;
+    return true;
+  }
+
+  /** Two players change places, and everything that reads the seats follows. */
+  swapSeats(a: PlayerId, b: PlayerId) {
+    const w = this.world;
+    const swap = <T>(list: T[], x: number, y: number) => {
+      if (x >= 0 && y >= 0) [list[x], list[y]] = [list[y] as T, list[x] as T];
+    };
+    swap(
+      w.seats,
+      w.seats.findIndex((s) => s.playerId === a),
+      w.seats.findIndex((s) => s.playerId === b),
+    );
+    swap(w.publishedSeating, w.publishedSeating.indexOf(a), w.publishedSeating.indexOf(b));
+    this.dirty();
   }
 
   // ---- registration ----
@@ -533,6 +577,10 @@ export class Run {
       const hook = roleDef(a.roleId).ability.registersAs;
       if (!hook) continue;
       const answer = hook(this.ctx(a), query);
+      if (answer) return answer;
+    }
+    for (const a of r.instances) {
+      const answer = roleDef(a.roleId).ability.registersOther?.(this.ctx(a), subject, query);
       if (answer) return answer;
     }
     return truthful;
@@ -668,10 +716,25 @@ export class Run {
 
   /** Whether this instance would wake right now; the same rule for the wake list and the walk. */
   wakesNow(a: Instance, def: RoleDef): boolean {
+    if (this.wakeStopped(a, def)) return false;
     const c = this.ctx(a);
     if (def.ability.wakes) return def.ability.wakes(c);
     if (def.flags.startInfo) return c.startInfoDue;
     return true;
+  }
+
+  private slot(def: RoleDef): number {
+    return (this.n === 0 ? def.night?.first : def.night?.other) ?? Infinity;
+  }
+
+  /** Stoppers act earlier in the order, so this always ends, and the answer never depends on what comes after. */
+  private wakeStopped(a: Instance, def: RoleDef): boolean {
+    return this.reader.instances.some((s) => {
+      const stopper = roleDef(s.roleId);
+      if (!stopper.ability.stopsWaking || s.id === a.id || this.slot(stopper) >= this.slot(def)) return false;
+      if (!this.canAct(s, stopper) || this.impairmentOf(s).impaired || !this.wakesNow(s, stopper)) return false;
+      return stopper.ability.stopsWaking(this.ctx(s), a, def);
+    });
   }
 
   actorsFor(def: RoleDef): Instance[] {
@@ -704,8 +767,13 @@ export class Run {
     return this.reader.isAlive(a.holder.id) || a.survivesDeath || !!def.flags.worksWhileDead;
   }
 
-  private act(def: RoleDef, a: Instance) {
+  private wakesAgain(a: Instance): boolean {
+    return this.reader.instances.some((x) => roleDef(x.roleId).ability.wakesTwice?.(this.ctx(x), a));
+  }
+
+  private act(def: RoleDef, a: Instance, again = false) {
     const pid = a.holder.kind === 'player' ? a.holder.id : null;
+    if (again) this.currentChoice.set(a.id, null);
     const choice = def.flags.wakesOnNightDeath ? null : this.choiceOf(a);
     const row: ActorRow = {
       slot: def.name,
@@ -721,7 +789,8 @@ export class Run {
     this.acted.add(`${pid}:${a.roleId}`);
     this.currentChoice.set(a.id, choice);
     try {
-      if (this.lateInputPending(def, a, row)) return;
+      if (again) this.acting = a.id;
+      if (this.lateInputPending(def, a, row, again)) return;
       this.fireChosen(a);
       const imp = this.impairmentOf(a);
       row.impaired = imp.impaired;
@@ -735,16 +804,17 @@ export class Run {
       if (a.startInfoPending && def.flags.startInfo) a.startInfoPending = false;
     } finally {
       this.currentRow = null;
+      this.acting = null;
     }
   }
 
   /** An ability gained after collecting closed has no submission, so it asks now, as a question. */
-  private lateInputPending(def: RoleDef, a: Instance, row: ActorRow): boolean {
-    if (this.choiceOf(a) || def.flags.wakesOnNightDeath || !this.isGainedTonight(a)) return false;
+  private lateInputPending(def: RoleDef, a: Instance, row: ActorRow, again = false): boolean {
+    if (this.choiceOf(a) || def.flags.wakesOnNightDeath || !(again || this.isGainedTonight(a))) return false;
     const draft = def.ability.picker?.(this.ctx(a));
     if (!draft || a.holder.kind !== 'player') return false;
     const pid = a.holder.id;
-    const key = `${a.id}:late`;
+    const key = `${a.id}:${again ? 'again' : 'late'}`;
     const answer = this.night?.answers[key];
     const spec = this.fullSpec(a, key, draft);
     this.questions.push({
@@ -823,9 +893,13 @@ export class Run {
     for (const def of sheet) {
       if (!def.ability.resolve) continue;
       const actors = this.actorsFor(def);
-      for (const a of actors) this.act(def, a);
+      for (const a of actors) {
+        this.act(def, a);
+        if (this.wakesAgain(a)) this.act(def, a, true);
+      }
       this.endUnclaimed(def, actors);
     }
+    for (const a of this.reader.instances) roleDef(a.roleId).ability.nightEnd?.(this.ctx(a));
     // Deaths after a role's slot: it acts once the order has finished.
     for (const def of sheet) {
       if (!def.flags.afterOrder) continue;
@@ -837,8 +911,12 @@ export class Run {
   }
 
   transform() {
+    const instances = this.reader.instances;
+    const guaranteed = (player: PlayerId) =>
+      instances.some((a) => roleDef(a.roleId).ability.guaranteesTruth?.(this.ctx(a), player));
     for (const row of this.results) {
-      for (const a of this.reader.instances) {
+      if (guaranteed(row.playerId)) continue;
+      for (const a of instances) {
         const hook = roleDef(a.roleId).ability.transformInfo;
         if (!hook) continue;
         const draft: InfoDraft = {
@@ -869,7 +947,15 @@ export class Run {
   }
 
   private gameEndRows() {
-    return [...this.gameEnd.values()].filter((g) => !this.suppressed.has(g.key));
+    const changers = this.reader.instances.filter((a) => roleDef(a.roleId).ability.changesWinner);
+    return [...this.gameEnd.values()]
+      .filter((g) => !this.suppressed.has(g.key))
+      .map((g) => {
+        if (g.winner === null) return g;
+        let winner: 'good' | 'evil' = g.winner;
+        for (const a of changers) winner = roleDef(a.roleId).ability.changesWinner!(this.ctx(a), winner);
+        return winner === g.winner ? g : { ...g, winner, reason: `${g.reason} The winner changes.` };
+      });
   }
 
   finish(): Resolution {

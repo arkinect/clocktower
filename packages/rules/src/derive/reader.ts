@@ -147,5 +147,15 @@ export class Reader {
     return this.alive.filter((id) => this.typeOf(id) !== 'traveller');
   }
 
+  /** Whether a script or Storyteller character lets several players hold this one. */
+  mayDuplicate = (role: RoleId): boolean => {
+    const def = roleDef(role);
+    return allRoles().some((x) => {
+      const rule = x.setupRules?.duplicates;
+      if (!rule || !(this.onScript(x.id) || this.w.storytellerCharacters.includes(x.id))) return false;
+      return rule === 'self' ? x.id === role : def.alignment === 'good' && def.type !== 'traveller';
+    });
+  };
+
   jinxWith = (a: RoleId, b: RoleId) => jinxBetween(a, b);
 }

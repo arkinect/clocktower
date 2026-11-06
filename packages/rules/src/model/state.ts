@@ -56,6 +56,8 @@ export const AbilityInstance = z.object({
   used: z.boolean(),
   /** Start information not yet given (gained after night 0). */
   startInfoPending: z.boolean(),
+  /** A granted ability that fails whenever the ability that gave it is not working. */
+  tiedToSource: z.boolean(),
   /** Keeps working after the holder dies. */
   survivesDeath: z.boolean(),
   /** Typed per role by defineRole. */
@@ -184,7 +186,7 @@ export const StoryRow = z.object({
 export type StoryRow = z.infer<typeof StoryRow>;
 
 export const GameEvent = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('nomination'), ...At, nominator: PlayerId, nominee: PlayerId }),
+  z.object({ kind: z.literal('nomination'), ...At, nominator: PlayerId.nullable(), nominee: PlayerId }),
   z.object({
     kind: z.literal('vote'),
     ...At,

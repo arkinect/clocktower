@@ -46,6 +46,22 @@ export interface KillAttempt {
 
 export type InterceptResult = 'pass' | 'prevent' | { redirect: PlayerId };
 
+/** A condition that would impair a player right now. */
+export interface ImpairingCondition {
+  type: 'drunk' | 'poisoned';
+  target: PlayerId;
+  /** The player behind it; null for the Storyteller. */
+  sourcePlayer: PlayerId | null;
+  label: string;
+}
+
+/** A vote as the Storyteller recorded it. `count` is the tally so far; later hooks see earlier changes. */
+export interface VoteTally {
+  nominee: PlayerId;
+  voters: PlayerId[] | null;
+  count: number | null;
+}
+
 export interface DeathInfo {
   playerId: PlayerId;
   cause: string;
@@ -58,7 +74,8 @@ export interface DeathInfo {
 }
 
 export type DayEventInfo =
-  | { kind: 'nomination'; nominator: PlayerId; nominee: PlayerId }
+  /** A null nominator is the Storyteller. */
+  | { kind: 'nomination'; nominator: PlayerId | null; nominee: PlayerId }
   | { kind: 'vote'; nominee: PlayerId; count: number | null; voters: PlayerId[] | null }
   | { kind: 'execution'; playerId: PlayerId | null; died: boolean; demonDiedAliveBefore: number | null }
   | { kind: 'exile'; playerId: PlayerId }
@@ -132,6 +149,8 @@ export interface SetupRules {
   excludes?: readonly RoleId[];
   /** This character must neighbour a character of this type. */
   neighbours?: CharacterType;
+  /** Several players may hold the same character: this one, or any good character. */
+  duplicates?: 'self' | 'good';
   /** The Storyteller may not put this character on a good player's bluff list, and so on. */
   notBluffable?: boolean;
 }
@@ -156,6 +175,18 @@ export interface Hooks<S> {
   wakes?(ctx: AbilityCtx<S>): boolean;
   /** Dead tonight, but wakes anyway. */
   wakesDead?(ctx: AbilityCtx<S>): boolean;
+  /**
+   * Stops another ability waking tonight, on the wake list and in the walk. Only an ability that acts earlier in the
+   * night order can do this, and only while it would wake, can act and is not impaired. It stops that one ability: the
+   * holder still wakes for any other.
+   */
+  stopsWaking?(ctx: AbilityCtx<S>, target: Instance, def: RoleDef): boolean;
+  /** That ability acts a second time tonight, after its first. It asks again, as a question, if it has a picker. */
+  wakesTwice?(ctx: AbilityCtx<S>, target: Instance): boolean;
+  /** The night order has finished, before anything acts for a death after its slot. */
+  nightEnd?(ctx: AbilityCtx<S>): void;
+  /** The day is ending. Runs before conditions lasting until dusk are removed. */
+  onDusk?(ctx: AbilityCtx<S>): void;
   picker?(ctx: AbilityCtx<S>): SpecDraft | null;
   resolve?(ctx: AbilityCtx<S>): void;
   interceptKill?(ctx: AbilityCtx<S>, kill: KillAttempt): InterceptResult;
@@ -174,6 +205,22 @@ export interface Hooks<S> {
   /** A prompt raised at day was answered. */
   onPrompt?(ctx: AbilityCtx<S>, kind: string, subject: string | null, option: string): void;
   registersAs?(ctx: AbilityCtx<S>, query: RegistrationQuery): Registration | null;
+  /** How another player registers, when this ability is what makes them false. Their own abilities answer first. */
+  registersOther?(ctx: AbilityCtx<S>, subject: PlayerId, query: RegistrationQuery): Registration | null;
+  /** True stops a player changing alignment. */
+  guardsAlignment?(ctx: AbilityCtx<S>, change: { target: PlayerId; to: Alignment; reason: string }): boolean;
+  /** True stops this condition impairing its target. Judged after the three impairment stages. */
+  shieldsFrom?(ctx: HookCtx<S>, condition: ImpairingCondition): boolean;
+  /** True keeps every other ability's transformInfo off this player's results. */
+  guaranteesTruth?(ctx: AbilityCtx<S>, player: PlayerId): boolean;
+  /** The winner the game actually gives, for any suggested end. Return the same winner to leave it. */
+  changesWinner?(ctx: AbilityCtx<S>, winner: Alignment): Alignment;
+  /** Changes a recorded vote, for weights, who may vote and how an execution passes. Null leaves it. */
+  adjustVote?(ctx: AbilityCtx<S>, vote: VoteTally): number | null;
+  /** Shows this player no character, whatever they hold. */
+  hidesCharacter?(ctx: HookCtx<S>, player: PlayerId): boolean;
+  /** The holder is alive, but the table is told they are dead. */
+  appearsDead?(ctx: HookCtx<S>): boolean;
   deriveConditions?(ctx: HookCtx<S>): DerivedCondition[];
   transformInfo?(ctx: AbilityCtx<S>, info: InfoDraft): string[] | null;
   /** Lines of hidden data the holder may see in their own view. */

@@ -76,7 +76,8 @@ export function playerView(s: GameState, id: PlayerId, now: number): PlayerView 
           .map((q) => q.spec)
       : [];
   const sub = p.kind === 'night' ? (p.submissions[id] ?? null) : null;
-  const shown = started ? me.self.character : null;
+  const hidden = r.instances.some((a) => roleDef(a.roleId).ability.hidesCharacter?.(new HookCtx(r, a), id));
+  const shown = started && !hidden ? me.self.character : null;
   const grants = started
     ? r.abilitiesOf(id).flatMap((a) => roleDef(a.roleId).ability.visibility?.(new HookCtx(r, a)) ?? [])
     : [];
@@ -192,7 +193,8 @@ function dayLines(s: GameState, r: Reader, n: number) {
     if (e.at.kind !== 'day' || e.at.n !== n) continue;
     const at = `Day ${n}`;
     const add = (text: string) => out.push({ at, kind: e.kind, text });
-    if (e.kind === 'nomination') add(`${r.name(e.nominator)} nominated ${r.name(e.nominee)}.`);
+    if (e.kind === 'nomination')
+      add(`${e.nominator ? r.name(e.nominator) : 'The Storyteller'} nominated ${r.name(e.nominee)}.`);
     if (e.kind === 'vote') add(`Vote on ${r.name(e.nominee)}${e.count === null ? '' : `: ${e.count}`}.`);
     if (e.kind === 'execution') {
       add(e.playerId ? `${r.name(e.playerId)} was executed${e.died ? ' and died' : ''}.` : 'Nobody was executed.');

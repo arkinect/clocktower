@@ -101,7 +101,8 @@ export const setupCommands = [
       if (cmd.roleId !== null) {
         need(ctx.r.onScript(cmd.roleId), 'That character is not on the script.');
         need(
-          !ctx.r.seated.some((id) => id !== cmd.playerId && ctx.r.character(id) === cmd.roleId),
+          ctx.r.mayDuplicate(cmd.roleId) ||
+            !ctx.r.seated.some((id) => id !== cmd.playerId && ctx.r.character(id) === cmd.roleId),
           'That character is already assigned.',
         );
       }
@@ -115,7 +116,8 @@ export const setupCommands = [
     handle(ctx, cmd) {
       const entries = Object.entries(cmd.assignments) as [PlayerId, RoleId][];
       const roles = entries.map(([, r]) => r);
-      need(new Set(roles).size === roles.length, 'Duplicate characters.');
+      const single = roles.filter((r) => !ctx.r.mayDuplicate(r));
+      need(new Set(single).size === single.length, 'Duplicate characters.');
       need(
         entries.every(([p, r]) => ctx.r.isSeated(p) && ctx.r.onScript(r)),
         'Invalid assignment.',

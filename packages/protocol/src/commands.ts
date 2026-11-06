@@ -78,7 +78,7 @@ export const SeenRole = c('seen_role', {});
 export const UseGhostVote = c('use_ghost_vote', {});
 export const SetGhostVote = c('set_ghost_vote', { playerId: PlayerId, used: z.boolean() });
 export const MarkAlive = c('mark_alive', { playerId: PlayerId, alive: z.boolean() });
-export const RecordNomination = c('record_nomination', { nominator: PlayerId, nominee: PlayerId });
+export const RecordNomination = c('record_nomination', { nominator: PlayerId.nullable(), nominee: PlayerId });
 export const RecordVote = c('record_vote', {
   nominee: PlayerId,
   count: z.number().int().min(0).max(40).nullable(),

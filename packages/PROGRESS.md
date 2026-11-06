@@ -80,6 +80,20 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 - Through Caddy: `/api/status` answers 404, and inside the container it answers. CSP, nosniff and Referrer-Policy reach the client. Assets are cached for a year, and the page itself is not.
 - `update.sh` passed `sh -n` only. It has not been run against a real stack.
 
+### After Stage 7
+
+Each change asked for after the stages, on 2026-11-06.
+
+1. **Deployment is a replacement.** `deploy/docker-compose.yml` runs only the app and Caddy on the existing hostname, with one site in the Caddyfile. `update.sh` restarts only that stack, and defers on activity in the last 4 hours. It no longer prunes images, which reached other stacks. The README now says test locally, cut over, roll back by running the previous image tag. `next.yml` also pushes `:sha-<commit>`, because a tag that moves is not something to roll back to. The app stays on its own `clocktower-data` volume: the old app's `data/clocktower.db` has the same name and different tables, so sharing the folder would stop the new app starting. The old `data/` is left alone for a rollback, which needs `CLOCKTOWER_DATA` and `CLOCKTOWER_TRUST_PROXY` as well as the tag.
+2. **Sockets are counted inside the `handleUpgrade` callback.** ws skips the callback for a handshake it aborts, so a slot can no longer leak. The new test fails on the old code with a 429.
+3. **`socketsPerIp` is 200.** A new test connects 30 sessions from one address.
+4. **The per-character pass is done.** All 183 wiki pages were read and `docs/mechanics.md` records what each character needs. It added 19 primitives, starting with `stopsWaking`, each tested in `rules/test/framework/wiki-pass.test.ts` with throwaway characters. The console can now record who voted and a Storyteller nomination, which two of them need.
+5. **Travellers no longer count** for the Scarlet Woman's threshold or the official evil information. See `docs/rulings.md`.
+6. **`followUpExtensionSeconds` works.** It extends the deadline the first time a night has follow-up questions, once a night. `ENGINE_VERSION` is 2 for this and for `tiedToSource`.
+7. **The Grimoire is a circle of seats.** Seat size follows the player count so that seats never overlap, tested for 2 to 30 players. Tapping a seat opens its controls in a sheet.
+
+Checks after these changes: all gates pass, with 250 rules, 37 server, 57 component and 4 browser tests. Parity over 10,000 fuzzed games has no unexplained differences. The built container behind Caddy, flooded as the README says: p95 23ms, max 36ms. `docker compose config` passes with the default and the rollback settings, and `caddy validate` passes. `update.sh` ran against a stand-in for Docker: it defers at 10 idle minutes, restarts at 300, restarts when the app does not answer, and `--force` skips the check. Its status check ran for real inside the container. Neither the cutover nor a rollback has been run.
+
 ## Deviations
 
 - `GET /api/g/:code/names` reads the site password from an `X-Site-Password` header. The plan only says GET; a query string would put the password in logs and history.
@@ -92,8 +106,9 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 - A request with no password at all gets a 401 without starting the backoff, so a phone can find out it needs one.
 - The Log tab reads the export endpoint, not StorytellerView, because the view does not carry the command log. Its Report a problem button downloads the same export. Everything else in the console reads the view.
 - The console's Grimoire lists seats in order as cards, rather than drawing a round circle.
+- The follow-up extension differs from the old app in two ways, as a ruling: it also fires when a decision brings the first question, and it does not fire again after reopening collecting.
 - Stage 7 files live in `packages/deploy/`, not a top-level `deploy/`, because this session may commit only under `packages/`, `docs/` and the two workflow files.
-- The compose file there replaces the root one. The root file is untouched, so `README.md` in that folder has the steps to move across: stop the old stack first, since container names and ports are shared.
+- The compose file there replaces the root one. The root file is untouched, so `README.md` in that folder has the steps to cut over: stop the old stack first, since container names and ports are shared.
 - The Report a problem button is on the console's Log tab.
 - The image build copies `shared/` and `server/src/engine` for the parity tests, in the build stage only. Those lines go at cutover.
 - Per-request logging is off altogether, so addresses and URLs stay out of the logs. Each command logs the player id and command type.
@@ -118,7 +133,7 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 
 ## Next step
 
-Stage 8, by people: deploy `:next`, playtest, cut over. See `deploy/README.md` and the plan.
+Stage 8, by people: test locally, cut over, playtest. See `deploy/README.md` and the plan.
 
 ## Pull request text
 
@@ -126,16 +141,17 @@ gh is not installed here, so no pull request was opened. Open one from `rewrite/
 
 **Title:** Rewrite as four packages, Stages 0 to 7
 
-The app rebuilt under `packages/` beside the old one, around a pure rules engine where each character is one file. Nothing under the old app changed, and nothing has been deployed or published.
+The app rebuilt under `packages/` to replace the old one on its hostname, around a pure rules engine where each character is one file. Nothing under the old app changed, and nothing has been deployed or published.
 
 **Done**
 
 - Stage 0: monorepo, tooling, boundary checks, CI.
-- Stages 1 to 3: protocol, rules core, ability framework, all 55 roles and 14 jinxes. 221 rules tests. Parity with the old engine over 10,000 fuzzed games, with no unexplained differences.
-- Stage 4: server with sessions, limits, persistence and sockets. 35 tests, including a headless full game and the security tests. Under flood, p95 round trip is 12ms directly and 25ms in the container behind Caddy.
-- Stage 5: phone app, thin over PlayerView, with the idle games in a lazy chunk. 27 component tests. Playwright plays a full game with five browsers at 360 px in both themes.
+- Stages 1 to 3: protocol, rules core, ability framework, all 55 roles and 14 jinxes. 250 rules tests. Parity with the old engine over 10,000 fuzzed games, with no unexplained differences.
+- Stage 4: server with sessions, limits, persistence and sockets. 37 tests, including a headless full game and the security tests. Under flood, p95 round trip is 12ms directly and 25ms in the container behind Caddy.
+- Stage 5: phone app, thin over PlayerView, with the idle games in a lazy chunk. 57 component tests. Playwright plays a full game with five browsers at 360 px in both themes.
 - Stage 6: Storyteller console from StorytellerView, with no custom role panels. Playwright runs lobby to publishing night 2 with a changed decision, a stale override and an execution.
 - Stage 7: Dockerfile, compose, Caddyfile, `next.yml`, `update.sh`, README. Build, validation and the load test passed locally.
+- After Stage 7: replacement deployment, socket slot fix, 200 sockets per address, the per-character pass over all 183 wiki pages with 19 new primitives, Traveller thresholds, follow-up time, and the Grimoire as a circle of seats. See the list above.
 
 **Gates failed:** none at the end. Stage 3 first failed CI on formatting; that was fixed in the Stage 4 commit.
 
@@ -143,10 +159,11 @@ The app rebuilt under `packages/` beside the old one, around a pure rules engine
 
 - No real people have played it. That is the point of Stage 8.
 - The browser tests drive a handful of roles. The other roles are covered in the engine tests, not through the console.
-- `next.yml` and `update.sh` have never run. `update.sh` passed a syntax check only.
+- `next.yml` has never run, and neither has the cutover. `update.sh` ran against a stand-in for Docker only.
+- The 19 new primitives have no real character using them yet: 128 of the 183 characters are unbuilt.
 - The parity harness does not compare false suggestions, notices, game-end suggestions or Storyteller edits. See `docs/mechanics.md` and the rulings.
 
-**Left for people (Stage 8):** DNS, deploying `:next`, the playtest, cutover and deleting the old code.
+**Left for people (Stage 8):** the local test, cutover, the playtest and deleting the old code.
 
 Rulings are in `docs/rulings.md`, and deviations from the plan are in `packages/PROGRESS.md`.
 

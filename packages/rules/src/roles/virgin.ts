@@ -16,7 +16,7 @@ export const virgin = defineRole({
         ctx.malfunctionIfExternal('Virgin ability impaired');
         return;
       }
-      if (ctx.registers(e.nominator, 'character').type !== 'townsfolk') return;
+      if (!e.nominator || ctx.registers(e.nominator, 'character').type !== 'townsfolk') return;
       ctx.prompt({
         kind: 'virgin',
         subject: e.nominator,

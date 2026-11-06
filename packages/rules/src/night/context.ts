@@ -74,6 +74,8 @@ export interface GrantOptions {
   perceivedOnly?: boolean;
   /** Gained now, so start information is due the first night it is active. */
   startInfo?: boolean;
+  /** It fails whenever the ability granting it is dead or impaired, and returns when that one does. */
+  whileSourceWorks?: boolean;
   state?: unknown;
 }
 
@@ -228,6 +230,11 @@ export class AbilityCtx<S> extends HookCtx<S> {
     return this.run.acted.has(`${player}:${ability}`);
   }
 
+  /** Whether a player has woken for any of their own abilities so far tonight. */
+  wokeTonight(player: PlayerId): boolean {
+    return [...this.run.acted].some((k) => k.startsWith(`${player}:`));
+  }
+
   // ---- changes ----
   decide<T extends string>(input: DecideInput<T>): T {
     return this.run.decide(this.ability, input);
@@ -331,8 +338,19 @@ export class AbilityCtx<S> extends HookCtx<S> {
     this.run.changeCharacter(target, role, options);
   }
 
-  changeAlignment(target: PlayerId, alignment: Alignment, reason: string) {
-    this.run.changeAlignment(target, alignment, reason);
+  /** False when an ability stopped it. */
+  changeAlignment(target: PlayerId, alignment: Alignment, reason: string): boolean {
+    return this.run.changeAlignment(target, alignment, reason);
+  }
+
+  swapSeats(a: PlayerId, b: PlayerId) {
+    this.run.swapSeats(a, b);
+  }
+
+  /** A dead player gets their vote token back. */
+  restoreGhostVote(player: PlayerId) {
+    const p = this.w.players[player];
+    if (p) p.life.ghostVoteUsed = false;
   }
 
   /** Record that a player's ability worked abnormally. */
@@ -359,8 +377,9 @@ export class AbilityCtx<S> extends HookCtx<S> {
     this.run.outcome(text);
   }
 
-  keepAbilityWhenDead(player: PlayerId) {
-    for (const a of this.abilitiesOf(player)) a.survivesDeath = true;
+  /** Pass false to end it, for an ability regained only for a while. */
+  keepAbilityWhenDead(player: PlayerId, keep = true) {
+    for (const a of this.abilitiesOf(player)) a.survivesDeath = keep;
   }
 
   /** Raise a question for the Storyteller that resolves later, through onPrompt. Day only. */

@@ -1,6 +1,7 @@
 // The one place that decides who is drunk or poisoned. Computed in three fixed stages, so that mutual dependencies
 // have exactly one answer: stages 2 and 3 are judged against stage 1 only and never feed back into each other.
 import type { PlayerId } from '@ct/protocol';
+import type { ImpairingCondition } from '../abilities/define';
 import { findRole, roleDef } from '../abilities/registry';
 import type { Condition, GameState, Moment } from '../model/state';
 import { HookCtx } from '../night/context';
@@ -11,13 +12,7 @@ export interface Impairment {
   causes: string[];
 }
 
-export interface ActiveCondition {
-  type: 'drunk' | 'poisoned';
-  target: PlayerId;
-  /** The player behind it; null for the Storyteller. */
-  sourcePlayer: PlayerId | null;
-  label: string;
-}
+export type ActiveCondition = ImpairingCondition;
 
 const impairs = (c: Condition) => c.type === 'drunk' || c.type === 'poisoned';
 
@@ -64,7 +59,19 @@ export function activeImpairing(w: GameState, moment: Moment): ActiveCondition[]
       });
     }
   }
-  return [...base.map((c) => toActive(w, c)), ...dependent.map((c) => toActive(w, c)), ...derived];
+  const active = [...base.map((c) => toActive(w, c)), ...dependent.map((c) => toActive(w, c)), ...derived];
+
+  // Shields, their holders judged against stage 1. A shield on its own holder works even while they are impaired.
+  const shields = r.instances.filter((a) => roleDef(a.roleId).ability.shieldsFrom);
+  if (!shields.length) return active;
+  return active.filter(
+    (c) =>
+      !shields.some((a) => {
+        const holder = a.holder.kind === 'player' ? a.holder.id : null;
+        if (holder !== null && (!r.isAlive(holder) || (holder !== c.target && stage1.has(holder)))) return false;
+        return roleDef(a.roleId).ability.shieldsFrom!(new HookCtx(r, a), c);
+      }),
+  );
 }
 
 export function computeImpairment(w: GameState, moment: Moment): Record<string, Impairment> {

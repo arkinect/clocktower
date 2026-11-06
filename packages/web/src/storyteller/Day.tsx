@@ -128,7 +128,9 @@ function Events({ view, seated }: { view: StorytellerView; seated: GrimoirePlaye
   const { run, pending } = useCommand();
   const [nominator, setNominator] = useState<PlayerId | ''>('');
   const [nominee, setNominee] = useState<PlayerId | ''>('');
+  const [byStoryteller, setByStoryteller] = useState(false);
   const [count, setCount] = useState('');
+  const [voters, setVoters] = useState<PlayerId[]>([]);
   const [executed, setExecuted] = useState<PlayerId | ''>('');
   const [speaker, setSpeaker] = useState<PlayerId | ''>('');
   const [statement, setStatement] = useState('');
@@ -137,13 +139,21 @@ function Events({ view, seated }: { view: StorytellerView; seated: GrimoirePlaye
   return (
     <Section title="Nominations and executions">
       <div className={styles['formRow']}>
-        <PlayerSelect label="Nominator" players={seated} value={nominator} onChange={setNominator} />
+        {!byStoryteller && (
+          <PlayerSelect label="Nominator" players={seated} value={nominator} onChange={setNominator} />
+        )}
+        <label className={styles['field']}>
+          <span>The Storyteller nominates</span>
+          <input type="checkbox" checked={byStoryteller} onChange={(e) => setByStoryteller(e.target.checked)} />
+        </label>
         <PlayerSelect label="Nominee" players={seated} value={nominee} onChange={setNominee} />
         <Button
           tiny
-          disabled={!nominator || !nominee || pending}
+          disabled={!(nominator || byStoryteller) || !nominee || pending}
           onClick={() => {
-            if (nominator && nominee) void run({ type: 'record_nomination', nominator, nominee });
+            if (nominee) {
+              void run({ type: 'record_nomination', nominator: byStoryteller ? null : nominator || null, nominee });
+            }
           }}
         >
           Record nomination
@@ -159,13 +169,29 @@ function Events({ view, seated }: { view: StorytellerView; seated: GrimoirePlaye
           disabled={!nominee || pending}
           onClick={() => {
             if (nominee) {
-              void run({ type: 'record_vote', nominee, count: count === '' ? null : Number(count), voters: null });
+              const tally = count === '' ? (voters.length ? voters.length : null) : Number(count);
+              void run({ type: 'record_vote', nominee, count: tally, voters: voters.length ? voters : null });
+              setVoters([]);
             }
           }}
         >
           Record vote for nominee
         </Button>
       </div>
+      <details>
+        <summary>Who voted (optional)</summary>
+        <p className="muted small">Needed for anything that weighs votes or asks who voted.</p>
+        {seated.map((p) => (
+          <label key={p.id} className={styles['field']}>
+            <span>{p.name}</span>
+            <input
+              type="checkbox"
+              checked={voters.includes(p.id)}
+              onChange={(e) => setVoters((v) => (e.target.checked ? [...v, p.id] : v.filter((id) => id !== p.id)))}
+            />
+          </label>
+        ))}
+      </details>
       <div className={styles['formRow']}>
         <PlayerSelect label="Executed" players={seated} value={executed} onChange={setExecuted} none="Nobody" />
         <HoldButton
