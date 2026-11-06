@@ -5,7 +5,7 @@ export interface Limits {
   /** Tokens a second and burst for requests with no session, across all addresses. */
   unauthRate: number;
   unauthBurst: number;
-  /** The same, per address. */
+  /** The same, per address. A whole table can share one address, so this has room for everyone arriving at once. */
   unauthRatePerIp: number;
   unauthBurstPerIp: number;
   socketsPerSession: number;
@@ -29,9 +29,9 @@ export interface Limits {
 
 export const DEFAULT_LIMITS: Limits = {
   unauthRate: 20,
-  unauthBurst: 60,
-  unauthRatePerIp: 2,
-  unauthBurstPerIp: 20,
+  unauthBurst: 120,
+  unauthRatePerIp: 5,
+  unauthBurstPerIp: 60,
   socketsPerSession: 3,
   socketsPerIp: 20,
   socketMessagesPerSecond: 10,

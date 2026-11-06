@@ -52,7 +52,12 @@ export function App() {
   const code = route?.code ?? null;
 
   useEffect(() => {
-    void api.config().then((r) => r.data && setConfig(r.data));
+    const ask = () =>
+      void api.config().then((r) => {
+        if (r.ok && r.data) setConfig(r.data);
+        else window.setTimeout(ask, 2000);
+      });
+    ask();
   }, []);
   useEffect(() => {
     if (config && !code) navigate(`/g/${encodeURIComponent(config.defaultGame)}`, true);
@@ -60,7 +65,18 @@ export function App() {
   useEffect(() => {
     if (!code) return;
     setSession(undefined);
-    void sessionFor(code).then(setSession);
+    let live = true;
+    // The server may be restarting: keep asking until it can say who this phone is.
+    const ask = () =>
+      void sessionFor(code).then((s) => {
+        if (!live) return;
+        if (s === undefined) window.setTimeout(ask, 2000);
+        else setSession(s);
+      });
+    ask();
+    return () => {
+      live = false;
+    };
   }, [code]);
 
   const signedOut = useCallback(() => {

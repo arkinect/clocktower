@@ -96,7 +96,8 @@ export function registerRoutes(
   app.get<{ Params: { code: string } }>('/api/g/:code/names', (req, reply) => {
     if (!gate(req, reply) || !passes(req, reply, req.headers['x-site-password'])) return reply;
     const game = games.get(req.params.code);
-    if (!game) return reply.code(404).send({ ok: false, error: 'No such game.' });
+    // A game that does not exist yet is simply empty: the first person to join creates it.
+    if (!game) return { ok: true, players: [], hasStoryteller: false };
     return { ok: true, players: game.names(), hasStoryteller: game.state.storytellerId !== null };
   });
 

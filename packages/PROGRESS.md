@@ -11,7 +11,8 @@ Session memory for the plan in `docs/rewrite/PLAN.md` (the working copy this ses
 | 2 Framework   | done   | passed locally, see below                         |
 | 3 All roles   | done   | passed, a format failure in CI fixed with Stage 4 |
 | 4 Server      | done   | passed, CI checked at gate                        |
-| 5 Player app  | done   | passed locally, see below                         |
+| 5 Player app  | done   | passed, CI checked at gate                        |
+| 6 Storyteller | done   | passed locally, see below                         |
 
 ## Baseline
 
@@ -61,6 +62,13 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 - Playwright (`web/e2e/player.spec.ts`, added to CI): five browser contexts and a scripted Storyteller play to the end against the built bundle, at 360 px with no side scroll, in both themes, with no console or CSP errors. The games chunk is checked to load only after submitting. Reload, keyboard join and rejoin are covered too.
 - `web/test/tokens.test.ts` checks text contrast of at least 4.5:1 in both themes.
 
+### Stage 6
+
+- `web/src/storyteller/`: lobby, setup, night, review, day, grimoire, story, log and a reference tab. Every panel renders StorytellerView only, and boundaries keep `web` out of `rules`.
+- Playwright (`web/e2e/storyteller.spec.ts`): lobby to publishing night 2 from the console, with a Slayer day action previewed and accepted, a nomination, a vote, an execution, a changed decision, a stale override kept by hand, and no console errors. Every tab has no side scroll at 360 px. An early flake, where the Storyteller checkbox did not appear, came from the per-address limit: the whole test suite shares one address, so names requests got a 429 and the Join screen had no name data. A real table shares an address too, so the limit went up (5 a second, burst 60) and Join now retries when the server is busy.
+- `docs/role-panels.md`: no custom panels.
+- The full game gate ("any of the 55 roles") rests on the generic panels. The browser test drives Balloonist, Slayer, Empath, Poisoner and Imp, not all 55.
+
 ## Deviations
 
 - `GET /api/g/:code/names` reads the site password from an `X-Site-Password` header. The plan only says GET; a query string would put the password in logs and history.
@@ -71,6 +79,8 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 - The theme follows the phone's setting. There is no in-app switch. The old app was dark only.
 - The idle games keep one plain stylesheet, `games/games.css`, ported from the old client rather than a CSS module per component. It loads only with their chunk.
 - A request with no password at all gets a 401 without starting the backoff, so a phone can find out it needs one.
+- The Log tab reads the export endpoint, not StorytellerView, because the view does not carry the command log. Its Report a problem button downloads the same export. Everything else in the console reads the view.
+- The console's Grimoire lists seats in order as cards, rather than drawing a round circle.
 - Per-request logging is off altogether, so addresses and URLs stay out of the logs. Each command logs the player id and command type.
 - `@fastify/static` is imported only when there is a client directory. Its dependencies are ES modules that `require` cannot load on this machine's Node 22.7; the esbuild bundle and newer Node are unaffected.
 - Server messages past the socket rate limit are dropped with no ack, as the limit is there to shed work. The client treats a missing ack as a timeout.
@@ -95,4 +105,4 @@ Old app `npm test -w server` on b31c09a: 24 files, 385 tests, all passing.
 
 ## Next step
 
-Stage 6: Storyteller console.
+Stage 7: deploy files.

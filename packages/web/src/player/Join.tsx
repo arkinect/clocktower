@@ -35,15 +35,17 @@ export function Join({
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(
-    async (pw: string) => {
+    async function load(pw: string): Promise<void> {
       const r = await api.names(code, pw);
-      if (r.status === 404 || r.ok) {
+      if (r.ok) {
         setPlayers(r.data?.players ?? []);
         setHasStoryteller(r.data?.hasStoryteller ?? false);
         setUnlocked(true);
         setError(null);
       } else {
         setError(r.error ?? 'Something went wrong.');
+        // Busy, not refused: try again rather than leave the phone without the name list.
+        if (r.status === 429 || r.status === 0) window.setTimeout(() => void load(pw), 5000);
       }
     },
     [code],

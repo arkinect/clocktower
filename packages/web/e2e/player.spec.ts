@@ -1,6 +1,6 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import type { RoleId } from '@ct/protocol';
-import { Scripted } from './client';
+import { ScriptedStoryteller as Scripted } from './client';
 
 const NAMES = ['Ann', 'Bo', 'Cy', 'Di', 'Ed'];
 const ROLES = ['clockmaker', 'farmer', 'empath', 'poisoner', 'imp'];
@@ -62,7 +62,7 @@ test('five phones and a scripted Storyteller play a full game', async ({ browser
   await st.do({ type: 'publish_seating' });
   const assignments: Record<string, RoleId> = {};
   NAMES.forEach((n, i) => {
-    assignments[st.id(n)] = st.role(ROLES[i] as string);
+    assignments[st.player(n)] = st.role(ROLES[i] as string);
   });
   await st.do({ type: 'assign_many', assignments });
   await st.do({ type: 'suggest_bluffs' });
@@ -108,7 +108,7 @@ test('five phones and a scripted Storyteller play a full game', async ({ browser
   for (const page of pages) await expect(page.getByText('Dawn, Day 1')).toBeVisible();
   await noSideScroll(ann);
 
-  await st.do({ type: 'record_execution', playerId: st.id('Di'), died: true });
+  await st.do({ type: 'record_execution', playerId: st.player('Di'), died: true });
   await expect(di.getByText('You have died.')).toBeVisible();
   await di.getByRole('button', { name: 'I used my vote' }).click();
   await expect(di.getByText('You have used your vote.')).toBeVisible();
@@ -124,7 +124,7 @@ test('five phones and a scripted Storyteller play a full game', async ({ browser
   await st.do({ type: 'publish_dawn', force: true });
   await expect(ann.getByText('Dawn, Day 2')).toBeVisible();
 
-  await st.do({ type: 'record_execution', playerId: st.id('Ed'), died: true });
+  await st.do({ type: 'record_execution', playerId: st.player('Ed'), died: true });
   const end = await st.waitFor((v) => v.gameEnd.length > 0);
   await st.do({ type: 'confirm_game_end', key: (end.gameEnd[0] as { key: string }).key });
   for (const page of pages) await expect(page.getByText('Good wins.')).toBeVisible();

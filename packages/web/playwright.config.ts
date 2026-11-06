@@ -11,7 +11,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
-  use: { baseURL: `http://127.0.0.1:${PORT}`, viewport: { width: 360, height: 720 } },
+  use: { baseURL: `http://127.0.0.1:${PORT}`, viewport: { width: 360, height: 720 }, actionTimeout: 15_000 },
   webServer: {
     // The built bundle, as it runs in production.
     command: 'node ../server/dist/main.cjs',
