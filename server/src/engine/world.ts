@@ -104,7 +104,7 @@ export interface ChangeRoleOpts {
 
 /** An effect that exists only through its source, unlike one with a duration (until dusk, until removed). */
 function dependsOnSource(e: Effect): boolean {
-  return e.cause === 'philosopher' || e.expiry === 'while_source_alive_and_sober' || e.expiry === 'until_source_acts_again';
+  return e.cause === 'philosopher' || e.cause === 'cannibal' || e.expiry === 'while_source_alive_and_sober' || e.expiry === 'until_source_acts_again';
 }
 
 /**

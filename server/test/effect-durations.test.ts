@@ -65,4 +65,15 @@ describe('effects with a duration', () => {
     nextNight(g);
     expect(impaired(g, g.p.butler)).toBe(false);
   });
+
+  it('a poisoned Cannibal (evil eat) who becomes the Farmer is no longer poisoned', () => {
+    const g = build(['cannibal', 'imp', 'poisoner', 'farmer', 'butler', 'virgin', 'empath']);
+    runNight(g, {});
+    act(g, { type: 'record_execution', playerId: g.p.poisoner, died: true });
+    expect(impaired(g, g.p.cannibal)).toBe(true);
+    nextNight(g);
+    const { final } = runNight(g, { [g.p.imp]: { imp: [g.p.farmer] } }, { [`farmer:${g.p.farmer}`]: g.p.cannibal });
+    expect(final.after.assignments[g.p.cannibal].roleId).toBe('farmer');
+    expect(impaired(g, g.p.cannibal)).toBe(false);
+  });
 });
