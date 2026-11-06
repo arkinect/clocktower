@@ -21,7 +21,7 @@ function philosopherChoosesSlayer(roles = ['philosopher', 'imp', 'poisoner', 'em
 describe('Philosopher: a gained day ability', () => {
   it('the Slayer shot works on the day right after the choosing night', () => {
     const g = philosopherChoosesSlayer();
-    expect(g.s.assignments[g.p.philosopher].grantedAbility).toEqual({ roleId: 'slayer', fromNight: 2 });
+    expect(g.s.assignments[g.p.philosopher].grantedAbility).toEqual({ roleId: 'slayer', fromNight: 1 });
     expect(g.s.nightNumber).toBe(1);
     const pre = act(g, shoot(g.p.philosopher, g.p.imp, 'preview'));
     expect(pre.data).toMatchObject({ wouldDie: true });
@@ -51,7 +51,7 @@ describe('Philosopher: a gained day ability', () => {
   function cursedAfterChoosing(roles: string[], gained: string, cursed: (g: ReturnType<typeof build>) => string) {
     const g = build(roles);
     runNight(g, { [g.p.philosopher]: { philosopher: [gained] }, [g.p.witch]: { witch: [cursed(g)] } });
-    expect(g.s.assignments[g.p.philosopher].grantedAbility).toEqual({ roleId: gained, fromNight: 1 });
+    expect(g.s.assignments[g.p.philosopher].grantedAbility).toEqual({ roleId: gained, fromNight: 0 });
     return g;
   }
   const curse = (targetId: string, mode: 'preview' | 'accept') => ({ type: 'day_kill' as const, kind: 'witch' as const, targetId, sourceId: targetId, mode });

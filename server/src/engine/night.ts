@@ -6,7 +6,7 @@ import {
   type AbilitySource, type ActionChoice, type ActionSpec, type Alignment, type Cause, type Effect, type EffectExpiry, type EffectType, type GameState,
   type FollowUp, type NightSlot, type ReviewItem, type ReviewOption, type Resolution, type ResultRow, type ActorRow, type AbnormalEvent, type WorldState,
 } from '@ct/shared';
-import { activeImpairingEffects, computeImpairment, type Impairment } from './impairment';
+import { computeImpairment, externalImpairment, type Impairment } from './impairment';
 import { subRng, type Rng } from './rng';
 import {
   actingRoles, aliveIds, aliveNeighbours, alignmentOf, canAct, clearStartInfo, findPlayer, flag, getPlayer, hasAbility, isAlive,
@@ -29,8 +29,6 @@ export interface Actor {
   slot: string;
   /** Where the ability comes from (the first source, when several give the same role): decides the title shown. */
   source: AbilitySource;
-  /** The first night the ability works. Later than tonight only for start information given the night it's gained. */
-  fromNight: number;
   /** False when the player only believes they have it (a believed role, or an ability eaten from an evil executee). */
   real: boolean;
 }
@@ -54,11 +52,15 @@ export class NightRun {
   readonly impairAtDeath: Record<string, Impairment> = {};
   /** Cause of each death tonight (Grandmother link needs demon_attack). */
   readonly deathCause: Record<string, string> = {};
-  /** Players revived or given a new role tonight: they act again from the next night. */
+  /** Players given a new role tonight: they act from the next night. */
   readonly noActTonight = new Set<string>();
   private goonTriggered = new Set<string>();
   private currentActorRow: ActorRow | null = null;
   private currentActor: Actor | null = null;
+  /** Result rows that only confirm a choice: they have no false version (result). */
+  private readonly confirmations = new Set<ResultRow>();
+  /** Players who made a real, non-declined choice with a believed role's ability tonight. */
+  private readonly believedChoosers = new Set<string>();
   private killSeq = 0;
 
   constructor(readonly state: GameState, readonly now: number) {
@@ -108,17 +110,27 @@ export class NightRun {
     this.abnormal.push({ playerId: pid, cause, detail });
   }
 
-  /** Impairment caused by another character (not the player's own ability, own character, or a Storyteller edit). */
-  externalImpairment(pid: string): string[] {
-    return activeImpairingEffects(this.w, this.n)
-      .filter((e) => e.targetPlayerId === pid && e.sourcePlayerId !== pid && e.cause !== 'admin')
-      .map((e) => `${e.type}:${e.cause}`);
-  }
-
   /** Mathematician: log an abnormal event only when another character caused the impairment. */
   abnormalIfExternal(pid: string, detail: string) {
-    const ext = this.externalImpairment(pid);
+    const ext = externalImpairment(this.w, this.n, pid);
     if (ext.length) this.addAbnormal(pid, ext.join(','), detail);
+  }
+
+  /**
+   * Jinxes Mathematician & Drunk, Mathematician & Marionette: their believed role's ability counts if it yielded false
+   * info (the final text, so sending the truth doesn't count) or failed to work: a real choice that got no information
+   * back. The Mathematician resolves last, so tonight's result rows all exist.
+   */
+  countBelievedAbilities() {
+    for (const pid of seatedIds(this.w)) {
+      const roleId = roleIdOf(this.w, pid);
+      if (roleId !== 'drunk' && roleId !== 'marionette') continue;
+      const cause = jinxLabel(jinxBetween('mathematician', roleId)!);
+      if (this.abnormal.some((e) => e.playerId === pid && e.cause === cause)) continue;
+      const rows = this.results.filter((r) => r.playerId === pid && r.roleId === this.w.assignments[pid].believedRoleId);
+      if (rows.some((r) => r.finalLines.join('\n') !== r.trueLines.join('\n'))) this.addAbnormal(pid, cause, `${roleName(roleId)}'s ability yielded false info`);
+      else if (this.believedChoosers.has(pid) && rows.every((r) => this.confirmations.has(r))) this.addAbnormal(pid, cause, `${roleName(roleId)}'s ability failed`);
+    }
   }
 
   outcome(text: string) {
@@ -161,11 +173,13 @@ export class NightRun {
     const roleId = actor.roleId;
     const key = `${actor.pid}:${roleId}`;
     const override = this.night.overrides[key];
-    this.results.push({
+    const row: ResultRow = {
       key, playerId: actor.pid, roleId, title, trueLines, suggestedLines: suggested,
       finalLines: override ?? suggested, impaired: imp.impaired, causes: imp.causes, overridden: !!override,
       alternatives,
-    });
+    };
+    this.results.push(row);
+    if (!falseLines) this.confirmations.add(row);
   }
 
   /** Whether a start-information role (RoleData.startInfo) gives its information tonight: night 0, or just gained. */
@@ -184,12 +198,12 @@ export class NightRun {
   }
 
   /** Returns 'truthful' | 'minion' | 'demon' for how `subject` registers to this asker. */
-  private recluseRegistration(askerKey: string, subject: string): 'truthful' | 'minion' | 'demon' {
+  private recluseRegistration(role: string, asker: string, subject: string): 'truthful' | 'minion' | 'demon' {
     if (!this.isRegistrationSource(subject)) return 'truthful';
     const chosen = this.review(
-      `reg:${askerKey}:${subject}`, 'registration',
+      `reg:${role}:${asker}:${subject}`, 'registration',
       `How does ${this.name(subject)} (Recluse) register?`,
-      `Asked by ${askerKey.split(':')[0].replace('_', ' ')} (${this.name(askerKey.split(':')[1])}). Applies to this query only.`,
+      `Asked by ${role.replace('_', ' ')} (${this.name(asker)}). Applies to this query only.`,
       [
         { id: 'truthful', label: 'Truthfully (good Outsider)' },
         { id: 'minion', label: 'As an evil Minion' },
@@ -197,38 +211,38 @@ export class NightRun {
       ],
       'truthful',
     ) as 'truthful' | 'minion' | 'demon';
-    if (chosen !== 'truthful') this.addAbnormal(subject, 'recluse', `registered as ${chosen} to ${askerKey}`);
+    if (chosen !== 'truthful') this.addAbnormal(asker, 'recluse', `${this.name(subject)} (Recluse) registered as ${chosen} to ${roleName(role)}`);
     return chosen;
   }
 
-  regAlignment(askerKey: string, subject: string): Alignment {
-    const r = this.recluseRegistration(askerKey, subject);
+  regAlignment(role: string, asker: string, subject: string): Alignment {
+    const r = this.recluseRegistration(role, asker, subject);
     return r === 'truthful' ? alignmentOf(this.w, subject) : 'evil';
   }
 
-  regIsDemon(askerKey: string, subject: string): boolean {
-    const r = this.recluseRegistration(askerKey, subject);
+  regIsDemon(role: string, asker: string, subject: string): boolean {
+    const r = this.recluseRegistration(role, asker, subject);
     return r === 'truthful' ? isDemon(this.w, subject) : r === 'demon';
   }
 
-  regIsMinion(askerKey: string, subject: string): boolean {
-    const r = this.recluseRegistration(askerKey, subject);
+  regIsMinion(role: string, asker: string, subject: string): boolean {
+    const r = this.recluseRegistration(role, asker, subject);
     return r === 'truthful' ? typeOf(this.w, subject) === 'minion' && !isDemon(this.w, subject) : r === 'minion';
   }
 
-  regRole(askerKey: string, subject: string): string {
+  regRole(role: string, asker: string, subject: string): string {
     const truth = roleIdOf(this.w, subject) ?? 'unknown';
     if (!this.isRegistrationSource(subject)) return truth;
     const evilRoles = this.enabledRoleIds.filter((r) => ROLE_BY_ID[r].type === 'minion' || ROLE_BY_ID[r].type === 'demon');
     const chosen = this.review(
-      `reg:${askerKey}:${subject}:role`, 'registration',
+      `reg:${role}:${asker}:${subject}:role`, 'registration',
       `Which character does ${this.name(subject)} (Recluse) register as?`,
-      `Asked by ${askerKey.split(':')[0].replace('_', ' ')} (${this.name(askerKey.split(':')[1])}).`,
+      `Asked by ${role.replace('_', ' ')} (${this.name(asker)}).`,
       [{ id: 'truthful', label: 'Truthfully (Recluse)' }, ...evilRoles.map((r) => ({ id: `role:${r}`, label: ROLE_BY_ID[r].name }))],
       'truthful',
     );
     if (chosen === 'truthful') return truth;
-    this.addAbnormal(subject, 'recluse', `registered as ${chosen} to ${askerKey}`);
+    this.addAbnormal(asker, 'recluse', `${this.name(subject)} (Recluse) registered as ${roleName(chosen.slice(5))} to ${roleName(role)}`);
     return chosen.slice(5);
   }
 
@@ -251,7 +265,7 @@ export class NightRun {
         if (!isAlive(this.w, tl)) continue;
         const nb = aliveNeighbours(this.w, tl);
         if (!nb.includes(target) || nb.length < 2) continue;
-        const bothGood = nb.every((x) => this.regAlignment(`tea_lady:${tl}`, x) === 'good');
+        const bothGood = nb.every((x) => this.regAlignment('tea_lady', tl, x) === 'good');
         if (!bothGood) continue;
         if (this.sober(tl)) { this.outcome(`${tname} survives: neighbour of the Tea Lady (${this.name(tl)})`); return false; }
         this.abnormalIfExternal(tl, 'Tea Lady protection failed');
@@ -314,11 +328,10 @@ export class NightRun {
     if (isDemon(this.w, target) && !opts.noScarlet) this.scarletCheck(target, aliveBefore);
   }
 
-  /** Shared revive (Professor, Shabaloth, Al-Hadikhia). */
+  /** Shared revive (Professor, Shabaloth, Al-Hadikhia). The player acts later tonight only with no input (actorsFor). */
   revive(pid: string, reason: string): boolean {
     if (!revivePlayer(this.w, pid)) return false;
     this.revived.push(pid);
-    this.noActTonight.add(pid);
     this.outcome(`${this.name(pid)} is alive again (${reason})`);
     const back = scarletWomanAgain(this.w, this.now, (id, title, lines) => this.notice(id, title, lines));
     if (back) {
@@ -374,7 +387,9 @@ export class NightRun {
     }
     for (const slot of order) {
       if (!slot.roleId || !BEHAVIOURS[slot.roleId]?.resolve) continue;
-      for (const actor of this.actorsFor(slot.id, slot.roleId)) this.act(slot, actor);
+      const actors = this.actorsFor(slot.id, slot.roleId);
+      for (const actor of actors) this.act(slot, actor);
+      if (slot.roleId === 'pukka') this.endUnclaimedPukkaPoison(actors);
     }
     // Deaths after a role's slot (the Moonchild's target, a Grandmother's link): it acts once the order has finished.
     for (const slot of order) {
@@ -392,6 +407,17 @@ export class NightRun {
     };
   }
 
+  /**
+   * A Pukka's poison lasts until the player who caused it acts again. If they didn't act at the Pukka's slot tonight
+   * (dead, or a Scarlet Woman has taken over), the poison ends here and the target doesn't die.
+   */
+  private endUnclaimedPukkaPoison(actors: Actor[]) {
+    const ended = this.w.effects.filter((e) => e.cause === 'pukka' && !actors.some((a) => a.pid === e.sourcePlayerId));
+    if (!ended.length) return;
+    this.w.effects = this.w.effects.filter((e) => !ended.includes(e));
+    for (const e of ended) this.log.push(`${this.name(e.targetPlayerId)} is healthy: no Pukka took up the poison`);
+  }
+
   private act(slot: NightSlot, actor: Actor) {
     const b = BEHAVIOURS[actor.roleId];
     const row: ActorRow = {
@@ -401,41 +427,69 @@ export class NightRun {
     this.actors.push(row);
     this.currentActorRow = row;
     this.currentActor = actor;
+    if (this.lateInputPending(actor, row)) {
+      this.currentActorRow = null;
+      this.currentActor = null;
+      return;
+    }
     this.goonCheck(actor);
     const imp2 = this.impForActor(actor);
     row.impaired = imp2.impaired;
     row.causes = imp2.causes;
     if (imp2.impaired && !(actor.choice?.decline) && !b.wakesOnNightDeath) this.abnormalIfExternal(actor.pid, `${roleName(actor.roleId)} ability impaired`);
     b.resolve!(this, actor);
+    if (actor.source === 'believed' && actor.choice && !actor.choice.decline) this.believedChoosers.add(actor.pid);
     // A start-information role has now given its information (true or false): it isn't pending any more.
     if (ROLE_BY_ID[actor.roleId]?.startInfo) clearStartInfo(this.w, actor.pid, actor.roleId);
     this.currentActorRow = null;
     this.currentActor = null;
   }
 
+  /**
+   * An ability that became active after collecting closed has no submission, so a role with input asks for it now, as a
+   * follow-up question (section 9.4), with the role's normal spec built against the night's world. The answer becomes
+   * the actor's choice. Returns true while it is unanswered: the ability then does nothing.
+   */
+  private lateInputPending(actor: Actor, row: ActorRow): boolean {
+    const b = BEHAVIOURS[actor.roleId];
+    if (actor.choice || b.wakesOnNightDeath || !this.activeSinceCollecting(actor)) return false;
+    const spec = b.spec?.({ w: this.w, pid: actor.pid, night: this.n, state: this.state });
+    if (!spec) return false;
+    const key = `late:${actor.pid}:${actor.roleId}`;
+    actor.choice = this.askFollowUp({ key, playerId: actor.pid, roleId: actor.roleId, spec });
+    if (actor.choice) return false;
+    row.outcome = `waiting for ${this.name(actor.pid)}'s choice`;
+    return true;
+  }
+
+  /** A Philosopher's ability chosen tonight wasn't there while collecting. */
+  private activeSinceCollecting(actor: Actor): boolean {
+    return actor.source === 'philosopher' && !this.state.assignments[actor.pid]?.grantedAbility;
+  }
+
   actorsFor(slotId: string, roleId: string): Actor[] {
     const b = BEHAVIOURS[roleId];
     const out: Actor[] = [];
     for (const pid of seatedIds(this.w)) {
-      // Start information comes the night the ability is gained (startInfoPending), even before the ability works: a
-      // Philosopher's choice, a Damsel given a new role tonight. Any other ability only once it works.
-      const pending = startInfoPending(this.w, pid).includes(roleId);
-      const ability = abilitiesOf(this.w, pid, pending ? Infinity : this.n).find((x) => x.roleId === roleId);
+      const ability = abilitiesOf(this.w, pid, this.n).find((x) => x.roleId === roleId);
       if (!ability) continue;
       const ctx = { w: this.w, pid, night: this.n, state: this.state };
       if (b.wakesOnNightDeath) {
         // Dead now, so not skipped for being revived or given this role earlier tonight, if they then died.
         if (!this.deaths.includes(pid) || isAlive(this.w, pid)) continue;
       } else {
-        if (this.noActTonight.has(pid) && !pending) continue;
+        // Start information comes the night the ability is gained (startInfoPending): a Damsel given a new role tonight.
+        if (this.noActTonight.has(pid) && !startInfoPending(this.w, pid).includes(roleId)) continue;
         if (!canAct(this.w, pid) && !b.actsWhileDead && !b.wakesDead?.(ctx)) continue;
       }
       if (b.wakes && !b.wakes(ctx)) continue;
       // Nothing is submitted for these: the Ravenkeeper's choice comes later, as a follow-up question (askFollowUp).
       const sub = b.wakesOnNightDeath ? undefined : this.night.submissions[pid];
+      const choice = sub?.actions[abilityKey(ability)] ?? null;
+      // No follow-up question ever goes to a player revived tonight: an ability that needs input starts the next night.
+      if (this.revived.includes(pid) && !choice && (b.asksOnDeath || b.spec?.(ctx))) continue;
       out.push({
-        pid, roleId, slot: slotId, choice: sub?.actions[abilityKey(ability)] ?? null, source: ability.source, fromNight: ability.fromNight,
-        real: ability.real,
+        pid, roleId, slot: slotId, choice, source: ability.source, real: ability.real,
       });
     }
     return out;

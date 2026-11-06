@@ -1,6 +1,6 @@
 // The Al-Hadikhia (design.md section 14.7) and its jinxes (14.8).
 import { describe, expect, it } from 'vitest';
-import { act, alive, build, nextNight, resolve, runNight, submit, tryAct, type TestGame } from './helpers';
+import { act, alive, build, nextNight, resolve, resultFor, runNight, submit, tryAct, type TestGame } from './helpers';
 import { actionSpecs, wakingRoles } from '../src/engine/actions';
 import { expectedActors } from '../src/engine/game';
 import { bluffCandidates, enabledRoles } from '../src/engine/setup';
@@ -8,7 +8,6 @@ import { playerView } from '../src/engine/views';
 
 /** Seats: Al-Hadikhia, Poisoner, Empath, Gambler, Butler, Seamstress, Virgin. */
 const ROLES = ['al_hadikhia', 'poisoner', 'empath', 'gambler', 'butler', 'seamstress', 'virgin'];
-const PROMPT = /^The Al-Hadikhia chose .+, .+ and .+\. Do you choose to live or die\?$/;
 
 function night1(roles = ROLES, day?: (g: TestGame) => void): TestGame {
   const g = build(roles);
@@ -25,6 +24,12 @@ const answer = (g: TestGame, pid: string, c: 'live' | 'die', ah = g.p.al_hadikhi
 const row = (g: TestGame, ah = g.p.al_hadikhia) => g.s.night!.resolution!.actors.find((a) => a.playerId === ah && a.roleId === 'al_hadikhia')!;
 const worldAlive = (g: TestGame, pid: string) => g.s.night!.resolution!.after.players.find((p) => p.id === pid)!.alive;
 const three = (g: TestGame) => [g.p.empath, g.p.gambler, g.p.butler];
+const nameOf = (g: TestGame, pid: string) => g.s.players.find((p) => p.id === pid)!.name;
+/** What each of the three is asked: only the picks up to and including them, in pick order. */
+const expectedPrompts = (g: TestGame) => {
+  const [a, b] = three(g).map((t) => nameOf(g, t));
+  return ['you', `${a}, then you`, `${a}, ${b}, then you`].map((x) => `The Al-Hadikhia chose ${x}. Do you choose to live or die?`);
+};
 const titles = (g: TestGame, pid: string) => (g.s.messages[pid] ?? []).map((m) => m.title);
 
 /** The Al-Hadikhia chooses `ts`; the night is resolved, nobody has answered. */
@@ -76,13 +81,20 @@ describe('Al-Hadikhia', () => {
     const qs = g.s.night!.resolution!.followUps;
     expect(qs.map((q) => q.key)).toEqual(three(g).map((t) => key(g, t)));
     expect(qs.map((q) => q.playerId)).toEqual(three(g));
-    expect(qs[0].spec.prompt).toMatch(PROMPT);
+    expect(qs.map((q) => q.spec.prompt)).toEqual(expectedPrompts(g));
     expect(qs[0].spec.fields).toEqual([{ kind: 'option', label: 'Your choice', options: ['live', 'die'], labels: { live: 'Live', die: 'Die' } }]);
     expect(qs[0].spec.allowDecline).toBe(false);
     const before = row(g).input;
     answer(g, g.p.empath, 'live');
     expect(row(g).input).toBe(before);
     expect(before).toContain('P2-empath');
+  });
+
+  it('the dawn notice still names all three, in pick order', () => {
+    const g = night1();
+    chose(g, three(g));
+    const [a, b, c] = three(g).map((t) => nameOf(g, t));
+    expect(g.s.night!.resolution!.notices.find((n) => n.playerId === g.p.virgin)!.lines).toEqual([`The Al-Hadikhia chose ${a}, ${b} and ${c}.`]);
   });
 
   it('"Accept all defaults" answers nothing, and publishing waits unless forced', () => {
@@ -108,17 +120,48 @@ describe('Al-Hadikhia', () => {
     expect(res.after.players.find((p) => p.id === g.p.empath)).toMatchObject({ alive: false, deathCause: 'demon_attack' });
   });
 
-  it('live revives a dead player, who can then act from the next night', () => {
+  it('live revives a dead Empath, who gets information that night', () => {
     const g = night1(ROLES, (g) => { act(g, { type: 'record_execution', playerId: g.p.empath, died: true }); });
     chose(g, three(g));
     answer(g, g.p.empath, 'live');
     answer(g, g.p.gambler, 'die');
     answer(g, g.p.butler, 'live');
     expect(g.s.night!.resolution!.revived).toEqual([g.p.empath]);
+    expect(resultFor(g.s.night!.resolution!, g.p.empath, 'empath')).toBeDefined();
     expect(worldAlive(g, g.p.empath)).toBe(true);
     act(g, { type: 'publish_night' });
     expect(alive(g, g.p.empath)).toBe(true);
     expect(titles(g, g.p.empath)).toContain('You are alive again');
+  });
+
+  it('live revives a dead Fortune Teller: no Fortune Teller question tonight, and they act the next night', () => {
+    const roles = ['al_hadikhia', 'poisoner', 'fortune_teller', 'gambler', 'butler', 'seamstress', 'virgin'];
+    const g = night1(roles, (x) => { act(x, { type: 'record_execution', playerId: x.p.fortune_teller, died: true }); });
+    const ts = [g.p.fortune_teller, g.p.gambler, g.p.butler];
+    chose(g, ts);
+    answer(g, g.p.fortune_teller, 'live');
+    answer(g, g.p.gambler, 'die');
+    answer(g, g.p.butler, 'live');
+    const res = g.s.night!.resolution!;
+    expect(res.revived).toEqual([g.p.fortune_teller]);
+    expect(res.followUps.map((q) => q.key)).toEqual(ts.map((t) => key(g, t)));
+    expect(res.actors.some((r) => r.playerId === g.p.fortune_teller)).toBe(false);
+    act(g, { type: 'publish_night' });
+    nextNight(g);
+    expect(actionSpecs(g.s, g.p.fortune_teller).map((x) => x.key)).toEqual(['fortune_teller']);
+    submit(g, { [g.p.fortune_teller]: { fortune_teller: [g.p.al_hadikhia, g.p.virgin] } });
+    expect(resultFor(resolve(g), g.p.fortune_teller, 'fortune_teller')!.finalLines[0]).toMatch(/Yes/);
+  });
+
+  it('a Ravenkeeper revived by live and killed again is asked nothing', () => {
+    const roles = ['al_hadikhia', 'poisoner', 'ravenkeeper', 'gambler', 'butler', 'seamstress', 'virgin'];
+    const g = night1(roles, (x) => { act(x, { type: 'record_execution', playerId: x.p.ravenkeeper, died: true }); });
+    const ts = [g.p.ravenkeeper, g.p.gambler, g.p.butler];
+    chose(g, ts);
+    for (const t of ts) answer(g, t, 'live');
+    const res = g.s.night!.resolution!;
+    expect(res.deaths).toContain(g.p.ravenkeeper);
+    expect(res.followUps.map((q) => q.key)).toEqual(ts.map((t) => key(g, t)));
   });
 
   it('all three alive afterwards: all three die, a revived player too, who is not told they are alive', () => {
@@ -275,6 +318,12 @@ describe('jinxes', () => {
     expect(spec.fields).toHaveLength(3);
     for (const f of spec.fields) expect(f.options).toEqual([g.p.empath, g.p.gambler, g.p.butler, g.p.seamstress]);
     expect(tryAct(g, { type: 'submit_night', actions: { al_hadikhia: { values: [g.p.poisoner, g.p.empath, g.p.gambler] } } }, g.p.al_hadikhia).ok).toBe(false);
+  });
+
+  it('Jinx (Al-Hadikhia & Mastermind): each chosen player sees only the picks up to and including them', () => {
+    const g = night1(MM, executed);
+    chose(g, three(g));
+    expect(g.s.night!.resolution!.followUps.map((q) => q.spec.prompt)).toEqual(expectedPrompts(g));
   });
 
   it('Jinx (Al-Hadikhia & Mastermind): all three live: "evil wins", nothing dies, the game goes on', () => {

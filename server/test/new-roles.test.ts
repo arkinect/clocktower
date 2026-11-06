@@ -37,8 +37,8 @@ describe('new roles', () => {
     expect(res.revived).toEqual([g.p.empath]);
     expect(resultFor(res, g.p.oracle)!.trueLines[0]).toMatch(/^1 /);
     expect(resultFor(res, g.p.professor)!.trueLines[0]).toMatch(/You chose/);
-    // revived Empath does not act tonight
-    expect(resultFor(res, g.p.empath)).toBeUndefined();
+    // the revived Empath acts later tonight
+    expect(resultFor(res, g.p.empath)).toBeDefined();
   });
 
   it('2. Gossip: True kills the chosen victim; Sailor survives; poisoned Gossip kills nobody', () => {
@@ -52,11 +52,12 @@ describe('new roles', () => {
     expect(item).toBeTruthy();
     res = resolve(g, { [item.key]: g.p.empath });
     expect(res.deaths).toEqual([g.p.empath]);
-    // Gossip killed by the Imp earlier still resolves
+    // Gossip killed by the Imp earlier: no ability at their slot, so no Gossip kill
     act(g, { type: 'reopen_collecting' });
     submit(g, { [g.p.imp]: { imp: [g.p.gossip] } });
     res = resolve(g, { [item.key]: g.p.butler });
-    expect(res.deaths.sort()).toEqual([g.p.gossip, g.p.butler].sort());
+    expect(res.deaths).toEqual([g.p.gossip]);
+    expect(res.reviewItems.some((i) => i.kind === 'gossip_victim')).toBe(false);
     // Poisoned gossip
     act(g, { type: 'reopen_collecting' });
     act(g, { type: 'clear_submission', playerId: g.p.imp });

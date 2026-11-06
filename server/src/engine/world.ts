@@ -1,5 +1,5 @@
 // Read helpers over the world state. Pure functions, no mutation.
-import { abilitiesOf, ROLE_BY_ID, type Alignment, type RoleType, type WorldState, type PlayerRec } from '@ct/shared';
+import { abilitiesOf, ROLE_BY_ID, type Alignment, type Effect, type RoleType, type WorldState, type PlayerRec } from '@ct/shared';
 
 export function seated(w: WorldState): PlayerRec[] {
   return w.players.filter((p) => !p.isAdmin && p.seat !== null).sort((a, b) => (a.seat! - b.seat!));
@@ -80,7 +80,7 @@ export function hasAbility(w: WorldState, id: string, roleId: string, night: num
 
 /**
  * The night to check abilities against during the day, given the last night: the next one, since an ability gained
- * last night (a Philosopher's, from the next night) already works today. Impairment stays at the last night.
+ * by now (a Philosopher's last night, a Cannibal's eat today) already works today. Impairment stays at the last night.
  */
 export function abilityNightToday(lastNight: number): number {
   return lastNight + 1;
@@ -96,16 +96,22 @@ export interface ChangeRoleOpts {
   keepAbilities?: boolean;
   /** Keep the player's current alignment instead of the new role's natural one. */
   keepAlignment?: boolean;
-  /** Keep the player's role memory (roleState) and the effects they caused. */
+  /** Keep the player's role memory (roleState) and the effects that depend on them as their source. */
   keepTies?: boolean;
   /** Also clear the player's used-ability flags (the Storyteller reassigning a role mid-game). */
   clearFlags?: boolean;
 }
 
+/** An effect that exists only through its source, unlike one with a duration (until dusk, until removed). */
+function dependsOnSource(e: Effect): boolean {
+  return e.cause === 'philosopher' || e.cause === 'cannibal' || e.expiry === 'while_source_alive_and_sober' || e.expiry === 'until_source_acts_again';
+}
+
 /**
  * The one way to change a player's role (null = no role): appends to their history, sets the role and its natural
  * alignment (or keeps theirs, with keepAlignment), and clears their believed role. Unless `opts` keeps them, it also
- * clears their gained and eaten abilities, "keeps ability when dead", role memory and the effects they caused.
+ * clears their gained and eaten abilities, "keeps ability when dead", role memory and the effects that depend on them
+ * as their source (dependsOnSource). Timed effects they caused stay: an effect with a duration lasts its full time.
  */
 export function changeRole(w: WorldState, pid: string, newRoleId: string | null, reason: string, now: number, opts: ChangeRoleOpts = {}) {
   const prev = w.assignments[pid];
@@ -122,7 +128,7 @@ export function changeRole(w: WorldState, pid: string, newRoleId: string | null,
   };
   if (!opts.keepTies) {
     delete w.roleState[pid];
-    w.effects = w.effects.filter((e) => e.sourcePlayerId !== pid);
+    w.effects = w.effects.filter((e) => e.sourcePlayerId !== pid || !dependsOnSource(e));
   }
   if (opts.clearFlags) delete w.flags[pid];
 }
@@ -182,8 +188,8 @@ export function aliveNeighbours(w: WorldState, id: string): string[] {
   return found;
 }
 
-/** Nearest alive player matching `pred` on each side (going past non-matching and dead players). */
-export function nearestAliveMatching(w: WorldState, id: string, pred: (pid: string) => boolean): string[] {
+/** Closest player matching `pred` on each side, alive or dead, going past non-matching seats. At most 2, no repeats. */
+export function nearestMatching(w: WorldState, id: string, pred: (pid: string) => boolean): string[] {
   const order = seatedIds(w);
   const i = order.indexOf(id);
   if (i < 0) return [];
@@ -192,7 +198,7 @@ export function nearestAliveMatching(w: WorldState, id: string, pred: (pid: stri
   for (const dir of [-1, 1]) {
     for (let k = 1; k < n; k++) {
       const cand = order[(i + dir * k + n * k) % n];
-      if (cand !== id && isAlive(w, cand) && pred(cand)) {
+      if (cand !== id && pred(cand)) {
         found.push(cand);
         break;
       }

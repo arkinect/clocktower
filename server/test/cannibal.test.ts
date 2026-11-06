@@ -276,7 +276,7 @@ describe('the Cannibal and the Philosopher', () => {
     nextNight(g);
     expect(actionSpecs(g.s, g.p.cannibal).map((x) => [x.key, x.title])).toEqual([['cannibal', 'Cannibal']]);
     runNight(g, { [g.p.cannibal]: { cannibal: ['fortune_teller'] } });
-    expect(g.s.assignments[g.p.cannibal].grantedAbility).toEqual({ roleId: 'fortune_teller', fromNight: 2 });
+    expect(g.s.assignments[g.p.cannibal].grantedAbility).toEqual({ roleId: 'fortune_teller', fromNight: 1 });
     expect(drunk(g, g.p.fortune_teller)).toBe(true);
     return g;
   }

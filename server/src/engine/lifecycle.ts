@@ -1,6 +1,6 @@
 // Shared life/death bookkeeping used by the night engine and Day panel actions.
-import type { WorldState } from '@ct/shared';
-import { computeImpairment } from './impairment';
+import type { AbnormalEvent, WorldState } from '@ct/shared';
+import { computeImpairment, externalImpairment } from './impairment';
 import { abilityNightToday, aliveNeighbours, alignmentOf, findPlayer, flag, hasAbility, playersWithAbility } from './world';
 
 /**
@@ -22,7 +22,13 @@ export function revivePlayer(w: WorldState, pid: string): boolean {
   return true;
 }
 
-export interface DayKillPreview { wouldDie: boolean; reason: string; usesFool: boolean }
+export interface DayKillPreview {
+  wouldDie: boolean;
+  reason: string;
+  usesFool: boolean;
+  /** Protections that would have saved the target but failed because another character impaired the protector. */
+  failed?: AbnormalEvent[];
+}
 
 /**
  * design.md section 5.12: a day kill runs the normal protections except the Mayor bounce and the
@@ -34,16 +40,25 @@ export function previewDayKill(w: WorldState, target: string, night: number): Da
   const imp = computeImpairment(w, night);
   const sober = (id: string) => !imp[id]?.impaired;
   const today = abilityNightToday(night);
-  if (hasAbility(w, target, 'sailor', today) && sober(target)) return { wouldDie: false, reason: `${p.name} cannot die because they are a sober Sailor.`, usesFool: false };
+  const failed: AbnormalEvent[] = [];
+  const failedIfExternal = (id: string, detail: string) => {
+    const ext = externalImpairment(w, night, id);
+    if (ext.length) failed.push({ playerId: id, cause: ext.join(','), detail });
+  };
+  if (hasAbility(w, target, 'sailor', today)) {
+    if (sober(target)) return { wouldDie: false, reason: `${p.name} cannot die because they are a sober Sailor.`, usesFool: false, failed };
+    failedIfExternal(target, 'Sailor protection failed');
+  }
   for (const tl of playersWithAbility(w, 'tea_lady', today)) {
-    if (!findPlayer(w, tl)?.alive || !sober(tl)) continue;
+    if (!findPlayer(w, tl)?.alive) continue;
     const nb = aliveNeighbours(w, tl);
-    if (nb.length === 2 && nb.includes(target) && nb.every((x) => alignmentOf(w, x) === 'good')) {
-      return { wouldDie: false, reason: `${p.name} cannot die: neighbour of the Tea Lady (${findPlayer(w, tl)!.name}).`, usesFool: false };
-    }
+    if (nb.length !== 2 || !nb.includes(target) || !nb.every((x) => alignmentOf(w, x) === 'good')) continue;
+    if (sober(tl)) return { wouldDie: false, reason: `${p.name} cannot die: neighbour of the Tea Lady (${findPlayer(w, tl)!.name}).`, usesFool: false, failed };
+    failedIfExternal(tl, 'Tea Lady protection failed');
   }
-  if (hasAbility(w, target, 'fool', today) && !flag(w, target, 'fool_used') && sober(target)) {
-    return { wouldDie: false, reason: `${p.name} survives: the Fool's first death (this uses the Fool).`, usesFool: true };
+  if (hasAbility(w, target, 'fool', today) && !flag(w, target, 'fool_used')) {
+    if (sober(target)) return { wouldDie: false, reason: `${p.name} survives: the Fool's first death (this uses the Fool).`, usesFool: true, failed };
+    failedIfExternal(target, 'Fool protection failed');
   }
-  return { wouldDie: true, reason: `${p.name} would die.`, usesFool: false };
+  return { wouldDie: true, reason: `${p.name} would die.`, usesFool: false, failed };
 }

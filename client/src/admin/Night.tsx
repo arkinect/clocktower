@@ -239,15 +239,17 @@ function MathAdjust({ ctx }: { ctx: AdminCtx }) {
   const hasMath = res.results.some((r) => r.roleId === 'mathematician');
   if (!hasMath) return null;
   const adj = s.night!.mathAdjust;
-  const auto = [...new Set(res.abnormal.map((e) => e.playerId))];
+  const today = s.days[s.night!.number]?.abnormal ?? [];
+  const auto = [...new Set([...today, ...res.abnormal].map((e) => e.playerId))];
   const toggleRemove = (id: string) => send({ type: 'math_adjust', add: adj.add, remove: adj.remove.includes(id) ? adj.remove.filter((x) => x !== id) : [...adj.remove, id] });
   const toggleAdd = (id: string) => send({ type: 'math_adjust', add: adj.add.includes(id) ? adj.add.filter((x) => x !== id) : [...adj.add, id], remove: adj.remove });
   return (
     <section className="card">
       <h2>Mathematician: abnormal abilities</h2>
       <ul>
+        {today.map((e, i) => <li key={`day${i}`}><Who ctx={ctx} id={e.playerId} />: {e.detail} <span className="muted small">(today, {e.cause})</span></li>)}
         {res.abnormal.map((e, i) => <li key={i}><Who ctx={ctx} id={e.playerId} />: {e.detail} <span className="muted small">({e.cause})</span></li>)}
-        {!res.abnormal.length && <li className="muted">None detected.</li>}
+        {!auto.length && <li className="muted">None detected.</li>}
       </ul>
       <div className="row wrap">
         {auto.map((id) => <label key={id} className="check"><input type="checkbox" checked={!adj.remove.includes(id)} onChange={() => toggleRemove(id)} /> count <Who ctx={ctx} id={id} /></label>)}

@@ -92,7 +92,7 @@ export const ROLES: RoleData[] = [
   r('po', 'Po', D, 'Each night*, you may choose a player: they die. If your last choice was no-one, choose 3 players tonight.'),
   r('no_dashii', 'No Dashii', D, 'Each night*, choose a player: they die. Your 2 Townsfolk neighbours are poisoned.'),
   r('vigormortis', 'Vigormortis', D, 'Each night*, choose a player: they die. Minions you kill keep their ability & poison 1 Townsfolk neighbour. [-1 Outsider]', { setupModifier: { outsiders: -1 } }),
-  r('lil_monsta', 'Lil\' Monsta', D, 'Each night, Minions choose who babysits Lil\' Monsta\'s token & "is the Demon". A player dies each night*. [+1 Minion]', { setupModifier: { minions: 1 } }),
+  r('lil_monsta', 'Lil\' Monsta', D, 'Each night, Minions choose who babysits Lil\' Monsta\'s token & "is the Demon". A player dies each night*. [+1 Minion]'),
   r('al_hadikhia', 'Al-Hadikhia', D, 'Each night*, you may choose 3 players (all players learn who): each silently chooses to live or die, but if all live, all die.'),
 ];
 
@@ -117,8 +117,8 @@ export interface Jinx { a: string; b: string; text: string; handling: 'reminder'
 const DJINN = 'https://wiki.bloodontheclocktower.com/Djinn';
 
 export const JINXES: Jinx[] = [
-  { a: 'mathematician', b: 'drunk', text: 'The Mathematician learns if the Drunk’s ability yielded false info or failed to work properly.', handling: 'reminder', source: DJINN },
-  { a: 'mathematician', b: 'marionette', text: 'The Mathematician learns if the Marionette\'s ability yielded false info or failed to work properly.', handling: 'reminder', source: DJINN },
+  { a: 'mathematician', b: 'drunk', text: 'The Mathematician learns if the Drunk’s ability yielded false info or failed to work properly.', handling: 'engine', source: DJINN },
+  { a: 'mathematician', b: 'marionette', text: 'The Mathematician learns if the Marionette\'s ability yielded false info or failed to work properly.', handling: 'engine', source: DJINN },
   { a: 'marionette', b: 'balloonist', text: 'If the Marionette thinks that they are the Balloonist, an Outsider might have been added during setup.', handling: 'engine', source: DJINN },
   { a: 'marionette', b: 'huntsman', text: 'If the Marionette thinks that they are the Huntsman, the Damsel was added during setup.', handling: 'engine', source: DJINN },
   { a: 'marionette', b: 'lil_monsta', text: 'If there would be a Marionette in play, they enter play after the Demon & must start as their neighbor.', handling: 'reminder', source: DJINN },
