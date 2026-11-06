@@ -23,7 +23,7 @@
     "@types/better-sqlite3": "^7.6.11",
     "@types/ws": "^8.5.13",
     "autocannon": "^8.0.0",
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.28.2",
     "tsx": "^4.19.2"
   }
 }
