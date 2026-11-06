@@ -1,0 +1,214 @@
+/* The idle games. Imported only by the lazily loaded games chunk. */
+.minigame {
+  position: relative;
+  flex: 1;
+  min-height: 200px;
+  touch-action: none;
+}
+.minigame canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.minigame .score {
+  position: absolute;
+  top: 8px;
+  right: 14px;
+  color: var(--gold);
+  z-index: 1;
+  pointer-events: none;
+}
+.minigame .hint {
+  position: absolute;
+  bottom: 6px;
+  width: 100%;
+  text-align: center;
+  color: #ffffff40;
+  font-size: 0.8rem;
+  pointer-events: none;
+}
+.games {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.gamepick {
+  display: flex;
+  gap: 6px;
+  padding: 4px 12px;
+  justify-content: center;
+}
+.gamepick button {
+  background: transparent;
+  color: var(--muted);
+  border-radius: 99px;
+}
+.gamepick button.on {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+/* 2048: fixed board size (independent of tile contents and of mobile browser bars), animated tiles. */
+.g2048 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 12px 24px;
+  user-select: none;
+  --board2048: min(88vw, 420px, 50vh);
+  --gap2048: 8px;
+}
+.g2048-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: var(--board2048);
+}
+.score2048 {
+  color: var(--gold);
+}
+.g2048-board {
+  position: relative;
+  flex: none;
+  width: var(--board2048);
+  height: var(--board2048);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: var(--gap2048);
+  padding: var(--gap2048);
+  background: #241f3a;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.cell2048 {
+  background: #1a1628;
+  border-radius: 8px;
+}
+.tiles2048 {
+  position: absolute;
+  inset: var(--gap2048);
+}
+.tilepos {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc((100% - 3 * var(--gap2048)) / 4);
+  height: calc((100% - 3 * var(--gap2048)) / 4);
+  transition: transform 110ms ease-in-out;
+  will-change: transform;
+}
+.tilepos.dying {
+  z-index: 0;
+}
+.tilepos:not(.dying) {
+  z-index: 1;
+}
+.tile {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: calc(var(--board2048) / 11);
+  color: #fff;
+  overflow: hidden;
+}
+.tile.appear {
+  animation: tile-appear 160ms ease-out 90ms both;
+}
+.tile.pop {
+  animation: tile-pop 180ms ease-out 100ms;
+}
+@keyframes tile-appear {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes tile-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.tile.t2 {
+  background: #3a3358;
+}
+.tile.t4 {
+  background: #4a3f72;
+}
+.tile.t8 {
+  background: #6b4fa0;
+}
+.tile.t16 {
+  background: #8e5cc3;
+}
+.tile.t32 {
+  background: #b0589a;
+}
+.tile.t64 {
+  background: #d9534f;
+}
+.tile.t128,
+.tile.t256,
+.tile.t512 {
+  font-size: calc(var(--board2048) / 14);
+}
+.tile.t128 {
+  background: #e0814a;
+}
+.tile.t256 {
+  background: #e89b45;
+}
+.tile.t512 {
+  background: #e8b04a;
+  color: #1b1408;
+}
+.tile.t1024,
+.tile.t2048,
+.tile.t4096 {
+  background: #f3d36b;
+  color: #1b1408;
+  font-size: calc(var(--board2048) / 17);
+  box-shadow: 0 0 16px #f3d36b88;
+}
+.g2048-over {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #14111fcc;
+  border-radius: 12px;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+.gamepick button {
+  min-height: 32px;
+  padding: 2px 10px;
+  font-size: 0.8rem;
+}
+.minigame .small {
+  font-size: 0.85rem;
+}

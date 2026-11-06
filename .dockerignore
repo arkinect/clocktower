@@ -1,10 +1,12 @@
-node_modules
 **/node_modules
 **/dist
+**/.tsbuild
+**/*.tsbuildinfo
+**/test-results
+**/coverage
 data
 data-public
 logs
 caddy
 .env
 .git
-.github

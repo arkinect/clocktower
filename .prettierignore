@@ -1,0 +1,13 @@
+node_modules
+dist
+.tsbuild
+coverage
+package-lock.json
+playwright-report
+test-results
+data
+data-public
+logs
+caddy/data
+caddy/config
+NOTICE.md
