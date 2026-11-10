@@ -13,7 +13,7 @@ const CAST: [string, string][] = [
 async function tab(page: Page, name: string) {
   const link = page.getByRole('navigation', { name: 'Console sections' }).getByRole('link', { name, exact: true });
   if (await link.count()) return link.click();
-  await page.getByRole('button', { name: /▾$/ }).click();
+  await page.locator('button[aria-haspopup="menu"]').click();
   await page.getByRole('menuitem', { name, exact: true }).click();
 }
 

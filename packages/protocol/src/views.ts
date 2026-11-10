@@ -258,12 +258,50 @@ export const PromptView = z.object({
 });
 export type PromptView = z.infer<typeof PromptView>;
 
-export const StoryEntry = z.object({
-  at: z.string(),
-  title: z.string(),
-  rows: z.array(z.object({ name: z.string(), character: z.string(), lines: z.array(z.string()) })),
-  summary: z.array(z.string()),
+/** A night as a table: one row per seated player, in seat order. */
+export const StoryNight = z.object({
+  kind: z.literal('night'),
+  n: z.number(),
+  deaths: z.array(PlayerId),
+  revived: z.array(PlayerId),
+  rows: z.array(
+    z.object({
+      playerId: PlayerId,
+      /** 0-based position in the night's rows. */
+      seat: z.number(),
+      name: z.string(),
+      character: RoleId.nullable(),
+      believed: RoleId.nullable(),
+      alignment: Alignment,
+      aliveAtStart: z.boolean(),
+      aliveAtEnd: z.boolean(),
+      causes: z.array(z.string()),
+      /** `roleId` is null when only the slot was stored: print the slot then. */
+      actions: z.array(
+        z.object({ roleId: RoleId.nullable(), slot: z.string(), input: z.string(), outcome: z.string() }),
+      ),
+      received: z.array(
+        z.object({ title: z.string(), lines: z.array(z.string()), truth: z.array(z.string()).nullable() }),
+      ),
+    }),
+  ),
 });
+export type StoryNight = z.infer<typeof StoryNight>;
+
+/** A day as a few labelled lines. */
+export const StoryDay = z.object({
+  kind: z.literal('day'),
+  n: z.number(),
+  /** The day's final execution record; null when none was recorded. */
+  execution: z.object({ playerId: PlayerId.nullable(), died: z.boolean() }).nullable(),
+  deaths: z.array(z.object({ playerId: PlayerId, cause: z.string() })),
+  /** Exile, revival, broke madness, and nomination, vote and statement lines from older games. */
+  other: z.array(z.string()),
+  notes: z.string(),
+});
+export type StoryDay = z.infer<typeof StoryDay>;
+
+export const StoryEntry = z.discriminatedUnion('kind', [StoryNight, StoryDay]);
 export type StoryEntry = z.infer<typeof StoryEntry>;
 
 export const StorytellerView = z.object({

@@ -475,3 +475,31 @@
   padding: 8px 0;
   border-bottom: 1px solid var(--line);
 }
+
+/* The Story: each night a table that scrolls sideways on a phone. */
+.board {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.story {
+  min-width: 720px;
+}
+
+.story td {
+  vertical-align: top;
+  font-size: 0.9rem;
+}
+
+.deadRow {
+  opacity: 0.6;
+}
+
+.fold {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
