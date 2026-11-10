@@ -26,7 +26,9 @@ describe('Jinx (Cannibal & Butler), (Cannibal & Zealot)', () => {
   });
   it('a later eat replaces the message waiting to be sent', () => {
     const s = scene({ ann: 'cannibal', bo: 'butler', cy: 'd1', di: 'zealot', ed: 't2', fi: 't3' }).start().dawn();
-    s.execute('bo');
+    // The eat happens at dusk; the next day's changes replace the message before the next night sends it.
+    s.execute('ed').dusk().dawn();
+    s.act('cannibal', 'set_ability', ['butler']);
     s.act('cannibal', 'set_ability', ['zealot']);
     s.dusk().dawn();
     expect(s.inbox('ann')).toContain('Jinx (Cannibal & Zealot): You have the Zealot ability');
@@ -79,7 +81,7 @@ describe("Jinx (Lil' Monsta & Scarlet Woman)", () => {
     )
       .start()
       .dawn();
-    s.execute('ann').prompt('yes');
+    s.execute('ann').dusk();
     const token = Object.values(s.state.abilities).find(
       (a) => a.roleId === ('lil_monsta' as never) && a.origin.kind !== 'character',
     );
@@ -91,11 +93,9 @@ describe("Jinx (Lil' Monsta & Scarlet Woman)", () => {
 describe('Jinx (Scarlet Woman & Al-Hadikhia)', () => {
   it('the second Demon coming back makes her the Scarlet Woman again', () => {
     const s = scene({ ann: 'al_hadikhia', bo: 'scarlet_woman', cy: 't1', di: 't2', ed: 't3', fi: 't4' }).start().dawn();
-    s.execute('ann').prompt('yes');
+    s.execute('ann').dusk();
     expect(s.character('bo')).toBe('al_hadikhia');
-    s.dusk()
-      .submit({ bo: ['ann', 'cy', 'di'] })
-      .review();
+    s.submit({ bo: ['ann', 'cy', 'di'] }).review();
     s.answer('ann', ['live']).answer('cy', ['die']).answer('di', ['die']).dawn();
     expect(s.alive('ann')).toBe(true);
     expect(s.character('bo')).toBe('scarlet_woman');

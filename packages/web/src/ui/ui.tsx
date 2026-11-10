@@ -30,6 +30,23 @@ export function Button({ variant = 'plain', big, tiny, on, className, type = 'bu
   );
 }
 
+/** Stacks every label in one cell and shows one, so a button keeps its width as its label changes. */
+export function StableLabel({ labels, current }: { labels: ReactNode[]; current: number }) {
+  return (
+    <span className={styles['stable']}>
+      {labels.map((l, i) => (
+        <span
+          key={i}
+          className={i === current ? undefined : styles['stableOff']}
+          aria-hidden={i === current ? undefined : true}
+        >
+          {l}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 /** For consequential actions: starts a three-second countdown that a second press cancels. Works by keyboard too. */
 export function HoldButton({
   onConfirm,
@@ -37,12 +54,14 @@ export function HoldButton({
   disabled,
   seconds = 3,
   variant = 'danger',
+  big,
 }: {
   onConfirm: () => void;
   children: ReactNode;
   disabled?: boolean;
   seconds?: number;
   variant?: Variant;
+  big?: boolean;
 }) {
   const [armed, setArmed] = useState(false);
   const timer = useRef<number | undefined>(undefined);
@@ -62,7 +81,13 @@ export function HoldButton({
     }, seconds * 1000);
   };
   return (
-    <Button variant={variant} disabled={disabled ?? false} onClick={press} className={armed ? styles['armed'] : ''}>
+    <Button
+      variant={variant}
+      big={big ?? false}
+      disabled={disabled ?? false}
+      onClick={press}
+      className={armed ? styles['armed'] : ''}
+    >
       <span className={styles['fill']} style={{ animationDuration: `${seconds}s` }} />
       <span className={styles['label']}>
         <span className={armed ? styles['off'] : ''} aria-hidden={armed || undefined}>

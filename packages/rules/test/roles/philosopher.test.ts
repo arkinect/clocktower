@@ -11,7 +11,7 @@ describe('Philosopher', () => {
     expect(s.row('bo').impaired).toBe(true);
     s.dawn();
     expect(s.impaired('bo')).toBe(true);
-    s.execute('ann');
+    s.execute('ann').dusk();
     expect(s.impaired('bo')).toBe(false);
   });
   it('the gained ability acts in its own slot the same night', () => {

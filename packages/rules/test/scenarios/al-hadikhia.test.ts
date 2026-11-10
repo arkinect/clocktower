@@ -200,7 +200,7 @@ describe('the Al-Hadikhia at night', () => {
 describe('Jinx (Scarlet Woman & Al-Hadikhia)', () => {
   const sw = { ...cast, bo: 'scarlet_woman' };
   const takeOver = (s: Scene) => {
-    s.execute('ann').prompt('yes');
+    s.execute('ann').dusk();
     expect(s.character('bo')).toBe('al_hadikhia');
   };
   const TITLE = 'Jinx (Scarlet Woman & Al-Hadikhia): You are the Scarlet Woman again';
@@ -209,7 +209,6 @@ describe('Jinx (Scarlet Woman & Al-Hadikhia)', () => {
     const s = scene(sw).start();
     s.dawn();
     takeOver(s);
-    s.dusk();
     pick(s, ['ann', 'cy', 'di'], 'bo');
     s.answer('ann', ['live']);
     expect(ah(s, 'bo')?.outcome).toContain('Jinx (Scarlet Woman & Al-Hadikhia): bo is the Scarlet Woman again');
@@ -224,7 +223,6 @@ describe('Jinx (Scarlet Woman & Al-Hadikhia)', () => {
     const s = scene(sw).start();
     s.dawn().execute('cy');
     takeOver(s);
-    s.dusk();
     pick(s, ['cy', 'di', 'ed'], 'bo');
     s.answer('cy', ['live']);
     s.dawn();
@@ -235,6 +233,7 @@ describe('Jinx (Scarlet Woman & Al-Hadikhia)', () => {
     const s = scene(sw).start();
     s.dawn();
     takeOver(s);
+    s.dawn();
     s.g.st({ type: 'mark_alive', playerId: as('ann'), alive: true });
     expect(s.character('bo')).toBe('scarlet_woman');
     expect(titles(s, 'bo')).toContain(TITLE);
@@ -300,7 +299,7 @@ describe('Jinx (Al-Hadikhia & Mastermind)', () => {
 
   it('a Scarlet Woman took over, so the dead Al-Hadikhia sleeps and the new Demon acts normally', () => {
     const s = scene({ ...mm, cy: 'scarlet_woman' }).start();
-    s.dawn().execute('ann').prompt('yes').dusk();
+    s.dawn().execute('ann').dusk();
     expect(s.specs('ann')).toEqual([]);
     expect(expected(s)).not.toContain('ann');
     const [spec] = s.specs('cy');

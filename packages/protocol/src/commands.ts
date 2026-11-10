@@ -106,6 +106,8 @@ export const ConfirmGameEnd = c('confirm_game_end', { key: Key });
 export const DismissGameEnd = c('dismiss_game_end', { key: Key });
 export const EndGame = c('end_game', { winner: Alignment.nullable().optional() });
 export const PlayAgain = c('play_again', {});
+/** Removes every player, the Storyteller included, and resets the script. Only the settings stay. */
+export const NewGame = c('new_game', {});
 export const ForcePhase = c('force_phase', { phase: z.enum(['lobby', 'setup', 'day', 'ended']) });
 
 export const Command = z.discriminatedUnion('type', [
@@ -170,6 +172,7 @@ export const Command = z.discriminatedUnion('type', [
   DismissGameEnd,
   EndGame,
   PlayAgain,
+  NewGame,
   ForcePhase,
 ]);
 export type Command = z.infer<typeof Command>;

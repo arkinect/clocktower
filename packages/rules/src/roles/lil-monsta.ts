@@ -64,6 +64,7 @@ export const lilMonsta = defineRole({
           title: "Lil' Monsta token holder",
           prompt: 'Who should hold the token?',
           preview: false,
+          recorded: [ctx.holder],
           fields: [{ kind: 'player', label: 'Holder', options: ctx.seated }],
         },
       ];

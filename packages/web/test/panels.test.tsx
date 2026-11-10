@@ -15,15 +15,21 @@ import {
 } from '@ct/protocol';
 
 const run = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
+// The catalog the panels look types up in: one Townsfolk and one Traveller.
+const catalog = vi.hoisted(() => [
+  { roleId: 'empath', name: 'Empath', type: 'townsfolk' },
+  { roleId: 'beggar', name: 'Beggar', type: 'traveller' },
+]);
 vi.mock('../src/app/store', () => ({
   useCommand: () => ({ run, pending: false }),
+  useGame: () => ({ catalog, jinxes: [] }),
   useNames: () => ({ players: { a: 'Ann', b: 'Bo' }, roles: {} }),
 }));
 
 import { Ended } from '../src/player/PlayerApp';
 import { RoleCardView, RoleList, typeName } from '../src/player/parts';
-import { DayAction, Usage } from '../src/storyteller/Day';
-import { Field } from '../src/storyteller/Setup';
+import { Day, DayAction, Usage } from '../src/storyteller/Day';
+import { AssignRow, Field } from '../src/storyteller/Setup';
 import { InputSheet, causeLabel, causesWithoutRow, phaseText } from '../src/storyteller/common';
 import { HoldButton, UpdateBar } from '../src/ui/ui';
 
@@ -45,6 +51,9 @@ const ability = (over: Record<string, unknown>) =>
     oncePerGame: true,
     usageAuto: false,
     reminder: null,
+    dayReminder: false,
+    from: 'Night 0',
+    survivesDeath: false,
     summary: [],
     ...over,
   });
@@ -164,19 +173,6 @@ describe('ability tracker', () => {
     await userEvent.click(screen.getByRole('checkbox'));
     expect(run).toHaveBeenCalledWith({ type: 'set_ability_used', abilityId: 'a7', used: true });
   });
-
-  it('shows a reminder only while the ability works', () => {
-    render(
-      <Usage
-        seated={seated([
-          ability({ id: 'b', name: 'Virgin', oncePerGame: false, reminder: 'First nomination.' }),
-          ability({ id: 'c', name: 'Mayor', oncePerGame: false, reminder: 'Three alive.', active: false }),
-        ])}
-      />,
-    );
-    expect(screen.getByText(/First nomination/)).toBeTruthy();
-    expect(screen.queryByText(/Three alive/)).toBeNull();
-  });
 });
 
 describe('day actions', () => {
@@ -191,6 +187,8 @@ describe('day actions', () => {
     abilityId: 'a1',
     action: 'choose',
     preview: false,
+    recorded: null,
+    neededTonight: false,
   });
 
   it('cannot be applied until something is chosen', async () => {
@@ -357,5 +355,149 @@ describe('the end of the game on a phone', () => {
     render(<Ended view={view('storyteller', 'evil')} />);
     expect(screen.queryByText(/app update/)).toBeNull();
     expect(screen.getByText('Evil wins.')).toBeTruthy();
+  });
+});
+
+describe('setup assignment', () => {
+  const setupView = { setup: { believedOptions: {} }, script: ['empath', 'beggar'] } as unknown as StorytellerView;
+
+  it("asks for a Traveller's alignment", () => {
+    render(<AssignRow view={setupView} player={player({ character: 'beggar' })} />);
+    expect(screen.getByLabelText('Alignment of Ann')).toBeTruthy();
+  });
+
+  it('leaves every other character on its natural alignment', () => {
+    render(<AssignRow view={setupView} player={player({ character: 'empath' })} />);
+    expect(screen.queryByLabelText('Alignment of Ann')).toBeNull();
+    expect(screen.getByLabelText('Character for Ann')).toBeTruthy();
+  });
+});
+
+describe('the Day tab', () => {
+  const spec = (over: Record<string, unknown>) =>
+    DayActionSpec.parse({
+      key: 'k',
+      roleId: null,
+      title: 'Flowergirl: did a Demon vote today?',
+      prompt: '',
+      fields: [{ kind: 'option', label: 'Demon voted', options: ['yes', 'no'], labels: { yes: 'Yes', no: 'No' } }],
+      distinct: false,
+      allowDecline: false,
+      abilityId: 'a1',
+      action: 'demon_voted',
+      preview: false,
+      recorded: null,
+      neededTonight: false,
+      ...over,
+    });
+  const dayView = (over: Partial<StorytellerView> = {}, players = [player({ alive: true })]) =>
+    ({
+      ...console_({ kind: 'day', n: 2 }, players),
+      dayActions: [],
+      dayEvents: [],
+      gameEnd: [],
+      prompts: [],
+      dayNotices: [],
+      notes: '',
+      ...over,
+    }) as StorytellerView;
+  const section = (title: string) => screen.getByRole('heading', { name: title }).closest('section') as HTMLElement;
+
+  it('shows no nomination, vote or statement controls, and starts the matching night', () => {
+    render(<Day view={dayView()} />);
+    expect(screen.queryByText(/Nominat|Votes|Statement/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Start Night 2' })).toBeTruthy();
+  });
+
+  it('puts a fact under "Facts for tonight", showing its recorded answer', () => {
+    render(<Day view={dayView({ dayActions: [spec({ recorded: ['yes'] })] })} />);
+    const facts = section('Facts for tonight');
+    const yes = within(facts).getByRole('button', { name: 'Yes' });
+    expect(yes.getAttribute('aria-pressed')).toBe('true');
+    expect(within(facts).queryByText(/Needed tonight/)).toBeNull();
+  });
+
+  it('a fact needed tonight and not recorded gets a quiet hint, and sends on a tap', async () => {
+    render(<Day view={dayView({ dayActions: [spec({ neededTonight: true })] })} />);
+    expect(screen.getByText('Needed tonight. If you leave it, Review will ask for it.')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'No' }));
+    expect(run).toHaveBeenCalledWith({
+      type: 'day_action',
+      abilityId: 'a1',
+      action: 'demon_voted',
+      values: ['no'],
+      mode: 'accept',
+    });
+  });
+
+  it('puts an action with a preview under "Day abilities"', () => {
+    const shot = spec({
+      title: 'Slayer (Ann)',
+      action: 'shoot',
+      preview: true,
+      fields: [{ kind: 'player', label: 'Target', options: ['a', 'b'] }],
+    });
+    render(<Day view={dayView({ dayActions: [shot] })} />);
+    expect(within(section('Day abilities')).getByRole('heading', { name: 'Slayer (Ann)' })).toBeTruthy();
+    expect(within(section('Facts for tonight')).queryByText('Slayer (Ann)')).toBeNull();
+  });
+
+  it('choosing from the list records the execution, which happens at Start Night', async () => {
+    const { rerender } = render(<Day view={dayView()} />);
+    expect(screen.queryByRole('button', { name: 'Execute' })).toBeNull();
+    expect(screen.getByText('No execution today.')).toBeTruthy();
+    await userEvent.selectOptions(screen.getByLabelText('Executed'), 'a');
+    expect(run).toHaveBeenCalledWith({ type: 'record_execution', playerId: 'a', died: true });
+    const chosen = (playerId: string | null) =>
+      ({ at: 'Day 2', kind: 'execution', text: '', playerId }) as StorytellerView['dayEvents'][number];
+    rerender(<Day view={dayView({ dayEvents: [chosen('a')] })} />);
+    expect((screen.getByLabelText('Executed') as HTMLSelectElement).value).toBe('a');
+    expect(screen.getByText('Ann is executed when you start the night.')).toBeTruthy();
+    expect(screen.getByText('executed at dusk', { exact: false })).toBeTruthy();
+    await userEvent.selectOptions(screen.getByLabelText('Executed'), '');
+    expect(run).toHaveBeenLastCalledWith({ type: 'record_execution', playerId: null, died: true });
+    rerender(<Day view={dayView({ dayEvents: [chosen(null)] })} />);
+    expect((screen.getByLabelText('Executed') as HTMLSelectElement).value).toBe('');
+  });
+
+  it('gives alive players Dead, and dead ones their dead vote', () => {
+    render(
+      <Day
+        view={dayView({}, [
+          player({ id: 'a', alive: true }),
+          player({ id: 'b', name: 'Bo', seat: 1, alive: false }),
+          player({ id: 'c', name: 'Cy', seat: 2, alive: false, ghostVoteUsed: true }),
+        ])}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Dead' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Dead vote' })).toBeTruthy();
+    expect(screen.getByText('Dead vote used')).toBeTruthy();
+  });
+
+  it('lists day reminders of working abilities under Execution', () => {
+    const p = player({
+      abilities: [
+        ability({ id: 'b', name: 'Virgin', oncePerGame: false, reminder: 'First nomination.', dayReminder: true }),
+        ability({ id: 'c', name: 'Mayor', reminder: 'Three alive.', dayReminder: true, active: false }),
+        ability({ id: 'd', name: 'Empath', reminder: 'Night only.' }),
+      ],
+    });
+    render(<Day view={dayView({}, [p])} />);
+    const execution = section('Execution');
+    expect(within(execution).getByText(/First nomination/)).toBeTruthy();
+    expect(within(execution).queryByText(/Three alive/)).toBeNull();
+    expect(within(execution).queryByText(/Night only/)).toBeNull();
+  });
+
+  it('shows no game-end card while they are switched off', () => {
+    const gameEnd = [{ key: 'mayor', winner: 'good' as const, reason: 'Only 3 players live.' }];
+    render(<Day view={dayView({ gameEnd })} />);
+    expect(screen.queryByText(/may have won/)).toBeNull();
+  });
+
+  it('shows Travellers when the catalog has one', () => {
+    render(<Day view={dayView()} />);
+    expect(screen.getByRole('heading', { name: 'Travellers' })).toBeTruthy();
   });
 });

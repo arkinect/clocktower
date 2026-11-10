@@ -21,6 +21,10 @@ export interface DayActionDraft extends SpecDraft {
   action: string;
   /** Consequential actions go through preview and accept. Default true. */
   preview?: boolean;
+  /** Today's recorded answer, one value per field. Default null. */
+  recorded?: string[] | null;
+  /** Tonight reads this answer. Default false. */
+  neededTonight?: boolean;
 }
 
 export interface DayActionOutcome {
@@ -342,6 +346,8 @@ export interface DecideInput<T extends string> {
   description: string;
   options: readonly { id: T; label: string }[];
   default: T;
+  /** Publish dawn waits for an answer; accepting all defaults leaves it unanswered. */
+  required?: boolean;
 }
 
 export type Instance = AbilityInstance;

@@ -9,7 +9,13 @@ const CAST: [string, string][] = [
   ['Ed', 'Imp'],
 ];
 
-const tab = (page: Page, name: string) => page.getByRole('link', { name, exact: true }).click();
+/** A tab in the strip, or under More once the game has started. */
+async function tab(page: Page, name: string) {
+  const link = page.getByRole('navigation', { name: 'Console sections' }).getByRole('link', { name, exact: true });
+  if (await link.count()) return link.click();
+  await page.locator('button[aria-haspopup="menu"]').click();
+  await page.getByRole('menuitem', { name, exact: true }).click();
+}
 
 async function closeNight(page: Page) {
   await expect(page.getByRole('button', { name: 'Close the night' })).toBeEnabled();
@@ -49,6 +55,8 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
   for (const [name, role] of CAST) {
     await page.getByLabel(`Character for ${name}`).selectOption({ label: role });
   }
+  // No Outsider in this cast, so the Balloonist adds none.
+  await page.getByLabel('Balloonist: Outsiders +0 or +1').selectOption('+0');
   await page.getByRole('button', { name: 'Suggest bluffs' }).click();
   await expect(page.getByLabel('Bluff 3')).not.toHaveValue('');
   await page.getByRole('button', { name: 'Begin Night 0' }).click();
@@ -72,16 +80,10 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
   await expect(action.getByText('Cy is not the Demon: nothing happens.')).toBeVisible();
   await action.getByRole('button', { name: 'Accept' }).click();
   await expect(page.getByRole('article').filter({ hasText: 'Slayer' })).toHaveCount(0);
-  await page.getByLabel('Nominator').selectOption({ label: 'Ann' });
-  await page.getByLabel('Nominee').selectOption({ label: 'Cy' });
-  await page.getByRole('button', { name: 'Record nomination' }).click();
-  await page.getByLabel('Votes (optional)').fill('3');
-  await page.getByRole('button', { name: 'Record vote for nominee' }).click();
-  await expect(page.getByText('nomination').first()).toBeVisible();
-  await page.getByLabel(/^Executed/).selectOption({ label: 'Cy' });
-  await page.getByRole('button', { name: 'Execute', exact: true }).click();
-  await expect(page.getByText('Cy (Empath) (dead)')).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('button', { name: 'Start the night' }).click();
+  await page.getByLabel(/^Executed/).selectOption({ label: 'Cy (Empath)' });
+  await expect(page.getByText('Cy is executed when you start the night.')).toBeVisible({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'Start Night 1' }).click();
+  await cy?.waitFor((v) => v.phase.kind === 'night' && !v.me.alive);
 
   // Night 1.
   await expect(page).toHaveURL(/storyteller\/night/, { timeout: 10_000 });
@@ -94,7 +96,7 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
   await expect(page.getByRole('button', { name: 'Ed (demon)' })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Publish dawn' }).click();
   await expect(page).toHaveURL(/storyteller\/day/);
-  await page.getByRole('button', { name: 'Start the night' }).click();
+  await page.getByRole('button', { name: 'Start Night 2' }).click();
 
   // Night 2: write an answer, then change the decision under it.
   await expect(page).toHaveURL(/storyteller\/night/, { timeout: 10_000 });
@@ -130,7 +132,10 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
   await expect(page.getByRole('heading', { name: 'The circle' })).toBeVisible();
   const seat = page.getByRole('button', { name: /^Seat 1: / });
   await seat.click();
+  await expect(page.getByRole('dialog').getByRole('group', { name: /^Alignment of / })).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Change character' }).click();
   await expect(page.getByRole('dialog').getByText(/^Change character of /)).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
   const first = await seat.boundingBox();
   const second = await page.getByRole('button', { name: /^Seat 2: / }).boundingBox();

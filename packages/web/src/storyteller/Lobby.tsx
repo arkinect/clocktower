@@ -4,6 +4,7 @@ import type { PlayerId, StorytellerView } from '@ct/protocol';
 import { api } from '../app/http';
 import { useCommand } from '../app/store';
 import { Button, HoldButton } from '../ui/ui';
+import { NewGameButton } from './Grimoire';
 import { InputSheet, Section } from './common';
 import styles from './console.module.css';
 
@@ -60,6 +61,7 @@ export function Lobby({ view }: { view: StorytellerView }) {
             Continue to setup
           </Button>
         )}
+        <NewGameButton />
       </Section>
       <Section title="Join">
         <p className="muted">Players open this link:</p>

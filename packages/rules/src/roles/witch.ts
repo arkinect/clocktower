@@ -13,15 +13,16 @@ export const witch = defineRole({
   abilityText:
     'Each night, choose a player: if they nominate tomorrow, they die. If just 3 players live, you lose this ability.',
   reminder: 'If the cursed player nominates, apply the curse in the Day panel.',
-  night: { first: 80, other: 80, note: 'Only while 4 or more players are alive' },
+  night: { first: 80, other: 80, note: "Only while 4 or more players are alive (Travellers don't count)" },
   ability: {
-    wakes: (ctx) => ctx.aliveAtDuskIds.length >= 4,
+    // Travellers don't count towards "if just 3 players live", as with the Mayor and the Scarlet Woman.
+    wakes: (ctx) => ctx.aliveAtDuskIds.filter((id) => ctx.typeOf(id) !== 'traveller').length >= 4,
     picker: (ctx) => choosePlayers('Witch', 'Choose a player: if they nominate tomorrow, they die.', 1, ctx.seated),
     resolve(ctx) {
       const [t] = ctx.choice as PlayerId[];
       if (!t) return;
       confirmChoice(ctx, t);
-      if (ctx.alive.length <= 3) {
+      if (ctx.aliveResidents.length <= 3) {
         ctx.outcome('3 or fewer players alive: the Witch has no ability');
         return;
       }
@@ -39,6 +40,7 @@ export const witch = defineRole({
         {
           action: 'apply_curse',
           title: 'Witch: apply the curse',
+          preview: true,
           prompt: 'The cursed player nominated.',
           fields: [{ kind: 'player', label: 'Cursed', options: cursed.map((c) => c.target) }],
         },
@@ -48,24 +50,6 @@ export const witch = defineRole({
       const target = values[0] as PlayerId;
       for (const c of curseOn(ctx)) if (c.target === target) ctx.removeCondition(c);
       return dayKill(ctx, target, 'witch', force);
-    },
-    onDayEvent(ctx, e) {
-      if (e.kind !== 'nomination' || !curseOn(ctx).some((c) => c.target === e.nominator)) return;
-      ctx.prompt({
-        kind: 'witch',
-        subject: e.nominator,
-        title: `${ctx.name(e.nominator)} nominated while cursed`,
-        description: 'If they nominate tomorrow, they die.',
-        options: [
-          { id: 'yes', label: 'Apply the curse' },
-          { id: 'no', label: 'No' },
-        ],
-      });
-    },
-    onPrompt(ctx, _kind, subject, option) {
-      if (option !== 'yes' || !subject) return;
-      for (const c of curseOn(ctx)) if (c.target === subject) ctx.removeCondition(c);
-      ctx.attemptKill(subject as PlayerId, 'witch');
     },
   },
 });

@@ -58,12 +58,14 @@ describe('a headless game over sockets', () => {
 
     await st.do({ type: 'record_nomination', nominator: ann.id as PlayerId, nominee: di.id as PlayerId });
     await st.do({ type: 'record_vote', nominee: di.id as PlayerId, count: 3, voters: null });
+    // Executed as the night starts.
     await st.do({ type: 'record_execution', playerId: di.id as PlayerId, died: true });
-    await di.until((v) => v.kind === 'player' && !v.me.alive);
     await st.do({ type: 'start_night' });
+    await di.until((v) => v.kind === 'player' && !v.me.alive);
     await night(st, players, 1);
 
     await st.do({ type: 'record_execution', playerId: ed.id as PlayerId, died: true });
+    await st.do({ type: 'start_night' });
     const end = await st.until((v) => v.kind === 'storyteller' && v.gameEnd.length > 0);
     if (end.kind !== 'storyteller') throw new Error('Expected the grimoire');
     await st.do({ type: 'confirm_game_end', key: end.gameEnd[0]!.key });
@@ -105,6 +107,24 @@ describe('a headless game over sockets', () => {
     await bo.until(() => false, 200).catch(() => undefined);
     expect(bo.raw.some((m) => m.includes('"type":"removed"'))).toBe(true);
     await expect(open(h, { origin: h.base, cookie: bo.cookie })).rejects.toThrow('401');
+  });
+
+  it('New game (erase) signs out everyone, the Storyteller included', async () => {
+    const h = await up();
+    const st = await connect(h, 'Storyteller', { wantsStoryteller: true });
+    const bo = await connect(h, 'Bo');
+    // The socket closes before the ack, so the Storyteller's phone never waits for one.
+    void st.send({ type: 'new_game' }).catch(() => undefined);
+    for (const c of [st, bo]) {
+      await c.until(() => false, 300).catch(() => undefined);
+      expect(c.raw.some((m) => m.includes('"type":"removed"'))).toBe(true);
+      await expect(open(h, { origin: h.base, cookie: c.cookie })).rejects.toThrow('401');
+    }
+    expect(h.app.games.get('default')!.state).toMatchObject({
+      players: {},
+      storytellerId: null,
+      phase: { kind: 'lobby' },
+    });
   });
 });
 

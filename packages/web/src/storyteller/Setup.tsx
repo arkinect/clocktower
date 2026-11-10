@@ -159,9 +159,12 @@ function RoleSelect({
   );
 }
 
-function AssignRow({ view, player }: { view: StorytellerView; player: GrimoirePlayer }) {
+export function AssignRow({ view, player }: { view: StorytellerView; player: GrimoirePlayer }) {
   const { run } = useCommand();
+  const { catalog } = useGame();
   const believed = view.setup.believedOptions[player.id];
+  // Every other character starts with its natural alignment. A Traveller's is the Storyteller's call.
+  const traveller = catalog.find((c) => c.roleId === player.character)?.type === 'traveller';
   return (
     <div className={styles['assign']}>
       <b>{player.name}</b>
@@ -172,18 +175,20 @@ function AssignRow({ view, player }: { view: StorytellerView; player: GrimoirePl
         none="No character"
         onChange={(roleId) => void run({ type: 'assign_character', playerId: player.id, roleId })}
       />
-      <label className={styles['inline']}>
-        <span>Alignment of {player.name}</span>
-        <select
-          value={player.alignment}
-          onChange={(e) =>
-            void run({ type: 'set_alignment', playerId: player.id, alignment: e.target.value as Alignment })
-          }
-        >
-          <option value="good">Good</option>
-          <option value="evil">Evil</option>
-        </select>
-      </label>
+      {traveller && (
+        <label className={styles['inline']}>
+          <span>Alignment of {player.name}</span>
+          <select
+            value={player.alignment}
+            onChange={(e) =>
+              void run({ type: 'set_alignment', playerId: player.id, alignment: e.target.value as Alignment })
+            }
+          >
+            <option value="good">Good</option>
+            <option value="evil">Evil</option>
+          </select>
+        </label>
+      )}
       {believed && (
         <RoleSelect
           label={`${player.name} believes they are`}

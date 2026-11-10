@@ -19,11 +19,19 @@
   flex: 1;
 }
 
-.tabs {
+.tabbar {
   display: flex;
-  overflow-x: auto;
+  align-items: stretch;
+  position: relative;
   border-bottom: 1px solid var(--line);
   background: var(--tabs);
+}
+
+.tabs {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
 }
 
 .tabs a {
@@ -42,6 +50,91 @@
 
 .tabs a.tabLive {
   color: var(--text);
+}
+
+/* The live phase's tab, while you're on another one. */
+.tabs a.tabLive,
+.moreTab.tabLive {
+  position: relative;
+}
+
+.tabs a.tabLive::after,
+.moreTab.tabLive::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: phasePulse 1.6s ease-in-out infinite;
+}
+
+@keyframes phasePulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+
+/* Once the game has started, Lobby, Setup, Story and Log live in this menu. */
+.moreTab {
+  flex: none;
+  font: inherit;
+  padding: 10px 14px;
+  min-height: 44px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--gold);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.moreTab.tabOn {
+  box-shadow: inset 0 -2px var(--gold);
+  font-weight: 650;
+}
+
+.menuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+
+.moreMenu {
+  position: absolute;
+  right: 8px;
+  top: calc(100% + 4px);
+  z-index: 31;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 10px 30px #000a;
+}
+
+.moreMenu a {
+  padding: 10px 12px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.moreMenu a:hover,
+.moreMenu a:focus-visible,
+.moreMenu a[aria-current='page'] {
+  background: var(--card);
+  color: var(--gold);
 }
 
 .main {
@@ -320,4 +413,127 @@
 .off {
   color: var(--muted);
   text-decoration: line-through;
+}
+
+/* Tables, as 0.4.2 drew the Day players and the Story nights. */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tbl th,
+.tbl td {
+  text-align: left;
+  padding: 6px 8px 6px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.tbl th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.act {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  vertical-align: middle;
+  max-width: 100%;
+}
+
+/* Drunk or poisoned. */
+.chip,
+.chipPlain,
+.tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  padding: 1px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--evil);
+  color: var(--danger-text);
+}
+
+/* Any other condition, and plain tags. */
+.chipPlain,
+.tag {
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+/* The Story: each night a table that scrolls sideways on a phone. */
+.board {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.story {
+  min-width: 720px;
+}
+
+.story td {
+  vertical-align: top;
+  font-size: 0.9rem;
+}
+
+.deadRow {
+  opacity: 0.6;
+}
+
+.fold {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* The seat sheet: a 0.4.2 Grimoire card, its alignment as a coloured left edge. */
+.seat {
+  display: grid;
+  gap: 8px;
+  padding-left: 10px;
+  border-left: 4px solid var(--good);
+}
+
+.seatEvil {
+  border-left-color: var(--evil);
+}
+
+.seatGood {
+  border-left-color: var(--good);
+}
+
+.seatRole {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.seatRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.rows > li.ability {
+  display: grid;
+  gap: 4px;
 }

@@ -221,6 +221,7 @@ export class Run {
       default: input.default,
       chosen: valid ? (raw as string) : null,
       stale: false,
+      required: !!input.required,
     });
     return valid ? (raw as T) : input.default;
   }
@@ -241,6 +242,7 @@ export class Run {
           default: d.option,
           chosen: d.option,
           stale: true,
+          required: false,
         });
       } else if (asked.chosen === null) {
         asked.stale = true;
@@ -684,6 +686,17 @@ export class Run {
       if (reply) return reply;
     }
     return point === 'afterRevive' || point === 'replacePicker' ? null : false;
+  }
+
+  /**
+   * Records today's execution, replacing any earlier record from today. Until dusk, `died` says whether the player
+   * is to die; at dusk the execution happens and it says whether they did.
+   */
+  recordExecution(playerId: PlayerId | null, died: boolean) {
+    const w = this.world;
+    const n = this.moment.n;
+    w.events = w.events.filter((e) => !(e.kind === 'execution' && e.at.kind === 'day' && e.at.n === n));
+    w.events.push({ kind: 'execution', at: this.moment, playerId, died });
   }
 
   // ---- prompts ----

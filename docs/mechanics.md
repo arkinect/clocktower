@@ -15,7 +15,7 @@ against throwaway characters. A future official character should mean writing it
 | Full registration                   | `registersAs` returns character, type, alignment, alive               | Recluse                                         | Spy, Zombuul                                   |
 | Setup rules as data                 | `setupRules`, `believes`: counts, Demon count, neighbours, bluffs     | Baron, Balloonist, Godfather, Huntsman, Drunk   | Atheist, Legion, Riot, Kazali, Lunatic, Hermit |
 | Evil information                    | evil-info step, `settings.evilInfoPolicy`, `modifyEvilInfo`           | Marionette, Lil' Monsta                         | Magician, Poppy Grower                         |
-| Day events with hooks               | `onDayEvent`: nomination, vote, execution, exile, statement           | Virgin, Witch, Golem, Cannibal, Mastermind      | Princess, Vizier, Riot, Goblin                 |
+| Day events with hooks               | `onDayEvent`: nomination, vote, execution (at dusk), exile, statement | Cannibal, Mastermind, Mayor                     | Princess, Vizier, Riot, Goblin                 |
 | Game end                            | `checkGameEnd`, `suggestGameEnd`, `suppressGameEnd`, confirmation     | Mayor, Mastermind, Damsel                       | Saint, Evil Twin, Vortox, Heretic              |
 | Information transform               | `transformInfo` over every result                                     | none                                            | Vortox                                         |
 | Visibility grants                   | `visibility`                                                          | none                                            | Spy, Widow                                     |
@@ -78,8 +78,9 @@ Known limits:
 - `adjustVote` needs the voters. A count with no names is kept as entered.
 - `hidesCharacter` hides the character card only. A picker's title can still give the role away, so a role file needs
   `shownAs` as well.
-- Deaths at execution are recorded by the Storyteller with `record_execution`, so execution protection (Sailor, Tea
-  Lady, Devil's Advocate, Pacifist, Scapegoat) shows as a reminder rather than as an intercepted kill.
+- An execution chosen with `record_execution` (or a day action's `ctx.execute`) happens at dusk and goes through
+  `interceptKill` like any other kill, so the Fool, Devil's Advocate, Sailor and Tea Lady stop it. The execution is still recorded,
+  with `died: false`. Protection the app doesn't build (Pacifist, Scapegoat) is the Storyteller's to apply.
 
 ### Townsfolk
 
@@ -91,10 +92,10 @@ Known limits:
 | Amnesiac       |       | Storyteller's choice, day guess      | `hidesCharacter`, `grant`, day action                                                                       |
 | Artist         | yes   | Day, once                            | day action                                                                                                  |
 | Atheist        |       | Setup                                | `setupRules.counts` (no evil), null `nominator`, day action for the Storyteller's execution, `checkGameEnd` |
-| Balloonist     | yes   | Each night                           | `setupRules.counts`, `registers`                                                                            |
+| Balloonist     | yes   | Each night                           | `setupRules.counts`, `setupFields`, `registers`                                                             |
 | Banshee        |       | On Demon kill                        | `onDeath`, `notify` to all, `adjustVote` for two votes                                                      |
 | Bounty Hunter  |       | First night, on known player's death | `setupFields`, `onDeath`, `notify`, turns a Townsfolk evil at setup                                         |
-| Cannibal       | yes   | On execution                         | `onDayEvent`, `grant`, conditions                                                                           |
+| Cannibal       | yes   | At dusk, after an execution          | `onDayEvent` (execution at dusk), `grant`, conditions                                                       |
 | Chambermaid    |       | Each night                           | `wokeTonight`                                                                                               |
 | Chef           |       | First night                          | `registers`, `startInfo`                                                                                    |
 | Choirboy       |       | When the Demon kills the King        | `setupRules.requires`, `onDeath`, `notify`                                                                  |
@@ -107,7 +108,7 @@ Known limits:
 | Exorcist       |       | Night*                               | `stopsWaking`, `notify` to the Demon                                                                        |
 | Farmer         | yes   | On night death                       | `changeCharacter`                                                                                           |
 | Fisherman      | yes   | Day, once                            | day action                                                                                                  |
-| Flowergirl     | yes   | Night*                               | events                                                                                                      |
+| Flowergirl     | yes   | Night*                               | day action (fact), required Review decision if not recorded                                                 |
 | Fool           | yes   | First death                          | `interceptKill`                                                                                             |
 | Fortune Teller | yes   | Each night                           | `setupFields`, `registers`                                                                                  |
 | Gambler        | yes   | Night*                               | role field, `attemptKill`                                                                                   |
@@ -125,7 +126,7 @@ Known limits:
 | Lycanthrope    |       | Night*                               | `registersOther`, `interceptKill` on the Demon's attack                                                     |
 | Magician       |       | Passive                              | `modifyEvilInfo`                                                                                            |
 | Mathematician  | yes   | Each night                           | malfunction log                                                                                             |
-| Mayor          | yes   | Passive, on night death              | `interceptKill`, `onDayEvent`                                                                               |
+| Mayor          | yes   | Passive, on night death              | `interceptKill`, `onDayEvent` (execution at dusk)                                                           |
 | Minstrel       |       | On a Minion's execution              | `onDayEvent`, conditions until `removed`, `onDusk`                                                          |
 | Monk           |       | Night*                               | `interceptKill`                                                                                             |
 | Nightwatchman  |       | Night, once                          | `notify` to the chosen player, `oncePerGame`                                                                |
@@ -152,7 +153,7 @@ Known limits:
 | Town Crier     |       | Night*                               | events, `registers`                                                                                         |
 | Undertaker     |       | Night*                               | events, `registers`                                                                                         |
 | Village Idiot  |       | Each night                           | `setupRules.duplicates`, `setupRules.counts`, `addCondition`                                                |
-| Virgin         | yes   | First nomination                     | `onDayEvent`, `registers`                                                                                   |
+| Virgin         | yes   | First nomination                     | day action, `registers`, today's execution choice                                                           |
 | Washerwoman    |       | First night                          | `registers`, `startInfo`                                                                                    |
 
 ### Outsiders
@@ -163,14 +164,14 @@ Known limits:
 | Butler        | yes   | Each night             | `dayNotice`                                                                 |
 | Damsel        | yes   | First night, any guess | `grantToGame`, `suggestGameEnd`                                             |
 | Drunk         | yes   | Passive                | `believes`                                                                  |
-| Golem         | yes   | Nomination, once       | `onDayEvent`                                                                |
+| Golem         | yes   | Nomination, once       | day action                                                                  |
 | Goon          | yes   | First to choose them   | `onChosen`, `changeAlignment`                                               |
 | Hatter        |       | Night after death      | `onDeath`, `ask`, `changeCharacter`                                         |
 | Heretic       |       | Passive                | `changesWinner`                                                             |
 | Hermit        |       | Passive                | `setupRules.counts`, `grant` of each script Outsider                        |
 | Klutz         |       | On learning of death   | `onDeath`, day action, `suggestGameEnd`                                     |
 | Lunatic       |       | Each night             | `believes`, `perceivedOnly`, `notify` to the Demon                          |
-| Moonchild     | yes   | On learning of death   | `onDeath`, `ask`                                                            |
+| Moonchild     | yes   | On learning of death   | day action (fact, the day they learn), required Review decision             |
 | Mutant        |       | Any time               | Table: mad condition, `record_broke_madness`, execution                     |
 | Ogre          |       | First night            | `changeAlignment`, not told alignment                                       |
 | Plague Doctor |       | On death               | `onDeath`, `grant` to the Storyteller                                       |
@@ -193,20 +194,20 @@ Known limits:
 | Boffin           |       | First night                                | `grant` to the Demon with `whileSourceWorks`                         |
 | Boomdandy        |       | On execution                               | `onDayEvent`, `decide`, `attemptKill`                                |
 | Cerenovus        |       | Each night                                 | mad condition, role field                                            |
-| Devil's Advocate | yes   | Each night                                 | `dayNotice`                                                          |
+| Devil's Advocate | yes   | Each night                                 | `dayNotice`, `interceptKill` (executions)                            |
 | Evil Twin        |       | Setup, passive                             | `setupFields`, `suppressGameEnd`, `suggestGameEnd`                   |
 | Fearmonger       |       | Each night                                 | `notify` to all, `onDayEvent`, `suggestGameEnd`                      |
 | Goblin           |       | Nomination                                 | day action, `onDayEvent`, `suggestGameEnd`                           |
 | Godfather        | yes   | First night, after an Outsider's day death | `setupRules.counts`, `wakes`                                         |
 | Harpy            |       | Each night                                 | mad condition, `record_broke_madness`                                |
 | Marionette       | yes   | Setup                                      | `believes`, `setupRules.neighbours`                                  |
-| Mastermind       | yes   | On the Demon's execution                   | `suppressGameEnd`, `onDayEvent`                                      |
+| Mastermind       | yes   | At dusk, after the Demon's execution       | `suppressGameEnd`, `onDayEvent` (execution at dusk)                  |
 | Mezepheles       | yes   | First night, on the word                   | `record_statement`, `changeAlignment`                                |
 | Organ Grinder    | yes   | Each night, votes                          | conditions, `dayNotice`                                              |
 | Pit-Hag          |       | Night*                                     | `changeCharacter`, `decide` for arbitrary deaths                     |
 | Poisoner         | yes   | Each night                                 | conditions                                                           |
-| Psychopath       | yes   | Day                                        | day action                                                           |
-| Scarlet Woman    | yes   | On the Demon's death                       | `onDeath`, Demon hand-over                                           |
+| Psychopath       | yes   | Day                                        | day action, `dayKill` through protections                            |
+| Scarlet Woman    | yes   | On the Demon's death                       | `onDeath`, `onDusk` for a day death, Demon hand-over                 |
 | Spy              |       | Each night                                 | `visibility`, `registersAs`                                          |
 | Summoner         |       | Setup, third night                         | `setupRules.counts` (no Demon), `suppressGameEnd`, `changeCharacter` |
 | Vizier           |       | Day                                        | `notify` to all, `interceptKill`, day action                         |

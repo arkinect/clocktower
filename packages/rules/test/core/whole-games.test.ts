@@ -47,6 +47,10 @@ function playNight(g: TestGame, ids: PlayerId[], rng: Rng) {
     }
   }
   g.st({ type: 'accept_all_defaults' });
+  // Facts the day didn't record (the Flowergirl's answer, the Moonchild's choice) have no default to accept.
+  for (const d of g.grimoire().review?.decisions ?? []) {
+    if (d.required && d.chosen === null) g.st({ type: 'decide', key: d.key, option: rng.pick(d.options).id });
+  }
   g.st({ type: 'publish_dawn', force: false });
 }
 

@@ -285,7 +285,7 @@ describe('the Organ Grinder', () => {
       .submit({ ann: ['sober'] })
       .dawn();
     expect(eyes(s)).toBe(true);
-    s.execute('ann');
+    s.kill('ann');
     expect(eyes(s)).toBe(false);
   });
 
@@ -293,7 +293,9 @@ describe('the Organ Grinder', () => {
     const s = scene({ ...chars, ann: 'drunk', ed: 't1' }, { believed: { ann: 'cannibal' } })
       .start()
       .dawn()
-      .execute('ed');
+      .execute('ed')
+      .dusk()
+      .dawn();
     s.act('cannibal', 'set_ability', ['organ_grinder']);
     s.dusk()
       .submit({ ann: ['sober'] })

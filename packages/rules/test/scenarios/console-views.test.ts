@@ -87,7 +87,7 @@ describe('the ability tracker', () => {
     expect(ability(s, 'cy', role)).toMatchObject({ oncePerGame: true, usageAuto: false });
   });
 
-  it.each(['virgin', 'golem', 'mastermind', 'psychopath', 'mayor', 'tea_lady', 'fisherman', 'zealot', 'organ_grinder'])(
+  it.each(['virgin', 'golem', 'mastermind', 'mayor', 'tea_lady', 'fisherman', 'zealot', 'organ_grinder'])(
     '%s has a day reminder',
     (role) => {
       const s = scene({ ann: 'imp', bo: 'm1', cy: role, di: 't2', ed: 't3' }).start();
@@ -99,7 +99,8 @@ describe('the ability tracker', () => {
 describe('the Cannibal summary', () => {
   const eat = (executed: string) => {
     const s = scene({ ann: 'imp', bo: 'poisoner', cy: 'cannibal', di: 'empath', ed: 't2' }).start().dawn();
-    s.execute(executed);
+    // The Cannibal eats at dusk; the summary is read the next day.
+    s.execute(executed).dusk().dawn();
     return s;
   };
   const summary = (s: Scene) => player(s, 'cy')?.abilities.flatMap((a) => a.summary);
@@ -110,7 +111,7 @@ describe('the Cannibal summary', () => {
 
   it('says when an evil player gives false information', () => {
     const s = eat('bo');
-    expect(summary(s)).toContain('Ate: (none) (false information)');
+    expect(summary(s)?.find((x) => x.startsWith('Ate: '))).toMatch(/^Ate: [A-Z][^(]+ \(false information\)$/);
     const abilityId = s.ability('cannibal');
     s.g.st({ type: 'day_action', abilityId, action: 'set_ability', values: ['empath'], mode: 'accept' });
     expect(summary(s)).toContain('Ate: Empath (false information)');

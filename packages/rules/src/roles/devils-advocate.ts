@@ -11,8 +11,10 @@ export const devilsAdvocate = defineRole<State>({
   name: "Devil's Advocate",
   type: 'minion',
   abilityText: "Each night, choose a living player (different to last night): if executed tomorrow, they don't die.",
-  reminder: 'Execution protection is not enforced.',
+  reminder: 'The marked player survives an execution today automatically.',
   night: { first: 70, other: 70 },
+  // Before the Fool, so a marked Fool keeps their own save.
+  flags: { interceptPriority: 30 },
   initialState: () => ({ last: null }),
   ability: {
     picker(ctx) {
@@ -35,6 +37,18 @@ export const devilsAdvocate = defineRole<State>({
       }
       ctx.addCondition(t, 'marker', { until: 'dusk', name: 'Survives execution' });
       ctx.outcome(`${ctx.name(t)} survives execution tomorrow`);
+    },
+    interceptKill(ctx, kill) {
+      if (kill.unstoppable || kill.cause !== 'execution' || ctx.isNight) return 'pass';
+      if (!ctx.conditionsFrom('marker').some((c) => c.target === kill.target)) return 'pass';
+      // A dead Devil's Advocate has no ability; a drunk or poisoned one protects nobody.
+      if (ctx.ability.holder.kind === 'player' && !ctx.isAlive(ctx.holder)) return 'pass';
+      if (ctx.impaired) {
+        ctx.malfunctionIfExternal("Devil's Advocate protection failed");
+        return 'pass';
+      }
+      ctx.outcome(`${ctx.name(kill.target)} survives the execution: Devil's Advocate`);
+      return 'prevent';
     },
     dayNotice(ctx) {
       const c = ctx.conditionsFrom('marker')[0];

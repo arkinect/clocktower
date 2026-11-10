@@ -14,28 +14,30 @@ describe('Cannibal', () => {
   it('eats a good executee and gets their ability, shown as Cannibal', () => {
     const s = scene(cast).start().dawn();
     s.execute('bo');
+    // The execution kills at once, but the Cannibal eats at dusk.
+    expect(eaten(s)).toEqual([]);
+    s.dusk();
     expect(eaten(s).map((a) => a.roleId)).toEqual(['empath']);
     expect(eaten(s)[0]?.shownAs).toBe('cannibal');
-    s.dusk();
     expect(s.truth('ann').length).toBe(1);
   });
   it('an evil executee poisons them until a good player is executed', () => {
     const s = scene(cast).start().dawn();
-    s.execute('di');
+    s.execute('di').dusk();
     expect(s.impaired('ann')).toBe(true);
-    s.dusk().dawn().execute('bo');
+    s.dawn().execute('bo').dusk();
     expect(s.impaired('ann')).toBe(false);
   });
   it('the next eat replaces the last', () => {
     const s = scene({ ...cast, ed: 'oracle' })
       .start()
       .dawn();
-    s.execute('bo').dusk().dawn().execute('ed');
+    s.execute('bo').dusk().dawn().execute('ed').dusk();
     expect(eaten(s).map((a) => a.roleId)).toEqual(['oracle']);
   });
   it('the Storyteller can set a false ability after an evil eat', () => {
     const s = scene(cast).start().dawn();
-    s.execute('di');
+    s.execute('di').dusk().dawn();
     s.act('cannibal', 'set_ability', ['oracle']);
     expect(eaten(s)[0]?.perceivedOnly).toBe(true);
     s.dusk();
@@ -49,7 +51,7 @@ describe('Cannibal', () => {
       .submit({ ann: ['empath'] });
     s.dawn();
     expect(s.impaired('fi')).toBe(true);
-    s.execute('ed');
+    s.execute('ed').dusk();
     expect(s.impaired('fi')).toBe(false);
     expect(eaten(s).map((a) => a.roleId)).toEqual(['oracle']);
   });

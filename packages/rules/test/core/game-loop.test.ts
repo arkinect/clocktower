@@ -46,18 +46,22 @@ describe('a five-player game with ability-less characters', () => {
     g.st({ type: 'record_nomination', nominator: pid('Ann'), nominee: pid('Di') });
     g.st({ type: 'record_vote', nominee: pid('Di'), count: 3, voters: null });
     g.st({ type: 'record_execution', playerId: pid('Di'), died: true });
-    expect(g.player(pid('Di')).life.alive).toBe(false);
-    expect(g.player(pid('Di')).life.cause).toBe('execution');
-    g.as(pid('Di'), { type: 'use_ghost_vote' });
-    expect(g.player(pid('Di')).life.ghostVoteUsed).toBe(true);
+    // Chosen, not yet executed: that happens as the night starts.
+    expect(g.player(pid('Di')).life.alive).toBe(true);
     g.st({ type: 'set_notes', text: 'Quiet day.' });
     expect(g.grimoire().notes).toBe('Quiet day.');
 
     g.st({ type: 'start_night' });
     expect(g.state.phase).toMatchObject({ kind: 'night', n: 1, stage: 'collecting' });
+    expect(g.player(pid('Di')).life.alive).toBe(false);
+    expect(g.player(pid('Di')).life.cause).toBe('execution');
+    g.as(pid('Di'), { type: 'use_ghost_vote' });
+    expect(g.player(pid('Di')).life.ghostVoteUsed).toBe(true);
     g.st({ type: 'close_collecting', force: true });
     g.st({ type: 'publish_dawn', force: true });
     g.st({ type: 'record_execution', playerId: pid('Ed'), died: true });
+    expect(g.state.gameEnd).toEqual([]);
+    g.st({ type: 'start_night' });
     expect(g.state.gameEnd.map((x) => x.winner)).toEqual(['good']);
     g.st({ type: 'confirm_game_end', key: g.state.gameEnd[0]!.key });
     expect(g.state.phase).toMatchObject({ kind: 'ended', winner: 'good' });

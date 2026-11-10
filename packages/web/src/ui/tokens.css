@@ -27,7 +27,8 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
+  /* The Storyteller console sets data-theme="dark" and stays dark; phones follow their own setting. */
+  :root:not([data-theme='dark']) {
     --bg: #f6f3ec;
     --bg2: #ffffff;
     --card: #ffffff;

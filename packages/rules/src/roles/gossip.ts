@@ -18,12 +18,14 @@ export const gossip = defineRole<State>({
       ctx.n >= 1 && ctx.peers.some((a) => a.state.verdict?.day === ctx.n && a.state.verdict.value === 'true'),
     dayActions(ctx) {
       if (!ctx.firstPeer) return [];
+      const verdict = ctx.peers.find((a) => a.state.verdict?.day === ctx.n)?.state.verdict?.value;
       return [
         {
           action: 'statement',
           title: "Gossip's statement",
           prompt: 'Was it true?',
           preview: false,
+          recorded: verdict ? [verdict] : null,
           fields: [
             {
               kind: 'option',

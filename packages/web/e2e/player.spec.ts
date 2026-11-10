@@ -108,11 +108,8 @@ test('five phones and a scripted Storyteller play a full game', async ({ browser
   for (const page of pages) await expect(page.getByText('Dawn, Day 1')).toBeVisible();
   await noSideScroll(ann);
 
+  // Executed as the night starts.
   await st.do({ type: 'record_execution', playerId: st.player('Di'), died: true });
-  await expect(di.getByText('You have died.')).toBeVisible();
-  await di.getByRole('button', { name: 'I used my vote' }).click();
-  await expect(di.getByText('You have used your vote.')).toBeVisible();
-
   await st.do({ type: 'start_night' });
   await st.waitFor((v) => v.phase.kind === 'night');
   for (const [i, page] of pages.entries()) {
@@ -123,8 +120,12 @@ test('five phones and a scripted Storyteller play a full game', async ({ browser
   await st.do({ type: 'accept_all_defaults' });
   await st.do({ type: 'publish_dawn', force: true });
   await expect(ann.getByText('Dawn, Day 2')).toBeVisible();
+  await expect(di.getByText('You have died.')).toBeVisible();
+  await di.getByRole('button', { name: 'I used my vote' }).click();
+  await expect(di.getByText('You have used your vote.')).toBeVisible();
 
   await st.do({ type: 'record_execution', playerId: st.player('Ed'), died: true });
+  await st.do({ type: 'start_night' });
   const end = await st.waitFor((v) => v.gameEnd.length > 0);
   await st.do({ type: 'confirm_game_end', key: (end.gameEnd[0] as { key: string }).key });
   for (const page of pages) await expect(page.getByText('Good wins.')).toBeVisible();

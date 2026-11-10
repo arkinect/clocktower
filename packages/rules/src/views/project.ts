@@ -135,6 +135,9 @@ function abilityView(r: Reader, a: Instance): AbilityView {
     oncePerGame: !!def.flags.oncePerGame,
     usageAuto: def.flags.oncePerGame === 'auto',
     reminder: def.reminder ?? null,
+    dayReminder: !!def.flags.dayReminder,
+    from: `${a.activeFrom.kind === 'night' ? 'Night' : 'Day'} ${a.activeFrom.n}`,
+    survivesDeath: a.survivesDeath,
     summary: def.ability.summary?.(new HookCtx(r, a)) ?? [],
   };
 }
@@ -155,32 +158,47 @@ function conditionView(r: Reader, c: Condition): ConditionView {
 function story(s: GameState, r: Reader): StoryEntry[] {
   const out: StoryEntry[] = [];
   for (const e of s.events) {
-    if (e.kind === 'night_record') {
-      out.push({
-        at: `Night ${e.at.n}`,
-        title: `Night ${e.at.n}`,
-        rows: e.rows.map((row) => ({
-          name: row.name,
-          character: r.roleName(row.character) + (row.believed ? ` (thinks ${r.roleName(row.believed)})` : ''),
-          lines: [
-            ...row.actions.map((x) => `${x.slot}: ${x.input}${x.outcome ? ` → ${x.outcome}` : ''}`),
-            ...row.received.map(
-              (x) => `Told (${x.title}): ${x.lines.join(' ')}${x.truth ? ` [truth: ${x.truth.join(' ')}]` : ''}`,
-            ),
-          ],
-        })),
-        summary: [
-          ...(e.deaths.length ? [`Died: ${e.deaths.map(r.name).join(', ')}`] : []),
-          ...(e.revived.length ? [`Revived: ${e.revived.map(r.name).join(', ')}`] : []),
-        ],
-      });
-    }
+    if (e.kind !== 'night_record') continue;
+    out.push({
+      kind: 'night',
+      n: e.at.n,
+      deaths: e.deaths,
+      revived: e.revived,
+      rows: e.rows.map((row, seat) => ({
+        playerId: row.playerId,
+        seat,
+        name: row.name,
+        character: row.character,
+        believed: row.believed,
+        alignment: row.alignment,
+        aliveAtStart: row.aliveAtStart,
+        aliveAtEnd: row.aliveAtEnd,
+        causes: row.causes,
+        // The stored row keeps only the slot, and the engine version stays put for this.
+        actions: row.actions.map((x) => ({ roleId: null, ...x })),
+        received: row.received,
+      })),
+    });
   }
-  const days = [...new Set(s.events.filter((e) => e.at.kind === 'day').map((e) => e.at.n))];
-  for (const n of days) {
-    const lines = dayLines(s, r, n).map((d) => d.text);
-    const at = out.findIndex((x) => x.title === `Night ${n}`);
-    const entry: StoryEntry = { at: `Day ${n}`, title: `Day ${n}`, rows: [], summary: lines };
+  // Every day that has started: Day N goes before Night N.
+  const days = new Set(s.events.filter((e) => e.at.kind === 'day').map((e) => e.at.n));
+  for (const e of out) if (e.n >= 1) days.add(e.n);
+  if (s.phase.kind === 'day') days.add(s.phase.n);
+  for (const n of [...days].sort((x, y) => x - y)) {
+    const today = s.events.filter((e) => e.at.kind === 'day' && e.at.n === n);
+    const execution = today.findLast((e) => e.kind === 'execution');
+    const note = today.findLast((e) => e.kind === 'note');
+    const entry: StoryEntry = {
+      kind: 'day',
+      n,
+      execution: execution?.kind === 'execution' ? { playerId: execution.playerId, died: execution.died } : null,
+      deaths: today.flatMap((e) => (e.kind === 'death' ? [{ playerId: e.playerId, cause: e.cause }] : [])),
+      other: dayLines(s, r, n)
+        .filter((d) => d.kind !== 'execution' && d.kind !== 'death')
+        .map((d) => d.text),
+      notes: note?.kind === 'note' ? note.text : '',
+    };
+    const at = out.findIndex((x) => x.kind === 'night' && x.n === n);
     if (at >= 0) out.splice(at, 0, entry);
     else out.push(entry);
   }
@@ -188,16 +206,21 @@ function story(s: GameState, r: Reader): StoryEntry[] {
 }
 
 function dayLines(s: GameState, r: Reader, n: number) {
-  const out: { at: string; kind: string; text: string }[] = [];
+  const out: { at: string; kind: string; text: string; playerId: PlayerId | null }[] = [];
   for (const e of s.events) {
     if (e.at.kind !== 'day' || e.at.n !== n) continue;
     const at = `Day ${n}`;
-    const add = (text: string) => out.push({ at, kind: e.kind, text });
+    const subject = 'playerId' in e ? e.playerId : 'nominee' in e ? e.nominee : null;
+    const add = (text: string) => out.push({ at, kind: e.kind, text, playerId: subject ?? null });
     if (e.kind === 'nomination')
       add(`${e.nominator ? r.name(e.nominator) : 'The Storyteller'} nominated ${r.name(e.nominee)}.`);
     if (e.kind === 'vote') add(`Vote on ${r.name(e.nominee)}${e.count === null ? '' : `: ${e.count}`}.`);
     if (e.kind === 'execution') {
-      add(e.playerId ? `${r.name(e.playerId)} was executed${e.died ? ' and died' : ''}.` : 'Nobody was executed.');
+      // Until dusk it is only today's choice.
+      const today = s.phase.kind === 'day' && s.phase.n === n;
+      if (!e.playerId) add(today ? 'No execution today.' : 'Nobody was executed.');
+      else if (today) add(`${r.name(e.playerId)} is to be executed as the night starts.`);
+      else add(`${r.name(e.playerId)} was executed${e.died ? ' and died' : ' and survived'}.`);
     }
     if (e.kind === 'exile') add(`${r.name(e.playerId)} was exiled.`);
     if (e.kind === 'statement') add(`${r.name(e.playerId)} stated: ${e.text}`);
@@ -275,6 +298,8 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
           abilityId: a.id,
           action: d.action,
           preview: d.preview ?? true,
+          recorded: d.recorded ?? null,
+          neededTonight: d.neededTonight ?? false,
         })),
       )
     : [];

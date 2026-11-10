@@ -1,16 +1,35 @@
 import { useState } from 'react';
-import type { GrimoirePlayer, RoleId, StorytellerView } from '@ct/protocol';
-import { useCommand, useNames } from '../app/store';
-import { Button, HoldButton, Sheet, SheetActions } from '../ui/ui';
+import type { CharacterType, GrimoirePlayer, RoleId, SetupFieldSpec, StorytellerView } from '@ct/protocol';
+import { useCommand, useGame, useNames } from '../app/store';
+import { Button, HoldButton, Segments, Sheet, SheetActions } from '../ui/ui';
 import { seatPlace } from './circle';
 import { Lines, Section, causeLabel, causesWithoutRow, phaseText, useSeats } from './common';
 import styles from './console.module.css';
 
-const CONDITIONS = ['drunk', 'poisoned', 'mad'] as const;
+const QUICK = [
+  ['poisoned', '+ poisoned'],
+  ['drunk', '+ drunk'],
+  ['mad', '+ mad'],
+] as const;
+
+const GROUPS: [CharacterType, string][] = [
+  ['townsfolk', 'Townsfolk'],
+  ['outsider', 'Outsiders'],
+  ['minion', 'Minions'],
+  ['demon', 'Demons'],
+  ['traveller', 'Travellers'],
+];
+
+/** The character type of a role, for its colour. */
+function useTypeOf() {
+  const { catalog } = useGame();
+  return (id: string | null) => (id ? catalog.find((c) => c.roleId === id)?.type : undefined);
+}
 
 /** One seat on the circle. Everything the Storyteller can change about a player opens from here. */
 function SeatToken({ p, i, n, onOpen }: { p: GrimoirePlayer; i: number; n: number; onOpen: () => void }) {
   const names = useNames();
+  const typeOf = useTypeOf();
   const { left, top, size } = seatPlace(i, n);
   const character = p.character ? names.roles[p.character] : 'No character';
   const believes = p.self.character && p.self.character !== p.character ? names.roles[p.self.character] : null;
@@ -44,96 +63,256 @@ function SeatToken({ p, i, n, onOpen }: { p: GrimoirePlayer; i: number; n: numbe
       <span className={p.alive ? styles['tokenName'] : `${styles['tokenName']} ${styles['dead']}`}>
         {i + 1} {p.name}
       </span>
-      <span className={styles['tokenLine']}>{character}</span>
+      <span className={`${styles['tokenLine']} type-${typeOf(p.character) ?? ''}`}>{character}</span>
       {believes && <span className={`${styles['tokenLine']} muted`}>thinks {believes}</span>}
       {tags.length > 0 && <span className={`${styles['tokenLine']} ${styles['warn']}`}>{tags.join(', ')}</span>}
     </button>
   );
 }
 
-function Seat({ view, p }: { view: StorytellerView; p: GrimoirePlayer }) {
+const ORIGIN = { character: 'own character', granted: 'gained', storyteller: 'from the Storyteller' } as const;
+
+/** Everything a 0.4.2 Grimoire card held, top to bottom. */
+export function Seat({
+  view,
+  p,
+  onChangeCharacter,
+}: {
+  view: StorytellerView;
+  p: GrimoirePlayer;
+  onChangeCharacter: () => void;
+}) {
   const names = useNames();
+  const typeOf = useTypeOf();
   const { run, pending } = useCommand();
-  const [adding, setAdding] = useState<(typeof CONDITIONS)[number]>('poisoned');
+  // Numbered as on the circle, which sorts by seat.
+  const seat = useSeats(view).seated.findIndex((x) => x.id === p.id) + 1;
   const believes = p.self.character && p.self.character !== p.character ? names.roles[p.self.character] : null;
+  // A player named by a setup field: "Fortune Teller's red herring".
+  const tags = [
+    ...view.setup.fields.filter((f) => f.kind === 'player' && f.value === p.id).map((f) => f.title),
+    ...(p.abilities.some((a) => a.survivesDeath) ? ['keeps ability when dead'] : []),
+  ];
+  const unlisted = causesWithoutRow(p);
   return (
-    <article>
-      <p className={p.alignment === 'evil' ? styles['evil'] : styles['good']}>
-        {p.character ? names.roles[p.character] : 'No character'}, {p.alignment}
+    <article className={`${styles['seat']} ${p.alignment === 'evil' ? styles['seatEvil'] : styles['seatGood']}`}>
+      <p className="muted small">
+        Seat {seat} <span className={p.connected ? styles['dotOn'] : styles['dot']} />{' '}
+        {p.connected ? 'online' : 'offline'}
+        {p.alive ? '' : ' (dead)'}
+        {p.departed ? ' (left)' : ''}
+      </p>
+      <p className={`${styles['seatRole']} type-${typeOf(p.character) ?? ''}`}>
+        {p.character ? names.roles[p.character] : 'No character'}
       </p>
       {believes && <p className="muted small">Believes they are the {believes}</p>}
-      {p.deathCause && <p className="muted small">Died: {p.deathCause}</p>}
-      {p.impaired && causesWithoutRow(p).length > 0 && (
-        <p className={styles['warn']}>Impaired: {causesWithoutRow(p).map(causeLabel).join(', ')}</p>
-      )}
-      <label className={styles['inline']}>
-        <span>Change character of {p.name}</span>
-        <select
-          value={p.character ?? ''}
-          onChange={(e) =>
-            void run({ type: 'assign_character', playerId: p.id, roleId: (e.target.value as RoleId) || null })
-          }
-        >
-          <option value="">No character</option>
-          {view.script.map((r) => (
-            <option key={r} value={r}>
-              {names.roles[r] ?? r}
-            </option>
+      {p.deathCause && <p className="muted small">Died: {p.deathCause.replaceAll('_', ' ')}</p>}
+      {tags.length > 0 && (
+        <p className={styles['chips']}>
+          {tags.map((t) => (
+            <span key={t} className={styles['tag']}>
+              {t}
+            </span>
           ))}
-        </select>
-      </label>
+        </p>
+      )}
+
+      <div className={styles['seatRow']}>
+        <span>Alignment</span>
+        <Segments
+          label={`Alignment of ${p.name}`}
+          options={[
+            { id: 'good', text: 'Good' },
+            { id: 'evil', text: 'Evil' },
+          ]}
+          value={p.alignment}
+          onChange={(alignment) => void run({ type: 'set_alignment', playerId: p.id, alignment })}
+        />
+      </div>
+
+      <div className="row">
+        <Button disabled={pending} onClick={() => void run({ type: 'mark_alive', playerId: p.id, alive: !p.alive })}>
+          {p.alive ? 'Kill' : 'Revive'}
+        </Button>
+        {!p.alive && (
+          <Button
+            on={p.ghostVoteUsed}
+            aria-pressed={p.ghostVoteUsed}
+            disabled={pending}
+            onClick={() => void run({ type: 'set_ghost_vote', playerId: p.id, used: !p.ghostVoteUsed })}
+          >
+            {p.ghostVoteUsed ? 'Vote used' : 'Vote available'}
+          </Button>
+        )}
+      </div>
+
       {p.abilities.length > 0 && (
-        <ul className={styles['tags']}>
+        <ul className={styles['rows']}>
           {p.abilities.map((a) => (
-            <li key={a.id} className={a.active ? undefined : styles['off']}>
-              {a.name}
-              {a.origin !== 'character' ? ` (${a.origin})` : ''}
-              {a.used ? ' (used)' : ''}
-              {a.perceivedOnly ? ' (only believed)' : ''}
+            <li key={a.id} className={styles['ability']}>
+              <span>
+                <b className={`type-${typeOf(a.roleId) ?? ''}`}>{a.name}</b>{' '}
+                <span className="muted small">
+                  {a.origin === 'character' ? ORIGIN.character : `${ORIGIN[a.origin]} ${a.from}`}
+                  {a.perceivedOnly ? ', only believed' : ''}
+                  {a.active ? '' : ', inactive'}
+                </span>
+              </span>
               {a.summary.length > 0 && <Lines lines={a.summary} />}
+              {a.reminder && <p className="muted small">{a.reminder}</p>}
+              {a.oncePerGame &&
+                (a.usageAuto ? (
+                  <span className="muted small">{a.used ? 'Used' : 'Unused'}, tracked automatically</span>
+                ) : (
+                  <Segments
+                    label={`${a.name} used`}
+                    options={[
+                      { id: 'unused', text: 'Unused' },
+                      { id: 'used', text: 'Used' },
+                    ]}
+                    value={a.used ? 'used' : 'unused'}
+                    onChange={(v) => void run({ type: 'set_ability_used', abilityId: a.id, used: v === 'used' })}
+                  />
+                ))}
             </li>
           ))}
         </ul>
       )}
-      <ul className={styles['tags']}>
-        {p.conditions.map((c) => (
-          <li key={c.id}>
-            {c.label}{' '}
-            <span className="muted small">
-              {c.sourceLabel}, {c.until}
-            </span>{' '}
-            <Button
-              tiny
-              aria-label={`Remove ${c.label} from ${p.name}`}
-              disabled={pending}
-              onClick={() => void run({ type: 'remove_condition', conditionId: c.id })}
-            >
-              ×
-            </Button>
-          </li>
-        ))}
-      </ul>
-      <div className="row">
-        <select
-          aria-label={`Condition to add to ${p.name}`}
-          value={adding}
-          onChange={(e) => setAdding(e.target.value as typeof adding)}
-        >
-          {CONDITIONS.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
+
+      {unlisted.length > 0 && (
+        <p className={styles['chips']}>
+          {unlisted.map((c) => (
+            <span key={c} className={styles['chip']}>
+              {causeLabel(c)}
+            </span>
           ))}
-        </select>
-        <Button
-          tiny
-          disabled={pending}
-          onClick={() => void run({ type: 'add_condition', target: p.id, condition: adding })}
-        >
-          Add
-        </Button>
+        </p>
+      )}
+      {p.conditions.length > 0 && (
+        <ul className={styles['tags']}>
+          {p.conditions.map((c) => (
+            <li key={c.id}>
+              {c.label}{' '}
+              <span className="muted small">
+                {c.sourceLabel} · until {c.until}
+              </span>{' '}
+              <Button
+                tiny
+                aria-label={`Remove ${c.label} from ${p.name}`}
+                disabled={pending}
+                onClick={() => void run({ type: 'remove_condition', conditionId: c.id })}
+              >
+                ×
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="row">
+        {QUICK.map(([condition, label]) => (
+          <Button
+            key={condition}
+            tiny
+            disabled={pending}
+            onClick={() => void run({ type: 'add_condition', target: p.id, condition })}
+          >
+            {label}
+          </Button>
+        ))}
       </div>
+      <Button onClick={onChangeCharacter}>Change character</Button>
     </article>
+  );
+}
+
+/** Picks a new character, says what the change does, and sends nothing until Confirm is held. */
+export function ChangeCharacter({ view, p, onDone }: { view: StorytellerView; p: GrimoirePlayer; onDone: () => void }) {
+  const names = useNames();
+  const typeOf = useTypeOf();
+  const { run, pending } = useCommand();
+  const [role, setRole] = useState<RoleId | ''>('');
+  // Only a convenience: the server refuses duplicates and allows the roles that may repeat.
+  const taken = new Set(
+    view.players.filter((x) => x.seat !== null && x.id !== p.id && x.character).map((x) => x.character as string),
+  );
+  const traveller = typeOf(p.character) === 'traveller';
+  const name = (id: string | null) => (id ? (names.roles[id] ?? id) : 'No character');
+  return (
+    <>
+      <label className={styles['field']}>
+        <span>New character for {p.name}</span>
+        <select value={role} onChange={(e) => setRole(e.target.value as RoleId | '')}>
+          <option value="">Choose…</option>
+          {GROUPS.filter(([type]) => type !== 'traveller' || traveller).map(([type, label]) => {
+            const roles = view.script.filter((r) => typeOf(r) === type);
+            if (!roles.length) return null;
+            return (
+              <optgroup key={type} label={label}>
+                {roles.map((r) => (
+                  <option key={r} value={r} disabled={taken.has(r)}>
+                    {name(r)}
+                    {taken.has(r) ? ' (in play)' : ''}
+                  </option>
+                ))}
+              </optgroup>
+            );
+          })}
+        </select>
+      </label>
+      {role && (
+        <ul className="small">
+          <li>
+            {name(p.character)} → {name(role)}
+          </li>
+          <li>
+            Abilities this character gave are removed; alignment resets to the new character&apos;s natural alignment.
+          </li>
+          <li>
+            {view.settings.notifyOnRoleChange
+              ? "The player is told 'Your role has changed'."
+              : 'The player is not told (setting off).'}
+          </li>
+        </ul>
+      )}
+      <SheetActions>
+        <Button onClick={onDone}>Cancel</Button>
+        <HoldButton
+          variant="primary"
+          disabled={!role || pending}
+          onConfirm={() => {
+            if (!role) return;
+            void run({ type: 'assign_character', playerId: p.id, roleId: role }).then((ack) => {
+              if (ack.ok) onDone();
+            });
+          }}
+        >
+          Confirm
+        </HoldButton>
+      </SheetActions>
+    </>
+  );
+}
+
+/** A setup field's value, in words. */
+function fieldValue(f: SetupFieldSpec, names: ReturnType<typeof useNames>) {
+  if (f.value === null) return 'not set';
+  if (f.kind === 'player') return names.players[f.value] ?? f.value;
+  if (f.kind === 'role') return names.roles[f.value] ?? f.value;
+  return f.options.find((o) => o.id === f.value)?.label ?? f.value;
+}
+
+/** Removes every player, the Storyteller included, and resets the script. */
+export function NewGameButton() {
+  const { run } = useCommand();
+  return (
+    <div>
+      {/* This phone is signed out too, so nothing waits for the reply. */}
+      <HoldButton onConfirm={() => void run({ type: 'new_game' })}>New game (erase)</HoldButton>
+      <p className="muted small">
+        Removes every player, you included (everyone joins again), resets the script to the default, and ends any game
+        in progress. Settings are kept.
+      </p>
+    </div>
   );
 }
 
@@ -142,8 +321,13 @@ export function Grimoire({ view }: { view: StorytellerView }) {
   const { run, pending } = useCommand();
   const { seated } = useSeats(view);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [changing, setChanging] = useState(false);
   const open = seated.find((p) => p.id === openId);
   const ended = view.phase.kind === 'ended';
+  const close = () => {
+    setOpenId(null);
+    setChanging(false);
+  };
   return (
     <div>
       <Section title="The circle">
@@ -173,29 +357,42 @@ export function Grimoire({ view }: { view: StorytellerView }) {
         ) : (
           <p className="muted">Nobody is seated.</p>
         )}
-        {open && (
-          <Sheet title={`${open.name}${open.alive ? '' : ' (dead)'}`} onClose={() => setOpenId(null)}>
-            <Seat view={view} p={open} />
+        {open && !changing && (
+          <Sheet title={open.name} onClose={close}>
+            <Seat view={view} p={open} onChangeCharacter={() => setChanging(true)} />
             <SheetActions>
-              <Button onClick={() => setOpenId(null)}>Close</Button>
+              <Button onClick={close}>Close</Button>
             </SheetActions>
           </Sheet>
         )}
+        {open && changing && (
+          <Sheet title={`Change character of ${open.name}`} onClose={() => setChanging(false)}>
+            <ChangeCharacter view={view} p={open} onDone={() => setChanging(false)} />
+          </Sheet>
+        )}
       </Section>
-      {view.storytellerAbilities.length > 0 && (
-        <Section title="Held by the Storyteller">
-          <ul className={styles['tags']}>
-            {view.storytellerAbilities.map((a) => (
-              <li key={a.id}>
-                {a.name}
-                {a.reminder ? `: ${a.reminder}` : ''}
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
-      <Section title="Game">
+      <Section title="Game facts">
         <p>Demon bluffs: {view.setup.bluffs.map((b) => names.roles[b] ?? b).join(', ') || 'none'}</p>
+        {view.setup.fields.map((f) => (
+          <p key={`${f.abilityId}:${f.field}`}>
+            {f.title}: {fieldValue(f, names)}
+          </p>
+        ))}
+        {view.storytellerAbilities.length > 0 && (
+          <>
+            <h3>Held by the Storyteller</h3>
+            <ul className={styles['tags']}>
+              {view.storytellerAbilities.map((a) => (
+                <li key={a.id}>
+                  {a.name}
+                  {a.reminder ? `: ${a.reminder}` : ''}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Section>
+      <Section title="Game controls">
         <div className="row">
           {ended ? (
             <Button variant="primary" disabled={pending} onClick={() => void run({ type: 'play_again' })}>
@@ -220,6 +417,7 @@ export function Grimoire({ view }: { view: StorytellerView }) {
             ))}
           </div>
         </details>
+        <NewGameButton />
       </Section>
     </div>
   );

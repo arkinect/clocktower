@@ -1,6 +1,7 @@
 // The Cannibal in depth: what is eaten, when it starts, what the phone sees, and how it meets the Philosopher.
 import { describe, expect, it } from 'vitest';
 import { as, row, titles } from './lib';
+import { findRole } from '../../src';
 import { scene, ST, type Scene } from '../scenario';
 
 const cast = { ann: 'cannibal', bo: 'imp', cy: 'poisoner', di: 'empath', ed: 'slayer', fi: 'sailor' };
@@ -12,6 +13,15 @@ const gained = (s: Scene, id = 'ann') =>
       a.holder.kind === 'player' && a.holder.id === id && a.origin.kind !== 'character' && a.activeUntil !== 'removed',
   );
 const eatenRoles = (s: Scene, id = 'ann') => gained(s, id).map((a) => a.roleId as string);
+/** What an evil eat gives: one good character from the script, other than the Cannibal, only believed. */
+const expectFakeGood = (s: Scene, id = 'ann') => {
+  const [fake, ...rest] = gained(s, id);
+  expect(rest).toEqual([]);
+  expect(fake?.perceivedOnly).toBe(true);
+  expect(s.state.script).toContain(fake?.roleId);
+  expect(['townsfolk', 'outsider']).toContain(findRole(fake?.roleId as string)?.type);
+  expect(fake?.roleId).not.toBe('cannibal');
+};
 const pending = (s: Scene, id: string) => s.state.pendingNotices.filter((n) => n.playerId === id).map((m) => m.title);
 const phoneText = (s: Scene, id: string) =>
   JSON.stringify({ ...s.g.view(as(id)), catalog: undefined, script: undefined });
@@ -30,37 +40,39 @@ describe('Cannibal eats', () => {
     ).not.toMatch(/Empath/);
   });
 
-  it('an evil executee: no ability, poisoned through nights and a harmless execution, until a good player dies', () => {
-    const s = day1().execute('cy');
-    expect(eatenRoles(s)).toEqual([]);
+  it('an evil executee: a good character from the script, false, and poisoned until a good player dies', () => {
+    const s = day1().execute('cy').dusk();
+    expectFakeGood(s);
     expect(s.impaired('ann')).toBe(true);
-    s.dusk().dawn().execute('ed', false);
+    s.dawn().execute('ed', false).dusk();
     expect(s.impaired('ann')).toBe(true);
-    s.execute('di');
+    s.dawn().execute('di').dusk();
     expect(s.impaired('ann')).toBe(false);
     expect(eatenRoles(s)).toEqual(['empath']);
   });
 
   it('an execution that does not kill keeps the ability eaten before', () => {
-    const s = day1().execute('di').dusk().dawn().execute('fi', false);
+    const s = day1().execute('di').dusk().dawn().execute('fi', false).dusk();
     expect(eatenRoles(s)).toEqual(['empath']);
   });
 
   it('the Cannibal executed eats nothing, nor does a Storyteller-marked death feed them', () => {
-    const s = day1().execute('ann');
+    const s = day1().execute('ann').dusk();
     expect(eatenRoles(s)).toEqual([]);
     const t = day1();
     t.g.st({ type: 'mark_alive', playerId: as('di'), alive: false });
+    t.dusk();
     expect(eatenRoles(t)).toEqual([]);
   });
 
   it('eating the Slayer gives an unused shot, and eating it again gives a fresh one', () => {
-    const s = day1().execute('ed');
+    const s = day1().execute('ed').dusk();
     const shot = () => gained(s)[0];
     expect(shot()?.used).toBeFalsy();
     s.g.st({ type: 'set_ability_used', abilityId: shot()?.id as never, used: true });
+    s.dawn();
     s.g.st({ type: 'mark_alive', playerId: as('ed'), alive: true });
-    s.execute('ed');
+    s.execute('ed').dusk();
     expect(shot()?.roleId).toBe('slayer');
     expect(shot()?.used).toBeFalsy();
   });
@@ -89,8 +101,8 @@ describe('Cannibal eats', () => {
       .execute('di')
       .dusk();
     expect(s.row('ann')).toMatchObject({ title: 'Cannibal', roleId: 'empath', impaired: true });
-    s.dawn().execute('cy');
-    expect(eatenRoles(s)).toEqual([]);
+    s.dawn().execute('cy').dusk();
+    expectFakeGood(s);
     expect(s.state.conditions.filter((c) => c.source?.kind === 'ability' && c.type === 'poisoned')).toEqual([]);
   });
 });
@@ -106,6 +118,9 @@ describe('the eaten ability in the Day panel', () => {
       s.g.tryAs(ST, { type: 'day_action', abilityId, action: 'set_ability', values, mode: 'accept' }).ok;
     expect(cmd(['empath'])).toBe(false);
     s.execute('cy');
+    // The Cannibal eats at dusk, so the choice is there from the next day.
+    expect(cmd(['empath'])).toBe(false);
+    s.dusk().dawn();
     expect(cmd(['no_such_role'])).toBe(false);
     expect(cmd(['cannibal'])).toBe(false);
     expect(cmd(['empath'])).toBe(true);
@@ -114,7 +129,7 @@ describe('the eaten ability in the Day panel', () => {
   });
 
   it('after an evil eat the chosen ability stays false: the poisoned Cannibal wakes as it', () => {
-    const s = day1().execute('cy');
+    const s = day1().execute('cy').dusk().dawn();
     set(s, 'empath');
     expect(s.impaired('ann')).toBe(true);
     s.dusk();
@@ -122,7 +137,7 @@ describe('the eaten ability in the Day panel', () => {
   });
 
   it('changes a good eat, and "none" clears it', () => {
-    const s = day1().execute('di');
+    const s = day1().execute('di').dusk().dawn();
     set(s, 'sailor');
     expect(eatenRoles(s)).toEqual(['sailor']);
     expect(gained(s)[0]?.perceivedOnly).toBeFalsy();
@@ -137,7 +152,7 @@ describe('Cannibal jinxes, as they reach the phone', () => {
 
   it('Jinx (Cannibal & Butler): told when the next night starts, once, and the picker keeps its name', () => {
     const s = day1(butlerCast).execute('ed');
-    expect(pending(s, 'ann')).toEqual([BUTLER]);
+    expect(pending(s, 'ann')).toEqual([]);
     expect(titles(s, 'ann')).not.toContain(BUTLER);
     s.dusk();
     expect(titles(s, 'ann').filter((t) => t === BUTLER)).toHaveLength(1);
@@ -149,7 +164,7 @@ describe('Cannibal jinxes, as they reach the phone', () => {
   });
 
   it('Jinx (Cannibal & Butler): told when the Storyteller confirms it after an evil eat, and a change withdraws it', () => {
-    const s = day1(butlerCast).execute('cy');
+    const s = day1(butlerCast).execute('cy').dusk().dawn();
     expect(pending(s, 'ann')).toEqual([]);
     s.act('cannibal', 'set_ability', ['butler']);
     s.act('cannibal', 'set_ability', ['butler']);
@@ -193,7 +208,7 @@ describe('the hidden eaten ability', () => {
       { ann: 'drunk', bo: 'imp', cy: 'poisoner', di: 't1', ed: 't2', fi: role },
       { believed: { ann: 'cannibal' } },
     ).start();
-    s.dawn().execute('di');
+    s.dawn().execute('di').dusk().dawn();
     s.act('cannibal', 'set_ability', [role]);
     return s.dusk();
   };
@@ -269,7 +284,7 @@ describe('the Cannibal and the Philosopher', () => {
     di: 'poisoner',
     ed: 'empath',
     fi: 'fortune_teller',
-    gus: 'sailor',
+    gus: 'slayer',
     hal: 'butler',
   };
   const hasFt = (s: Scene) => eatenRoles(s, 'bo').includes('fortune_teller');
@@ -279,9 +294,8 @@ describe('the Cannibal and the Philosopher', () => {
     const s = scene(roles).start();
     s.submit({ ann: ['empath'] }).dawn();
     expect(s.impaired('ed')).toBe(true);
-    s.execute('ann');
+    s.execute('ann').dusk();
     expect(s.impaired('ed')).toBe(false);
-    s.dusk();
     expect(s.specs('bo').map((x) => x.title)).toEqual(['Cannibal']);
     s.submit({ bo: ['fortune_teller'] }).dawn();
     expect(s.impaired('fi')).toBe(true);
@@ -294,23 +308,22 @@ describe('the Cannibal and the Philosopher', () => {
     expect(hasFt(s)).toBe(true);
     s.dawn().dusk().dawn();
     expect(s.impaired('fi')).toBe(true);
-    s.execute('gus');
-    expect(eatenRoles(s, 'bo')).toEqual(['sailor']);
+    s.execute('gus').dusk();
+    expect(eatenRoles(s, 'bo')).toEqual(['slayer']);
     expect(s.impaired('fi')).toBe(false);
     expect(hasFt(s)).toBe(false);
-    s.dusk();
     expect(s.specs('bo').map((x) => x.roleId)).not.toContain('fortune_teller');
   });
 
   it('an evil eat ends it too', () => {
-    const s = cannibalChoseFt().execute('cy');
+    const s = cannibalChoseFt().execute('cy').dusk();
     expect(hasFt(s)).toBe(false);
     expect(s.impaired('fi')).toBe(false);
   });
 
   it('the Storyteller changing the eaten Philosopher ends it', () => {
     const s = cannibalChoseFt();
-    s.act('cannibal', 'set_ability', ['sailor']);
+    s.act('cannibal', 'set_ability', ['slayer']);
     expect(hasFt(s)).toBe(false);
     expect(s.impaired('fi')).toBe(false);
   });
@@ -326,9 +339,11 @@ describe('the Cannibal and the Philosopher', () => {
     const s = scene(roles).start();
     s.submit({ ann: ['cannibal'] })
       .dawn()
-      .execute('gus');
+      .execute('gus')
+      .dusk()
+      .dawn();
     s.act('cannibal', 'set_ability', ['philosopher'], { holder: 'ann' });
-    s.dusk().dawn().execute('hal');
+    s.dusk().dawn().execute('hal').dusk();
     expect(eatenRoles(s)).toContain('cannibal');
     expect(s.impaired('bo')).toBe(true);
   });
@@ -337,11 +352,11 @@ describe('the Cannibal and the Philosopher', () => {
     const s = scene(roles).start();
     s.submit({ ann: ['cannibal'] })
       .dawn()
-      .execute('gus');
-    expect(eatenRoles(s)).toContain('sailor');
-    s.dusk().dawn().execute('bo');
+      .execute('gus')
+      .dusk();
+    expect(eatenRoles(s)).toContain('slayer');
+    s.dawn().execute('bo').dusk();
     expect([...new Set(eatenRoles(s))]).toEqual(['cannibal']);
-    s.dusk();
     expect(s.specs('ann')).toEqual([]);
   });
 });

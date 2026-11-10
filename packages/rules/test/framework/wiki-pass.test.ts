@@ -546,11 +546,12 @@ describe('per-character pass: the day', () => {
   it('changesWinner reverses every end, even from a dead holder, unless impaired', () => {
     const s = scene({ a: REVERSER, b: 't1', c: 'd1', d: 't2', e: 't3' }).start().dawn();
     s.g.st({ type: 'mark_alive', playerId: 'a' as PlayerId, alive: false });
-    s.execute('c');
+    s.execute('c').dusk();
     expect(s.winners()).toEqual(['evil']);
     const drunk = scene({ a: REVERSER, b: 't1', c: 'd1', d: 't2', e: 't3' }).start().dawn();
     drunk.g.st({ type: 'add_condition', target: 'a' as PlayerId, condition: 'drunk' });
-    drunk.execute('c');
+    // Drunk until dusk, and the execution happens at dusk: still drunk when the Demon dies.
+    drunk.execute('c').dusk();
     expect(drunk.winners()).toEqual(['good']);
   });
 });

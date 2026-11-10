@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type {
+  ActionField,
   Alignment,
   Choice,
   DayActionSpec,
@@ -12,7 +13,7 @@ import type {
 import { useCommand, useGame, useNames } from '../app/store';
 import { Picker, choiceComplete } from '../ui/Picker';
 import { Button, Card, HoldButton, Segments } from '../ui/ui';
-import { PlayerSelect, Section, Who, useSeats } from './common';
+import { PlayerSelect, SHOW_GAME_END_CARDS, Section, Who, causeLabel, useSeats } from './common';
 import styles from './console.module.css';
 
 interface Preview {
@@ -124,167 +125,187 @@ export function DayAction({ view, spec }: { view: StorytellerView; spec: DayActi
   );
 }
 
-function Events({ view, seated }: { view: StorytellerView; seated: GrimoirePlayer[] }) {
-  const { run, pending } = useCommand();
-  const [nominator, setNominator] = useState<PlayerId | ''>('');
-  const [nominee, setNominee] = useState<PlayerId | ''>('');
-  const [byStoryteller, setByStoryteller] = useState(false);
-  const [count, setCount] = useState('');
-  const [voters, setVoters] = useState<PlayerId[]>([]);
-  const [executed, setExecuted] = useState<PlayerId | ''>('');
-  const [speaker, setSpeaker] = useState<PlayerId | ''>('');
-  const [statement, setStatement] = useState('');
-  const [mad, setMad] = useState<PlayerId | ''>('');
-  const [ruling, setRuling] = useState('');
+/** Impairment with its causes, and every other condition with its source ("Cursed (Witch)"). */
+export function Status({ player }: { player: GrimoirePlayer }) {
+  const others = player.conditions.filter((c) => c.type !== 'drunk' && c.type !== 'poisoned');
+  if (!player.causes.length && !others.length) return null;
   return (
-    <Section title="Nominations and executions">
-      <div className={styles['formRow']}>
-        {!byStoryteller && (
-          <PlayerSelect label="Nominator" players={seated} value={nominator} onChange={setNominator} />
-        )}
-        <label className={styles['field']}>
-          <span>The Storyteller nominates</span>
-          <input type="checkbox" checked={byStoryteller} onChange={(e) => setByStoryteller(e.target.checked)} />
-        </label>
-        <PlayerSelect label="Nominee" players={seated} value={nominee} onChange={setNominee} />
-        <Button
-          tiny
-          disabled={!(nominator || byStoryteller) || !nominee || pending}
-          onClick={() => {
-            if (nominee) {
-              void run({ type: 'record_nomination', nominator: byStoryteller ? null : nominator || null, nominee });
-            }
-          }}
-        >
-          Record nomination
-        </Button>
-      </div>
-      <div className={styles['formRow']}>
-        <label className={styles['field']}>
-          <span>Votes (optional)</span>
-          <input type="number" min={0} max={40} value={count} onChange={(e) => setCount(e.target.value)} />
-        </label>
-        <Button
-          tiny
-          disabled={!nominee || pending}
-          onClick={() => {
-            if (nominee) {
-              const tally = count === '' ? (voters.length ? voters.length : null) : Number(count);
-              void run({ type: 'record_vote', nominee, count: tally, voters: voters.length ? voters : null });
-              setVoters([]);
-            }
-          }}
-        >
-          Record vote for nominee
-        </Button>
-      </div>
-      <details>
-        <summary>Who voted (optional)</summary>
-        <p className="muted small">Needed for anything that weighs votes or asks who voted.</p>
-        {seated.map((p) => (
-          <label key={p.id} className={styles['field']}>
-            <span>{p.name}</span>
-            <input
-              type="checkbox"
-              checked={voters.includes(p.id)}
-              onChange={(e) => setVoters((v) => (e.target.checked ? [...v, p.id] : v.filter((id) => id !== p.id)))}
-            />
-          </label>
-        ))}
-      </details>
-      <div className={styles['formRow']}>
-        <PlayerSelect label="Executed" players={seated} value={executed} onChange={setExecuted} none="Nobody" />
-        <HoldButton
-          disabled={pending}
-          onConfirm={() => void run({ type: 'record_execution', playerId: executed || null, died: true })}
-        >
-          Execute
-        </HoldButton>
-        <Button
-          tiny
-          disabled={pending}
-          onClick={() => void run({ type: 'record_execution', playerId: executed || null, died: false })}
-        >
-          Executed, did not die
-        </Button>
-      </div>
-      <div className={styles['formRow']}>
-        <PlayerSelect label="Statement by" players={seated} value={speaker} onChange={setSpeaker} />
-        <label className={styles['field']}>
-          <span>Statement</span>
-          <input value={statement} maxLength={500} onChange={(e) => setStatement(e.target.value)} />
-        </label>
-        <Button
-          tiny
-          disabled={!speaker || !statement.trim() || pending}
-          onClick={() => {
-            if (speaker) void run({ type: 'record_statement', playerId: speaker, text: statement.trim() });
-            setStatement('');
-          }}
-        >
-          Record statement
-        </Button>
-      </div>
-      <div className={styles['formRow']}>
-        <PlayerSelect label="Broke madness" players={seated} value={mad} onChange={setMad} />
-        <label className={styles['field']}>
-          <span>Your ruling</span>
-          <input value={ruling} maxLength={200} onChange={(e) => setRuling(e.target.value)} />
-        </label>
-        <Button
-          tiny
-          disabled={!mad || !ruling.trim() || pending}
-          onClick={() => {
-            if (mad) void run({ type: 'record_broke_madness', playerId: mad, ruling: ruling.trim() });
-            setRuling('');
-          }}
-        >
-          Record ruling
-        </Button>
-      </div>
-      <ol className={styles['events']}>
-        {view.dayEvents.map((e, i) => (
-          <li key={i}>
-            <span className="muted small">{e.kind}</span> {e.text}
-          </li>
-        ))}
-      </ol>
-      {!view.dayEvents.length && <p className="muted">Nothing recorded today.</p>}
+    <span className={styles['chips']}>
+      {player.causes.map((c) => (
+        <span key={c} className={styles['chip']}>
+          {causeLabel(c)}
+        </span>
+      ))}
+      {others.map((c) => (
+        <span key={c.id} className={styles['chipPlain']}>
+          {c.label} ({c.sourceLabel})
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** The day's players, as in 0.4.2: who they are, what affects them today, and one action. */
+function Players({ view, seated }: { view: StorytellerView; seated: GrimoirePlayer[] }) {
+  const { run, pending } = useCommand();
+  const chosen = chosenForExecution(view);
+  return (
+    <Section title={`Day ${view.phase.n}`}>
+      <table className={styles['tbl']}>
+        <tbody>
+          {seated.map((p) => (
+            <tr key={p.id}>
+              <td>
+                <Who view={view} id={p.id} role />
+                {chosen === p.id && p.alive && <span className={styles['tag']}> executed at dusk</span>}
+              </td>
+              <td>
+                <Status player={p} />
+              </td>
+              <td className={styles['act']}>
+                {p.alive ? (
+                  <Button
+                    tiny
+                    disabled={pending}
+                    onClick={() => void run({ type: 'mark_alive', playerId: p.id, alive: false })}
+                  >
+                    Dead
+                  </Button>
+                ) : p.ghostVoteUsed ? (
+                  <span className={styles['tag']}>Dead vote used</span>
+                ) : (
+                  <Button
+                    tiny
+                    disabled={pending}
+                    onClick={() => void run({ type: 'set_ghost_vote', playerId: p.id, used: true })}
+                  >
+                    Dead vote
+                  </Button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="muted small">Revive a player or give back a dead vote in the Grimoire.</p>
     </Section>
   );
 }
 
-function Lives({ view, seated }: { view: StorytellerView; seated: GrimoirePlayer[] }) {
+/** Today's choice of execution, if any: the last one recorded. */
+const chosenForExecution = (view: StorytellerView) =>
+  view.dayEvents.findLast((x) => x.kind === 'execution')?.playerId ?? null;
+
+/** What happens at dusk, in one line. */
+function atDusk(view: StorytellerView, names: Record<string, string>) {
+  const id = chosenForExecution(view);
+  if (!id) return 'No execution today.';
+  const name = names[id] ?? id;
+  return view.players.find((x) => x.id === id)?.alive
+    ? `${name} is executed when you start the night.`
+    : `${name} is already dead: the execution kills nobody.`;
+}
+
+function Execution({ view, seated }: { view: StorytellerView; seated: GrimoirePlayer[] }) {
   const { run, pending } = useCommand();
+  const names = useNames();
+  const chosen = chosenForExecution(view);
+  const reminders = seated
+    .flatMap((p) => p.abilities.map((a) => ({ p, a })))
+    .filter(({ a }) => !a.perceivedOnly && a.active && a.dayReminder && a.reminder);
   return (
-    <Section title="Players">
-      <ul className={styles['rows']}>
-        {seated.map((p) => (
-          <li key={p.id}>
-            <span className={styles['grow']}>
-              <Who view={view} id={p.id} role />
-              {p.impaired ? <span className={styles['warn']}> impaired</span> : null}
-            </span>
-            {!p.alive && (
-              <Button
-                tiny
-                disabled={pending}
-                onClick={() => void run({ type: 'set_ghost_vote', playerId: p.id, used: !p.ghostVoteUsed })}
-              >
-                {p.ghostVoteUsed ? 'Vote used' : 'Vote left'}
-              </Button>
-            )}
-            <Button
-              tiny
-              disabled={pending}
-              onClick={() => void run({ type: 'mark_alive', playerId: p.id, alive: !p.alive })}
-            >
-              {p.alive ? 'Mark dead' : 'Revive'}
-            </Button>
-          </li>
-        ))}
-      </ul>
+    <Section title="Execution">
+      <label className={styles['field']}>
+        <span>Executed</span>
+        {/* Only a choice, changed as often as needed: the execution happens at Start Night. */}
+        <select
+          value={chosen ?? ''}
+          disabled={pending}
+          onChange={(e) =>
+            void run({ type: 'record_execution', playerId: (e.target.value || null) as PlayerId | null, died: true })
+          }
+        >
+          <option value="">No execution today</option>
+          {seated
+            .filter((p) => p.alive || p.id === chosen)
+            .map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+                {p.character ? ` (${names.roles[p.character] ?? p.character})` : ''}
+                {p.alive ? '' : ' (dead)'}
+              </option>
+            ))}
+        </select>
+      </label>
+      <p>{atDusk(view, names.players)}</p>
+      <p className="muted small">
+        The player is executed when you start the night, and other characters react then. A Fool, the Devil&apos;s
+        Advocate&apos;s player, a sober Sailor or a Tea Lady&apos;s good neighbour survives it, and the execution still
+        counts.
+      </p>
+      {reminders.length > 0 && (
+        <ul className="small">
+          {reminders.map(({ p, a }) => (
+            <li key={a.id}>
+              <b>{a.name}</b> ({p.name}): {a.reminder}
+            </li>
+          ))}
+        </ul>
+      )}
     </Section>
+  );
+}
+
+type Names = ReturnType<typeof useNames>;
+
+const optionLabel = (field: ActionField, id: string, names: Names) =>
+  field.kind === 'player'
+    ? (names.players[id] ?? id)
+    : field.kind === 'role'
+      ? (names.roles[id] ?? id)
+      : (field.labels?.[id] ?? id);
+
+/** A fact for tonight: its recorded answer shown in place, and sent as soon as it changes. */
+export function Fact({ view, spec }: { view: StorytellerView; spec: DayActionSpec }) {
+  const { run, pending } = useCommand();
+  const names = useNames();
+  const field = spec.fields.length === 1 ? spec.fields[0] : undefined;
+  // A fact with several fields needs the full form. No role has one yet.
+  if (!field) return <DayAction view={view} spec={spec} />;
+  const value = spec.recorded?.[0] ?? null;
+  const send = (v: string) =>
+    void run({ type: 'day_action', abilityId: spec.abilityId, action: spec.action, values: [v], mode: 'accept' });
+  return (
+    <div className={styles['fact']}>
+      <b>{spec.title}</b>
+      {field.kind === 'option' && field.options.length <= 3 ? (
+        <Segments
+          label={spec.title}
+          options={field.options.map((o) => ({ id: o, text: optionLabel(field, o, names) }))}
+          value={value}
+          onChange={send}
+        />
+      ) : (
+        <select
+          aria-label={spec.title}
+          value={value ?? ''}
+          disabled={pending}
+          onChange={(e) => {
+            if (e.target.value) send(e.target.value);
+          }}
+        >
+          <option value="">Not recorded</option>
+          {field.options.map((o) => (
+            <option key={o} value={o}>
+              {optionLabel(field, o, names)}
+            </option>
+          ))}
+        </select>
+      )}
+      {spec.neededTonight && !spec.recorded && (
+        <p className="muted small">Needed tonight. If you leave it, Review will ask for it.</p>
+      )}
+    </div>
   );
 }
 
@@ -353,14 +374,15 @@ function Travellers({ view, seated }: { view: StorytellerView; seated: GrimoireP
   );
 }
 
+/** Once-per-game abilities, used or not. Their reminders are under Execution and in the Grimoire. */
 export function Usage({ seated }: { seated: GrimoirePlayer[] }) {
   const { run, pending } = useCommand();
-  const real = seated.flatMap((p) => p.abilities.map((a) => ({ p, a }))).filter(({ a }) => !a.perceivedOnly);
-  const held = real.filter(({ a }) => a.oncePerGame);
-  const reminders = real.filter(({ a }) => a.reminder && a.active);
-  if (!held.length && !reminders.length) return null;
+  const held = seated
+    .flatMap((p) => p.abilities.map((a) => ({ p, a })))
+    .filter(({ a }) => !a.perceivedOnly && a.oncePerGame);
+  if (!held.length) return null;
   return (
-    <Section title="Abilities">
+    <Section title="Ability tracker">
       <ul className={styles['rows']}>
         {held.map(({ p, a }) => (
           <li key={a.id}>
@@ -377,11 +399,6 @@ export function Usage({ seated }: { seated: GrimoirePlayer[] }) {
           </li>
         ))}
       </ul>
-      {reminders.map(({ p, a }) => (
-        <p key={a.id} className="small">
-          <b>{a.name}</b> ({p.name}): {a.reminder}
-        </p>
-      ))}
     </Section>
   );
 }
@@ -389,10 +406,10 @@ export function Usage({ seated }: { seated: GrimoirePlayer[] }) {
 function Notes({ view }: { view: StorytellerView }) {
   const { run } = useCommand();
   return (
-    <Section title="Notes">
+    <label className={styles['field']}>
+      <span>Notes</span>
       <textarea
         key={view.notes}
-        aria-label="Notes"
         rows={4}
         maxLength={2000}
         defaultValue={view.notes}
@@ -400,36 +417,42 @@ function Notes({ view }: { view: StorytellerView }) {
           if (e.target.value !== view.notes) void run({ type: 'set_notes', text: e.target.value });
         }}
       />
-    </Section>
+    </label>
   );
 }
 
 export function Day({ view }: { view: StorytellerView }) {
   const { run, pending } = useCommand();
+  const { catalog } = useGame();
   const { seated } = useSeats(view);
   if (view.phase.kind !== 'day') return <Card>It is not day.</Card>;
+  const facts = view.dayActions.filter((a) => !a.preview);
+  const abilities = view.dayActions.filter((a) => a.preview);
+  // Hidden while the app has no Traveller characters.
+  const travellers = catalog.some((c) => c.type === 'traveller');
   return (
     <div>
-      {view.gameEnd.map((g) => (
-        <Card key={g.key} tone="notice">
-          <p>
-            <b>{g.winner ? `${g.winner === 'good' ? 'Good' : 'Evil'} may have won.` : 'The game may be over.'}</b>{' '}
-            {g.reason}
-          </p>
-          <div className="row">
-            <Button
-              variant="primary"
-              disabled={pending}
-              onClick={() => void run({ type: 'confirm_game_end', key: g.key })}
-            >
-              End the game
-            </Button>
-            <Button disabled={pending} onClick={() => void run({ type: 'dismiss_game_end', key: g.key })}>
-              Carry on
-            </Button>
-          </div>
-        </Card>
-      ))}
+      {SHOW_GAME_END_CARDS &&
+        view.gameEnd.map((g) => (
+          <Card key={g.key} tone="notice">
+            <p>
+              <b>{g.winner ? `${g.winner === 'good' ? 'Good' : 'Evil'} may have won.` : 'The game may be over.'}</b>{' '}
+              {g.reason}
+            </p>
+            <div className="row">
+              <Button
+                variant="primary"
+                disabled={pending}
+                onClick={() => void run({ type: 'confirm_game_end', key: g.key })}
+              >
+                End the game
+              </Button>
+              <Button disabled={pending} onClick={() => void run({ type: 'dismiss_game_end', key: g.key })}>
+                Carry on
+              </Button>
+            </div>
+          </Card>
+        ))}
       {view.prompts.map((p) => (
         <Card key={p.id} tone="warn">
           <p>
@@ -453,25 +476,31 @@ export function Day({ view }: { view: StorytellerView }) {
       ))}
       <div className={styles['columns']}>
         <div>
-          <Events view={view} seated={seated} />
-          {view.dayActions.length > 0 && (
-            <Section title="Day actions">
-              {view.dayActions.map((a) => (
+          <Players view={view} seated={seated} />
+          <Execution view={view} seated={seated} />
+        </div>
+        <div>
+          <Section title="Facts for tonight">
+            {facts.map((a) => (
+              <Fact key={a.key} view={view} spec={a} />
+            ))}
+            {!facts.length && <p className="muted">No character needs a fact from today.</p>}
+            <Notes view={view} />
+          </Section>
+          {abilities.length > 0 && (
+            <Section title="Day abilities">
+              {abilities.map((a) => (
                 <DayAction key={a.key} view={view} spec={a} />
               ))}
             </Section>
           )}
-        </div>
-        <div>
-          <Lives view={view} seated={seated} />
           <Usage seated={seated} />
-          <Travellers view={view} seated={seated} />
-          <Notes view={view} />
+          {travellers && <Travellers view={view} seated={seated} />}
+          <HoldButton big variant="primary" disabled={pending} onConfirm={() => void run({ type: 'start_night' })}>
+            Start Night {view.phase.n}
+          </HoldButton>
         </div>
       </div>
-      <HoldButton variant="primary" disabled={pending} onConfirm={() => void run({ type: 'start_night' })}>
-        Start the night
-      </HoldButton>
     </div>
   );
 }

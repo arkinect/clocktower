@@ -273,6 +273,11 @@ export class AbilityCtx<S> extends HookCtx<S> {
     if (this.isAlive(target)) this.run.kill(target, cause);
   }
 
+  /** Makes a player today's execution (replacing any earlier choice). They are executed at dusk. Day only. */
+  execute(target: PlayerId) {
+    this.run.recordExecution(target, true);
+  }
+
   revive(player: PlayerId, reason: string): boolean {
     return this.run.revive(player, reason);
   }

@@ -1,29 +1,156 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { StorytellerView } from '@ct/protocol';
-import { useNames } from '../app/store';
+import { Fragment, useCallback, useEffect, useState, type ReactNode } from 'react';
+import type { PlayerId, StoryDay, StoryNight, StorytellerView } from '@ct/protocol';
+import { useGame, useNames } from '../app/store';
 import { Button } from '../ui/ui';
-import { Lines, Section } from './common';
+import { Section, causeLabel } from './common';
 import styles from './console.module.css';
 
+const plain = (cause: string) => cause.replaceAll('_', ' ');
+
+/** Names in red, comma separated, or a word for none. */
+function DeadNames({ ids, none }: { ids: PlayerId[]; none: string }) {
+  const names = useNames();
+  if (!ids.length) return <>{none}</>;
+  return <span className={styles['dead']}>{ids.map((id) => names.players[id] ?? id).join(', ')}</span>;
+}
+
+function DayCard({ day }: { day: StoryDay }) {
+  const names = useNames();
+  const who = (id: PlayerId) => names.players[id] ?? id;
+  let execution: ReactNode = 'none';
+  if (day.execution?.playerId) {
+    execution = <span className={styles['dead']}>{who(day.execution.playerId)}</span>;
+  }
+  return (
+    <section className={styles['section']}>
+      <h2>☀ Day {day.n}</h2>
+      <p>Execution: {execution}</p>
+      <p>
+        Died during the day:{' '}
+        {day.deaths.length
+          ? day.deaths.map((d, i) => (
+              <Fragment key={`${d.playerId}:${i}`}>
+                {i > 0 ? ', ' : ''}
+                <span className={styles['dead']}>{who(d.playerId)}</span> ({plain(d.cause)})
+              </Fragment>
+            ))
+          : 'nobody'}
+      </p>
+      {day.other.length > 0 && <p>Other: {day.other.join(' ')}</p>}
+      {day.notes && <p className="muted">Notes: {day.notes}</p>}
+    </section>
+  );
+}
+
+/** A night at a glance, as in 0.4.2: one row per player, scanned down and across. */
+function NightCard({ night }: { night: StoryNight }) {
+  const names = useNames();
+  const { catalog } = useGame();
+  const [open, setOpen] = useState(true);
+  const role = (id: string | null) => (id ? (names.roles[id] ?? id) : '—');
+  const type = (id: string | null) => catalog.find((c) => c.roleId === id)?.type;
+  // The Role and Targets columns already say whose ability it is, so a role's name heads nothing here. Other titles
+  // ("Demon information", "Your role has changed") still do.
+  const roleNames = new Set(Object.values(names.roles));
+  return (
+    <section className={styles['section']}>
+      <h2>
+        <button type="button" className={styles['fold']} aria-expanded={open} onClick={() => setOpen(!open)}>
+          ☾ Night {night.n} {open ? '▾' : '▸'}
+        </button>
+      </h2>
+      <p>
+        Deaths: <DeadNames ids={night.deaths} none="none" />
+        {night.revived.length > 0 && <> · Revived: {night.revived.map((id) => names.players[id] ?? id).join(', ')}</>}
+      </p>
+      {open && (
+        <div className={styles['board']}>
+          <table className={`${styles['tbl']} ${styles['story']}`}>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Player</th>
+                <th>Role</th>
+                <th>Drunk / poisoned</th>
+                <th>Targets and outcome</th>
+                <th>Information received</th>
+              </tr>
+            </thead>
+            <tbody>
+              {night.rows.map((p) => (
+                <tr key={p.playerId} className={p.aliveAtStart ? undefined : styles['deadRow']}>
+                  <td className="muted">{p.seat + 1}</td>
+                  <td>
+                    <span className={p.aliveAtEnd ? undefined : styles['dead']}>{p.name}</span>
+                    {!p.aliveAtStart ? (
+                      <span className="muted small"> (dead)</span>
+                    ) : !p.aliveAtEnd ? (
+                      <span className={`small ${styles['dead']}`}> (died)</span>
+                    ) : null}
+                  </td>
+                  <td>
+                    <span className={`type-${type(p.character) ?? ''}`}>{role(p.character)}</span>
+                    {p.believed && <span className="muted small"> thinks {role(p.believed)}</span>}
+                    <span className={`small ${p.alignment === 'evil' ? styles['dead'] : 'muted'}`}>
+                      {' '}
+                      · {p.alignment}
+                    </span>
+                  </td>
+                  <td>
+                    {p.causes.length ? (
+                      <span className={styles['chips']}>
+                        {p.causes.map((c) => (
+                          <span key={c} className={styles['chip']}>
+                            {causeLabel(c)}
+                          </span>
+                        ))}
+                      </span>
+                    ) : (
+                      <span className="muted">sober</span>
+                    )}
+                  </td>
+                  <td>
+                    {p.actions.length ? (
+                      p.actions.map((a, i) => (
+                        <div key={i}>
+                          <b>{a.roleId ? role(a.roleId) : a.slot}:</b> {a.input}
+                          {a.outcome ? <span className="muted"> → {a.outcome}</span> : null}
+                        </div>
+                      ))
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
+                  <td>
+                    {p.received.length ? (
+                      p.received.map((m, i) => (
+                        <div key={i}>
+                          {!roleNames.has(m.title) && <b>{m.title}: </b>}
+                          {m.lines.join(' ')}
+                          {m.truth && <div className={styles['dead']}>Truth: {m.truth.join(' ')}</div>}
+                        </div>
+                      ))
+                    ) : (
+                      <span className="muted">nothing</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function Story({ view }: { view: StorytellerView }) {
-  if (!view.story.length) return <p className="muted">Nothing has happened yet.</p>;
+  if (!view.story.length) return <p className="muted">The story starts when Night 0 is published.</p>;
   return (
     <div>
-      {view.story.map((e, i) => (
-        <Section key={i} title={e.title}>
-          <ul className={styles['rows']}>
-            {e.rows.map((r, j) => (
-              <li key={j}>
-                <span className={styles['grow']}>
-                  <b>{r.name}</b> <span className="muted small">{r.character}</span>
-                  <Lines lines={r.lines} />
-                </span>
-              </li>
-            ))}
-          </ul>
-          <Lines lines={e.summary} />
-        </Section>
-      ))}
+      {view.story.map((e) =>
+        e.kind === 'day' ? <DayCard key={`d${e.n}`} day={e} /> : <NightCard key={`n${e.n}`} night={e} />,
+      )}
     </div>
   );
 }

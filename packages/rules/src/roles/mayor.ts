@@ -7,7 +7,7 @@ export const mayor = defineRole({
   type: 'townsfolk',
   abilityText:
     'If only 3 players live & no execution occurs, your team wins. If you die at night, another player might die instead.',
-  reminder: 'A 3-player win is suggested when no execution is recorded.',
+  reminder: 'If the day ends with exactly 3 alive and no execution, good wins: end the game from the Grimoire.',
   flags: { dayReminder: true, interceptPriority: 60, passive: true },
   ability: {
     // Unstoppable kills still pass here: the bounce doesn't stop a death, it moves it.
