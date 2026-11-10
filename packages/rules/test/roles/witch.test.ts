@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TRAVELLER } from '../helpers/plain';
 import { scene } from '../scenario';
 
 const cast = { ann: 'witch', bo: 't1', cy: 'd1', di: 't2', ed: 't3' };
@@ -36,5 +37,23 @@ describe('Witch', () => {
     s.execute('bo').g.st({ type: 'mark_alive', playerId: 'di' as never, alive: false });
     s.dusk();
     expect(s.specs('ann')).toEqual([]);
+  });
+  it('does not count Travellers: 3 residents and a Traveller alive is not enough', () => {
+    const s = scene({ ...cast, vi: TRAVELLER[0] as string })
+      .start()
+      .dawn();
+    s.execute('bo').g.st({ type: 'mark_alive', playerId: 'di' as never, alive: false });
+    s.dusk();
+    expect(s.state.seats.filter((x) => s.alive(x.playerId))).toHaveLength(4);
+    expect(s.specs('ann')).toEqual([]);
+  });
+  it('still wakes and curses with 4 residents and a Traveller alive', () => {
+    const s = scene({ ...cast, vi: TRAVELLER[0] as string })
+      .start()
+      .dawn();
+    s.execute('bo').dusk();
+    s.submit({ ann: ['ed'] }).dawn();
+    expect(s.act('witch', 'apply_curse', ['ed']).effective).toBe(true);
+    expect(s.alive('ed')).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TRAVELLER } from '../helpers/plain';
 import { scene } from '../scenario';
 
 const cast = { ann: 'mayor', bo: 't1', cy: 'imp', di: 't2', ed: 'm1' };
@@ -55,6 +56,16 @@ describe('Mayor', () => {
     s.execute('bo').dusk().dawn();
     s.g.st({ type: 'mark_alive', playerId: 'ed' as never, alive: false });
     s.execute(null).dusk();
+    expect(s.winners()).toContain('good');
+  });
+  it('does not count Travellers: 3 residents and a Traveller alive still wins', () => {
+    const s = scene({ ...cast, vi: TRAVELLER[0] as string })
+      .start()
+      .dawn();
+    s.execute('bo').dusk().dawn();
+    s.g.st({ type: 'mark_alive', playerId: 'ed' as never, alive: false });
+    s.execute(null).dusk();
+    expect(s.alive('vi')).toBe(true);
     expect(s.winners()).toContain('good');
   });
   it('not with a day kill', () => {

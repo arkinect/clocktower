@@ -31,6 +31,8 @@ The Storyteller console feels like 0.4.2 again.
   when the information was false.
 - Each seat in the Grimoire has the full controls again: alignment, kill and revive, dead vote, ability used,
   conditions, and a confirmed character change.
+- The Witch loses her ability when 3 players are alive, counting only players who are not Travellers, which is how the
+  Mayor and the Scarlet Woman already counted.
 - **Saved games carry over.** Update between games if you can: a game saved during a day with an execution already
   recorded under 0.5.0 would have that execution's triggers fire a second time at dusk.
 

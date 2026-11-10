@@ -13,15 +13,16 @@ export const witch = defineRole({
   abilityText:
     'Each night, choose a player: if they nominate tomorrow, they die. If just 3 players live, you lose this ability.',
   reminder: 'If the cursed player nominates, apply the curse in the Day panel.',
-  night: { first: 80, other: 80, note: 'Only while 4 or more players are alive' },
+  night: { first: 80, other: 80, note: "Only while 4 or more players are alive (Travellers don't count)" },
   ability: {
-    wakes: (ctx) => ctx.aliveAtDuskIds.length >= 4,
+    // Travellers don't count towards "if just 3 players live", as with the Mayor and the Scarlet Woman.
+    wakes: (ctx) => ctx.aliveAtDuskIds.filter((id) => ctx.typeOf(id) !== 'traveller').length >= 4,
     picker: (ctx) => choosePlayers('Witch', 'Choose a player: if they nominate tomorrow, they die.', 1, ctx.seated),
     resolve(ctx) {
       const [t] = ctx.choice as PlayerId[];
       if (!t) return;
       confirmChoice(ctx, t);
-      if (ctx.alive.length <= 3) {
+      if (ctx.aliveResidents.length <= 3) {
         ctx.outcome('3 or fewer players alive: the Witch has no ability');
         return;
       }
