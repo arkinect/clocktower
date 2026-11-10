@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import type { CharacterType, GrimoirePlayer, RoleId, SetupFieldSpec, StorytellerView } from '@ct/protocol';
-import { useCommand, useGame, useNames } from '../app/store';
+import type { GrimoirePlayer, RoleId, SetupFieldSpec, StorytellerView } from '@ct/protocol';
+import { useCommand, useNames } from '../app/store';
 import { Button, HoldButton, Segments, Sheet, SheetActions } from '../ui/ui';
 import { seatPlace } from './circle';
-import { Lines, Section, causeLabel, causesWithoutRow, phaseText, useSeats } from './common';
+import { GROUPS, Lines, Section, causeLabel, causesWithoutRow, phaseText, useSeats, useTypeOf } from './common';
 import styles from './console.module.css';
 
 const QUICK = [
@@ -11,20 +11,6 @@ const QUICK = [
   ['drunk', '+ drunk'],
   ['mad', '+ mad'],
 ] as const;
-
-const GROUPS: [CharacterType, string][] = [
-  ['townsfolk', 'Townsfolk'],
-  ['outsider', 'Outsiders'],
-  ['minion', 'Minions'],
-  ['demon', 'Demons'],
-  ['traveller', 'Travellers'],
-];
-
-/** The character type of a role, for its colour. */
-function useTypeOf() {
-  const { catalog } = useGame();
-  return (id: string | null) => (id ? catalog.find((c) => c.roleId === id)?.type : undefined);
-}
 
 /** One seat on the circle. Everything the Storyteller can change about a player opens from here. */
 function SeatToken({ p, i, n, onOpen }: { p: GrimoirePlayer; i: number; n: number; onOpen: () => void }) {

@@ -1,4 +1,4 @@
-// The console shell: its theme and its tab strip. Views are built by hand: the web never imports the rules.
+// The console shell: its tab strip. Views are built by hand: the web never imports the rules.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -28,15 +28,6 @@ const view = (kind: StorytellerView['phase']['kind']) =>
     story: [],
     phase: { kind, n: 1, stage: kind === 'night' ? 'choices' : null, deadline: null, winner: null, endedReason: null },
   }) as unknown as StorytellerView;
-
-describe('console theme', () => {
-  it('is dark while open, and lets the page follow the device again once closed', () => {
-    const { unmount } = render(<Console view={view('setup')} tab="reference" />);
-    expect(document.documentElement.dataset['theme']).toBe('dark');
-    unmount();
-    expect(document.documentElement.dataset['theme']).toBeUndefined();
-  });
-});
 
 describe('tab strip', () => {
   const strip = () =>

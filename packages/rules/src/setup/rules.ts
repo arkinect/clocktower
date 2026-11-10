@@ -162,7 +162,15 @@ export function setupChecklist(s: GameState): CheckItem[] {
       done: ids.length > 0 && unassigned.length === 0,
       blocking: true,
     },
-    { id: 'demon', label: 'Exactly one Demon is assigned', done: r.demons.length === 1, blocking: false },
+    {
+      id: 'demon',
+      label:
+        r.demons.length === 1 || unassigned.length
+          ? 'Exactly one Demon is assigned'
+          : `Exactly one Demon is assigned (${r.demons.length} assigned)`,
+      done: r.demons.length === 1,
+      blocking: false,
+    },
   ];
   const inPlay = r.inPlay;
   for (const id of ids) {
@@ -238,8 +246,6 @@ export function setupWarnings(s: GameState): string[] {
     if (hook) out.push(...hook(new HookCtx(r, a)));
   }
   for (const j of allJinxes()) if (j.hooks?.warnings) out.push(...j.hooks.warnings(r));
-  if (assigned && demons.length !== 1) out.push(`${demons.length} Demons assigned. Normally there is exactly one.`);
-  const unseated = Object.values(s.players).filter((p) => p.id !== s.storytellerId && !ids.includes(p.id)).length;
-  if (unseated) out.push(`${unseated} player(s) are not seated. Unseated players take no part.`);
+  // The Demon count and unseated players are checklist items, so they are not repeated here.
   return out;
 }

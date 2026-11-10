@@ -71,11 +71,14 @@ test('five phones and a scripted Storyteller play a full game', async ({ browser
   for (const page of pages) {
     await expect(page.getByRole('heading', { name: 'Night 0 begins' })).toBeVisible();
     await noSideScroll(page);
-    await page.getByRole('button', { name: 'Tap to reveal your role' }).click();
-    await page.getByRole('button', { name: 'I have seen my role' }).click();
-    await expect(page.getByText('Thanks. Wait for the Storyteller')).toBeVisible();
+    // The Night tab only says where the role is; it never shows the role itself.
+    await expect(page.getByRole('button', { name: 'Tap to reveal your role' })).toHaveCount(0);
+    await expect(page.getByText('Wait for the Storyteller to start the night.')).toBeVisible();
   }
+  await ann.getByRole('button', { name: 'My role' }).click();
+  await ann.getByRole('button', { name: 'Tap to reveal your role' }).click();
   await expect(ann.getByText('Clockmaker', { exact: true })).toBeVisible();
+  await ann.getByRole('button', { name: 'Night', exact: true }).click();
 
   // The other tabs read from the view and the catalog.
   await bo.getByRole('button', { name: 'Roles' }).click();

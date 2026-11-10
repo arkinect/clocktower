@@ -192,10 +192,9 @@ function Malfunctions({ view, review }: { view: StorytellerView; review: ReviewV
           </li>
         ))}
       </ul>
-      <div className="row">
+      <div className={styles['addRow']}>
         <PlayerSelect label="Add a malfunction" players={seated} value={adding} onChange={setAdding} />
         <Button
-          tiny
           disabled={!adding || pending}
           onClick={() => {
             if (adding) push([...add, adding], remove);

@@ -1,4 +1,4 @@
-/* Design tokens. Dark is the default, because the game is played at night. */
+/* Design tokens. Always dark, because the game is played at night. */
 :root {
   --bg: #14111f;
   --bg2: #1d1930;
@@ -24,36 +24,6 @@
   --night-glow: #2b2150;
   --card-glow: #3a2f5c;
   color-scheme: dark;
-}
-
-@media (prefers-color-scheme: light) {
-  /* The Storyteller console sets data-theme="dark" and stays dark; phones follow their own setting. */
-  :root:not([data-theme='dark']) {
-    --bg: #f6f3ec;
-    --bg2: #ffffff;
-    --card: #ffffff;
-    --line: #d9d2c3;
-    --text: #221d33;
-    --muted: #625b75;
-    --gold: #8a6416;
-    --on-gold: #ffffff;
-    --good: #1f6fb2;
-    --evil: #b3261e;
-    --ok: #2b7a2f;
-    --warn: #9a6200;
-    --danger-text: #9c1c2e;
-    --error: #a3122a;
-    --toast: #7c2336;
-    --townsfolk: #1b5fa8;
-    --outsider: #1d7a6b;
-    --minion: #b24a17;
-    --demon: #c01f1f;
-    --tabs: #efe9dc;
-    --night-top: #e9e3f5;
-    --night-glow: #cdbff0;
-    --card-glow: #efe6d2;
-    color-scheme: light;
-  }
 }
 
 * {

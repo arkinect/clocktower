@@ -200,6 +200,18 @@
   padding: 6px 0;
 }
 
+.addRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+/* Sits on the select's baseline: the field's bottom margin, and the select's height. */
+.addRow > button {
+  margin-bottom: 8px;
+  min-height: 40px;
+}
+
 .check {
   display: flex;
   gap: 8px;
@@ -294,6 +306,11 @@
 
 .optional {
   color: var(--muted);
+}
+
+/* Shown in the checklist, in the same style: it never blocks the start. */
+.warning {
+  color: var(--warn);
 }
 
 .assign {
