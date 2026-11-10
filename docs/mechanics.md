@@ -171,7 +171,7 @@ Known limits:
 | Hermit        |       | Passive                | `setupRules.counts`, `grant` of each script Outsider                        |
 | Klutz         |       | On learning of death   | `onDeath`, day action, `suggestGameEnd`                                     |
 | Lunatic       |       | Each night             | `believes`, `perceivedOnly`, `notify` to the Demon                          |
-| Moonchild     | yes   | On learning of death   | day action (fact, from the execution choice), required Review decision      |
+| Moonchild     | yes   | On learning of death   | day action (fact, the day they learn), required Review decision             |
 | Mutant        |       | Any time               | Table: mad condition, `record_broke_madness`, execution                     |
 | Ogre          |       | First night            | `changeAlignment`, not told alignment                                       |
 | Plague Doctor |       | On death               | `onDeath`, `grant` to the Storyteller                                       |

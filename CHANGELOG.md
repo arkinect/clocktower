@@ -10,6 +10,8 @@ The Storyteller console feels like 0.4.2 again.
   which now show their answer. It no longer records nominations, votes or statements.
 - The execution is chosen from a list on the Day tab, with no Execute button, and happens when the night starts. Until
   then it can be changed or called off. The Cannibal, Mastermind and Mayor react as it happens.
+- A Moonchild learns of their execution the next morning, as of a night death: record their choice on the next Day
+  tab, and their target dies that night.
 - A Cannibal who eats an evil player is poisoned and plays as a random good character from the script, with false
   information.
 - The Devil's Advocate's player, the Fool, a sober Sailor and the Tea Lady's neighbours survive an execution by

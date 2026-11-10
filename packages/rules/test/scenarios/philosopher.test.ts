@@ -385,7 +385,9 @@ describe('a gained day ability works on the day after choosing', () => {
       .start()
       .submit({ ann: ['moonchild'], cy: ['fi'] })
       .dawn()
-      .execute('ann');
+      .execute('ann')
+      .dusk()
+      .dawn();
     s.act('moonchild', 'target', ['di'], { holder: 'ann' });
     s.dusk().dawn();
     expect(s.alive('di')).toBe(false);

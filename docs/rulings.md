@@ -30,9 +30,15 @@ During the day the Storyteller only chooses the execution, and can change the ch
 happens at dusk (Start Night), to whoever was chosen last. It happens before the day's conditions end, so the Devil's
 Advocate's mark and the day's poison still count. Then the dusk hooks run (the Scarlet Woman), and then what the
 execution triggers for other characters (Cannibal, Mastermind, Mayor). A chosen player who is already dead by then
-dies of nothing new. The Virgin's nominator is chosen the same way and dies at dusk. A Moonchild chosen for execution
-can have their choice recorded straight away. If something saves them, the choice does nothing. Test:
-`scenarios/dusk.test.ts`.
+dies of nothing new. The Virgin's nominator is chosen the same way and dies at dusk. Test: `scenarios/dusk.test.ts`.
+
+## When the Moonchild learns they died
+
+A Moonchild learns of an execution the next morning, as of a night death: the execution happens at dusk, and whether
+it killed them (a Tea Lady may save them) shows at dawn. The Storyteller records their choice on that day's Day tab,
+and a good target dies that night. Any other day death (a Slayer's shot, a Witch's curse) is seen as it happens, so
+they choose that same day. Not recorded by the night after they learn, the night's Review asks for it before dawn.
+Test: `roles/moonchild.test.ts`.
 
 ## The Cannibal eating an evil player
 

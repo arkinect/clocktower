@@ -273,14 +273,6 @@ export class AbilityCtx<S> extends HookCtx<S> {
     if (this.isAlive(target)) this.run.kill(target, cause);
   }
 
-  /** Today's chosen execution, who dies at dusk unless something saves them. Null by night. */
-  get chosenForExecution(): PlayerId | null {
-    if (this.isNight) return null;
-    const n = this.n;
-    const e = this.run.world.events.findLast((x) => x.kind === 'execution' && x.at.kind === 'day' && x.at.n === n);
-    return e?.kind === 'execution' && e.died ? e.playerId : null;
-  }
-
   /** Makes a player today's execution (replacing any earlier choice). They are executed at dusk. Day only. */
   execute(target: PlayerId) {
     this.run.recordExecution(target, true);

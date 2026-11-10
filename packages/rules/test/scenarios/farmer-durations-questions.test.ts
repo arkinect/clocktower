@@ -95,10 +95,13 @@ describe('the Farmer', () => {
 
   describe('dying after the Farmer slot', () => {
     const moon = (rest: Record<string, string>, target: string, o?: Parameters<typeof scene>[1]) => {
+      // Executed on day 1, the Moonchild learns it on day 2 and chooses then.
       const s = scene({ ann: 'moonchild', bo: 'imp', cy: 'poisoner', ...rest }, o)
         .start()
         .dawn()
-        .execute('ann');
+        .execute('ann')
+        .dusk()
+        .dawn();
       s.act('moonchild', 'target', [target]);
       return s.dusk();
     };

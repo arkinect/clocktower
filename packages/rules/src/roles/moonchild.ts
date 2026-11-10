@@ -11,10 +11,15 @@ interface State {
 const target = (ctx: AbilityCtx<State>) =>
   ctx.peers.find((a) => a.state.target?.day === ctx.n)?.state.target?.player ?? null;
 
-/** The day they learned they died: they died last night or today. */
-function learnedOfDeathToday(ctx: AbilityCtx<State>) {
-  const at = ctx.player(ctx.holder).life.diedAt;
-  return !!at && ((at.kind === 'night' && at.n === ctx.n - 1) || (at.kind === 'day' && at.n === ctx.n));
+/**
+ * The day they learn they died. A night death shows at dawn. So does an execution: it happens at dusk, and whether it
+ * killed them (a Tea Lady may save them) is known in the morning. Any other day death is seen as it happens.
+ */
+function learnedOn(ctx: AbilityCtx<State>): number | null {
+  const life = ctx.player(ctx.holder).life;
+  const at = life.diedAt;
+  if (!at) return null;
+  return at.kind === 'night' || life.cause === 'execution' ? at.n + 1 : at.n;
 }
 
 /** Not recorded during the day: the Storyteller must answer it before dawn (or force, which means no choice). */
@@ -39,7 +44,8 @@ export const moonchild = defineRole<State>({
   type: 'outsider',
   abilityText:
     'When you learn that you died, publicly choose 1 alive player. Tonight, if it was a good player, they die.',
-  reminder: 'Record the chosen player in the Day panel once the Moonchild dies or is chosen for execution.',
+  reminder:
+    'Record the chosen player in the Day panel on the day they learn they died: the morning after a night death or an execution.',
   night: { other: 250, note: 'Only if a target was chosen' },
   flags: { worksWhileDead: true },
   initialState: () => ({ target: null, soberAtDeath: null }),
@@ -51,12 +57,9 @@ export const moonchild = defineRole<State>({
       if (id === ctx.holder) ctx.setState({ soberAtDeath: null });
     },
     // Also when nothing was recorded on the day they learned of their death: Review then asks who they chose.
-    wakes: (ctx) => !ctx.aliveAtDusk(ctx.holder) && !ctx.ability.used && (!!target(ctx) || learnedOfDeathToday(ctx)),
+    wakes: (ctx) => !ctx.aliveAtDusk(ctx.holder) && !ctx.ability.used && (!!target(ctx) || learnedOn(ctx) === ctx.n),
     dayActions(ctx) {
-      // Chosen for execution, they choose right after the vote. If something saves them at dusk, it does nothing:
-      // they don't wake while alive.
-      const executed = ctx.chosenForExecution === ctx.holder;
-      if ((ctx.isAlive(ctx.holder) && !executed) || ctx.ability.used) return [];
+      if (ctx.isAlive(ctx.holder) || ctx.ability.used) return [];
       return [
         {
           action: 'target',
@@ -65,7 +68,7 @@ export const moonchild = defineRole<State>({
           preview: false,
           recorded: target(ctx) ? [target(ctx) as string] : null,
           neededTonight: true,
-          fields: [{ kind: 'player', label: 'Target', options: ctx.alive.filter((x) => x !== ctx.holder) }],
+          fields: [{ kind: 'player', label: 'Target', options: ctx.alive }],
         },
       ];
     },
