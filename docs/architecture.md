@@ -45,6 +45,6 @@ Server:
 
 Web:
 
-- The theme follows the phone's setting. There is no in-app switch.
+- Player phones follow the phone's setting. The Storyteller console is always dark, as it was before 0.5.0.
 - The idle games keep one plain stylesheet, `games/games.css`, which loads only with their chunk.
 - The Log tab and its Report a problem button read the export endpoint, because the view does not carry the command log. Everything else in the console reads the view.

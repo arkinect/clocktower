@@ -49,6 +49,14 @@ export default function Console({ view, tab }: { view: StorytellerView; tab: str
     was.current = live;
   }, [live, base]);
 
+  // The console is always dark, as it was before 0.5.0. Player phones keep following their own setting.
+  useEffect(() => {
+    document.documentElement.dataset['theme'] = 'dark';
+    return () => {
+      delete document.documentElement.dataset['theme'];
+    };
+  }, []);
+
   const seated = view.players.filter((p) => p.seat !== null).length;
   const online = view.players.filter((p) => p.connected).length;
 
