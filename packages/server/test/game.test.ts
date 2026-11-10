@@ -106,6 +106,24 @@ describe('a headless game over sockets', () => {
     expect(bo.raw.some((m) => m.includes('"type":"removed"'))).toBe(true);
     await expect(open(h, { origin: h.base, cookie: bo.cookie })).rejects.toThrow('401');
   });
+
+  it('New game (erase) signs out everyone, the Storyteller included', async () => {
+    const h = await up();
+    const st = await connect(h, 'Storyteller', { wantsStoryteller: true });
+    const bo = await connect(h, 'Bo');
+    // The socket closes before the ack, so the Storyteller's phone never waits for one.
+    void st.send({ type: 'new_game' }).catch(() => undefined);
+    for (const c of [st, bo]) {
+      await c.until(() => false, 300).catch(() => undefined);
+      expect(c.raw.some((m) => m.includes('"type":"removed"'))).toBe(true);
+      await expect(open(h, { origin: h.base, cookie: c.cookie })).rejects.toThrow('401');
+    }
+    expect(h.app.games.get('default')!.state).toMatchObject({
+      players: {},
+      storytellerId: null,
+      phase: { kind: 'lobby' },
+    });
+  });
 });
 
 describe('restart', () => {

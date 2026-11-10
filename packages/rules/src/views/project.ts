@@ -136,6 +136,8 @@ function abilityView(r: Reader, a: Instance): AbilityView {
     usageAuto: def.flags.oncePerGame === 'auto',
     reminder: def.reminder ?? null,
     dayReminder: !!def.flags.dayReminder,
+    from: `${a.activeFrom.kind === 'night' ? 'Night' : 'Day'} ${a.activeFrom.n}`,
+    survivesDeath: a.survivesDeath,
     summary: def.ability.summary?.(new HookCtx(r, a)) ?? [],
   };
 }

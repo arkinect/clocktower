@@ -152,6 +152,16 @@ export const setupCommands = [
     handle(ctx, cmd) {
       const p = ctx.s.players[cmd.playerId];
       need(p?.character, 'Assign a character first.');
+      // A Storyteller override during the game goes in the history. No guard may stop it, so not changeAlignment.
+      if ((ctx.s.phase.kind === 'night' || ctx.s.phase.kind === 'day') && p.alignment !== cmd.alignment) {
+        p.history.push({
+          kind: 'alignment',
+          at: ctx.moment,
+          from: p.alignment,
+          to: cmd.alignment,
+          reason: 'Storyteller',
+        });
+      }
       p.alignment = cmd.alignment;
       p.self.alignment = cmd.alignment;
     },

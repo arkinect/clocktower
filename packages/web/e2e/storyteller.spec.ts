@@ -133,7 +133,10 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
   await expect(page.getByRole('heading', { name: 'The circle' })).toBeVisible();
   const seat = page.getByRole('button', { name: /^Seat 1: / });
   await seat.click();
+  await expect(page.getByRole('dialog').getByRole('group', { name: /^Alignment of / })).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Change character' }).click();
   await expect(page.getByRole('dialog').getByText(/^Change character of /)).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click();
   const first = await seat.boundingBox();
   const second = await page.getByRole('button', { name: /^Seat 2: / }).boundingBox();

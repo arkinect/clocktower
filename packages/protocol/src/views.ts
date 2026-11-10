@@ -88,6 +88,10 @@ export const AbilityView = z.object({
   reminder: z.string().nullable(),
   /** The reminder matters by day: the Day tab lists it under Execution. */
   dayReminder: z.boolean(),
+  /** When it started: "Night 2", "Day 3". */
+  from: z.string(),
+  /** Kept when the holder dies. */
+  survivesDeath: z.boolean(),
   summary: z.array(z.string()),
 });
 export type AbilityView = z.infer<typeof AbilityView>;

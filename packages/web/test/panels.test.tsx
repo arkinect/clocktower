@@ -52,6 +52,8 @@ const ability = (over: Record<string, unknown>) =>
     usageAuto: false,
     reminder: null,
     dayReminder: false,
+    from: 'Night 0',
+    survivesDeath: false,
     summary: [],
     ...over,
   });

@@ -347,6 +347,22 @@ export const dayCommands = [
     },
   }),
   defineCommand({
+    type: 'new_game',
+    by: 'storyteller',
+    phases: ALL_PHASES,
+    handle(ctx) {
+      // Everyone goes, the Storyteller too: the server signs out every removed player, and the next to join may
+      // claim Storyteller. Only the settings carry over.
+      const s = ctx.s;
+      const next = createGame(s.code, s.createdAt);
+      next.id = s.id;
+      next.seq = s.seq;
+      next.idSeq = s.idSeq;
+      next.settings = { ...s.settings };
+      Object.assign(s, next);
+    },
+  }),
+  defineCommand({
     type: 'force_phase',
     by: 'storyteller',
     phases: ALL_PHASES,
