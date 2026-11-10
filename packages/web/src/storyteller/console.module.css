@@ -19,11 +19,19 @@
   flex: 1;
 }
 
-.tabs {
+.tabbar {
   display: flex;
-  overflow-x: auto;
+  align-items: stretch;
+  position: relative;
   border-bottom: 1px solid var(--line);
   background: var(--tabs);
+}
+
+.tabs {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
 }
 
 .tabs a {
@@ -42,6 +50,91 @@
 
 .tabs a.tabLive {
   color: var(--text);
+}
+
+/* The live phase's tab, while you're on another one. */
+.tabs a.tabLive,
+.moreTab.tabLive {
+  position: relative;
+}
+
+.tabs a.tabLive::after,
+.moreTab.tabLive::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: phasePulse 1.6s ease-in-out infinite;
+}
+
+@keyframes phasePulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+
+/* Once the game has started, Lobby, Setup, Story and Log live in this menu. */
+.moreTab {
+  flex: none;
+  font: inherit;
+  padding: 10px 14px;
+  min-height: 44px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--gold);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.moreTab.tabOn {
+  box-shadow: inset 0 -2px var(--gold);
+  font-weight: 650;
+}
+
+.menuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+
+.moreMenu {
+  position: absolute;
+  right: 8px;
+  top: calc(100% + 4px);
+  z-index: 31;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 10px 30px #000a;
+}
+
+.moreMenu a {
+  padding: 10px 12px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.moreMenu a:hover,
+.moreMenu a:focus-visible,
+.moreMenu a[aria-current='page'] {
+  background: var(--card);
+  color: var(--gold);
 }
 
 .main {

@@ -30,6 +30,23 @@ export function Button({ variant = 'plain', big, tiny, on, className, type = 'bu
   );
 }
 
+/** Stacks every label in one cell and shows one, so a button keeps its width as its label changes. */
+export function StableLabel({ labels, current }: { labels: ReactNode[]; current: number }) {
+  return (
+    <span className={styles['stable']}>
+      {labels.map((l, i) => (
+        <span
+          key={i}
+          className={i === current ? undefined : styles['stableOff']}
+          aria-hidden={i === current ? undefined : true}
+        >
+          {l}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 /** For consequential actions: starts a three-second countdown that a second press cancels. Works by keyboard too. */
 export function HoldButton({
   onConfirm,
