@@ -13,9 +13,6 @@ export const psychopath = defineRole<State>({
   type: 'minion',
   abilityText:
     'Each day, before nominations, you may publicly choose a player: they die. If executed, you only die if you lose roshambo.',
-  reminder:
-    'Day ability. If executed, they only die if they lose roshambo: if they win, revive them in the Grimoire before Start Night.',
-  flags: { dayReminder: true },
   initialState: () => ({ day: null }),
   ability: {
     dayActions(ctx) {

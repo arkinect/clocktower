@@ -87,7 +87,7 @@ describe('the ability tracker', () => {
     expect(ability(s, 'cy', role)).toMatchObject({ oncePerGame: true, usageAuto: false });
   });
 
-  it.each(['virgin', 'golem', 'mastermind', 'psychopath', 'mayor', 'tea_lady', 'fisherman', 'zealot', 'organ_grinder'])(
+  it.each(['virgin', 'golem', 'mastermind', 'mayor', 'tea_lady', 'fisherman', 'zealot', 'organ_grinder'])(
     '%s has a day reminder',
     (role) => {
       const s = scene({ ann: 'imp', bo: 'm1', cy: role, di: 't2', ed: 't3' }).start();
