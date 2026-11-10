@@ -99,7 +99,8 @@ describe('the ability tracker', () => {
 describe('the Cannibal summary', () => {
   const eat = (executed: string) => {
     const s = scene({ ann: 'imp', bo: 'poisoner', cy: 'cannibal', di: 'empath', ed: 't2' }).start().dawn();
-    s.execute(executed);
+    // The Cannibal eats at dusk; the summary is read the next day.
+    s.execute(executed).dusk().dawn();
     return s;
   };
   const summary = (s: Scene) => player(s, 'cy')?.abilities.flatMap((a) => a.summary);

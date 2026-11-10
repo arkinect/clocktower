@@ -3,7 +3,7 @@ import type { Choice, PlayerId, QuestionView, ResultView, ReviewItem, ReviewView
 import { useCommand, useNames } from '../app/store';
 import { Picker, choiceComplete } from '../ui/Picker';
 import { Button, Card, HoldButton, Segments } from '../ui/ui';
-import { InputSheet, Lines, PlayerSelect, Section, Who, causeLabel, useSeats } from './common';
+import { InputSheet, Lines, PlayerSelect, SHOW_GAME_END_CARDS, Section, Who, causeLabel, useSeats } from './common';
 import styles from './console.module.css';
 
 const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
@@ -82,6 +82,9 @@ function Result({ view, r }: { view: StorytellerView; r: ResultView }) {
   );
 }
 
+/** Asked tonight because the day didn't record it: no default is taken. */
+const missing = (d: ReviewItem) => d.required && d.chosen === null && !d.stale;
+
 function Decision({ d }: { d: ReviewItem }) {
   const { run } = useCommand();
   return (
@@ -95,11 +98,11 @@ function Decision({ d }: { d: ReviewItem }) {
       <Segments
         label={d.title}
         options={d.options.map((o) => ({ id: o.id, text: o.label }))}
-        value={d.chosen ?? d.default}
+        value={d.required ? d.chosen : (d.chosen ?? d.default)}
         onChange={(option) => void run({ type: 'decide', key: d.key, option })}
       />
       {d.chosen === null ? (
-        <p className="muted small">Using the default.</p>
+        <p className="muted small">{d.required ? 'Answer this before dawn.' : 'Using the default.'}</p>
       ) : (
         <Button tiny onClick={() => void run({ type: 'decide', key: d.key, option: null })}>
           Clear
@@ -210,18 +213,31 @@ export function Review({ view }: { view: StorytellerView }) {
   const { run, pending } = useCommand();
   const review = view.review;
   if (!review) return <Card>There is no night to review yet.</Card>;
+  const needed = review.decisions.filter(missing);
+  const others = review.decisions.filter((d) => !missing(d));
   const blocked =
+    needed.length > 0 ||
     review.decisions.some((d) => d.stale) ||
     review.questions.some((q) => !q.answered) ||
     review.results.some((r) => r.staleOverride);
   return (
     <div>
-      {review.decisions.length > 0 && (
+      {needed.length > 0 && (
+        <Card tone="warn">
+          <p>
+            <b>Not recorded during the day.</b> Answer these before you publish dawn.
+          </p>
+          {needed.map((d) => (
+            <Decision key={d.hash} d={d} />
+          ))}
+        </Card>
+      )}
+      {others.length > 0 && (
         <Section title="Decisions">
           <Button tiny disabled={pending} onClick={() => void run({ type: 'accept_all_defaults' })}>
             Accept all defaults
           </Button>
-          {review.decisions.map((d) => (
+          {others.map((d) => (
             <Decision key={d.hash} d={d} />
           ))}
         </Section>
@@ -269,11 +285,12 @@ export function Review({ view }: { view: StorytellerView }) {
             ))}
           </p>
         )}
-        {review.gameEnd.map((g) => (
-          <Card key={g.key} tone="notice">
-            {g.reason}
-          </Card>
-        ))}
+        {SHOW_GAME_END_CARDS &&
+          review.gameEnd.map((g) => (
+            <Card key={g.key} tone="notice">
+              {g.reason}
+            </Card>
+          ))}
         <details>
           <summary>The night in order</summary>
           <ul>

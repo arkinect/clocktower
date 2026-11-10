@@ -432,7 +432,7 @@ describe('kills and protection', () => {
 
   it('the Scarlet Woman told by day acts as the Demon that night', () => {
     const chars = { ann: 'imp', bo: 'scarlet_woman', cy: 'empath', di: 'butler', ed: 'sailor', fi: 'poisoner' };
-    const s = scene(chars).start().dawn().execute('ann').prompt('yes').dusk();
+    const s = scene(chars).start().dawn().execute('ann').dusk();
     expect(s.g.view(as('bo')).me.role?.roleId).toBe('imp');
     expect(s.specs('bo')[0]?.roleId).toBe('imp');
   });

@@ -163,7 +163,9 @@ describe('the Pukka poison', () => {
       .dawn();
 
   it('Pukka executed: the poison outlasts the day, ends at their slot, and the target does not die', () => {
-    const s = poisoned().execute('ann').prompt('no');
+    // The Scarlet Woman is poisoned at dusk, so she doesn't take over.
+    const s = poisoned().execute('ann');
+    s.g.st({ type: 'add_condition', target: 'bo' as never, condition: 'poisoned' });
     expect(s.impaired('cy')).toBe(true);
     s.dusk().review();
     expect(s.res.deaths).toEqual([]);
@@ -174,7 +176,6 @@ describe('the Pukka poison', () => {
   it('the Scarlet Woman becomes the Pukka: her first choice does not kill the old victim', () => {
     const s = poisoned()
       .execute('ann')
-      .prompt('yes')
       .dusk()
       .submit({ bo: ['di'] })
       .review();
@@ -218,10 +219,10 @@ describe('effects with a duration', () => {
     const s = scene({ ...heirs, ann: 'cannibal' })
       .start()
       .dawn()
-      .execute('cy');
+      .execute('cy')
+      .dusk();
     expect(s.impaired('ann')).toBe(true);
-    s.dusk()
-      .submit({ bo: ['di'] })
+    s.submit({ bo: ['di'] })
       .decide('farmer', 'ann')
       .dawn();
     expect(s.character('ann')).toBe('farmer');

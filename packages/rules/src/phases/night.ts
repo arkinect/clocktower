@@ -6,6 +6,7 @@ import type { GameState, NightPhase, StoryRow } from '../model/state';
 import { Run, hashDecision, type Resolution } from '../night/run';
 import { newNightPhase } from '../night/phase';
 import { actionSpecs, expectedActors, resolveNight, validateChoice, validateSubmission } from '../night/wake';
+import { fireExecutionAtDusk } from './day';
 import { defineCommand, need, type CmdCtx } from './define';
 
 /** The first time this night has follow-up questions, whatever brought them, the countdown gets more time. */
@@ -231,7 +232,10 @@ export const nightCommands = [
       need(ctx.phase.stage === 'review', 'Not in review.');
       // Records the defaults the current resolution asks. A later choice re-runs the night as usual.
       for (const d of resolveNight(ctx.base).decisions) {
-        if (d.chosen === null && !d.stale) ctx.phase.decisions[d.hash] = { key: d.key, option: d.default };
+        // A required decision is a fact the day didn't record: only the Storyteller can answer it.
+        if (d.chosen === null && !d.stale && !d.required) {
+          ctx.phase.decisions[d.hash] = { key: d.key, option: d.default };
+        }
       }
       extendForFollowUps(ctx);
     },
@@ -301,6 +305,8 @@ export const nightCommands = [
         !res.questions.some((q) => !q.answered) || cmd.force,
         'Waiting for an answer to a follow-up question. Answer for them or force.',
       );
+      const missing = res.decisions.find((d) => d.required && d.chosen === null && !d.stale);
+      need(!missing || cmd.force, `Waiting for a decision: ${missing?.title ?? ''} Answer it or force.`);
       publish(ctx.s, res, ctx.phase.n, ctx.seed, ctx.now);
     },
   }),
@@ -311,12 +317,11 @@ export const nightCommands = [
     handle(ctx) {
       const s = ctx.s;
       const n = ctx.phase.n;
-      const dusk = ctx.r.instances.filter((a) => roleDef(a.roleId).ability.onDusk);
-      if (dusk.length) {
-        const run = ctx.run();
-        for (const a of dusk) roleDef(a.roleId).ability.onDusk?.(run.ctx(a));
-        run.commitDay();
-      }
+      // Dusk hooks first, so an heir (the Scarlet Woman) is the Demon before the execution's triggers ask.
+      const dusk = ctx.run();
+      for (const a of ctx.r.instances) roleDef(a.roleId).ability.onDusk?.(dusk.ctx(a));
+      fireExecutionAtDusk(dusk, n);
+      dusk.commitDay();
       s.conditions = s.conditions.filter((c) => c.until !== 'dusk');
       const notices = s.pendingNotices;
       s.pendingNotices = [];

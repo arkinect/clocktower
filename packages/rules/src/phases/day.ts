@@ -9,8 +9,23 @@ import { ALL_PHASES, defineCommand, need } from './define';
 import { createGame } from '../model/create';
 
 /** Day events fire every active ability's onDayEvent, then the game-end check. */
-function fireDayEvent(run: Run, event: DayEventInfo) {
+export function fireDayEvent(run: Run, event: DayEventInfo) {
   for (const a of run.reader.instances) roleDef(a.roleId).ability.onDayEvent?.(run.ctx(a), event);
+}
+
+/**
+ * The end of the day's execution, run at dusk: what the day's final record means for other characters (the Cannibal,
+ * the Mastermind, the Mayor). No record counts as no execution. A player who isn't dead by this execution now (revived,
+ * or saved) gives `died: false`.
+ */
+export function fireExecutionAtDusk(run: Run, n: number) {
+  const record = run.world.events.findLast((e) => e.kind === 'execution' && e.at.kind === 'day' && e.at.n === n);
+  const id = record?.kind === 'execution' ? record.playerId : null;
+  const life = id ? run.reader.player(id).life : null;
+  const died =
+    !!life && !life.alive && life.cause === 'execution' && life.diedAt?.kind === 'day' && life.diedAt.n === n;
+  const demonDiedAliveBefore = died && id && run.reader.isDemon(id) ? run.reader.aliveResidents.length + 1 : null;
+  fireDayEvent(run, { kind: 'execution', playerId: id, died, demonDiedAliveBefore });
 }
 
 /** The day specs of an ability, built fresh: legality always comes from the hook. */
@@ -65,6 +80,7 @@ export const dayCommands = [
       if (ctx.s.phase.kind === 'day') run.commitDay();
     },
   }),
+  // Not sent by the console since 0.5.1. Kept for saved games, tests and future roles.
   defineCommand({
     type: 'record_nomination',
     by: 'storyteller',
@@ -103,16 +119,11 @@ export const dayCommands = [
     handle(ctx, cmd) {
       const id = cmd.playerId;
       if (id !== null) need(ctx.r.isSeated(id), 'Not a seated player.');
-      ctx.s.events.push({ kind: 'execution', at: ctx.moment, playerId: id, died: cmd.died });
+      // Today's execution is one record: a new one replaces it. What it triggers for other characters waits for
+      // dusk (start_night), so a Storyteller revive before then undoes it. An earlier player stays dead.
       const run = ctx.run();
-      let demonDiedAliveBefore: number | null = null;
-      if (id && cmd.died && ctx.r.isAlive(id)) {
-        if (ctx.r.isDemon(id)) demonDiedAliveBefore = ctx.r.aliveResidents.length;
-        run.kill(id, 'execution');
-        fireDayEvent(run, { kind: 'execution', playerId: id, died: true, demonDiedAliveBefore });
-      } else {
-        fireDayEvent(run, { kind: 'execution', playerId: id, died: false, demonDiedAliveBefore });
-      }
+      run.recordExecution(id, cmd.died);
+      if (id && cmd.died && ctx.r.isAlive(id)) run.kill(id, 'execution');
       run.commitDay();
     },
   }),

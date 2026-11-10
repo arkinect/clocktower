@@ -293,7 +293,9 @@ describe('the Organ Grinder', () => {
     const s = scene({ ...chars, ann: 'drunk', ed: 't1' }, { believed: { ann: 'cannibal' } })
       .start()
       .dawn()
-      .execute('ed');
+      .execute('ed')
+      .dusk()
+      .dawn();
     s.act('cannibal', 'set_ability', ['organ_grinder']);
     s.dusk()
       .submit({ ann: ['sober'] })

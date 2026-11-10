@@ -46,5 +46,6 @@ Server:
 Web:
 
 - Player phones follow the phone's setting. The Storyteller console is always dark, as it was before 0.5.0.
+- Game-end suggestions are computed by the rules but hidden in the console (`SHOW_GAME_END_CARDS`) until a later release.
 - The idle games keep one plain stylesheet, `games/games.css`, which loads only with their chunk.
 - The Log tab and its Report a problem button read the export endpoint, because the view does not carry the command log. Everything else in the console reads the view.

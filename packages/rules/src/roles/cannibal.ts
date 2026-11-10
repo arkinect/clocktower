@@ -46,7 +46,8 @@ export const cannibal = defineRole<State>({
   type: 'townsfolk',
   abilityText:
     'You have the ability of the recently killed executee. If they are evil, you are poisoned until a good player dies by execution.',
-  reminder: 'Gains the ability when an execution kills someone. Check or change it in the Day panel.',
+  reminder:
+    'Gains the ability when an execution kills someone, as the night starts. Check or change it in the Day panel from the next day.',
   initialState: () => ({ ate: false, fake: false, eaten: null, roleId: null }),
   ability: {
     onDayEvent(ctx, e) {
@@ -72,6 +73,7 @@ export const cannibal = defineRole<State>({
           title: `Cannibal (${ctx.name(ctx.holder)}): eaten ability`,
           prompt: 'Which ability do they have?',
           preview: false,
+          recorded: [ctx.state.roleId ?? 'none'],
           fields: [
             {
               kind: 'option',

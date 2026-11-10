@@ -41,6 +41,10 @@ export const DayActionSpec = ActionSpec.extend({
   action: z.string().min(1).max(64),
   /** Consequential actions are previewed, then accepted. */
   preview: z.boolean(),
+  /** Today's recorded answer, one value per field, or null when nothing is recorded. */
+  recorded: z.array(optionId).nullable(),
+  /** Tonight reads this answer: a hint for the Day tab only. A missing one is asked for in Review. */
+  neededTonight: z.boolean(),
 });
 export type DayActionSpec = z.infer<typeof DayActionSpec>;
 

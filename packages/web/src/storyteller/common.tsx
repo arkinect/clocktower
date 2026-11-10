@@ -5,6 +5,9 @@ import { useNames } from '../app/store';
 import { Button, Sheet, SheetActions } from '../ui/ui';
 import styles from './console.module.css';
 
+/** Game-end suggestions are computed but not shown yet. Turn on in a later release. */
+export const SHOW_GAME_END_CARDS = false;
+
 export function useSeats(view: StorytellerView) {
   return useMemo(() => {
     const seated = view.players.filter((p) => p.seat !== null).sort((a, b) => (a.seat as number) - (b.seat as number));

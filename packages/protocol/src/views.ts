@@ -86,6 +86,8 @@ export const AbilityView = z.object({
   oncePerGame: z.boolean(),
   usageAuto: z.boolean(),
   reminder: z.string().nullable(),
+  /** The reminder matters by day: the Day tab lists it under Execution. */
+  dayReminder: z.boolean(),
   summary: z.array(z.string()),
 });
 export type AbilityView = z.infer<typeof AbilityView>;
@@ -159,6 +161,8 @@ export const ReviewItem = z.object({
   default: z.string(),
   chosen: z.string().nullable(),
   stale: z.boolean(),
+  /** Publish dawn waits for an answer (or force). The default is never taken for it. */
+  required: z.boolean(),
 });
 export type ReviewItem = z.infer<typeof ReviewItem>;
 
@@ -237,7 +241,13 @@ export const SubmissionRow = z.object({
 });
 export type SubmissionRow = z.infer<typeof SubmissionRow>;
 
-export const DayEventView = z.object({ at: z.string(), kind: z.string(), text: z.string() });
+export const DayEventView = z.object({
+  at: z.string(),
+  kind: z.string(),
+  text: z.string(),
+  /** The player the event is about, when there is one (the executee, for an execution). */
+  playerId: PlayerId.nullable(),
+});
 export type DayEventView = z.infer<typeof DayEventView>;
 
 export const PromptView = z.object({

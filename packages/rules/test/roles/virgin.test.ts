@@ -1,27 +1,57 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
 
-const cast = { ann: 'virgin', bo: 't1', cy: 'imp', di: 'm1', ed: 't3' };
+const cast = { ann: 'virgin', bo: 't1', cy: 'imp', di: 'm1', ed: 't3', fi: 'cannibal' };
+const executions = (s: ReturnType<typeof scene>) => s.state.events.filter((e) => e.kind === 'execution');
+const virgin = (s: ReturnType<typeof scene>) => s.dayActions().filter((d) => d.roleId === 'virgin');
+
 describe('Virgin', () => {
-  it('a Townsfolk nominator is executed', () => {
+  it("a Townsfolk nominator is executed, as today's execution", () => {
     const s = scene(cast).start().dawn();
-    s.nominate('bo', 'ann').prompt('yes');
+    expect(s.act('virgin', 'nominated', ['bo']).effective).toBe(true);
     expect(s.alive('bo')).toBe(false);
     expect(s.g.player('bo' as never).life.cause).toBe('execution');
+    expect(executions(s)).toMatchObject([{ playerId: 'bo', died: true }]);
   });
-  it('only the first nomination counts', () => {
+  it('replaces an execution recorded earlier today, and the Cannibal eats the nominator at dusk', () => {
+    const s = scene(cast).start().dawn().execute(null);
+    s.act('virgin', 'nominated', ['bo']);
+    expect(executions(s)).toMatchObject([{ playerId: 'bo' }]);
+    s.dusk();
+    const eaten = Object.values(s.state.abilities).filter(
+      (a) => a.holder.kind === 'player' && a.holder.id === 'fi' && a.origin.kind !== 'character',
+    );
+    expect(eaten.map((a) => a.roleId)).toEqual([s.character('bo')]);
+  });
+  it('a nominator who is not a Townsfolk: nothing happens, and the use is spent', () => {
     const s = scene(cast).start().dawn();
-    s.nominate('di', 'ann');
-    expect(s.state.prompts).toEqual([]);
-    s.nominate('bo', 'ann');
-    expect(s.state.prompts).toEqual([]);
+    expect(s.act('virgin', 'nominated', ['di']).effective).toBe(false);
+    expect(s.alive('di')).toBe(true);
+    expect(virgin(s)).toEqual([]);
   });
   it('an impaired Virgin spends the use for nothing', () => {
     const s = scene({ ...cast, di: 'poisoner' })
       .start()
       .submit({ di: ['ann'] })
       .dawn();
-    s.nominate('bo', 'ann');
-    expect(s.state.prompts).toEqual([]);
+    expect(s.act('virgin', 'nominated', ['bo']).summary).toBe('The Virgin is drunk or poisoned: nothing happens.');
+    expect(s.alive('bo')).toBe(true);
+    expect(virgin(s)).toEqual([]);
+  });
+  it('a preview changes nothing', () => {
+    const s = scene(cast).start().dawn();
+    s.act('virgin', 'nominated', ['bo'], { mode: 'preview' });
+    expect(s.alive('bo')).toBe(true);
+    expect(executions(s)).toEqual([]);
+    expect(virgin(s)).toHaveLength(1);
+  });
+  it('the Storyteller can force either way', () => {
+    const s = scene(cast).start().dawn();
+    s.act('virgin', 'nominated', ['di'], { mode: 'force_success' });
+    expect(s.alive('di')).toBe(false);
+    const t = scene(cast).start().dawn();
+    t.act('virgin', 'nominated', ['bo'], { mode: 'force_fail' });
+    expect(t.alive('bo')).toBe(true);
+    expect(executions(t)).toEqual([]);
   });
 });

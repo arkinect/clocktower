@@ -54,12 +54,14 @@ export function HoldButton({
   disabled,
   seconds = 3,
   variant = 'danger',
+  big,
 }: {
   onConfirm: () => void;
   children: ReactNode;
   disabled?: boolean;
   seconds?: number;
   variant?: Variant;
+  big?: boolean;
 }) {
   const [armed, setArmed] = useState(false);
   const timer = useRef<number | undefined>(undefined);
@@ -79,7 +81,13 @@ export function HoldButton({
     }, seconds * 1000);
   };
   return (
-    <Button variant={variant} disabled={disabled ?? false} onClick={press} className={armed ? styles['armed'] : ''}>
+    <Button
+      variant={variant}
+      big={big ?? false}
+      disabled={disabled ?? false}
+      onClick={press}
+      className={armed ? styles['armed'] : ''}
+    >
       <span className={styles['fill']} style={{ animationDuration: `${seconds}s` }} />
       <span className={styles['label']}>
         <span className={armed ? styles['off'] : ''} aria-hidden={armed || undefined}>

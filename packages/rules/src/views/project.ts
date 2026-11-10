@@ -135,6 +135,7 @@ function abilityView(r: Reader, a: Instance): AbilityView {
     oncePerGame: !!def.flags.oncePerGame,
     usageAuto: def.flags.oncePerGame === 'auto',
     reminder: def.reminder ?? null,
+    dayReminder: !!def.flags.dayReminder,
     summary: def.ability.summary?.(new HookCtx(r, a)) ?? [],
   };
 }
@@ -188,11 +189,12 @@ function story(s: GameState, r: Reader): StoryEntry[] {
 }
 
 function dayLines(s: GameState, r: Reader, n: number) {
-  const out: { at: string; kind: string; text: string }[] = [];
+  const out: { at: string; kind: string; text: string; playerId: PlayerId | null }[] = [];
   for (const e of s.events) {
     if (e.at.kind !== 'day' || e.at.n !== n) continue;
     const at = `Day ${n}`;
-    const add = (text: string) => out.push({ at, kind: e.kind, text });
+    const subject = 'playerId' in e ? e.playerId : 'nominee' in e ? e.nominee : null;
+    const add = (text: string) => out.push({ at, kind: e.kind, text, playerId: subject ?? null });
     if (e.kind === 'nomination')
       add(`${e.nominator ? r.name(e.nominator) : 'The Storyteller'} nominated ${r.name(e.nominee)}.`);
     if (e.kind === 'vote') add(`Vote on ${r.name(e.nominee)}${e.count === null ? '' : `: ${e.count}`}.`);
@@ -275,6 +277,8 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
           abilityId: a.id,
           action: d.action,
           preview: d.preview ?? true,
+          recorded: d.recorded ?? null,
+          neededTonight: d.neededTonight ?? false,
         })),
       )
     : [];

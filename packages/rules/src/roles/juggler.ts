@@ -20,12 +20,14 @@ export const juggler = defineRole<State>({
     dayActions(ctx) {
       if (ctx.n !== 1 || !ctx.firstPeer) return [];
       const options = ['0', '1', '2', '3', '4', '5'];
+      const correct = ctx.peers.find((a) => a.state.correct !== null)?.state.correct ?? null;
       return [
         {
           action: 'count',
           title: "Juggler's correct guesses",
           prompt: 'How many of the guesses were right?',
           preview: false,
+          recorded: correct === null ? null : [String(correct)],
           fields: [{ kind: 'option', label: 'Correct', options }],
         },
       ];

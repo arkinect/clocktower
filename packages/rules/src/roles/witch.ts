@@ -39,6 +39,7 @@ export const witch = defineRole({
         {
           action: 'apply_curse',
           title: 'Witch: apply the curse',
+          preview: true,
           prompt: 'The cursed player nominated.',
           fields: [{ kind: 'player', label: 'Cursed', options: cursed.map((c) => c.target) }],
         },
@@ -48,24 +49,6 @@ export const witch = defineRole({
       const target = values[0] as PlayerId;
       for (const c of curseOn(ctx)) if (c.target === target) ctx.removeCondition(c);
       return dayKill(ctx, target, 'witch', force);
-    },
-    onDayEvent(ctx, e) {
-      if (e.kind !== 'nomination' || !curseOn(ctx).some((c) => c.target === e.nominator)) return;
-      ctx.prompt({
-        kind: 'witch',
-        subject: e.nominator,
-        title: `${ctx.name(e.nominator)} nominated while cursed`,
-        description: 'If they nominate tomorrow, they die.',
-        options: [
-          { id: 'yes', label: 'Apply the curse' },
-          { id: 'no', label: 'No' },
-        ],
-      });
-    },
-    onPrompt(ctx, _kind, subject, option) {
-      if (option !== 'yes' || !subject) return;
-      for (const c of curseOn(ctx)) if (c.target === subject) ctx.removeCondition(c);
-      ctx.attemptKill(subject as PlayerId, 'witch');
     },
   },
 });

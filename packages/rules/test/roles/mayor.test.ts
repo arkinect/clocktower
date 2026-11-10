@@ -54,7 +54,7 @@ describe('Mayor', () => {
     const s = scene(cast).start().dawn();
     s.execute('bo').dusk().dawn();
     s.g.st({ type: 'mark_alive', playerId: 'ed' as never, alive: false });
-    s.execute(null);
+    s.execute(null).dusk();
     expect(s.winners()).toContain('good');
   });
   it('not with a day kill', () => {

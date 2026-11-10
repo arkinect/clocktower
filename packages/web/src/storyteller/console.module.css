@@ -414,3 +414,64 @@
   color: var(--muted);
   text-decoration: line-through;
 }
+
+/* Tables, as 0.4.2 drew the Day players and the Story nights. */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tbl th,
+.tbl td {
+  text-align: left;
+  padding: 6px 8px 6px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.tbl th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.act {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  vertical-align: middle;
+  max-width: 100%;
+}
+
+/* Drunk or poisoned. */
+.chip,
+.chipPlain,
+.tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  padding: 1px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--evil);
+  color: var(--danger-text);
+}
+
+/* Any other condition, and plain tags. */
+.chipPlain,
+.tag {
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}

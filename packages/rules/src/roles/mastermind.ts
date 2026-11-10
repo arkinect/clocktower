@@ -11,7 +11,8 @@ export const mastermind = defineRole<State>({
   type: 'minion',
   abilityText:
     'If the Demon dies by execution (ending the game), play for 1 more day. If a player is then executed, their team loses.',
-  reminder: 'A game-end suggestion follows the execution on the extra day.',
+  reminder:
+    'If the Demon is executed, play one more day. If someone is then executed, their team loses: end the game from the Grimoire.',
   flags: { dayReminder: true },
   initialState: () => ({ extraDay: null }),
   ability: {

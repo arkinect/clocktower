@@ -49,11 +49,9 @@ describe('Vigormortis', () => {
       .decide('vigormortis', 'bo')
       .dawn();
     expect(s.impaired('bo')).toBe(true);
-    s.execute('ann');
-    s.prompt('yes');
+    s.execute('ann').dusk();
     expect(s.character('di')).toBe('vigormortis');
     expect(s.impaired('bo')).toBe(true);
-    s.dusk();
     expect(s.specs('cy')).toHaveLength(1);
   });
 });

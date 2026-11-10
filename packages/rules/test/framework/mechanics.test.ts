@@ -577,7 +577,10 @@ describe('mechanics', () => {
     s.g.as(null, { type: 'join', id: 'vi' as PlayerId, name: 'Vi', rolePreference: 'none', wantsStoryteller: false });
     s.g.st({ type: 'add_traveller', playerId: 'vi' as PlayerId, roleId: TRAVELLER[0] as RoleId, alignment: 'good' });
     s.g.st({ type: 'exile_traveller', playerId: 'vi' as PlayerId });
-    expect(seen).toEqual(['nomination', 'vote', 'statement', 'execution', 'exile']);
+    // The execution's triggers wait for dusk.
+    expect(seen).toEqual(['nomination', 'vote', 'statement', 'exile']);
+    s.dusk();
+    expect(seen).toEqual(['nomination', 'vote', 'statement', 'exile', 'execution']);
   });
 
   it('game end: suggested, and the Storyteller confirms', () => {

@@ -20,8 +20,21 @@ Storyteller has already ruled on keeps that ruling when other answers change.
 
 ## Nominations
 
-Recording a nomination raises a prompt for the Virgin, the Golem and a Witch's curse, and the Storyteller decides.
-Nothing happens without their answer.
+The console doesn't record nominations. The Virgin, the Golem and a Witch's curse are day actions the Storyteller uses
+when the nomination happens, each with a preview. The Psychopath's daily kill is one too, so protections such as the
+Tea Lady apply.
+
+## Executions trigger at dusk
+
+An execution kills at once. What it triggers for other characters (Cannibal, Mastermind, Mayor) happens at dusk, from
+the day's final execution record. A Storyteller revive before dusk undoes the trigger. Recording a different execution
+replaces the earlier record, and the earlier player stays dead until revived. Test: `scenarios/dusk.test.ts`.
+
+## The Scarlet Woman after a day death
+
+When the Demon dies during the day, the Scarlet Woman becomes the Demon at dusk, with nothing to confirm, if the Demon
+is still dead and she is alive and not drunk or poisoned then. She makes the Demon's choice that same night. A Demon
+death at night is still a Review decision. Test: `roles/scarlet-woman.test.ts`.
 
 ## Travellers and the Scarlet Woman
 
