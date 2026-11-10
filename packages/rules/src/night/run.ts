@@ -688,28 +688,15 @@ export class Run {
     return point === 'afterRevive' || point === 'replacePicker' ? null : false;
   }
 
-  /** Records today's execution, replacing any earlier record from today. Its triggers wait for dusk. */
+  /**
+   * Records today's execution, replacing any earlier record from today. Until dusk, `died` says whether the player
+   * is to die; at dusk the execution happens and it says whether they did.
+   */
   recordExecution(playerId: PlayerId | null, died: boolean) {
     const w = this.world;
     const n = this.moment.n;
     w.events = w.events.filter((e) => !(e.kind === 'execution' && e.at.kind === 'day' && e.at.n === n));
     w.events.push({ kind: 'execution', at: this.moment, playerId, died });
-  }
-
-  /**
-   * Executes a player now, through everything that stops a death (Fool, Devil's Advocate, Sailor, Tea Lady), and
-   * records whether they died. Returns that.
-   */
-  execute(playerId: PlayerId): boolean {
-    const n = this.moment.n;
-    const today = this.world.events.findLast((e) => e.kind === 'execution' && e.at.kind === 'day' && e.at.n === n);
-    // Recording the same survivor again is the same execution: asking again would spend the Fool's save twice.
-    if (today?.kind === 'execution' && today.playerId === playerId && !today.died && this.reader.isAlive(playerId)) {
-      return false;
-    }
-    const died = this.reader.isAlive(playerId) ? this.attemptKill(playerId, 'execution', null) : true;
-    this.recordExecution(playerId, died);
-    return died;
   }
 
   // ---- prompts ----

@@ -46,6 +46,7 @@ describe('the story', () => {
   it('a day has its final execution, its deaths and its notes', () => {
     const s = scene(cast).start().dawn().execute('di');
     s.g.st({ type: 'set_notes', text: 'Loud day' });
+    s.dusk();
     expect(day(s, 1)).toMatchObject({
       execution: { playerId: 'di', died: true },
       deaths: [{ playerId: 'di', cause: 'execution' }],

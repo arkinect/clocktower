@@ -78,8 +78,8 @@ Known limits:
 - `adjustVote` needs the voters. A count with no names is kept as entered.
 - `hidesCharacter` hides the character card only. A picker's title can still give the role away, so a role file needs
   `shownAs` as well.
-- An execution recorded with `record_execution` (or a day action's `ctx.execute`) goes through `interceptKill`
-  like any other kill, so the Fool, Devil's Advocate, Sailor and Tea Lady stop it. The execution is still recorded,
+- An execution chosen with `record_execution` (or a day action's `ctx.execute`) happens at dusk and goes through
+  `interceptKill` like any other kill, so the Fool, Devil's Advocate, Sailor and Tea Lady stop it. The execution is still recorded,
   with `died: false`. Protection the app doesn't build (Pacifist, Scapegoat) is the Storyteller's to apply.
 
 ### Townsfolk
@@ -153,7 +153,7 @@ Known limits:
 | Town Crier     |       | Night*                               | events, `registers`                                                                                         |
 | Undertaker     |       | Night*                               | events, `registers`                                                                                         |
 | Village Idiot  |       | Each night                           | `setupRules.duplicates`, `setupRules.counts`, `addCondition`                                                |
-| Virgin         | yes   | First nomination                     | day action, `registers`, today's execution record                                                           |
+| Virgin         | yes   | First nomination                     | day action, `registers`, today's execution choice                                                           |
 | Washerwoman    |       | First night                          | `registers`, `startInfo`                                                                                    |
 
 ### Outsiders
@@ -171,7 +171,7 @@ Known limits:
 | Hermit        |       | Passive                | `setupRules.counts`, `grant` of each script Outsider                        |
 | Klutz         |       | On learning of death   | `onDeath`, day action, `suggestGameEnd`                                     |
 | Lunatic       |       | Each night             | `believes`, `perceivedOnly`, `notify` to the Demon                          |
-| Moonchild     | yes   | On learning of death   | day action (fact), required Review decision if not recorded                 |
+| Moonchild     | yes   | On learning of death   | day action (fact, from the execution choice), required Review decision      |
 | Mutant        |       | Any time               | Table: mad condition, `record_broke_madness`, execution                     |
 | Ogre          |       | First night            | `changeAlignment`, not told alignment                                       |
 | Plague Doctor |       | On death               | `onDeath`, `grant` to the Storyteller                                       |

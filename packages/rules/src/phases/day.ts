@@ -13,17 +13,39 @@ export function fireDayEvent(run: Run, event: DayEventInfo) {
   for (const a of run.reader.instances) roleDef(a.roleId).ability.onDayEvent?.(run.ctx(a), event);
 }
 
+/** Today's execution record, if one was made. */
+function todaysExecution(run: Run, n: number) {
+  const record = run.world.events.findLast((e) => e.kind === 'execution' && e.at.kind === 'day' && e.at.n === n);
+  return record?.kind === 'execution' ? record : null;
+}
+
+/** Dead by today's execution: by this one at dusk, or by one recorded under 0.5.0, which killed at once. */
+function diedByExecution(run: Run, id: PlayerId, n: number) {
+  const life = run.reader.player(id).life;
+  return !life.alive && life.cause === 'execution' && life.diedAt?.kind === 'day' && life.diedAt.n === n;
+}
+
 /**
- * The end of the day's execution, run at dusk: what the day's final record means for other characters (the Cannibal,
- * the Mastermind, the Mayor). No record counts as no execution. A player who isn't dead by this execution now (revived,
- * or saved) gives `died: false`.
+ * The day's execution happens at dusk, to whoever was chosen last. It goes through everything that stops a death
+ * (Fool, Devil's Advocate, Sailor, Tea Lady); a saved player is still the day's execution, recorded as not dying.
+ */
+export function executeAtDusk(run: Run, n: number) {
+  const record = todaysExecution(run, n);
+  if (!record?.playerId) return;
+  const id = record.playerId;
+  const died =
+    record.died && run.reader.isAlive(id) ? run.attemptKill(id, 'execution', null) : diedByExecution(run, id, n);
+  run.recordExecution(id, died);
+}
+
+/**
+ * What the day's execution means for other characters (the Cannibal, the Mastermind, the Mayor), after it happens at
+ * dusk. No record counts as no execution. A player who isn't dead by this execution (saved, or dead already) gives
+ * `died: false`.
  */
 export function fireExecutionAtDusk(run: Run, n: number) {
-  const record = run.world.events.findLast((e) => e.kind === 'execution' && e.at.kind === 'day' && e.at.n === n);
-  const id = record?.kind === 'execution' ? record.playerId : null;
-  const life = id ? run.reader.player(id).life : null;
-  const died =
-    !!life && !life.alive && life.cause === 'execution' && life.diedAt?.kind === 'day' && life.diedAt.n === n;
+  const id = todaysExecution(run, n)?.playerId ?? null;
+  const died = !!id && diedByExecution(run, id, n);
   const demonDiedAliveBefore = died && id && run.reader.isDemon(id) ? run.reader.aliveResidents.length + 1 : null;
   fireDayEvent(run, { kind: 'execution', playerId: id, died, demonDiedAliveBefore });
 }
@@ -119,12 +141,10 @@ export const dayCommands = [
     handle(ctx, cmd) {
       const id = cmd.playerId;
       if (id !== null) need(ctx.r.isSeated(id), 'Not a seated player.');
-      // Today's execution is one record: a new one replaces it. What it triggers for other characters waits for
-      // dusk (start_night), so a Storyteller revive before then undoes it. An earlier player stays dead. A player
-      // something protects (Fool, Devil's Advocate) is recorded as executed and stays alive.
+      // Only a choice: the execution happens at dusk (start_night), to whoever was chosen last. `died: false` is the
+      // Storyteller ruling that the player is executed and doesn't die.
       const run = ctx.run();
-      if (id && cmd.died) run.execute(id);
-      else run.recordExecution(id, false);
+      run.recordExecution(id, id !== null && cmd.died);
       run.commitDay();
     },
   }),

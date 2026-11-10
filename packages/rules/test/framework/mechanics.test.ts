@@ -587,10 +587,9 @@ describe('mechanics', () => {
     const s = scene({ a: WATCHER, ...five })
       .start()
       .dawn();
-    s.execute('b');
+    s.kill('b');
     expect(s.state.gameEnd).toEqual([]);
-    s.g.st({ type: 'mark_alive', playerId: 'd' as PlayerId, alive: false });
-    s.execute('e');
+    s.kill('d');
     const q = s.state.gameEnd.find((x) => x.key === 'watcher');
     expect(q?.winner).toBe('evil');
     expect(s.state.phase.kind).toBe('day');
@@ -644,7 +643,8 @@ describe('mechanics', () => {
     const s = scene({ a: KILLER, b: MOURNER, c: 't1', d: 't2', e: 't3' }).start().nextNight();
     s.submit({ a: ['c'] })
       .dawn()
-      .execute('d');
+      .execute('d')
+      .dusk();
     expect(deaths).toContain('c:demon_attack');
     expect(deaths).toContain('d:execution');
     expect(new Set(deaths).size).toBe(2);
@@ -653,9 +653,9 @@ describe('mechanics', () => {
   it('derived conditions', () => {
     const s = scene({ a: AURA, b: 't1', c: 't2', d: 't3', e: 't4' }).start().dawn();
     expect(s.impaired('b')).toBe(true);
-    s.execute('b');
+    s.kill('b');
     expect(s.impaired('c')).toBe(true);
-    s.execute('a');
+    s.kill('a');
     expect(s.impaired('c')).toBe(false);
   });
 

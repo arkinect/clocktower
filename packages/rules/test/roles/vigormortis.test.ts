@@ -25,7 +25,7 @@ describe('Vigormortis', () => {
       .submit({ ann: ['cy'], cy: ['ed'] })
       .decide('vigormortis', 'bo')
       .dawn();
-    s.execute('ann');
+    s.execute('ann').dusk();
     expect(s.impaired('bo')).toBe(false);
   });
   it('warns about the Scarlet Woman', () => {

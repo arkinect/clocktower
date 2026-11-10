@@ -58,12 +58,14 @@ describe('a headless game over sockets', () => {
 
     await st.do({ type: 'record_nomination', nominator: ann.id as PlayerId, nominee: di.id as PlayerId });
     await st.do({ type: 'record_vote', nominee: di.id as PlayerId, count: 3, voters: null });
+    // Executed as the night starts.
     await st.do({ type: 'record_execution', playerId: di.id as PlayerId, died: true });
-    await di.until((v) => v.kind === 'player' && !v.me.alive);
     await st.do({ type: 'start_night' });
+    await di.until((v) => v.kind === 'player' && !v.me.alive);
     await night(st, players, 1);
 
     await st.do({ type: 'record_execution', playerId: ed.id as PlayerId, died: true });
+    await st.do({ type: 'start_night' });
     const end = await st.until((v) => v.kind === 'storyteller' && v.gameEnd.length > 0);
     if (end.kind !== 'storyteller') throw new Error('Expected the grimoire');
     await st.do({ type: 'confirm_game_end', key: end.gameEnd[0]!.key });

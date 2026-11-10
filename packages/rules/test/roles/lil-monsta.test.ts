@@ -29,7 +29,7 @@ describe("Lil' Monsta", () => {
   });
   it('executing the holder kills the Demon', () => {
     const s = scene(cast, opts).start().dawn();
-    s.execute('ann');
+    s.execute('ann').dusk();
     expect(s.winners()).toContain('good');
   });
   it('a dead Minion cannot be passed to', () => {

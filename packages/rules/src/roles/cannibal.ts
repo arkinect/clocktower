@@ -47,7 +47,7 @@ export const cannibal = defineRole<State>({
   abilityText:
     'You have the ability of the recently killed executee. If they are evil, you are poisoned until a good player dies by execution.',
   reminder:
-    'Gains the ability when an execution kills someone, as the night starts. Check or change it in the Day panel from the next day.',
+    'Gains the ability when an execution kills someone, as the night starts. An evil executee gives a random good character on the script instead, as false information, and poisons the Cannibal. Change it in the Day panel from the next day.',
   initialState: () => ({ ate: false, fake: false, eaten: null, roleId: null }),
   ability: {
     onDayEvent(ctx, e) {
@@ -57,7 +57,13 @@ export const cannibal = defineRole<State>({
       const executee = e.playerId;
       if (me === executee || !ctx.isAlive(me)) return;
       const good = ctx.alignmentOf(executee) === 'good';
-      setEaten(ctx, good ? ctx.character(executee) : null, !good);
+      // An evil executee: the poisoned Cannibal believes they ate a good player, so they get a good character from the
+      // script to play as, which gives false information.
+      const fakes = [...ctx.charactersOfType('townsfolk'), ...ctx.charactersOfType('outsider')].filter(
+        (r) => r !== CANNIBAL,
+      );
+      const fake = fakes.length ? ctx.rng(`eat:${ctx.n}`).pick(fakes) : null;
+      setEaten(ctx, good ? ctx.character(executee) : fake, !good);
       // "Poisoned until a good player dies by execution": any earlier eat's poison ends here.
       for (const c of ctx.conditionsFrom('poisoned')) ctx.removeCondition(c);
       if (!good && !ctx.believed) ctx.addCondition(me, 'poisoned', { until: 'removed' });

@@ -32,10 +32,9 @@ describe('Scarlet Woman', () => {
     s.dusk();
     expect(s.character('bo')).toBe('scarlet_woman');
   });
-  it('not when the Demon is revived before Start Night', () => {
+  it("not when the Demon's execution is called off before Start Night", () => {
     const s = scene(cast).start().dawn();
-    s.execute('ann');
-    s.g.st({ type: 'mark_alive', playerId: 'ann' as PlayerId, alive: true });
+    s.execute('ann').execute(null);
     s.dusk();
     expect(s.character('bo')).toBe('scarlet_woman');
     expect(s.character('ann')).toBe('imp');

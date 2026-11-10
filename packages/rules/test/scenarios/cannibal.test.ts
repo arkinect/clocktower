@@ -1,6 +1,7 @@
 // The Cannibal in depth: what is eaten, when it starts, what the phone sees, and how it meets the Philosopher.
 import { describe, expect, it } from 'vitest';
 import { as, row, titles } from './lib';
+import { findRole } from '../../src';
 import { scene, ST, type Scene } from '../scenario';
 
 const cast = { ann: 'cannibal', bo: 'imp', cy: 'poisoner', di: 'empath', ed: 'slayer', fi: 'sailor' };
@@ -12,6 +13,15 @@ const gained = (s: Scene, id = 'ann') =>
       a.holder.kind === 'player' && a.holder.id === id && a.origin.kind !== 'character' && a.activeUntil !== 'removed',
   );
 const eatenRoles = (s: Scene, id = 'ann') => gained(s, id).map((a) => a.roleId as string);
+/** What an evil eat gives: one good character from the script, other than the Cannibal, only believed. */
+const expectFakeGood = (s: Scene, id = 'ann') => {
+  const [fake, ...rest] = gained(s, id);
+  expect(rest).toEqual([]);
+  expect(fake?.perceivedOnly).toBe(true);
+  expect(s.state.script).toContain(fake?.roleId);
+  expect(['townsfolk', 'outsider']).toContain(findRole(fake?.roleId as string)?.type);
+  expect(fake?.roleId).not.toBe('cannibal');
+};
 const pending = (s: Scene, id: string) => s.state.pendingNotices.filter((n) => n.playerId === id).map((m) => m.title);
 const phoneText = (s: Scene, id: string) =>
   JSON.stringify({ ...s.g.view(as(id)), catalog: undefined, script: undefined });
@@ -30,9 +40,9 @@ describe('Cannibal eats', () => {
     ).not.toMatch(/Empath/);
   });
 
-  it('an evil executee: no ability, poisoned through nights and a harmless execution, until a good player dies', () => {
+  it('an evil executee: a good character from the script, false, and poisoned until a good player dies', () => {
     const s = day1().execute('cy').dusk();
-    expect(eatenRoles(s)).toEqual([]);
+    expectFakeGood(s);
     expect(s.impaired('ann')).toBe(true);
     s.dawn().execute('ed', false).dusk();
     expect(s.impaired('ann')).toBe(true);
@@ -92,7 +102,7 @@ describe('Cannibal eats', () => {
       .dusk();
     expect(s.row('ann')).toMatchObject({ title: 'Cannibal', roleId: 'empath', impaired: true });
     s.dawn().execute('cy').dusk();
-    expect(eatenRoles(s)).toEqual([]);
+    expectFakeGood(s);
     expect(s.state.conditions.filter((c) => c.source?.kind === 'ability' && c.type === 'poisoned')).toEqual([]);
   });
 });
@@ -284,9 +294,8 @@ describe('the Cannibal and the Philosopher', () => {
     const s = scene(roles).start();
     s.submit({ ann: ['empath'] }).dawn();
     expect(s.impaired('ed')).toBe(true);
-    s.execute('ann');
+    s.execute('ann').dusk();
     expect(s.impaired('ed')).toBe(false);
-    s.dusk();
     expect(s.specs('bo').map((x) => x.title)).toEqual(['Cannibal']);
     s.submit({ bo: ['fortune_teller'] }).dawn();
     expect(s.impaired('fi')).toBe(true);

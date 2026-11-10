@@ -39,7 +39,7 @@ export const moonchild = defineRole<State>({
   type: 'outsider',
   abilityText:
     'When you learn that you died, publicly choose 1 alive player. Tonight, if it was a good player, they die.',
-  reminder: 'Record the chosen player in the Day panel after the Moonchild dies.',
+  reminder: 'Record the chosen player in the Day panel once the Moonchild dies or is chosen for execution.',
   night: { other: 250, note: 'Only if a target was chosen' },
   flags: { worksWhileDead: true },
   initialState: () => ({ target: null, soberAtDeath: null }),
@@ -53,7 +53,10 @@ export const moonchild = defineRole<State>({
     // Also when nothing was recorded on the day they learned of their death: Review then asks who they chose.
     wakes: (ctx) => !ctx.aliveAtDusk(ctx.holder) && !ctx.ability.used && (!!target(ctx) || learnedOfDeathToday(ctx)),
     dayActions(ctx) {
-      if (ctx.isAlive(ctx.holder) || ctx.ability.used) return [];
+      // Chosen for execution, they choose right after the vote. If something saves them at dusk, it does nothing:
+      // they don't wake while alive.
+      const executed = ctx.chosenForExecution === ctx.holder;
+      if ((ctx.isAlive(ctx.holder) && !executed) || ctx.ability.used) return [];
       return [
         {
           action: 'target',
@@ -62,7 +65,7 @@ export const moonchild = defineRole<State>({
           preview: false,
           recorded: target(ctx) ? [target(ctx) as string] : null,
           neededTonight: true,
-          fields: [{ kind: 'player', label: 'Target', options: ctx.alive }],
+          fields: [{ kind: 'player', label: 'Target', options: ctx.alive.filter((x) => x !== ctx.holder) }],
         },
       ];
     },

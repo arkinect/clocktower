@@ -148,6 +148,7 @@ export function Status({ player }: { player: GrimoirePlayer }) {
 /** The day's players, as in 0.4.2: who they are, what affects them today, and one action. */
 function Players({ view, seated }: { view: StorytellerView; seated: GrimoirePlayer[] }) {
   const { run, pending } = useCommand();
+  const chosen = chosenForExecution(view);
   return (
     <Section title={`Day ${view.phase.n}`}>
       <table className={styles['tbl']}>
@@ -156,6 +157,7 @@ function Players({ view, seated }: { view: StorytellerView; seated: GrimoirePlay
             <tr key={p.id}>
               <td>
                 <Who view={view} id={p.id} role />
+                {chosen === p.id && p.alive && <span className={styles['tag']}> executed at dusk</span>}
               </td>
               <td>
                 <Status player={p} />
@@ -190,54 +192,56 @@ function Players({ view, seated }: { view: StorytellerView; seated: GrimoirePlay
   );
 }
 
-/** The last execution recorded today, in one line. */
-function executedToday(view: StorytellerView, names: Record<string, string>) {
-  const e = view.dayEvents.findLast((x) => x.kind === 'execution');
-  if (!e) return 'Nothing recorded yet: counts as no execution at dusk.';
-  if (!e.playerId) return 'No execution today.';
-  const p = view.players.find((x) => x.id === e.playerId);
-  return `Executed today: ${names[e.playerId] ?? e.playerId}${p?.alive ? ' (survived)' : ''}`;
+/** Today's choice of execution, if any: the last one recorded. */
+const chosenForExecution = (view: StorytellerView) =>
+  view.dayEvents.findLast((x) => x.kind === 'execution')?.playerId ?? null;
+
+/** What happens at dusk, in one line. */
+function atDusk(view: StorytellerView, names: Record<string, string>) {
+  const id = chosenForExecution(view);
+  if (!id) return 'No execution today.';
+  const name = names[id] ?? id;
+  return view.players.find((x) => x.id === id)?.alive
+    ? `${name} is executed when you start the night.`
+    : `${name} is already dead: the execution kills nobody.`;
 }
 
 function Execution({ view, seated }: { view: StorytellerView; seated: GrimoirePlayer[] }) {
   const { run, pending } = useCommand();
   const names = useNames();
-  const [executed, setExecuted] = useState<PlayerId | ''>('');
+  const chosen = chosenForExecution(view);
   const reminders = seated
     .flatMap((p) => p.abilities.map((a) => ({ p, a })))
     .filter(({ a }) => !a.perceivedOnly && a.active && a.dayReminder && a.reminder);
   return (
     <Section title="Execution">
-      <div className={styles['formRow']}>
-        <label className={styles['field']}>
-          <span>Executed</span>
-          <select value={executed} onChange={(e) => setExecuted(e.target.value as PlayerId | '')}>
-            <option value="">No execution today</option>
-            {seated
-              .filter((p) => p.alive)
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                  {p.character ? ` (${names.roles[p.character] ?? p.character})` : ''}
-                </option>
-              ))}
-          </select>
-        </label>
-        <Button
+      <label className={styles['field']}>
+        <span>Executed</span>
+        {/* Only a choice, changed as often as needed: the execution happens at Start Night. */}
+        <select
+          value={chosen ?? ''}
           disabled={pending}
-          onClick={() => {
-            void run({ type: 'record_execution', playerId: executed || null, died: true });
-            setExecuted('');
-          }}
+          onChange={(e) =>
+            void run({ type: 'record_execution', playerId: (e.target.value || null) as PlayerId | null, died: true })
+          }
         >
-          Execute
-        </Button>
-      </div>
-      <p>{executedToday(view, names.players)}</p>
+          <option value="">No execution today</option>
+          {seated
+            .filter((p) => p.alive || p.id === chosen)
+            .map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+                {p.character ? ` (${names.roles[p.character] ?? p.character})` : ''}
+                {p.alive ? '' : ' (dead)'}
+              </option>
+            ))}
+        </select>
+      </label>
+      <p>{atDusk(view, names.players)}</p>
       <p className="muted small">
-        The executed player dies now, unless something stops it (Fool, Devil's Advocate, Sailor, Tea Lady): then they
-        stay alive and the execution still counts. Other characters react when you start the night. If you picked the
-        wrong player, revive them in the Grimoire before starting the night.
+        The player is executed when you start the night, and other characters react then. A Fool, the Devil&apos;s
+        Advocate&apos;s player, a sober Sailor or a Tea Lady&apos;s good neighbour survives it, and the execution still
+        counts.
       </p>
       {reminders.length > 0 && (
         <ul className="small">

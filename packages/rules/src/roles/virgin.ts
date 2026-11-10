@@ -32,9 +32,12 @@ export const virgin = defineRole({
         if (ctx.impaired) return { summary: 'The Virgin is drunk or poisoned: nothing happens.', effective: false };
         if (!townsfolk) return { summary: `${name} is not a Townsfolk: nothing happens.`, effective: false };
       }
-      // Today's execution: what it triggers for others (the Cannibal) waits for dusk, like any execution.
+      // Today's execution, which happens at dusk like any other.
       ctx.execute(nominator);
-      return { summary: `${name} is executed${force === 'success' ? ' (forced)' : ''}.`, effective: true };
+      return {
+        summary: `${name} is executed as the night starts${force === 'success' ? ' (forced)' : ''}.`,
+        effective: true,
+      };
     },
   },
 });

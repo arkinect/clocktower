@@ -16,7 +16,7 @@ describe('Mastermind', () => {
   });
   it('a dead Mastermind holds nothing', () => {
     const s = scene(cast).start().dawn();
-    s.execute('ann').dusk().dawn().execute('cy');
+    s.execute('ann').dusk().dawn().execute('cy').dusk();
     expect(s.winners()).toContain('good');
   });
 });

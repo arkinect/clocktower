@@ -10,7 +10,7 @@ describe('No Dashii', () => {
   });
   it('the poison ends with the No Dashii', () => {
     const s = scene({ ann: 'no_dashii', bo: 'm1', cy: 'empath', di: 't1', ed: 't2' }).start().dawn();
-    s.execute('ann');
+    s.execute('ann').dusk();
     expect(s.impaired('cy')).toBe(false);
   });
 });

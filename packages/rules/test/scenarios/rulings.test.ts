@@ -259,7 +259,7 @@ describe('what players see and when', () => {
   const chars = { ann: 'imp', bo: 'poisoner', cy: 'empath', di: 'butler', ed: 'sailor', fi: 'clockmaker' };
 
   it('a day death shows to players the next morning; the Storyteller sees it at once', () => {
-    const s = scene(chars).start().dawn().execute('di');
+    const s = scene(chars).start().dawn().kill('di');
     expect(s.dead('di')).toBe(true);
     expect(s.g.view(as('cy')).deadAtDawn).toEqual([]);
     s.dusk()

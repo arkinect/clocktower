@@ -177,8 +177,15 @@ export class Scene {
     return this;
   }
 
+  /** Chooses today's execution, which happens at dusk. */
   execute(id: string | null, died = true) {
     this.g.st({ type: 'record_execution', playerId: id as PlayerId | null, died });
+    return this;
+  }
+
+  /** The Storyteller marks a player dead, now. */
+  kill(id: string) {
+    this.g.st({ type: 'mark_alive', playerId: id as PlayerId, alive: false });
     return this;
   }
 

@@ -9,9 +9,12 @@ describe('Virgin', () => {
   it("a Townsfolk nominator is executed, as today's execution", () => {
     const s = scene(cast).start().dawn();
     expect(s.act('virgin', 'nominated', ['bo']).effective).toBe(true);
+    // Chosen for execution, which happens as the night starts.
+    expect(executions(s)).toMatchObject([{ playerId: 'bo', died: true }]);
+    expect(s.alive('bo')).toBe(true);
+    s.dusk();
     expect(s.alive('bo')).toBe(false);
     expect(s.g.player('bo' as never).life.cause).toBe('execution');
-    expect(executions(s)).toMatchObject([{ playerId: 'bo', died: true }]);
   });
   it('replaces an execution recorded earlier today, and the Cannibal eats the nominator at dusk', () => {
     const s = scene(cast).start().dawn().execute(null);
@@ -48,6 +51,7 @@ describe('Virgin', () => {
   it('the Storyteller can force either way', () => {
     const s = scene(cast).start().dawn();
     s.act('virgin', 'nominated', ['di'], { mode: 'force_success' });
+    s.dusk();
     expect(s.alive('di')).toBe(false);
     const t = scene(cast).start().dawn();
     t.act('virgin', 'nominated', ['bo'], { mode: 'force_fail' });

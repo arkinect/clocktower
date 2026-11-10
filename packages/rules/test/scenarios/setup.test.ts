@@ -285,7 +285,7 @@ describe('the Organ Grinder', () => {
       .submit({ ann: ['sober'] })
       .dawn();
     expect(eyes(s)).toBe(true);
-    s.execute('ann');
+    s.kill('ann');
     expect(eyes(s)).toBe(false);
   });
 

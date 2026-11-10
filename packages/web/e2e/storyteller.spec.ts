@@ -81,10 +81,9 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
   await action.getByRole('button', { name: 'Accept' }).click();
   await expect(page.getByRole('article').filter({ hasText: 'Slayer' })).toHaveCount(0);
   await page.getByLabel(/^Executed/).selectOption({ label: 'Cy (Empath)' });
-  await page.getByRole('button', { name: 'Execute', exact: true }).click();
-  await expect(page.getByText('Cy (Empath) (dead)')).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText('Executed today: Cy')).toBeVisible();
+  await expect(page.getByText('Cy is executed when you start the night.')).toBeVisible({ timeout: 10_000 });
   await page.getByRole('button', { name: 'Start Night 1' }).click();
+  await cy?.waitFor((v) => v.phase.kind === 'night' && !v.me.alive);
 
   // Night 1.
   await expect(page).toHaveURL(/storyteller\/night/, { timeout: 10_000 });

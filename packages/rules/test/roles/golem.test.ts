@@ -41,7 +41,7 @@ describe('Golem', () => {
     expect(t.alive('bo')).toBe(true);
   });
   it('is not offered once the Golem is dead', () => {
-    const s = scene(cast).start().dawn().execute('ann');
+    const s = scene(cast).start().dawn().kill('ann');
     expect(golem(s)).toEqual([]);
   });
 });

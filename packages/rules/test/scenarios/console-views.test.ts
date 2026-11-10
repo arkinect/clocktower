@@ -111,7 +111,7 @@ describe('the Cannibal summary', () => {
 
   it('says when an evil player gives false information', () => {
     const s = eat('bo');
-    expect(summary(s)).toContain('Ate: (none) (false information)');
+    expect(summary(s)?.find((x) => x.startsWith('Ate: '))).toMatch(/^Ate: [A-Z][^(]+ \(false information\)$/);
     const abilityId = s.ability('cannibal');
     s.g.st({ type: 'day_action', abilityId, action: 'set_ability', values: ['empath'], mode: 'accept' });
     expect(summary(s)).toContain('Ate: Empath (false information)');

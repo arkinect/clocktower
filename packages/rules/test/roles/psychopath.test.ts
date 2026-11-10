@@ -41,7 +41,7 @@ describe('Psychopath', () => {
     expect(t.alive('cy')).toBe(false);
   });
   it('not while dead', () => {
-    const s = scene(cast).start().dawn().execute('ann');
+    const s = scene(cast).start().dawn().kill('ann');
     expect(psycho(s)).toEqual([]);
   });
 });

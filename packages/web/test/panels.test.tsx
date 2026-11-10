@@ -442,20 +442,22 @@ describe('the Day tab', () => {
     expect(within(section('Facts for tonight')).queryByText('Slayer (Ann)')).toBeNull();
   });
 
-  it('records an execution with a plain button, and says what is recorded', async () => {
+  it('choosing from the list records the execution, which happens at Start Night', async () => {
     const { rerender } = render(<Day view={dayView()} />);
-    expect(screen.getByText('Nothing recorded yet: counts as no execution at dusk.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Execute' })).toBeNull();
+    expect(screen.getByText('No execution today.')).toBeTruthy();
     await userEvent.selectOptions(screen.getByLabelText('Executed'), 'a');
-    await userEvent.click(screen.getByRole('button', { name: 'Execute' }));
     expect(run).toHaveBeenCalledWith({ type: 'record_execution', playerId: 'a', died: true });
-    const executed = {
-      at: 'Day 2',
-      kind: 'execution',
-      text: '',
-      playerId: 'a',
-    } as StorytellerView['dayEvents'][number];
-    rerender(<Day view={dayView({ dayEvents: [executed] }, [player({ alive: false })])} />);
-    expect(screen.getByText('Executed today: Ann')).toBeTruthy();
+    const chosen = (playerId: string | null) =>
+      ({ at: 'Day 2', kind: 'execution', text: '', playerId }) as StorytellerView['dayEvents'][number];
+    rerender(<Day view={dayView({ dayEvents: [chosen('a')] })} />);
+    expect((screen.getByLabelText('Executed') as HTMLSelectElement).value).toBe('a');
+    expect(screen.getByText('Ann is executed when you start the night.')).toBeTruthy();
+    expect(screen.getByText('executed at dusk', { exact: false })).toBeTruthy();
+    await userEvent.selectOptions(screen.getByLabelText('Executed'), '');
+    expect(run).toHaveBeenLastCalledWith({ type: 'record_execution', playerId: null, died: true });
+    rerender(<Day view={dayView({ dayEvents: [chosen(null)] })} />);
+    expect((screen.getByLabelText('Executed') as HTMLSelectElement).value).toBe('');
   });
 
   it('gives alive players Dead, and dead ones their dead vote', () => {

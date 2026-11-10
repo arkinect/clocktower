@@ -24,18 +24,28 @@ The console doesn't record nominations. The Virgin, the Golem and a Witch's curs
 when the nomination happens, each with a preview. The Psychopath's daily kill is one too, so protections such as the
 Tea Lady apply.
 
-## Executions trigger at dusk
+## Executions happen at dusk
 
-An execution kills at once. What it triggers for other characters (Cannibal, Mastermind, Mayor) happens at dusk, from
-the day's final execution record. A Storyteller revive before dusk undoes the trigger. Recording a different execution
-replaces the earlier record, and the earlier player stays dead until revived. Test: `scenarios/dusk.test.ts`.
+During the day the Storyteller only chooses the execution, and can change the choice or call it off. The execution
+happens at dusk (Start Night), to whoever was chosen last. It happens before the day's conditions end, so the Devil's
+Advocate's mark and the day's poison still count. Then the dusk hooks run (the Scarlet Woman), and then what the
+execution triggers for other characters (Cannibal, Mastermind, Mayor). A chosen player who is already dead by then
+dies of nothing new. The Virgin's nominator is chosen the same way and dies at dusk. A Moonchild chosen for execution
+can have their choice recorded straight away. If something saves them, the choice does nothing. Test:
+`scenarios/dusk.test.ts`.
+
+## The Cannibal eating an evil player
+
+The Cannibal is poisoned, and believes they ate a good player. They get a random Townsfolk or Outsider from the script,
+other than the Cannibal, as a believed-only ability: they wake as it and get false information. The Storyteller can
+change it on the Day tab from the next day. Test: `scenarios/cannibal.test.ts`.
 
 ## Protection from execution
 
 An execution goes through the same protection as any other kill. A player the Devil's Advocate chose last night, a
 Fool's first death, a sober Sailor and a Tea Lady's good neighbour are executed and do not die. The execution still
-counts for the day (no second execution, and the dusk triggers see a survivor). Recording the same survivor again
-changes nothing, so the Fool's save is spent once. A Devil's Advocate who is dead or drunk or poisoned by then
+counts for the day (no second execution, and the dusk triggers see a survivor). A choice changed away from a protected
+player before dusk spends nothing. A Devil's Advocate who is dead or drunk or poisoned by then
 protects nobody, and the Devil's Advocate goes before the Fool, so a marked Fool keeps their save. Tests:
 `roles/devils-advocate.test.ts`, `roles/fool.test.ts`.
 

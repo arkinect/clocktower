@@ -8,8 +8,10 @@ The Storyteller console feels like 0.4.2 again.
 - Once the game starts, Lobby, Setup, Story and Log move into a More menu.
 - The Day tab records what the night needs, as before 0.5.0: deaths, dead votes, the execution and each role's facts,
   which now show their answer. It no longer records nominations, votes or statements.
-- An execution marks the player dead at once, but the Cannibal, Mastermind and Mayor react only when the night starts.
-  Reviving the player in the Grimoire first undoes it.
+- The execution is chosen from a list on the Day tab, with no Execute button, and happens when the night starts. Until
+  then it can be changed or called off. The Cannibal, Mastermind and Mayor react as it happens.
+- A Cannibal who eats an evil player is poisoned and plays as a random good character from the script, with false
+  information.
 - The Devil's Advocate's player, the Fool, a sober Sailor and the Tea Lady's neighbours survive an execution by
   themselves: choose them as executed as usual, and they stay alive.
 - If a fact the night needs wasn't recorded (the Flowergirl's answer, the Moonchild's choice), that night's Review asks

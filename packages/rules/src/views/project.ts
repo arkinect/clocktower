@@ -216,7 +216,11 @@ function dayLines(s: GameState, r: Reader, n: number) {
       add(`${e.nominator ? r.name(e.nominator) : 'The Storyteller'} nominated ${r.name(e.nominee)}.`);
     if (e.kind === 'vote') add(`Vote on ${r.name(e.nominee)}${e.count === null ? '' : `: ${e.count}`}.`);
     if (e.kind === 'execution') {
-      add(e.playerId ? `${r.name(e.playerId)} was executed${e.died ? ' and died' : ''}.` : 'Nobody was executed.');
+      // Until dusk it is only today's choice.
+      const today = s.phase.kind === 'day' && s.phase.n === n;
+      if (!e.playerId) add(today ? 'No execution today.' : 'Nobody was executed.');
+      else if (today) add(`${r.name(e.playerId)} is to be executed as the night starts.`);
+      else add(`${r.name(e.playerId)} was executed${e.died ? ' and died' : ' and survived'}.`);
     }
     if (e.kind === 'exile') add(`${r.name(e.playerId)} was exiled.`);
     if (e.kind === 'statement') add(`${r.name(e.playerId)} stated: ${e.text}`);

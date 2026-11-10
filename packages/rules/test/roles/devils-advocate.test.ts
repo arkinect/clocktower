@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
 
 const cast = { ann: 'devils_advocate', bo: 't1', cy: 'd1', di: 't2', ed: 't3' };
+const executions = (s: ReturnType<typeof scene>) =>
+  s.state.events.filter((e) => e.kind === 'execution').map((e) => e.kind === 'execution' && [e.playerId, e.died]);
+
 describe("Devil's Advocate", () => {
   it('marks a player and cannot repeat them the next night', () => {
     const s = scene(cast)
@@ -13,19 +16,15 @@ describe("Devil's Advocate", () => {
     expect(s.specs('ann')[0]?.fields[0]?.options).not.toContain('bo');
   });
 
-  const executions = (s: ReturnType<typeof scene>) =>
-    s.state.events.filter((e) => e.kind === 'execution').map((e) => e.kind === 'execution' && [e.playerId, e.died]);
-
-  it('the marked player is executed and does not die', () => {
+  it('the marked player is executed at dusk and does not die', () => {
     const s = scene(cast)
       .start()
       .submit({ ann: ['bo'] })
       .dawn()
-      .execute('bo');
+      .execute('bo')
+      .dusk();
     expect(s.alive('bo')).toBe(true);
     expect(executions(s)).toEqual([['bo', false]]);
-    s.dusk();
-    expect(s.alive('bo')).toBe(true);
   });
 
   it('anyone else executed dies', () => {
@@ -33,7 +32,8 @@ describe("Devil's Advocate", () => {
       .start()
       .submit({ ann: ['bo'] })
       .dawn()
-      .execute('di');
+      .execute('di')
+      .dusk();
     expect(s.alive('di')).toBe(false);
     expect(executions(s)).toEqual([['di', true]]);
   });
@@ -46,7 +46,8 @@ describe("Devil's Advocate", () => {
       .dusk()
       .submit({ ann: ['di'] })
       .dawn()
-      .execute('bo');
+      .execute('bo')
+      .dusk();
     expect(s.alive('bo')).toBe(false);
   });
 
@@ -55,7 +56,8 @@ describe("Devil's Advocate", () => {
       .start()
       .submit({ ann: ['bo'] })
       .dawn()
-      .execute('bo');
+      .execute('bo')
+      .dusk();
     expect(s.alive('bo')).toBe(true);
     expect(Object.values(s.state.abilities).find((a) => a.roleId === ('fool' as never))?.used).toBe(false);
   });
