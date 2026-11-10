@@ -49,6 +49,9 @@ function NightCard({ night }: { night: StoryNight }) {
   const [open, setOpen] = useState(true);
   const role = (id: string | null) => (id ? (names.roles[id] ?? id) : '—');
   const type = (id: string | null) => catalog.find((c) => c.roleId === id)?.type;
+  // The Role and Targets columns already say whose ability it is, so a role's name heads nothing here. Other titles
+  // ("Demon information", "Your role has changed") still do.
+  const roleNames = new Set(Object.values(names.roles));
   return (
     <section className={styles['section']}>
       <h2>
@@ -122,7 +125,8 @@ function NightCard({ night }: { night: StoryNight }) {
                     {p.received.length ? (
                       p.received.map((m, i) => (
                         <div key={i}>
-                          <b>{m.title}:</b> {m.lines.join(' ')}
+                          {!roleNames.has(m.title) && <b>{m.title}: </b>}
+                          {m.lines.join(' ')}
                           {m.truth && <div className={styles['dead']}>Truth: {m.truth.join(' ')}</div>}
                         </div>
                       ))

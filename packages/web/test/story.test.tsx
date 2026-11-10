@@ -39,7 +39,10 @@ const view = {
       rows: [
         row({
           causes: ['poisoned:Poisoner'],
-          received: [{ title: 'Empath', lines: ['2'], truth: ['0'] }],
+          received: [
+            { title: 'Empath', lines: ['2'], truth: ['0'] },
+            { title: 'Demon information', lines: ['Your minion is Bo.'], truth: null },
+          ],
         }),
         row({
           playerId: 'b',
@@ -70,6 +73,13 @@ describe('the Story tab', () => {
     expect(screen.getByText('sober')).toBeTruthy();
     expect(screen.getByText('(died)', { exact: false })).toBeTruthy();
     expect(screen.getByText('Imp:')).toBeTruthy();
+  });
+
+  it('heads information with no role name, but keeps other titles', () => {
+    render(<Story view={view} />);
+    expect(screen.queryByText('Empath:')).toBeNull();
+    expect(screen.getByText('Truth: 0').parentElement?.textContent).toBe('2Truth: 0');
+    expect(screen.getByText('Demon information:')).toBeTruthy();
   });
 
   it('a day is a few labelled lines', () => {
