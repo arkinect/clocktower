@@ -72,6 +72,24 @@ With the official policy, Minions and the Demon learn each other at 7 or more pl
 script is built for, so the count is of non-Travellers. Six players and a Traveller get the small-game treatment. Test:
 `framework/mechanics.test.ts`, "Travellers do not count towards the official 7".
 
+## Who can be chosen at night
+
+"Choose a player" means any seated player, alive or dead, including the chooser: the Imp's How to Run states this,
+and the Imp, Ravenkeeper, Butler and Al-Hadikhia pages all give dead targets as examples. A narrower list needs the
+character's own words: "alive" or "living" (Sailor, Devil's Advocate, Huntsman) limits it to living players, "dead"
+(Professor) to dead ones, and "(not yourself)" (Butler, Seamstress) excludes the chooser. A Traveller who has left
+is never an option. Every night dropdown was audited against the wiki for v0.5.1.
+
+Two deliberate departures, both kept after review: the Professor cannot raise a player who died earlier the same
+night, and the Philosopher may only choose a good character on the current script, as the Cannibal's fake ability
+does.
+
+## Travellers and "players alive"
+
+A "players alive" threshold never counts Travellers (`aliveResidents`), as the Scarlet Woman's text spells out. This
+covers the Mayor, the Scarlet Woman and the Witch, and the Zealot's reminder reads the same way (it isn't enforced).
+Tests: `roles/witch.test.ts` and `roles/mayor.test.ts`, "does not count Travellers".
+
 ## When follow-up questions extend the deadline
 
 `followUpExtensionSeconds` is added the first time a night has questions, whatever brought them, and only once, even if
