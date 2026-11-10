@@ -15,15 +15,21 @@ import {
 } from '@ct/protocol';
 
 const run = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
+// The catalog the panels look types up in: one Townsfolk and one Traveller.
+const catalog = vi.hoisted(() => [
+  { roleId: 'empath', name: 'Empath', type: 'townsfolk' },
+  { roleId: 'beggar', name: 'Beggar', type: 'traveller' },
+]);
 vi.mock('../src/app/store', () => ({
   useCommand: () => ({ run, pending: false }),
+  useGame: () => ({ catalog, jinxes: [] }),
   useNames: () => ({ players: { a: 'Ann', b: 'Bo' }, roles: {} }),
 }));
 
 import { Ended } from '../src/player/PlayerApp';
 import { RoleCardView, RoleList, typeName } from '../src/player/parts';
 import { DayAction, Usage } from '../src/storyteller/Day';
-import { Field } from '../src/storyteller/Setup';
+import { AssignRow, Field } from '../src/storyteller/Setup';
 import { InputSheet, causeLabel, causesWithoutRow, phaseText } from '../src/storyteller/common';
 import { HoldButton, UpdateBar } from '../src/ui/ui';
 
@@ -357,5 +363,20 @@ describe('the end of the game on a phone', () => {
     render(<Ended view={view('storyteller', 'evil')} />);
     expect(screen.queryByText(/app update/)).toBeNull();
     expect(screen.getByText('Evil wins.')).toBeTruthy();
+  });
+});
+
+describe('setup assignment', () => {
+  const setupView = { setup: { believedOptions: {} }, script: ['empath', 'beggar'] } as unknown as StorytellerView;
+
+  it("asks for a Traveller's alignment", () => {
+    render(<AssignRow view={setupView} player={player({ character: 'beggar' })} />);
+    expect(screen.getByLabelText('Alignment of Ann')).toBeTruthy();
+  });
+
+  it('leaves every other character on its natural alignment', () => {
+    render(<AssignRow view={setupView} player={player({ character: 'empath' })} />);
+    expect(screen.queryByLabelText('Alignment of Ann')).toBeNull();
+    expect(screen.getByLabelText('Character for Ann')).toBeTruthy();
   });
 });
