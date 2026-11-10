@@ -18,6 +18,13 @@
   font-weight: 400;
 }
 
+/* Room between each label and its input, so the focus ring clears the label text. */
+.join label:not(.check) {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+
 .check {
   display: flex;
   gap: 8px;
@@ -114,8 +121,8 @@
   color: var(--evil);
 }
 
+/* The frame. Once revealed it grows to hold the private info under the role as well. */
 .roleCard {
-  font: inherit;
   color: var(--text);
   width: 100%;
   border: 2px solid var(--gold);
@@ -124,10 +131,32 @@
   text-align: center;
   margin: 12px 0;
   background: radial-gradient(circle at 50% 0%, var(--card-glow), var(--card));
+}
+
+/* The part that turns the card over. */
+.roleToggle {
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: inherit;
   cursor: pointer;
-  min-height: 150px;
+  min-height: 102px;
   display: grid;
   user-select: none;
+}
+
+.roleSecret {
+  text-align: left;
+  margin-top: 16px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.roleSecret .messages {
+  margin-bottom: 0;
 }
 
 /* Both faces share one cell, so turning the card over does not move the page. */
@@ -228,6 +257,12 @@
 .nightBar > button {
   flex: none;
   min-width: 40%;
+}
+
+/* On its own, the button sits in the middle of the bar, however wide the screen. */
+.nightBar > button:only-child {
+  margin: 0 auto;
+  min-width: min(100%, 280px);
 }
 
 .waiting {

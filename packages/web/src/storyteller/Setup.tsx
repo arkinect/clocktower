@@ -3,7 +3,7 @@ import type { Alignment, GrimoirePlayer, RoleCard, RoleId, SetupFieldSpec, Story
 import { useCommand, useGame, useNames } from '../app/store';
 import { typeName } from '../player/parts';
 import { Button, Card, HoldButton, Segments } from '../ui/ui';
-import { Section, useSeats } from './common';
+import { GROUPS, Section, useSeats, useTypeOf } from './common';
 import styles from './console.module.css';
 
 const SCRIPT_TYPES = ['townsfolk', 'outsider', 'minion', 'demon', 'traveller'] as const;
@@ -45,12 +45,12 @@ function Checklist({ view }: { view: StorytellerView }) {
             {c.done ? '✓' : c.blocking ? '✗' : '•'} {c.label}
           </li>
         ))}
+        {warnings.map((w) => (
+          <li key={w} className={styles['warning']}>
+            ⚠ {w}
+          </li>
+        ))}
       </ul>
-      {warnings.map((w) => (
-        <Card key={w} tone="warn">
-          {w}
-        </Card>
-      ))}
       {view.phase.kind === 'setup' && (
         <div className="row">
           <HoldButton
@@ -144,16 +144,29 @@ function RoleSelect({
   none: string;
 }) {
   const names = useNames();
+  const typeOf = useTypeOf();
+  const option = (r: string) => (
+    <option key={r} value={r}>
+      {names.roles[r] ?? r}
+    </option>
+  );
+  // Grouped by character type under dividers, as the Grimoire's character picker is.
+  const grouped = new Set<string>(GROUPS.map(([type]) => type));
+  const rest = options.filter((r) => !grouped.has(typeOf(r) ?? ''));
   return (
     <label className={styles['inline']}>
       <span>{label}</span>
       <select value={value ?? ''} onChange={(e) => onChange((e.target.value as RoleId) || null)}>
         <option value="">{none}</option>
-        {options.map((r) => (
-          <option key={r} value={r}>
-            {names.roles[r] ?? r}
-          </option>
-        ))}
+        {GROUPS.map(([type, heading]) => {
+          const roles = options.filter((r) => typeOf(r) === type);
+          return roles.length ? (
+            <optgroup key={type} label={heading}>
+              {roles.map(option)}
+            </optgroup>
+          ) : null;
+        })}
+        {rest.map(option)}
       </select>
     </label>
   );

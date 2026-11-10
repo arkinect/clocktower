@@ -281,6 +281,15 @@ describe('labels and cards that keep their size', () => {
     expect(armed?.getAttribute('aria-hidden')).toBeNull();
   });
 
+  it('the role card keeps everything secret out of the page until it is revealed', async () => {
+    render(<RoleCardView role={card} secret={<p>Your fellow Minions: Bo</p>} />);
+    expect(screen.queryByText('Your fellow Minions: Bo')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Tap to reveal your role' }));
+    expect(screen.getByText('Your fellow Minions: Bo')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: /Tap to hide/ }));
+    expect(screen.queryByText('Your fellow Minions: Bo')).toBeNull();
+  });
+
   it('the role card keeps both faces and shows one', async () => {
     render(<RoleCardView role={card} />);
     const button = screen.getByRole('button', { name: 'Tap to reveal your role' });

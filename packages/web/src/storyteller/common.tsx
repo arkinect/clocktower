@@ -1,12 +1,27 @@
 // Small helpers shared by the console panels.
 import { useMemo, useState, type ReactNode } from 'react';
-import type { GrimoirePlayer, PlayerId, StorytellerView } from '@ct/protocol';
-import { useNames } from '../app/store';
+import type { CharacterType, GrimoirePlayer, PlayerId, StorytellerView } from '@ct/protocol';
+import { useGame, useNames } from '../app/store';
 import { Button, Sheet, SheetActions } from '../ui/ui';
 import styles from './console.module.css';
 
 /** Game-end suggestions are computed but not shown yet. Turn on in a later release. */
 export const SHOW_GAME_END_CARDS = false;
+
+/** The character types, in the order role dropdowns list them under dividers. */
+export const GROUPS: [CharacterType, string][] = [
+  ['townsfolk', 'Townsfolk'],
+  ['outsider', 'Outsiders'],
+  ['minion', 'Minions'],
+  ['demon', 'Demons'],
+  ['traveller', 'Travellers'],
+];
+
+/** The character type of a role, for its colour and its group. */
+export function useTypeOf() {
+  const { catalog } = useGame();
+  return (id: string | null) => (id ? catalog.find((c) => c.roleId === id)?.type : undefined);
+}
 
 export function useSeats(view: StorytellerView) {
   return useMemo(() => {

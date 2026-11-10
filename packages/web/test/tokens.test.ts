@@ -19,14 +19,17 @@ function contrast(a: string, b: string) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-const split = css.indexOf('@media (prefers-color-scheme: light)');
-const themes = { dark: tokens(css.slice(0, split)), light: tokens(css.slice(split)) };
+const t = tokens(css);
 
-describe.each(Object.entries(themes))('the %s theme', (_name, t) => {
+describe('the theme', () => {
   it.each(['text', 'muted', 'gold', 'error', 'townsfolk', 'outsider', 'minion', 'demon'])('%s is readable', (key) => {
     for (const bg of ['bg', 'card']) {
       expect(contrast(t[key] as string, t[bg] as string)).toBeGreaterThanOrEqual(4.5);
     }
+  });
+
+  it('is dark only', () => {
+    expect(css).not.toContain('prefers-color-scheme');
   });
 
   it('text on a gold button is readable', () => {

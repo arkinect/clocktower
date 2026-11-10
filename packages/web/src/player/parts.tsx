@@ -1,5 +1,5 @@
 // Read-only pieces of the phone app: role card, script, night order, seating and messages.
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { CharacterType, Jinx, Message, PlayerView, RoleCard } from '@ct/protocol';
 import styles from './player.module.css';
 
@@ -21,23 +21,30 @@ export function RoleIcon({ id }: { id: string }) {
   return <img className={styles['roleIcon']} src={`/icons/${id}.png`} alt="" loading="lazy" />;
 }
 
-/** Tap to reveal. Both faces keep their place, and the hidden one is invisible, so nothing moves. */
-export function RoleCardView({ role }: { role: RoleCard | null }) {
+/**
+ * Tap to reveal. Both faces keep their place, and the hidden one is invisible, so nothing moves.
+ * `secret` is everything else the player learned with the role (fellow Minions, bluffs, grants): it is
+ * left out of the page entirely until the card is revealed, and goes again when it is hidden.
+ */
+export function RoleCardView({ role, secret }: { role: RoleCard | null; secret?: ReactNode }) {
   const [shown, setShown] = useState(false);
   if (!role) return <div className={styles['roleCard']}>No role yet.</div>;
   return (
-    <button type="button" className={styles['roleCard']} aria-expanded={shown} onClick={() => setShown(!shown)}>
-      <span className={`${styles['roleFace']} ${shown ? '' : styles['offFace']}`} aria-hidden={!shown || undefined}>
-        <span className={`${styles['roleType']} type-${role.type}`}>{typeName(role.type)}</span>
-        <RoleIcon id={role.roleId} />
-        <span className={styles['roleName']}>{role.name}</span>
-        <span>{role.abilityText}</span>
-        <span className="muted small">Tap to hide</span>
-      </span>
-      <span className={`${styles['roleFace']} ${shown ? styles['offFace'] : ''}`} aria-hidden={shown || undefined}>
-        <span className={styles['reveal']}>Tap to reveal your role</span>
-      </span>
-    </button>
+    <div className={styles['roleCard']}>
+      <button type="button" className={styles['roleToggle']} aria-expanded={shown} onClick={() => setShown(!shown)}>
+        <span className={`${styles['roleFace']} ${shown ? '' : styles['offFace']}`} aria-hidden={!shown || undefined}>
+          <span className={`${styles['roleType']} type-${role.type}`}>{typeName(role.type)}</span>
+          <RoleIcon id={role.roleId} />
+          <span className={styles['roleName']}>{role.name}</span>
+          <span>{role.abilityText}</span>
+          <span className="muted small">Tap to hide</span>
+        </span>
+        <span className={`${styles['roleFace']} ${shown ? styles['offFace'] : ''}`} aria-hidden={shown || undefined}>
+          <span className={styles['reveal']}>Tap to reveal your role</span>
+        </span>
+      </button>
+      {shown && secret && <div className={styles['roleSecret']}>{secret}</div>}
+    </div>
   );
 }
 
