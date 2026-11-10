@@ -24,4 +24,21 @@ describe('Fool', () => {
     expect(s.alive('ann')).toBe(false);
     expect(Object.values(s.state.abilities).find((a) => a.roleId === ('fool' as never))?.used).toBe(false);
   });
+
+  const foolUsed = (s: ReturnType<typeof scene>) =>
+    Object.values(s.state.abilities).find((a) => a.roleId === ('fool' as never))?.used;
+
+  it('survives a first execution, which still counts as the execution', () => {
+    const s = scene(cast).start().dawn().execute('ann');
+    expect(s.alive('ann')).toBe(true);
+    expect(foolUsed(s)).toBe(true);
+    expect(s.state.events.findLast((e) => e.kind === 'execution')).toMatchObject({ playerId: 'ann', died: false });
+    s.dusk().dawn().execute('ann');
+    expect(s.alive('ann')).toBe(false);
+  });
+
+  it('recording the same execution again does not spend the save twice', () => {
+    const s = scene(cast).start().dawn().execute('ann').execute('ann');
+    expect(s.alive('ann')).toBe(true);
+  });
 });

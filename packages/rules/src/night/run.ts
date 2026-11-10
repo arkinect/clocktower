@@ -696,6 +696,22 @@ export class Run {
     w.events.push({ kind: 'execution', at: this.moment, playerId, died });
   }
 
+  /**
+   * Executes a player now, through everything that stops a death (Fool, Devil's Advocate, Sailor, Tea Lady), and
+   * records whether they died. Returns that.
+   */
+  execute(playerId: PlayerId): boolean {
+    const n = this.moment.n;
+    const today = this.world.events.findLast((e) => e.kind === 'execution' && e.at.kind === 'day' && e.at.n === n);
+    // Recording the same survivor again is the same execution: asking again would spend the Fool's save twice.
+    if (today?.kind === 'execution' && today.playerId === playerId && !today.died && this.reader.isAlive(playerId)) {
+      return false;
+    }
+    const died = this.reader.isAlive(playerId) ? this.attemptKill(playerId, 'execution', null) : true;
+    this.recordExecution(playerId, died);
+    return died;
+  }
+
   // ---- prompts ----
   prompt(
     a: Instance,

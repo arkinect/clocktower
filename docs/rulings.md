@@ -30,6 +30,15 @@ An execution kills at once. What it triggers for other characters (Cannibal, Mas
 the day's final execution record. A Storyteller revive before dusk undoes the trigger. Recording a different execution
 replaces the earlier record, and the earlier player stays dead until revived. Test: `scenarios/dusk.test.ts`.
 
+## Protection from execution
+
+An execution goes through the same protection as any other kill. A player the Devil's Advocate chose last night, a
+Fool's first death, a sober Sailor and a Tea Lady's good neighbour are executed and do not die. The execution still
+counts for the day (no second execution, and the dusk triggers see a survivor). Recording the same survivor again
+changes nothing, so the Fool's save is spent once. A Devil's Advocate who is dead or drunk or poisoned by then
+protects nobody, and the Devil's Advocate goes before the Fool, so a marked Fool keeps their save. Tests:
+`roles/devils-advocate.test.ts`, `roles/fool.test.ts`.
+
 ## The Scarlet Woman after a day death
 
 When the Demon dies during the day, the Scarlet Woman becomes the Demon at dusk, with nothing to confirm, if the Demon

@@ -10,6 +10,8 @@ The Storyteller console feels like 0.4.2 again.
   which now show their answer. It no longer records nominations, votes or statements.
 - An execution marks the player dead at once, but the Cannibal, Mastermind and Mayor react only when the night starts.
   Reviving the player in the Grimoire first undoes it.
+- The Devil's Advocate's player, the Fool, a sober Sailor and the Tea Lady's neighbours survive an execution by
+  themselves: choose them as executed as usual, and they stay alive.
 - If a fact the night needs wasn't recorded (the Flowergirl's answer, the Moonchild's choice), that night's Review asks
   for it before dawn can be published.
 - The Virgin, Golem and Psychopath are day abilities. The Psychopath's kill respects protections.

@@ -78,8 +78,9 @@ Known limits:
 - `adjustVote` needs the voters. A count with no names is kept as entered.
 - `hidesCharacter` hides the character card only. A picker's title can still give the role away, so a role file needs
   `shownAs` as well.
-- Deaths at execution are recorded by the Storyteller with `record_execution`, so execution protection (Sailor, Tea
-  Lady, Devil's Advocate, Pacifist, Scapegoat) shows as a reminder rather than as an intercepted kill.
+- An execution recorded with `record_execution` (or a day action's `ctx.execute`) goes through `interceptKill`
+  like any other kill, so the Fool, Devil's Advocate, Sailor and Tea Lady stop it. The execution is still recorded,
+  with `died: false`. Protection the app doesn't build (Pacifist, Scapegoat) is the Storyteller's to apply.
 
 ### Townsfolk
 
@@ -193,7 +194,7 @@ Known limits:
 | Boffin           |       | First night                                | `grant` to the Demon with `whileSourceWorks`                         |
 | Boomdandy        |       | On execution                               | `onDayEvent`, `decide`, `attemptKill`                                |
 | Cerenovus        |       | Each night                                 | mad condition, role field                                            |
-| Devil's Advocate | yes   | Each night                                 | `dayNotice`                                                          |
+| Devil's Advocate | yes   | Each night                                 | `dayNotice`, `interceptKill` (executions)                            |
 | Evil Twin        |       | Setup, passive                             | `setupFields`, `suppressGameEnd`, `suggestGameEnd`                   |
 | Fearmonger       |       | Each night                                 | `notify` to all, `onDayEvent`, `suggestGameEnd`                      |
 | Goblin           |       | Nomination                                 | day action, `onDayEvent`, `suggestGameEnd`                           |

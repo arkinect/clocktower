@@ -6,7 +6,7 @@ export const fool = defineRole({
   name: 'Fool',
   type: 'townsfolk',
   abilityText: "The first time you die, you don't.",
-  reminder: 'First death is prevented (night kills automatic). Apply to executions yourself.',
+  reminder: 'First death is prevented, by night or by execution.',
   flags: { oncePerGame: 'manual', interceptPriority: 40, passive: true },
   ability: {
     interceptKill(ctx, kill) {

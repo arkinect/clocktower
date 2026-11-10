@@ -120,10 +120,11 @@ export const dayCommands = [
       const id = cmd.playerId;
       if (id !== null) need(ctx.r.isSeated(id), 'Not a seated player.');
       // Today's execution is one record: a new one replaces it. What it triggers for other characters waits for
-      // dusk (start_night), so a Storyteller revive before then undoes it. An earlier player stays dead.
+      // dusk (start_night), so a Storyteller revive before then undoes it. An earlier player stays dead. A player
+      // something protects (Fool, Devil's Advocate) is recorded as executed and stays alive.
       const run = ctx.run();
-      run.recordExecution(id, cmd.died);
-      if (id && cmd.died && ctx.r.isAlive(id)) run.kill(id, 'execution');
+      if (id && cmd.died) run.execute(id);
+      else run.recordExecution(id, false);
       run.commitDay();
     },
   }),

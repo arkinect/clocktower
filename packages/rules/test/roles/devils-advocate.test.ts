@@ -12,4 +12,51 @@ describe("Devil's Advocate", () => {
     s.dusk();
     expect(s.specs('ann')[0]?.fields[0]?.options).not.toContain('bo');
   });
+
+  const executions = (s: ReturnType<typeof scene>) =>
+    s.state.events.filter((e) => e.kind === 'execution').map((e) => e.kind === 'execution' && [e.playerId, e.died]);
+
+  it('the marked player is executed and does not die', () => {
+    const s = scene(cast)
+      .start()
+      .submit({ ann: ['bo'] })
+      .dawn()
+      .execute('bo');
+    expect(s.alive('bo')).toBe(true);
+    expect(executions(s)).toEqual([['bo', false]]);
+    s.dusk();
+    expect(s.alive('bo')).toBe(true);
+  });
+
+  it('anyone else executed dies', () => {
+    const s = scene(cast)
+      .start()
+      .submit({ ann: ['bo'] })
+      .dawn()
+      .execute('di');
+    expect(s.alive('di')).toBe(false);
+    expect(executions(s)).toEqual([['di', true]]);
+  });
+
+  it('protects only the day after the choice', () => {
+    const s = scene(cast)
+      .start()
+      .submit({ ann: ['bo'] })
+      .dawn()
+      .dusk()
+      .submit({ ann: ['di'] })
+      .dawn()
+      .execute('bo');
+    expect(s.alive('bo')).toBe(false);
+  });
+
+  it('a marked Fool keeps their own save', () => {
+    const s = scene({ ...cast, bo: 'fool' })
+      .start()
+      .submit({ ann: ['bo'] })
+      .dawn()
+      .execute('bo');
+    expect(s.alive('bo')).toBe(true);
+    expect(Object.values(s.state.abilities).find((a) => a.roleId === ('fool' as never))?.used).toBe(false);
+  });
 });

@@ -274,7 +274,7 @@ describe('the Cannibal and the Philosopher', () => {
     di: 'poisoner',
     ed: 'empath',
     fi: 'fortune_teller',
-    gus: 'sailor',
+    gus: 'slayer',
     hal: 'butler',
   };
   const hasFt = (s: Scene) => eatenRoles(s, 'bo').includes('fortune_teller');
@@ -300,7 +300,7 @@ describe('the Cannibal and the Philosopher', () => {
     s.dawn().dusk().dawn();
     expect(s.impaired('fi')).toBe(true);
     s.execute('gus').dusk();
-    expect(eatenRoles(s, 'bo')).toEqual(['sailor']);
+    expect(eatenRoles(s, 'bo')).toEqual(['slayer']);
     expect(s.impaired('fi')).toBe(false);
     expect(hasFt(s)).toBe(false);
     expect(s.specs('bo').map((x) => x.roleId)).not.toContain('fortune_teller');
@@ -314,7 +314,7 @@ describe('the Cannibal and the Philosopher', () => {
 
   it('the Storyteller changing the eaten Philosopher ends it', () => {
     const s = cannibalChoseFt();
-    s.act('cannibal', 'set_ability', ['sailor']);
+    s.act('cannibal', 'set_ability', ['slayer']);
     expect(hasFt(s)).toBe(false);
     expect(s.impaired('fi')).toBe(false);
   });
@@ -345,7 +345,7 @@ describe('the Cannibal and the Philosopher', () => {
       .dawn()
       .execute('gus')
       .dusk();
-    expect(eatenRoles(s)).toContain('sailor');
+    expect(eatenRoles(s)).toContain('slayer');
     s.dawn().execute('bo').dusk();
     expect([...new Set(eatenRoles(s))]).toEqual(['cannibal']);
     expect(s.specs('ann')).toEqual([]);

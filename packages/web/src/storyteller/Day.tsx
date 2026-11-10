@@ -235,8 +235,9 @@ function Execution({ view, seated }: { view: StorytellerView; seated: GrimoirePl
       </div>
       <p>{executedToday(view, names.players)}</p>
       <p className="muted small">
-        The executed player is marked dead now. Other characters react when you start the night. If they survived or you
-        picked the wrong player, revive them in the Grimoire before starting the night.
+        The executed player dies now, unless something stops it (Fool, Devil's Advocate, Sailor, Tea Lady): then they
+        stay alive and the execution still counts. Other characters react when you start the night. If you picked the
+        wrong player, revive them in the Grimoire before starting the night.
       </p>
       {reminders.length > 0 && (
         <ul className="small">
