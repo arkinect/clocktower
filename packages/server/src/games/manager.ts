@@ -2,6 +2,7 @@
 import { createHash, randomInt, randomUUID } from 'node:crypto';
 import type { Command, PlayerId, ServerMessage, View } from '@ct/protocol';
 import { ENGINE_VERSION, GameState, createGame, dispatch, project, type GameStateT } from '@ct/rules';
+import { Tables } from '../cards/tables';
 import type { Limits } from '../config';
 import type { GameRow, Store } from '../store/store';
 
@@ -39,6 +40,13 @@ export class LiveGame {
   private draining = false;
   lastActivity: number;
   logLength: number;
+  /** The idle card tables. They live and die with the process: nothing about them is stored. */
+  readonly cards = new Tables({
+    eligible: (playerId) => this.idleAtNight(playerId),
+    send: (playerId, table) => {
+      for (const c of this.clients) if (c.playerId === playerId) c.send({ v: 1, type: 'cards', table });
+    },
+  });
 
   constructor(
     public state: GameStateT,
@@ -117,6 +125,18 @@ export class LiveGame {
       }
     }
     this.broadcast();
+    const { kind } = this.state.phase;
+    if (kind === 'night' || kind === 'day') this.cards.sync();
+    else this.cards.reset();
+  }
+
+  /** The same test the phone uses to unlock its night games, and nothing waiting to be answered. */
+  private idleAtNight(playerId: string) {
+    const view = this.viewFor(playerId);
+    if (view?.kind !== 'player' || !view.me.seated) return false;
+    const { kind, stage } = view.phase;
+    if (kind !== 'night' || stage === 'briefing' || view.me.questions.length) return false;
+    return view.me.submitted || stage !== 'collecting';
   }
 
   presence(): Record<string, boolean> {
@@ -149,6 +169,7 @@ export class LiveGame {
 
   remove(c: Client) {
     this.clients.delete(c);
+    if (![...this.clients].some((o) => o.playerId === c.playerId)) this.cards.drop(c.playerId);
     this.broadcastPresence();
   }
 

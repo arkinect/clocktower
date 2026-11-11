@@ -1,5 +1,6 @@
 // Client <-> server messages. Each carries the protocol version, so a stale phone is told to reload.
 import { z } from 'zod';
+import { CardsAction, CardsView } from './cards';
 import { Command } from './commands';
 import { RoleId, RolePreference } from './ids';
 import { View, RoleCard } from './views';
@@ -16,6 +17,8 @@ export const ClientMessage = z.discriminatedUnion('type', [
   z.strictObject({ v, type: z.literal('hello'), buildId: z.string().max(64) }),
   z.strictObject({ v, type: z.literal('command'), requestId: RequestId, command: Command }),
   z.strictObject({ v, type: z.literal('ping') }),
+  /** The idle card game. It is not a command: nothing is stored and nothing is acknowledged. */
+  z.strictObject({ v, type: z.literal('cards'), action: CardsAction }),
 ]);
 export type ClientMessage = z.infer<typeof ClientMessage>;
 
@@ -40,6 +43,8 @@ export const ServerMessage = z.discriminatedUnion('type', [
   z.object({ v, type: z.literal('removed') }),
   z.object({ v, type: z.literal('reload') }),
   z.object({ v, type: z.literal('pong') }),
+  /** This phone's card table, or null when it has no place at one just now. */
+  z.object({ v, type: z.literal('cards'), table: CardsView.nullable() }),
 ]);
 export type ServerMessage = z.infer<typeof ServerMessage>;
 

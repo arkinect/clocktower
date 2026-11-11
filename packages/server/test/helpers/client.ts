@@ -6,6 +6,8 @@ import { Writable } from 'node:stream';
 import {
   PROTOCOL_VERSION,
   ServerMessage,
+  type CardsAction,
+  type CardsView,
   type Command,
   type PlayerView,
   type RoleCard,
@@ -96,6 +98,8 @@ export class Client {
   raw: string[] = [];
   view: View | null = null;
   catalog: RoleCard[] = [];
+  /** The card table as last sent: undefined until the server has said anything about it. */
+  cards: CardsView | null | undefined;
   private acks = new Map<string, (m: Extract<ServerMessage, { type: 'ack' }>) => void>();
   private waiters: (() => void)[] = [];
   private next = 0;
@@ -111,6 +115,7 @@ export class Client {
       const m = ServerMessage.parse(JSON.parse(text));
       if (m.type === 'welcome') this.catalog = m.catalog;
       if (m.type === 'view') this.view = m.view;
+      if (m.type === 'cards') this.cards = m.table;
       if (m.type === 'ack') this.acks.get(m.requestId)?.(m);
       for (const w of this.waiters.splice(0)) w();
     });
@@ -126,6 +131,27 @@ export class Client {
       });
       this.ws.send(JSON.stringify({ v: PROTOCOL_VERSION, type: 'command', requestId, command }));
     });
+  }
+
+  /** A move at the card table. Nothing acknowledges it: wait for the table with `untilCards`. */
+  play(action: CardsAction) {
+    this.ws.send(JSON.stringify({ v: PROTOCOL_VERSION, type: 'cards', action }));
+  }
+
+  async untilCards(check: (table: CardsView | null) => boolean, ms = 5000) {
+    const deadline = Date.now() + ms;
+    for (;;) {
+      if (this.cards !== undefined && check(this.cards)) return this.cards;
+      const left = deadline - Date.now();
+      if (left <= 0) throw new Error(`timed out waiting for the card table: ${JSON.stringify(this.cards)}`);
+      await new Promise<void>((resolve) => {
+        const t = setTimeout(resolve, left);
+        this.waiters.push(() => {
+          clearTimeout(t);
+          resolve();
+        });
+      });
+    }
   }
 
   /** Sends a command that must be accepted. */

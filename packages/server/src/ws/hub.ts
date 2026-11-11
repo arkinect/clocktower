@@ -174,6 +174,10 @@ export class Hub {
     }
     const game = this.games.get(c.code);
     if (!game) return;
+    if (m.type === 'cards') {
+      game.cards.handle(c.playerId, m.action);
+      return;
+    }
     if (m.command.type === 'join') {
       c.send({ v: PROTOCOL_VERSION, type: 'ack', requestId: m.requestId, ok: false, error: 'You cannot do that.' });
       return;

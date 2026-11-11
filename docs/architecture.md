@@ -40,6 +40,8 @@ Server:
 - A game with no sockets and six idle hours gives up its slot when a fifth game wants one. Otherwise abandoned codes would hold all four slots until a restart.
 - The welcome message carries the jinx list, for the Roles tab. Jinxes are not in the view.
 - Server messages past the socket rate limit are dropped with no ack, as the limit is there to shed work. The client treats a missing ack as a timeout.
+- The idle card game (`server/src/cards`) is not part of the game: its moves are socket messages, not commands, so nothing is stored, logged or counted against the command limit, and a restart deals new hands. The rules engine has no clock, and the tables need one.
+- At the card tables a hand belongs to its player, not to a seat. A player who leaves takes it with them and brings it back to the fullest table with room, so players share as few tables as possible; a bot with its own hand fills every other seat, and an empty table closes. No seat is sent with a name, and a phone is sent no hand but its own.
 - Per-request logging is off, so addresses and URLs stay out of the logs. Each command logs the player id and command type.
 - `@fastify/static` is imported only when there is a client directory. Its dependencies are ES modules that `require` cannot load on some Node 22 releases. The esbuild bundle is unaffected.
 
