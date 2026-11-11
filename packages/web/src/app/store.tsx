@@ -10,7 +10,16 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
-import type { Command, Jinx, RoleCard, ServerMessage, View } from '@ct/protocol';
+import {
+  PROTOCOL_VERSION,
+  type CardsAction,
+  type CardsView,
+  type Command,
+  type Jinx,
+  type RoleCard,
+  type ServerMessage,
+  type View,
+} from '@ct/protocol';
 import type { Names } from '../ui/Picker';
 import { ToastView } from '../ui/ui';
 import { GameSocket, type Ack } from './socket';
@@ -19,6 +28,8 @@ import { sessionFor } from './http';
 export interface GameState {
   status: 'connecting' | 'open' | 'offline';
   view: View | null;
+  /** This phone's seat at the idle card game, once it has sat down. */
+  cards: CardsView | null;
   catalog: RoleCard[];
   jinxes: Jinx[];
   reload: boolean;
@@ -29,6 +40,7 @@ export interface GameState {
 const INITIAL: GameState = {
   status: 'connecting',
   view: null,
+  cards: null,
   catalog: [],
   jinxes: [],
   reload: false,
@@ -71,6 +83,10 @@ export class GameStore {
     return this.socket.send(command);
   }
 
+  cards = (action: CardsAction) => {
+    this.socket.post({ v: PROTOCOL_VERSION, type: 'cards', action });
+  };
+
   private set(patch: Partial<GameState>) {
     this.state = { ...this.state, ...patch };
     for (const l of this.listeners) l();
@@ -80,6 +96,7 @@ export class GameStore {
     if (m.type === 'welcome') {
       this.set({ catalog: m.catalog, jinxes: m.jinxes, reload: this.state.reload || m.buildId !== this.buildId });
     } else if (m.type === 'view') this.set({ view: m.view });
+    else if (m.type === 'cards') this.set({ cards: m.table });
     else if (m.type === 'reload') this.set({ reload: true });
     else if (m.type === 'removed') this.signOut();
   }
@@ -90,7 +107,7 @@ export class GameStore {
   }
 
   private async closed(everOpened: boolean) {
-    this.set({ status: 'offline' });
+    this.set({ status: 'offline', cards: null });
     if (everOpened) return;
     // A refused socket looks like a network failure to a browser, so ask whether the session is still good.
     const session = await sessionFor(this.code).catch(() => undefined);
@@ -130,6 +147,13 @@ function useStore() {
 export function useGame(): GameState {
   const store = useStore();
   return useSyncExternalStore(store.subscribe, store.getState);
+}
+
+/** The idle card game: the table as the server last sent it, and a way to act at it. */
+export function useCards() {
+  const store = useStore();
+  const { cards, status } = useGame();
+  return { table: cards, status, act: store.cards };
 }
 
 /** Display names for ids, from what the server sent. */

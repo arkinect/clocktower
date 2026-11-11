@@ -82,6 +82,11 @@ export class GameSocket {
     this.ws?.send(JSON.stringify(m));
   }
 
+  /** For messages that get no ack. One sent while offline is simply lost. */
+  post(m: ClientMessage) {
+    if (this.ws?.readyState === WebSocket.OPEN) this.raw(m);
+  }
+
   send(command: Command): Promise<Ack> {
     if (this.ws?.readyState !== WebSocket.OPEN) {
       return Promise.resolve({ ok: false, error: 'Not connected. Try again in a moment.' });
