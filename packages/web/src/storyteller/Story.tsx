@@ -188,6 +188,7 @@ export function Log({ view }: { view: StorytellerView }) {
   const rows = data?.log ?? [];
   return (
     <Section title={`Command log (${rows.length})`}>
+      <p className="muted small">Version {__APP_VERSION__}</p>
       <div className="row">
         <Button tiny onClick={() => void load()}>
           Refresh

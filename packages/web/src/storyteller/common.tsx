@@ -33,10 +33,19 @@ export function useSeats(view: StorytellerView) {
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** An impairment cause ("poisoned:Poisoner") in plain words. */
+/** The Drunk and the Marionette are drunk because of their own character. */
+export const OWN_ROLE_DRUNK = 'drunk (own role)';
+const drunkByOwnRole = (type: string, source: string) =>
+  type.toLowerCase() === 'drunk' && (source === 'Drunk' || source === 'Marionette');
+
+/** A condition's chip label: its name, or OWN_ROLE_DRUNK for the Drunk and the Marionette. */
+export const conditionLabel = (c: { type: string; label: string; sourceLabel: string }) =>
+  drunkByOwnRole(c.type, c.sourceLabel) ? OWN_ROLE_DRUNK : c.label;
+
 export function causeLabel(cause: string) {
   const [type = '', source = ''] = cause.split(':');
   if (source === 'storyteller') return `${titleCase(type)} (set by you)`;
-  if (source === 'Drunk' || source === 'Marionette') return 'Drunk/Marionette (own role)';
+  if (drunkByOwnRole(type, source)) return OWN_ROLE_DRUNK;
   return `${titleCase(type)} by the ${source}`;
 }
 
@@ -53,7 +62,7 @@ export function phaseText(view: StorytellerView) {
   return { lobby: 'Lobby', setup: 'Setup', ended: 'Game over' }[kind];
 }
 
-/** A player's name, marked when dead. With `role`, their character as well. */
+/** A player's name, in red when dead. With `role`, their character as well. */
 export function Who({ view, id, role }: { view: StorytellerView; id: string | null; role?: boolean }) {
   const names = useNames();
   const p = view.players.find((x) => x.id === id);
@@ -63,7 +72,6 @@ export function Who({ view, id, role }: { view: StorytellerView; id: string | nu
     <span className={p && !p.alive ? styles['dead'] : undefined}>
       {names.players[id] ?? id}
       {character ? ` (${character})` : ''}
-      {p && !p.alive ? ' (dead)' : ''}
     </span>
   );
 }

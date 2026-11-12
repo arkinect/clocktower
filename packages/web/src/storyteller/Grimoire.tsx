@@ -3,7 +3,17 @@ import type { GrimoirePlayer, RoleId, SetupFieldSpec, StorytellerView } from '@c
 import { useCommand, useNames } from '../app/store';
 import { Button, HoldButton, Segments, Sheet, SheetActions } from '../ui/ui';
 import { seatPlace } from './circle';
-import { GROUPS, Lines, Section, causeLabel, causesWithoutRow, phaseText, useSeats, useTypeOf } from './common';
+import {
+  GROUPS,
+  Lines,
+  Section,
+  causeLabel,
+  causesWithoutRow,
+  conditionLabel,
+  phaseText,
+  useSeats,
+  useTypeOf,
+} from './common';
 import styles from './console.module.css';
 
 /** Statuses the Storyteller can add by hand. A player holds each one at most once. */
@@ -162,9 +172,9 @@ export function Seat({
         {p.conditions.map((c) => (
           <Status
             key={c.id}
-            label={c.label}
+            label={conditionLabel(c)}
             warn={c.type === 'poisoned' || c.type === 'drunk'}
-            detail={`${c.sourceLabel}, until ${c.until}`}
+            detail={conditionLabel(c) === c.label ? `${c.sourceLabel}, until ${c.until}` : undefined}
             removeLabel={`Remove ${c.label} from ${p.name}`}
             onRemove={() => void run({ type: 'remove_condition', conditionId: c.id })}
           />

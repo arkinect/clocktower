@@ -169,7 +169,7 @@ function Players({ view, seated }: { view: StorytellerView; seated: GrimoirePlay
                     disabled={pending}
                     onClick={() => void run({ type: 'mark_alive', playerId: p.id, alive: false })}
                   >
-                    Dead
+                    Kill
                   </Button>
                 ) : p.ghostVoteUsed ? (
                   <span className={styles['tag']}>Dead vote used</span>
@@ -179,7 +179,7 @@ function Players({ view, seated }: { view: StorytellerView; seated: GrimoirePlay
                     disabled={pending}
                     onClick={() => void run({ type: 'set_ghost_vote', playerId: p.id, used: true })}
                   >
-                    Dead vote
+                    Use dead vote
                   </Button>
                 )}
               </td>
@@ -195,16 +195,6 @@ function Players({ view, seated }: { view: StorytellerView; seated: GrimoirePlay
 /** Today's choice of execution, if any: the last one recorded. */
 const chosenForExecution = (view: StorytellerView) =>
   view.dayEvents.findLast((x) => x.kind === 'execution')?.playerId ?? null;
-
-/** What happens at dusk, in one line. */
-function atDusk(view: StorytellerView, names: Record<string, string>) {
-  const id = chosenForExecution(view);
-  if (!id) return 'No execution today.';
-  const name = names[id] ?? id;
-  return view.players.find((x) => x.id === id)?.alive
-    ? `${name} is executed when you start the night.`
-    : `${name} is already dead: the execution kills nobody.`;
-}
 
 function Execution({ view, seated }: { view: StorytellerView; seated: GrimoirePlayer[] }) {
   const { run, pending } = useCommand();
@@ -237,12 +227,6 @@ function Execution({ view, seated }: { view: StorytellerView; seated: GrimoirePl
             ))}
         </select>
       </label>
-      <p>{atDusk(view, names.players)}</p>
-      <p className="muted small">
-        The player is executed when you start the night, and other characters react then. A Fool, the Devil&apos;s
-        Advocate&apos;s player, a sober Sailor or a Tea Lady&apos;s good neighbour survives it, and the execution still
-        counts.
-      </p>
       {reminders.length > 0 && (
         <ul className="small">
           {reminders.map(({ p, a }) => (
@@ -328,7 +312,7 @@ function Travellers({ view, seated }: { view: StorytellerView; seated: GrimoireP
             </span>
             <HoldButton onConfirm={() => void run({ type: 'exile_traveller', playerId: p.id })}>Exile</HoldButton>
             <Button tiny disabled={pending} onClick={() => void run({ type: 'remove_traveller', playerId: p.id })}>
-              Leaves
+              Remove
             </Button>
           </li>
         ))}

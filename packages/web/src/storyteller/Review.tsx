@@ -314,7 +314,7 @@ export function Review({ view }: { view: StorytellerView }) {
             Publish dawn
           </Button>
           {blocked && (
-            <HoldButton onConfirm={() => void run({ type: 'publish_dawn', force: true })}>Publish anyway</HoldButton>
+            <HoldButton onConfirm={() => void run({ type: 'publish_dawn', force: true })}>Force publish</HoldButton>
           )}
           <Button disabled={pending} onClick={() => void run({ type: 'reopen_collecting' })}>
             Reopen the night

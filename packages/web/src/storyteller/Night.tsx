@@ -31,7 +31,6 @@ function SubmitFor({ view, row, onClose }: { view: StorytellerView; row: Submiss
 
 function Controls({ view }: { view: StorytellerView }) {
   const { run, pending } = useCommand();
-  const [seconds, setSeconds] = useState(view.settings.countdownSeconds);
   const stage = view.phase.stage;
   const ready = view.board.every((b) => !b.expected || b.submitted);
   return (
@@ -55,21 +54,12 @@ function Controls({ view }: { view: StorytellerView }) {
               Close the night
             </Button>
             {!ready && (
-              <HoldButton onConfirm={() => void run({ type: 'close_collecting', force: true })}>
-                Close anyway
-              </HoldButton>
+              <HoldButton onConfirm={() => void run({ type: 'close_collecting', force: true })}>Force close</HoldButton>
             )}
           </div>
           <div className="row">
             <Button tiny disabled={pending} onClick={() => void run({ type: 'extend_countdown', seconds: 60 })}>
               Add a minute
-            </Button>
-            <label className={styles['inline']}>
-              <span>Countdown in seconds</span>
-              <input type="number" min={0} value={seconds} onChange={(e) => setSeconds(Number(e.target.value))} />
-            </label>
-            <Button tiny disabled={pending} onClick={() => void run({ type: 'set_countdown', seconds })}>
-              Set
             </Button>
           </div>
         </>
@@ -96,7 +86,7 @@ function Board({ view }: { view: StorytellerView }) {
                 {' '}
                 {b.wakes.map((w) => w.title).join(', ')}
                 {b.byStoryteller ? ' (entered by you)' : ''}
-                {!b.expected ? ' (not expected)' : ''}
+                {!b.expected ? ' (nothing to submit)' : ''}
               </span>
             </span>
             {collecting && !b.submitted && b.specs.length > 0 && (
@@ -110,7 +100,7 @@ function Board({ view }: { view: StorytellerView }) {
                 disabled={pending}
                 onClick={() => void run({ type: 'mark_no_action', playerId: b.playerId })}
               >
-                No action
+                Skip
               </Button>
             )}
             {collecting && b.submitted && (

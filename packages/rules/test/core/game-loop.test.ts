@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { RoleId } from '@ct/protocol';
 import { replay } from '../../src';
 import { begin, cast, dawn, dusk, pid, ST, TestGame, seated } from '../helpers/game';
 import { DEMON, MINION, OUT, TOWN } from '../helpers/plain';
@@ -103,9 +104,15 @@ describe('the dispatcher', () => {
     expect(g.log).toHaveLength(logged);
   });
 
-  it('requires force to close collecting before the deadline', () => {
+  it('does not wait for players with nothing to choose', () => {
     const g = begin(cast(FIVE));
-    expect(g.rejected(ST, { type: 'close_collecting', force: false })).toMatch(/Waiting/);
+    g.st({ type: 'close_collecting', force: false });
+    expect(g.state.phase).toMatchObject({ stage: 'review' });
+  });
+
+  it('requires force to close collecting before the deadline', () => {
+    const g = begin(cast({ ...FIVE, Di: 'poisoner' as RoleId }));
+    expect(g.rejected(ST, { type: 'close_collecting', force: false })).toMatch(/Waiting for 1/);
     g.now += g.state.settings.countdownSeconds * 1000 + 1;
     g.st({ type: 'close_collecting', force: false });
     expect(g.state.phase).toMatchObject({ stage: 'review' });

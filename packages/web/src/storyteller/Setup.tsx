@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Alignment, GrimoirePlayer, RoleCard, RoleId, SetupFieldSpec, StorytellerView } from '@ct/protocol';
 import { useCommand, useGame, useNames } from '../app/store';
 import { typeName } from '../player/parts';
-import { Button, Card, HoldButton, Segments } from '../ui/ui';
+import { Button, Card, HoldButton, Info, Segments } from '../ui/ui';
 import { GROUPS, Section, useSeats, useTypeOf } from './common';
 import styles from './console.module.css';
 
@@ -123,7 +123,7 @@ function Seating({ view }: { view: StorytellerView }) {
           Randomise
         </Button>
         <Button disabled={pending} onClick={() => void run({ type: 'publish_seating' })}>
-          {view.seatingPublished ? 'Published. Publish again' : 'Publish to phones'}
+          {view.seatingPublished ? 'Republish' : 'Publish to phones'}
         </Button>
       </div>
     </Section>
@@ -136,8 +136,11 @@ function RoleSelect({
   options,
   onChange,
   none,
+  hideLabel,
 }: {
   label: string;
+  /** For a select whose row already names the player: the label is for screen readers only. */
+  hideLabel?: boolean;
   value: string | null;
   options: readonly string[];
   onChange: (id: RoleId | null) => void;
@@ -155,8 +158,12 @@ function RoleSelect({
   const rest = options.filter((r) => !grouped.has(typeOf(r) ?? ''));
   return (
     <label className={styles['inline']}>
-      <span>{label}</span>
-      <select value={value ?? ''} onChange={(e) => onChange((e.target.value as RoleId) || null)}>
+      {!hideLabel && <span>{label}</span>}
+      <select
+        aria-label={hideLabel ? label : undefined}
+        value={value ?? ''}
+        onChange={(e) => onChange((e.target.value as RoleId) || null)}
+      >
         <option value="">{none}</option>
         {GROUPS.map(([type, heading]) => {
           const roles = options.filter((r) => typeOf(r) === type);
@@ -183,6 +190,7 @@ export function AssignRow({ view, player }: { view: StorytellerView; player: Gri
       <b>{player.name}</b>
       <RoleSelect
         label={`Character for ${player.name}`}
+        hideLabel
         value={player.character}
         options={view.script}
         none="No character"
@@ -351,7 +359,18 @@ function Settings({ view }: { view: StorytellerView }) {
   return (
     <Section title="Settings">
       <div className={styles['field']}>
-        <span>Evil information</span>
+        <span>
+          Evil information
+          <Info label="About the evil information rules">
+            <b>House:</b> the Minions learn each other, but not the Demon. The Demon learns its Minions and reveals
+            itself to them at the table.
+            <br />
+            <b>Official:</b> with 7 or more living players (Travellers aside), the Minions are also told who the Demon
+            is. With fewer, they learn as under House.
+            <br />
+            Either way, an evil Traveller is told who the Demon is.
+          </Info>
+        </span>
         <Segments
           label="Evil information"
           options={[
