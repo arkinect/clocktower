@@ -43,7 +43,7 @@ function DayCard({ day }: { day: StoryDay }) {
 }
 
 /** A night at a glance, as in 0.4.2: one row per player, scanned down and across. */
-function NightCard({ night }: { night: StoryNight }) {
+export function NightCard({ night }: { night: StoryNight }) {
   const names = useNames();
   const { catalog } = useGame();
   const [open, setOpen] = useState(true);

@@ -3,63 +3,86 @@ import type { Choice, PlayerId, QuestionView, ResultView, ReviewItem, ReviewView
 import { useCommand, useNames } from '../app/store';
 import { Picker, choiceComplete } from '../ui/Picker';
 import { Button, Card, HoldButton, Segments } from '../ui/ui';
-import { InputSheet, Lines, PlayerSelect, SHOW_GAME_END_CARDS, Section, Who, causeLabel, useSeats } from './common';
+import { InputSheet, Lines, SHOW_GAME_END_CARDS, Section, Who, causeLabel, useSeats } from './common';
 import styles from './console.module.css';
+import { NightCard } from './Story';
 
 const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+
+/** "poisoned", "drunk": the kinds of impairment behind a result, for its heading. */
+const impairmentTypes = (causes: string[]) => [...new Set(causes.map((c) => (c.split(':')[0] ?? '').toLowerCase()))];
+
+const WRITE = 'write';
+const SUGGESTION = 'suggestion';
 
 function Result({ view, r }: { view: StorytellerView; r: ResultView }) {
   const { run, pending } = useCommand();
   const [editing, setEditing] = useState(false);
   const set = (lines: string[] | null) => run({ type: 'override_result', resultKey: r.key, lines });
+  const suggestion = r.transformed ?? r.suggested;
+  // The suggestion first, then every other outcome the role could give, then a written answer if there is one.
+  const options: string[][] = [suggestion];
+  for (const a of r.alternatives) if (!options.some((o) => same(o, a))) options.push(a);
+  if (!options.some((o) => same(o, r.final))) options.push(r.final);
+  const selected = options.findIndex((o) => same(o, r.final));
+  const choose = (value: string) => {
+    if (value === WRITE) return setEditing(true);
+    if (value === SUGGESTION) return void set(null);
+    const lines = options[Number(value)];
+    if (lines) void set(lines);
+  };
+  const types = r.impaired ? impairmentTypes(r.causes) : [];
   return (
     <article className={styles['result']}>
       <h3>
-        <Who view={view} id={r.playerId} role />: {r.title}
+        <Who view={view} id={r.playerId} /> {r.title}
+        {types.length > 0 && (
+          <span className={styles['warn']} title={r.causes.map(causeLabel).join(', ')}>
+            {' '}
+            - {types.join(', ')}
+          </span>
+        )}
       </h3>
-      {r.impaired && <p className={styles['warn']}>Impaired: {r.causes.map(causeLabel).join(', ')}</p>}
       <div className={styles['truthGrid']}>
         <div>
           <span className="muted small">Truth</span>
           <Lines lines={r.truth} />
         </div>
-        <div>
+        <label className={styles['field']}>
           <span className="muted small">Suggested</span>
-          <Lines lines={r.transformed ?? r.suggested} />
-        </div>
-        <div>
-          <span className="muted small">Final</span>
-          <Lines lines={r.final} />
-        </div>
+          <select
+            aria-label={`Answer for ${r.title}`}
+            disabled={pending}
+            value={selected === 0 ? SUGGESTION : String(selected)}
+            onChange={(e) => choose(e.target.value)}
+          >
+            {options.map((o, i) => (
+              <option key={o.join('|')} value={i === 0 ? SUGGESTION : String(i)}>
+                {o.join(' ')}
+                {i === 0 && r.overridden ? ' (suggestion)' : ''}
+                {i > 0 && i === options.length - 1 && r.overridden && !r.alternatives.some((a) => same(a, o))
+                  ? ' (your answer)'
+                  : ''}
+              </option>
+            ))}
+            <option value={WRITE}>Write an answer…</option>
+          </select>
+        </label>
       </div>
       {r.staleOverride && (
         <Card tone="warn">
           The night changed after you wrote this answer. Check it still holds, then keep it or go back to the
           suggestion.
+          <div className="row">
+            <Button tiny disabled={pending} onClick={() => void set(r.final)}>
+              Keep this answer
+            </Button>
+            <Button tiny disabled={pending} onClick={() => void set(null)}>
+              Use the suggestion
+            </Button>
+          </div>
         </Card>
       )}
-      <div className="row">
-        {r.alternatives
-          .filter((a) => !same(a, r.final))
-          .map((a) => (
-            <Button key={a.join('|')} tiny disabled={pending} onClick={() => void set(a)}>
-              {a.join(' ')}
-            </Button>
-          ))}
-        <Button tiny onClick={() => setEditing(true)}>
-          Write an answer
-        </Button>
-        {r.overridden && (
-          <Button tiny disabled={pending} onClick={() => void set(null)}>
-            Use the suggestion
-          </Button>
-        )}
-        {r.staleOverride && (
-          <Button tiny disabled={pending} onClick={() => void set(r.final)}>
-            Keep this answer
-          </Button>
-        )}
-      </div>
       {editing && (
         <InputSheet
           title={`Answer for ${r.title}`}
@@ -143,12 +166,12 @@ function Question({ view, q }: { view: StorytellerView; q: QuestionView }) {
 
 function Malfunctions({ view, review }: { view: StorytellerView; review: ReviewView }) {
   const { run, pending } = useCommand();
-  const [adding, setAdding] = useState<PlayerId | ''>('');
-  const { seated } = useSeats(view);
   const { add, remove } = review.malfunctionAdjust;
   const counted = review.malfunctions.filter((m) => !remove.includes(m.playerId));
   const push = (nextAdd: PlayerId[], nextRemove: PlayerId[]) =>
     void run({ type: 'adjust_malfunctions', add: nextAdd, remove: nextRemove });
+  // Malfunctions come from impairments set on the Grimoire; this only lets you leave one out of the count.
+  if (!review.malfunctions.length && !add.length) return null;
   return (
     <Section title={`Malfunctions (${counted.length + add.length})`}>
       <ul className={styles['rows']}>
@@ -192,18 +215,6 @@ function Malfunctions({ view, review }: { view: StorytellerView; review: ReviewV
           </li>
         ))}
       </ul>
-      <div className={styles['addRow']}>
-        <PlayerSelect label="Add a malfunction" players={seated} value={adding} onChange={setAdding} />
-        <Button
-          disabled={!adding || pending}
-          onClick={() => {
-            if (adding) push([...add, adding], remove);
-            setAdding('');
-          }}
-        >
-          Add
-        </Button>
-      </div>
     </Section>
   );
 }
@@ -264,45 +275,13 @@ export function Review({ view }: { view: StorytellerView }) {
         </Section>
       )}
       <Malfunctions view={view} review={review} />
-      <Section title="Tonight">
-        <p>
-          Deaths:{' '}
-          {review.deaths.length
-            ? review.deaths.map((id, i) => (
-                <span key={id}>
-                  {i > 0 ? ', ' : ''}
-                  <Who view={view} id={id} role />
-                </span>
-              ))
-            : 'nobody'}
-        </p>
-        {review.revived.length > 0 && (
-          <p>
-            Revived:{' '}
-            {review.revived.map((id) => (
-              <Who key={id} view={view} id={id} role />
-            ))}
-          </p>
-        )}
-        {SHOW_GAME_END_CARDS &&
-          review.gameEnd.map((g) => (
-            <Card key={g.key} tone="notice">
-              {g.reason}
-            </Card>
-          ))}
-        <details>
-          <summary>The night in order</summary>
-          <ul>
-            {review.actors.map((a, i) => (
-              <li key={i}>
-                <Who view={view} id={a.playerId} role />: {a.input} {a.outcome}
-                {a.impaired ? ` (impaired: ${a.causes.map(causeLabel).join(', ')})` : ''}
-              </li>
-            ))}
-          </ul>
-          <Lines lines={review.log} />
-        </details>
-      </Section>
+      {SHOW_GAME_END_CARDS &&
+        review.gameEnd.map((g) => (
+          <Card key={g.key} tone="notice">
+            {g.reason}
+          </Card>
+        ))}
+      <NightCard night={review.story} />
       <Section title="Publish">
         <div className="row">
           <Button

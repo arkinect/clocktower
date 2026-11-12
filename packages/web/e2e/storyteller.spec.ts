@@ -104,11 +104,11 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
   await di?.submit((o) => o === ed?.id);
   await ed?.submit((o) => o === di?.id);
   await closeNight(page);
-  const result = page.getByRole('article').filter({ hasText: 'Ann (Balloonist)' });
-  await result.getByRole('button', { name: 'Write an answer' }).click();
+  const result = page.getByRole('article').filter({ hasText: 'Ann Balloonist' });
+  await result.getByLabel('Answer for Balloonist').selectOption({ label: 'Write an answer…' });
   await page.getByLabel('One line per message line').fill('An answer from the Storyteller');
   await page.getByRole('button', { name: 'Save' }).click();
-  await expect(result.getByText('An answer from the Storyteller')).toBeVisible();
+  await expect(result.locator('select option:checked')).toHaveText(/An answer from the Storyteller/);
 
   const decision = page.getByRole('group', { name: /Balloonist Ann: show which player/ });
   await decision.getByRole('button', { pressed: false }).click();
