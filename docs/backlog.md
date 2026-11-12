@@ -35,6 +35,7 @@ in night menu, setting the timer can be removed. that's in the setup. add a minu
 "close anyway" -> "force close"
 dont let people with no night action block closing the night (some consideration here for people who have to submit a meaningless action, drunk, etc)
 version number should be visible in the log tab
+"published. publish again" -> "republish"
 
 ## review tab simplification
 what's the reasoning behind having an 'add malfunction' section? anyone I want to make malfunction can have that happen through the relevant player's section
