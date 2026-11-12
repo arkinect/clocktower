@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { defineRole, registerRole, type RoleDef } from '../../src';
 import { scene } from '../scenario';
 import { TRAVELLER } from '../helpers/plain';
+import { ST } from '../helpers/game';
 
 function fake<S>(def: Parameters<typeof defineRole<S>>[0]): RoleId {
   registerRole(defineRole<S>(def) as RoleDef);
@@ -617,6 +618,11 @@ describe('mechanics', () => {
       .dawn();
     s.g.st({ type: 'add_condition', target: 'a' as PlayerId, condition: 'mad' });
     expect(s.impaired('a')).toBe(false);
+    // A status is held once: adding it again is refused.
+    expect(s.g.rejected(ST, { type: 'add_condition', target: 'a' as PlayerId, condition: 'mad' })).toMatch(
+      /already mad/,
+    );
+    expect(s.state.conditions.filter((c) => c.target === 'a' && c.type === 'mad')).toHaveLength(1);
     s.g.st({ type: 'record_broke_madness', playerId: 'a' as PlayerId, ruling: 'Executed for it' });
     expect(s.state.events.at(-1)).toMatchObject({ kind: 'broke_madness', ruling: 'Executed for it' });
     expect(s.g.grimoire().story.some((e) => JSON.stringify(e).includes('broke madness'))).toBe(true);

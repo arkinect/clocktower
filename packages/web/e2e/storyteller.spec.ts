@@ -129,8 +129,8 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
     expect(width, name).toBeLessThanOrEqual(360);
   }
   await tab(page, 'Grimoire');
-  await expect(page.getByRole('heading', { name: 'The circle' })).toBeVisible();
   const seat = page.getByRole('button', { name: /^Seat 1: / });
+  await expect(seat).toBeVisible();
   await seat.click();
   await expect(page.getByRole('dialog').getByRole('group', { name: /^Alignment of / })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: 'Change character' }).click();

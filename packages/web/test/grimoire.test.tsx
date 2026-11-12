@@ -95,6 +95,11 @@ describe('the seat sheet', () => {
   const seat = (p: GrimoirePlayer, others: GrimoirePlayer[] = [], over: Record<string, unknown> = {}) =>
     render(<Seat view={view([p, ...others], over)} p={p} onChangeCharacter={vi.fn()} />);
 
+  it('shows no online or offline status', () => {
+    seat(player({ connected: false }));
+    expect(screen.queryByText(/offline|online/)).toBeNull();
+  });
+
   it('shows the seat, the character in its type colour and the alignment as segments', async () => {
     seat(player({ id: 'b', name: 'Bo', seat: 1 }), [player({ seat: 0 })]);
     expect(screen.getByText(/Seat 2/)).toBeTruthy();
@@ -105,20 +110,39 @@ describe('the seat sheet', () => {
     expect(run).toHaveBeenCalledWith({ type: 'set_alignment', playerId: 'b', alignment: 'evil' });
   });
 
-  it('kills the living', async () => {
+  it('kills the living through + status, and offers no dead vote', async () => {
     seat(player({}));
-    expect(screen.queryByRole('button', { name: /Vote/ })).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Kill' }));
+    expect(screen.queryByText(/dead vote/)).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: '+ status' }));
+    const add = screen.getByRole('group', { name: 'Add a status to Ann' });
+    expect(within(add).queryByRole('button', { name: 'dead vote used' })).toBeNull();
+    await userEvent.click(within(add).getByRole('button', { name: 'dead' }));
     expect(run).toHaveBeenCalledWith({ type: 'mark_alive', playerId: 'a', alive: false });
   });
 
-  it('revives the dead and toggles their vote', async () => {
+  it('removing "dead" revives; a dead player with their vote shows no vote status', async () => {
     seat(player({ alive: false, deathCause: 'demon_kill' }));
-    expect(screen.getByText('Died: demon kill')).toBeTruthy();
-    await userEvent.click(screen.getByRole('button', { name: 'Revive' }));
+    expect(screen.getByText(/demon kill/)).toBeTruthy();
+    expect(screen.queryByText(/dead vote/)).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Revive Ann' }));
     expect(run).toHaveBeenCalledWith({ type: 'mark_alive', playerId: 'a', alive: true });
-    await userEvent.click(screen.getByRole('button', { name: 'Vote available' }));
+  });
+
+  it('adds "dead vote used" through + status', async () => {
+    seat(player({ alive: false }));
+    await userEvent.click(screen.getByRole('button', { name: '+ status' }));
+    expect(screen.queryByRole('button', { name: 'dead' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'dead vote used' }));
     expect(run).toHaveBeenCalledWith({ type: 'set_ghost_vote', playerId: 'a', used: true });
+  });
+
+  it('removing "dead vote used" gives the vote back', async () => {
+    seat(player({ alive: false, ghostVoteUsed: true }));
+    expect(screen.getByText('dead vote used')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: '+ status' }));
+    expect(screen.queryByRole('button', { name: 'dead vote used' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Give Ann their dead vote back' }));
+    expect(run).toHaveBeenCalledWith({ type: 'set_ghost_vote', playerId: 'a', used: false });
   });
 
   it('toggles a once-per-game ability by hand, unless the engine tracks it', async () => {
@@ -133,7 +157,18 @@ describe('the seat sheet', () => {
     expect(screen.getByText('Used, tracked automatically')).toBeTruthy();
   });
 
-  it('says where a gained ability came from and when', () => {
+  it('does not offer drunk to the Drunk, whose own character makes them so', async () => {
+    seat(player({ impaired: true, causes: ['drunk:Drunk'] }));
+    expect(screen.getByText('Drunk/Marionette (own role)')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: '+ status' }));
+    expect(screen.queryByRole('button', { name: 'drunk' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'poisoned' })).toBeTruthy();
+  });
+
+  it('says where a gained ability came from and when, but not for their own character', () => {
+    const { unmount } = seat(player({ abilities: [ability({})] }));
+    expect(screen.queryByText(/own character/)).toBeNull();
+    unmount();
     seat(player({ abilities: [ability({ origin: 'granted', from: 'Night 2', survivesDeath: true })] }));
     expect(screen.getByText(/gained Night 2/)).toBeTruthy();
     expect(screen.getByText('keeps ability when dead')).toBeTruthy();
@@ -154,7 +189,10 @@ describe('the seat sheet', () => {
         ],
       }),
     );
-    await userEvent.click(screen.getByRole('button', { name: '+ drunk' }));
+    await userEvent.click(screen.getByRole('button', { name: '+ status' }));
+    // Already poisoned, so poisoned is not offered again.
+    expect(screen.queryByRole('button', { name: 'poisoned' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'drunk' }));
     expect(run).toHaveBeenCalledWith({ type: 'add_condition', target: 'a', condition: 'drunk' });
     await userEvent.click(screen.getByRole('button', { name: 'Remove poisoned from Ann' }));
     expect(run).toHaveBeenCalledWith({ type: 'remove_condition', conditionId: 'c1' });
@@ -198,7 +236,7 @@ describe('changing a character', () => {
     await userEvent.click(screen.getByRole('button', { name: /^Seat 1: / }));
     await userEvent.click(screen.getByRole('button', { name: 'Change character' }));
     expect(screen.getByText('Change character of Ann')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Kill' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '+ status' })).toBeNull();
   });
 });
 
