@@ -157,9 +157,21 @@ describe('the seat sheet', () => {
     expect(screen.getByText('Used, tracked automatically')).toBeTruthy();
   });
 
+  it("labels the Marionette's drunk condition as their own role", () => {
+    seat(
+      player({
+        conditions: [
+          { id: 'c1', type: 'drunk', name: null, label: 'drunk', until: 'removed', sourceLabel: 'Marionette' },
+        ],
+      }),
+    );
+    expect(screen.getByText('drunk (own role)')).toBeTruthy();
+    expect(screen.queryByText('Marionette, until removed', { exact: false })).toBeNull();
+  });
+
   it('does not offer drunk to the Drunk, whose own character makes them so', async () => {
     seat(player({ impaired: true, causes: ['drunk:Drunk'] }));
-    expect(screen.getByText('Drunk/Marionette (own role)')).toBeTruthy();
+    expect(screen.getByText('drunk (own role)')).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: '+ status' }));
     expect(screen.queryByRole('button', { name: 'drunk' })).toBeNull();
     expect(screen.getByRole('button', { name: 'poisoned' })).toBeTruthy();

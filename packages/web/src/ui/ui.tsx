@@ -214,3 +214,28 @@ export function ToastView({ text, onDone }: { text: string; onDone: () => void }
     </div>
   );
 }
+
+/** A small ⓘ that explains something on hover or focus, and on a tap for phones. */
+export function Info({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className={styles['info']} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <button
+        type="button"
+        className={styles['infoButton']}
+        aria-label={label}
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+      >
+        ⓘ
+      </button>
+      {open && (
+        <span role="tooltip" className={styles['infoTip']}>
+          {children}
+        </span>
+      )}
+    </span>
+  );
+}

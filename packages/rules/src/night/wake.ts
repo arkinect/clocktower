@@ -41,16 +41,14 @@ export function actionSpecs(state: GameState, pid: PlayerId): ActionSpec[] {
   return out;
 }
 
+/**
+ * The players the night waits for: those with a real choice to make. A drunk or poisoned player's picker is still real
+ * to them, so they are waited for too. Everyone else sees a decoy, which they may submit but nobody waits on.
+ */
 export function expectedActors(state: GameState): PlayerId[] {
   const phase = state.phase;
   if (phase.kind !== 'night') return [];
-  const run = queryRun(state, phase);
-  return run.reader.seated.filter(
-    (id) =>
-      run.reader.isAlive(id) ||
-      run.reader.abilitiesOf(id).some((a) => a.survivesDeath) ||
-      actionSpecs(state, id).length > 0,
-  );
+  return queryRun(state, phase).reader.seated.filter((id) => actionSpecs(state, id).length > 0);
 }
 
 export function validateChoice(spec: ActionSpec, choice: Choice | undefined): string | null {

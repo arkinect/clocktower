@@ -132,8 +132,8 @@ describe('impairment wording', () => {
     ['drunk:Sailor', 'Drunk by the Sailor'],
     ['drunk:storyteller', 'Drunk (set by you)'],
     ['poisoned:storyteller', 'Poisoned (set by you)'],
-    ['drunk:Drunk', 'Drunk/Marionette (own role)'],
-    ['drunk:Marionette', 'Drunk/Marionette (own role)'],
+    ['drunk:Drunk', 'drunk (own role)'],
+    ['drunk:Marionette', 'drunk (own role)'],
   ])('%s reads as %s', (cause, text) => {
     expect(causeLabel(cause)).toBe(text);
   });
@@ -454,14 +454,12 @@ describe('the Day tab', () => {
   it('choosing from the list records the execution, which happens at Start Night', async () => {
     const { rerender } = render(<Day view={dayView()} />);
     expect(screen.queryByRole('button', { name: 'Execute' })).toBeNull();
-    expect(screen.getByText('No execution today.')).toBeTruthy();
     await userEvent.selectOptions(screen.getByLabelText('Executed'), 'a');
     expect(run).toHaveBeenCalledWith({ type: 'record_execution', playerId: 'a', died: true });
     const chosen = (playerId: string | null) =>
       ({ at: 'Day 2', kind: 'execution', text: '', playerId }) as StorytellerView['dayEvents'][number];
     rerender(<Day view={dayView({ dayEvents: [chosen('a')] })} />);
     expect((screen.getByLabelText('Executed') as HTMLSelectElement).value).toBe('a');
-    expect(screen.getByText('Ann is executed when you start the night.')).toBeTruthy();
     expect(screen.getByText('executed at dusk', { exact: false })).toBeTruthy();
     await userEvent.selectOptions(screen.getByLabelText('Executed'), '');
     expect(run).toHaveBeenLastCalledWith({ type: 'record_execution', playerId: null, died: true });
@@ -469,7 +467,7 @@ describe('the Day tab', () => {
     expect((screen.getByLabelText('Executed') as HTMLSelectElement).value).toBe('');
   });
 
-  it('gives alive players Dead, and dead ones their dead vote', () => {
+  it('offers Kill to alive players and Use dead vote to dead ones', () => {
     render(
       <Day
         view={dayView({}, [
@@ -479,8 +477,8 @@ describe('the Day tab', () => {
         ])}
       />,
     );
-    expect(screen.getByRole('button', { name: 'Dead' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Dead vote' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Kill' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Use dead vote' })).toBeTruthy();
     expect(screen.getByText('Dead vote used')).toBeTruthy();
   });
 

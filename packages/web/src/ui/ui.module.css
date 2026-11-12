@@ -197,3 +197,37 @@
 .stableOff {
   visibility: hidden;
 }
+
+.info {
+  position: relative;
+  display: inline-block;
+}
+
+.infoButton {
+  font: inherit;
+  color: var(--muted);
+  background: none;
+  border: none;
+  padding: 0 4px;
+  cursor: help;
+}
+
+.infoButton:hover,
+.infoButton:focus-visible {
+  color: var(--gold);
+}
+
+.infoTip {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
+  width: min(320px, 80vw);
+  padding: 8px 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
