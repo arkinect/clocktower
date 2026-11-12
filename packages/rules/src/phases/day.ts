@@ -237,6 +237,10 @@ export const dayCommands = [
     phases: ['night', 'day'],
     handle(ctx, cmd) {
       need(ctx.r.isSeated(cmd.target), 'Not a seated player.');
+      need(
+        !ctx.s.conditions.some((c) => c.target === cmd.target && c.type === cmd.condition),
+        `That player is already ${cmd.condition}.`,
+      );
       ctx.s.conditions.push({
         id: `c${ctx.s.idSeq++}` as GameState['conditions'][number]['id'],
         type: cmd.condition,

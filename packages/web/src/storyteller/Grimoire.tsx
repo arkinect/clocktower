@@ -6,11 +6,8 @@ import { seatPlace } from './circle';
 import { GROUPS, Lines, Section, causeLabel, causesWithoutRow, phaseText, useSeats, useTypeOf } from './common';
 import styles from './console.module.css';
 
-const QUICK = [
-  ['poisoned', '+ poisoned'],
-  ['drunk', '+ drunk'],
-  ['mad', '+ mad'],
-] as const;
+/** Statuses the Storyteller can add by hand. A player holds each one at most once. */
+const CONDITIONS = ['poisoned', 'drunk', 'mad'] as const;
 
 /** One seat on the circle. Everything the Storyteller can change about a player opens from here. */
 function SeatToken({ p, i, n, onOpen }: { p: GrimoirePlayer; i: number; n: number; onOpen: () => void }) {
@@ -19,11 +16,7 @@ function SeatToken({ p, i, n, onOpen }: { p: GrimoirePlayer; i: number; n: numbe
   const { left, top, size } = seatPlace(i, n);
   const character = p.character ? names.roles[p.character] : 'No character';
   const believes = p.self.character && p.self.character !== p.character ? names.roles[p.self.character] : null;
-  const tags = [
-    ...(p.impaired ? ['impaired'] : []),
-    ...p.conditions.map((c) => c.label),
-    ...(p.connected ? [] : ['offline']),
-  ];
+  const tags = [...(p.impaired ? ['impaired'] : []), ...p.conditions.map((c) => c.label)];
   const facts = [
     character,
     p.alignment,
@@ -56,9 +49,47 @@ function SeatToken({ p, i, n, onOpen }: { p: GrimoirePlayer; i: number; n: numbe
   );
 }
 
-const ORIGIN = { character: 'own character', granted: 'gained', storyteller: 'from the Storyteller' } as const;
+const ORIGIN = { granted: 'gained', storyteller: 'from the Storyteller' } as const;
 
-/** Everything a 0.4.2 Grimoire card held, top to bottom. */
+/** One status on the seat sheet. With `onRemove`, a × takes it off. */
+function Status({
+  label,
+  detail,
+  warn,
+  onRemove,
+  removeLabel,
+}: {
+  label: string;
+  detail?: string | undefined;
+  warn?: boolean;
+  onRemove?: () => void;
+  removeLabel?: string;
+}) {
+  const { pending } = useCommand();
+  return (
+    <span className={warn ? styles['chip'] : styles['tag']}>
+      {label}
+      {detail && <span className={styles['chipDetail']}> · {detail}</span>}
+      {onRemove && (
+        <button
+          type="button"
+          className={styles['chipRemove']}
+          aria-label={removeLabel ?? `Remove ${label}`}
+          title={removeLabel ?? `Remove ${label}`}
+          disabled={pending}
+          onClick={onRemove}
+        >
+          ×
+        </button>
+      )}
+    </span>
+  );
+}
+
+/**
+ * Everything the Storyteller can change about one player. As in 0.4.2, nearly all of it is a status to add or
+ * remove: removing "dead" revives (which also clears "dead vote used"), whatever the engine does underneath.
+ */
 export function Seat({
   view,
   p,
@@ -71,36 +102,101 @@ export function Seat({
   const names = useNames();
   const typeOf = useTypeOf();
   const { run, pending } = useCommand();
+  const [adding, setAdding] = useState(false);
   // Numbered as on the circle, which sorts by seat.
   const seat = useSeats(view).seated.findIndex((x) => x.id === p.id) + 1;
   const believes = p.self.character && p.self.character !== p.character ? names.roles[p.self.character] : null;
-  // A player named by a setup field: "Fortune Teller's red herring".
-  const tags = [
+  // Facts the Storyteller does not set here, such as a setup field naming them ("Red herring").
+  const facts = [
     ...view.setup.fields.filter((f) => f.kind === 'player' && f.value === p.id).map((f) => f.title),
     ...(p.abilities.some((a) => a.survivesDeath) ? ['keeps ability when dead'] : []),
+    ...(p.departed ? ['left the game'] : []),
   ];
   const unlisted = causesWithoutRow(p);
+  // Poisoned, drunk or mad from any source: adding it again would change nothing.
+  const held = new Set<string>([...p.conditions.map((c) => c.type), ...p.causes.map((c) => c.split(':')[0] ?? '')]);
+  const addable: { key: string; label: string; send: () => void }[] = [
+    ...(p.alive
+      ? [{ key: 'dead', label: 'dead', send: () => run({ type: 'mark_alive', playerId: p.id, alive: false }) }]
+      : []),
+    ...(!p.alive && !p.ghostVoteUsed
+      ? [
+          {
+            key: 'vote',
+            label: 'dead vote used',
+            send: () => run({ type: 'set_ghost_vote', playerId: p.id, used: true }),
+          },
+        ]
+      : []),
+    ...CONDITIONS.filter((c) => !held.has(c)).map((condition) => ({
+      key: condition,
+      label: condition,
+      send: () => run({ type: 'add_condition', target: p.id, condition }),
+    })),
+  ].map((a) => ({ ...a, send: () => void a.send() }));
   return (
     <article className={`${styles['seat']} ${p.alignment === 'evil' ? styles['seatEvil'] : styles['seatGood']}`}>
-      <p className="muted small">
-        Seat {seat} <span className={p.connected ? styles['dotOn'] : styles['dot']} />{' '}
-        {p.connected ? 'online' : 'offline'}
-        {p.alive ? '' : ' (dead)'}
-        {p.departed ? ' (left)' : ''}
-      </p>
+      <p className="muted small">Seat {seat}</p>
       <p className={`${styles['seatRole']} type-${typeOf(p.character) ?? ''}`}>
         {p.character ? names.roles[p.character] : 'No character'}
       </p>
       {believes && <p className="muted small">Believes they are the {believes}</p>}
-      {p.deathCause && <p className="muted small">Died: {p.deathCause.replaceAll('_', ' ')}</p>}
-      {tags.length > 0 && (
-        <p className={styles['chips']}>
-          {tags.map((t) => (
-            <span key={t} className={styles['tag']}>
-              {t}
-            </span>
+
+      <div className={styles['chips']} role="group" aria-label={`Statuses of ${p.name}`}>
+        {!p.alive && (
+          <Status
+            label="dead"
+            warn
+            detail={p.deathCause?.replaceAll('_', ' ')}
+            removeLabel={`Revive ${p.name}`}
+            onRemove={() => void run({ type: 'mark_alive', playerId: p.id, alive: true })}
+          />
+        )}
+        {!p.alive && p.ghostVoteUsed && (
+          <Status
+            label="dead vote used"
+            removeLabel={`Give ${p.name} their dead vote back`}
+            onRemove={() => void run({ type: 'set_ghost_vote', playerId: p.id, used: false })}
+          />
+        )}
+        {p.conditions.map((c) => (
+          <Status
+            key={c.id}
+            label={c.label}
+            warn={c.type === 'poisoned' || c.type === 'drunk'}
+            detail={`${c.sourceLabel}, until ${c.until}`}
+            removeLabel={`Remove ${c.label} from ${p.name}`}
+            onRemove={() => void run({ type: 'remove_condition', conditionId: c.id })}
+          />
+        ))}
+        {unlisted.map((c) => (
+          <Status key={c} label={causeLabel(c)} warn />
+        ))}
+        {facts.map((t) => (
+          <Status key={t} label={t} />
+        ))}
+        {addable.length > 0 && (
+          <Button tiny on={adding} aria-expanded={adding} onClick={() => setAdding(!adding)}>
+            + status
+          </Button>
+        )}
+      </div>
+      {adding && addable.length > 0 && (
+        <div className="row" role="group" aria-label={`Add a status to ${p.name}`}>
+          {addable.map((a) => (
+            <Button
+              key={a.key}
+              tiny
+              disabled={pending}
+              onClick={() => {
+                a.send();
+                setAdding(false);
+              }}
+            >
+              {a.label}
+            </Button>
           ))}
-        </p>
+        </div>
       )}
 
       <div className={styles['seatRow']}>
@@ -116,96 +212,42 @@ export function Seat({
         />
       </div>
 
-      <div className="row">
-        <Button disabled={pending} onClick={() => void run({ type: 'mark_alive', playerId: p.id, alive: !p.alive })}>
-          {p.alive ? 'Kill' : 'Revive'}
-        </Button>
-        {!p.alive && (
-          <Button
-            on={p.ghostVoteUsed}
-            aria-pressed={p.ghostVoteUsed}
-            disabled={pending}
-            onClick={() => void run({ type: 'set_ghost_vote', playerId: p.id, used: !p.ghostVoteUsed })}
-          >
-            {p.ghostVoteUsed ? 'Vote used' : 'Vote available'}
-          </Button>
-        )}
-      </div>
-
       {p.abilities.length > 0 && (
         <ul className={styles['rows']}>
-          {p.abilities.map((a) => (
-            <li key={a.id} className={styles['ability']}>
-              <span>
-                <b className={`type-${typeOf(a.roleId) ?? ''}`}>{a.name}</b>{' '}
-                <span className="muted small">
-                  {a.origin === 'character' ? ORIGIN.character : `${ORIGIN[a.origin]} ${a.from}`}
-                  {a.perceivedOnly ? ', only believed' : ''}
-                  {a.active ? '' : ', inactive'}
+          {p.abilities.map((a) => {
+            // An ability from the player's own character needs no note; one gained elsewhere says from where.
+            const notes = [
+              ...(a.origin === 'character' ? [] : [`${ORIGIN[a.origin]} ${a.from}`]),
+              ...(a.perceivedOnly ? ['only believed'] : []),
+              ...(a.active ? [] : ['inactive']),
+            ];
+            return (
+              <li key={a.id} className={styles['ability']}>
+                <span>
+                  <b className={`type-${typeOf(a.roleId) ?? ''}`}>{a.name}</b>
+                  {notes.length > 0 && <span className="muted small"> {notes.join(', ')}</span>}
                 </span>
-              </span>
-              {a.summary.length > 0 && <Lines lines={a.summary} />}
-              {a.reminder && <p className="muted small">{a.reminder}</p>}
-              {a.oncePerGame &&
-                (a.usageAuto ? (
-                  <span className="muted small">{a.used ? 'Used' : 'Unused'}, tracked automatically</span>
-                ) : (
-                  <Segments
-                    label={`${a.name} used`}
-                    options={[
-                      { id: 'unused', text: 'Unused' },
-                      { id: 'used', text: 'Used' },
-                    ]}
-                    value={a.used ? 'used' : 'unused'}
-                    onChange={(v) => void run({ type: 'set_ability_used', abilityId: a.id, used: v === 'used' })}
-                  />
-                ))}
-            </li>
-          ))}
+                {a.summary.length > 0 && <Lines lines={a.summary} />}
+                {a.reminder && <p className="muted small">{a.reminder}</p>}
+                {a.oncePerGame &&
+                  (a.usageAuto ? (
+                    <span className="muted small">{a.used ? 'Used' : 'Unused'}, tracked automatically</span>
+                  ) : (
+                    <Segments
+                      label={`${a.name} used`}
+                      options={[
+                        { id: 'unused', text: 'Unused' },
+                        { id: 'used', text: 'Used' },
+                      ]}
+                      value={a.used ? 'used' : 'unused'}
+                      onChange={(v) => void run({ type: 'set_ability_used', abilityId: a.id, used: v === 'used' })}
+                    />
+                  ))}
+              </li>
+            );
+          })}
         </ul>
       )}
-
-      {unlisted.length > 0 && (
-        <p className={styles['chips']}>
-          {unlisted.map((c) => (
-            <span key={c} className={styles['chip']}>
-              {causeLabel(c)}
-            </span>
-          ))}
-        </p>
-      )}
-      {p.conditions.length > 0 && (
-        <ul className={styles['tags']}>
-          {p.conditions.map((c) => (
-            <li key={c.id}>
-              {c.label}{' '}
-              <span className="muted small">
-                {c.sourceLabel} · until {c.until}
-              </span>{' '}
-              <Button
-                tiny
-                aria-label={`Remove ${c.label} from ${p.name}`}
-                disabled={pending}
-                onClick={() => void run({ type: 'remove_condition', conditionId: c.id })}
-              >
-                ×
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="row">
-        {QUICK.map(([condition, label]) => (
-          <Button
-            key={condition}
-            tiny
-            disabled={pending}
-            onClick={() => void run({ type: 'add_condition', target: p.id, condition })}
-          >
-            {label}
-          </Button>
-        ))}
-      </div>
       <Button onClick={onChangeCharacter}>Change character</Button>
     </article>
   );
@@ -316,7 +358,7 @@ export function Grimoire({ view }: { view: StorytellerView }) {
   };
   return (
     <div>
-      <Section title="The circle">
+      <section className={styles['section']}>
         {seated.length > 0 ? (
           <>
             <div className={styles['circle']}>
@@ -335,10 +377,6 @@ export function Grimoire({ view }: { view: StorytellerView }) {
                 <SeatToken key={p.id} p={p} i={i} n={seated.length} onOpen={() => setOpenId(p.id)} />
               ))}
             </div>
-            <p className="muted small">
-              Seat 1 is at the top; seats go clockwise. Border: blue good, red evil. Red name: dead. Tap a seat to
-              change it.
-            </p>
           </>
         ) : (
           <p className="muted">Nobody is seated.</p>
@@ -356,7 +394,7 @@ export function Grimoire({ view }: { view: StorytellerView }) {
             <ChangeCharacter view={view} p={open} onDone={() => setChanging(false)} />
           </Sheet>
         )}
-      </Section>
+      </section>
       <Section title="Game facts">
         <p>Demon bluffs: {view.setup.bluffs.map((b) => names.roles[b] ?? b).join(', ') || 'none'}</p>
         {view.setup.fields.map((f) => (
