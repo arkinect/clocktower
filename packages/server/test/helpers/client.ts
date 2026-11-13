@@ -46,7 +46,9 @@ export function testConfig(over: Partial<Config> = {}, limits: Partial<Limits> =
     buildId: 'test',
     secureCookies: false,
     hsts: false,
-    limits: { ...DEFAULT_LIMITS, ...limits },
+    // A scripted Storyteller sends commands far faster than a person can, so the per-socket
+    // rate limit would silently drop the tail of a whole game. Tests of the limit set their own.
+    limits: { ...DEFAULT_LIMITS, socketBurst: 1000, ...limits },
     ...over,
   };
 }
