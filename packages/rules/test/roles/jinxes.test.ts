@@ -24,12 +24,11 @@ describe('Jinx (Cannibal & Butler), (Cannibal & Zealot)', () => {
     s.dawn();
     expect(s.inbox('ann')).toContain('Jinx (Cannibal & Butler): You have the Butler ability');
   });
-  it('a later eat replaces the message waiting to be sent', () => {
-    const s = scene({ ann: 'cannibal', bo: 'butler', cy: 'd1', di: 'zealot', ed: 't2', fi: 't3' }).start().dawn();
-    // The eat happens at dusk; the next day's changes replace the message before the next night sends it.
-    s.execute('ed').dusk().dawn();
-    s.act('cannibal', 'set_ability', ['butler']);
-    s.act('cannibal', 'set_ability', ['zealot']);
+  it('an evil executee shown as a jinxed character is told too, as the Storyteller last chose it', () => {
+    const s = scene({ ann: 'cannibal', bo: 'butler', cy: 'd1', di: 'zealot', ed: 'm1', fi: 't3' }).start().dawn();
+    s.execute('ed');
+    s.act('cannibal', 'fake_eat', ['butler']);
+    s.act('cannibal', 'fake_eat', ['zealot']);
     s.dusk().dawn();
     expect(s.inbox('ann')).toContain('Jinx (Cannibal & Zealot): You have the Zealot ability');
     expect(s.inbox('ann')).not.toContain('Jinx (Cannibal & Butler): You have the Butler ability');

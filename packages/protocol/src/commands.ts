@@ -71,7 +71,7 @@ export const AdjustMalfunctions = c('adjust_malfunctions', { add: Players, remov
 export const AnswerQuestion = c('answer_question', { key: Key, choice: Choice });
 export const AnswerQuestionFor = c('answer_question_for', { key: Key, choice: Choice });
 export const PublishDawn = c('publish_dawn', { force: z.boolean().optional() });
-export const StartNight = c('start_night', {});
+export const StartNight = c('start_night', { force: z.boolean().optional() });
 
 // ---- day ----
 export const SeenRole = c('seen_role', {});

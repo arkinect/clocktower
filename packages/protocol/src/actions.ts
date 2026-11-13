@@ -45,6 +45,8 @@ export const DayActionSpec = ActionSpec.extend({
   recorded: z.array(optionId).nullable(),
   /** Tonight reads this answer: a hint for the Day tab only. A missing one is asked for in Review. */
   neededTonight: z.boolean(),
+  /** Start Night waits for an answer (or force): dusk itself reads it. */
+  blocksNight: z.boolean().optional(),
 });
 export type DayActionSpec = z.infer<typeof DayActionSpec>;
 

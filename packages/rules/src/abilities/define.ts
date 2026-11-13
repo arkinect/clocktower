@@ -25,6 +25,8 @@ export interface DayActionDraft extends SpecDraft {
   recorded?: string[] | null;
   /** Tonight reads this answer. Default false. */
   neededTonight?: boolean;
+  /** Start Night waits for an answer (or force): dusk itself reads it. Default false. */
+  blocksNight?: boolean;
 }
 
 export interface DayActionOutcome {

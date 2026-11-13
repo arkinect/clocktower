@@ -35,12 +35,14 @@ describe('Cannibal', () => {
     s.execute('bo').dusk().dawn().execute('ed').dusk();
     expect(eaten(s).map((a) => a.roleId)).toEqual(['oracle']);
   });
-  it('the Storyteller can set a false ability after an evil eat', () => {
-    const s = scene(cast).start().dawn();
-    s.execute('di').dusk().dawn();
-    s.act('cannibal', 'set_ability', ['oracle']);
-    expect(eaten(s)[0]?.perceivedOnly).toBe(true);
+  it('the Storyteller chooses the false ability before an evil player is executed', () => {
+    const s = scene({ ...cast, ed: 'oracle' })
+      .start()
+      .dawn();
+    s.execute('di');
+    s.act('cannibal', 'fake_eat', ['oracle']);
     s.dusk();
+    expect(eaten(s).map((a) => [a.roleId, a.perceivedOnly])).toEqual([['oracle', true]]);
     expect(s.row('ann').impaired).toBe(true);
   });
   it('dropping the eaten Philosopher drops what it gained, and frees its victim', () => {

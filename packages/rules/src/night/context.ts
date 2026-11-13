@@ -14,7 +14,7 @@ import type {
   SpecDraft,
 } from '../abilities/define';
 import { roleDef } from '../abilities/registry';
-import type { Rng } from '../util/rng';
+import { subRng, type Rng } from '../util/rng';
 import { demonInfoLines } from './evil-info';
 import type { Run } from './run';
 
@@ -187,6 +187,12 @@ export class AbilityCtx<S> extends HookCtx<S> {
 
   rng = (key: string): Rng => this.run.rng(`${this.ability.id}:${key}`);
 
+  /**
+   * Randomness that comes out the same every time it's asked in this game, for a suggestion the Storyteller sees
+   * before the command that uses it (views and commands run with different seeds).
+   */
+  stableRng = (key: string): Rng => subRng(this.run.world.createdAt, `${this.ability.id}:${key}`);
+
   setState(patch: Partial<S>) {
     this.ability.state = { ...this.ability.state, ...patch };
   }
@@ -271,6 +277,14 @@ export class AbilityCtx<S> extends HookCtx<S> {
   /** A death nothing can stop: the Storyteller overrode the outcome. */
   forceKill(target: PlayerId, cause: string) {
     if (this.isAlive(target)) this.run.kill(target, cause);
+  }
+
+  /** Today's chosen execution, which happens at dusk: the player, if they are to die. Null with none. Day only. */
+  get executeeToday(): PlayerId | null {
+    if (this.moment.kind !== 'day') return null;
+    const n = this.moment.n;
+    const e = this.run.world.events.findLast((x) => x.kind === 'execution' && x.at.kind === 'day' && x.at.n === n);
+    return e?.kind === 'execution' && e.died && e.playerId && this.isAlive(e.playerId) ? e.playerId : null;
   }
 
   /** Makes a player today's execution (replacing any earlier choice). They are executed at dusk. Day only. */

@@ -307,6 +307,7 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
           preview: d.preview ?? true,
           recorded: d.recorded ?? null,
           neededTonight: d.neededTonight ?? false,
+          ...(d.blocksNight ? { blocksNight: true } : {}),
         })),
       )
     : [];
