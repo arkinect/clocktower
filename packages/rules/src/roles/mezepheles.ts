@@ -39,15 +39,21 @@ export const mezepheles = defineRole<State>({
       return [
         {
           action: 'sayer',
-          title: 'Mezepheles: who said the word?',
-          prompt: 'Only the first counts.',
+          title: `Mezepheles (${ctx.name(ctx.holder)})`,
+          prompt: 'Who was the first to say the word?',
           preview: false,
+          order: 60,
+          clearable: true,
           recorded: ctx.state.sayer?.day === ctx.n ? [ctx.state.sayer.player] : null,
           fields: [{ kind: 'player', label: 'Player', options: ctx.seated }],
         },
       ];
     },
     applyDayAction(ctx, _action, values) {
+      if (!values.length) {
+        ctx.setState({ sayer: null });
+        return { summary: 'Nobody has said the word.', effective: true };
+      }
       ctx.setState({ sayer: { day: ctx.n, player: values[0] as PlayerId } });
       return { summary: `${ctx.name(values[0])} said the word.`, effective: true };
     },

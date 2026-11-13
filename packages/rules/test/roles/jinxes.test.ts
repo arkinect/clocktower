@@ -38,11 +38,11 @@ describe('Jinx (Cannibal & Butler), (Cannibal & Zealot)', () => {
 describe('Jinx (Cannibal & Juggler)', () => {
   it('a Cannibal who eats the Juggler learns the count', () => {
     const s = scene({ ann: 'cannibal', bo: 'juggler', cy: 'd1', di: 't1', ed: 't2', fi: 't3' }).start().dawn();
-    s.act('juggler', 'count', ['2']);
+    s.act('juggler', 'guesses', ['cy', 'd1', 'di', 't1', 'ed', 't3']);
     s.execute('bo').dusk();
     expect(s.truth('ann')).toEqual(['You guessed 2 correctly.']);
   });
-  it('with no count entered, a hidden copy sleeps', () => {
+  it('with no guesses recorded, a hidden copy sleeps', () => {
     const s = scene({ ann: 'cannibal', bo: 'juggler', cy: 'd1', di: 't1', ed: 't2', fi: 't3' }).start().dawn();
     s.execute('bo').dusk();
     expect(s.truth('ann')).toEqual([]);

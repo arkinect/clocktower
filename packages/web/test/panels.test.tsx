@@ -413,9 +413,9 @@ describe('the Day tab', () => {
     DayActionSpec.parse({
       key: 'k',
       roleId: null,
-      title: 'Flowergirl: did a Demon vote today?',
-      prompt: '',
-      fields: [{ kind: 'option', label: 'Demon voted', options: ['yes', 'no'], labels: { yes: 'Yes', no: 'No' } }],
+      title: 'Flowergirl (Ann)',
+      prompt: 'Did a Demon vote today?',
+      fields: [{ kind: 'option', label: 'Demon voted', options: ['no', 'yes'], labels: { yes: 'Yes', no: 'No' } }],
       distinct: false,
       allowDecline: false,
       abilityId: 'a1',
@@ -444,37 +444,154 @@ describe('the Day tab', () => {
     expect(screen.getByRole('button', { name: 'Start Night 2' })).toBeTruthy();
   });
 
-  it('puts a fact under "Facts for tonight", showing its recorded answer', () => {
-    render(<Day view={dayView({ dayActions: [spec({ recorded: ['yes'] })] })} />);
-    const facts = section('Facts for tonight');
-    const yes = within(facts).getByRole('button', { name: 'Yes' });
-    expect(yes.getAttribute('aria-pressed')).toBe('true');
-    expect(within(facts).queryByText(/Needed tonight/)).toBeNull();
+  it('lists every event under "Day events" in the order of a day, with no Now or Tonight tag', () => {
+    const flowergirl = spec({ order: 110, recorded: ['yes'] });
+    const shot = spec({
+      key: 'k2',
+      title: 'Slayer (Ann)',
+      action: 'shoot',
+      preview: true,
+      order: 30,
+      fields: [{ kind: 'player', label: 'Target', options: ['a', 'b'] }],
+    });
+    render(<Day view={dayView({ dayActions: [flowergirl, shot] })} />);
+    const events = within(section('Day events')).getAllByRole('article');
+    expect(events.map((e) => within(e).getByRole('heading').textContent)).toEqual(['Slayer (Ann)', 'Flowergirl (Ann)']);
+    expect(screen.queryByText('Now')).toBeNull();
+    expect(screen.queryByText('Tonight')).toBeNull();
+    expect((screen.getByLabelText('Flowergirl (Ann)') as HTMLSelectElement).value).toBe('yes');
+    expect(screen.queryByRole('heading', { name: 'Facts for tonight' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Day abilities' })).toBeNull();
   });
 
-  it('a fact needed tonight and not recorded gets a quiet hint, and sends on a tap', async () => {
-    render(<Day view={dayView({ dayActions: [spec({ neededTonight: true })] })} />);
-    expect(screen.getByText('Needed tonight. If you leave it, Review will ask for it.')).toBeTruthy();
-    await userEvent.click(screen.getByRole('button', { name: 'No' }));
+  it('a Tonight event shows its default until changed, with no confirm, and sends on change', async () => {
+    render(<Day view={dayView({ dayActions: [spec({ default: ['no'], neededTonight: true })] })} />);
+    const select = screen.getByLabelText('Flowergirl (Ann)') as HTMLSelectElement;
+    expect(select.value).toBe('no');
+    expect([...select.options].map((o) => o.text)).toEqual(['No', 'Yes']);
+    expect(screen.queryByText(/Needed tonight/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Use' })).toBeNull();
+    await userEvent.selectOptions(select, 'yes');
     expect(run).toHaveBeenCalledWith({
       type: 'day_action',
       abilityId: 'a1',
       action: 'demon_voted',
-      values: ['no'],
+      values: ['yes'],
+      mode: 'accept',
+    });
+  });
+
+  it('a Tonight event with no default has no hint, and a clearable one can be set back to no one', async () => {
+    const moonchild = spec({
+      title: 'Moonchild (Ann)',
+      action: 'target',
+      blocksNight: true,
+      clearable: true,
+      emptyLabel: 'Not chosen yet',
+      fields: [{ kind: 'player', label: 'Target', options: ['a', 'b'] }],
+    });
+    const { rerender } = render(<Day view={dayView({ dayActions: [moonchild] })} />);
+    expect(screen.queryByText(/Needed tonight|Review/)).toBeNull();
+    rerender(<Day view={dayView({ dayActions: [{ ...moonchild, recorded: ['b'] }] })} />);
+    await userEvent.selectOptions(screen.getByLabelText('Moonchild (Ann)'), '');
+    expect(run).toHaveBeenCalledWith({
+      type: 'day_action',
+      abilityId: 'a1',
+      action: 'target',
+      values: [],
+      mode: 'accept',
+    });
+  });
+
+  it('a switch sends the other value, and a switch per player sends that player', async () => {
+    const gossip = spec({
+      title: 'Gossip (Ann)',
+      action: 'statement',
+      control: 'toggle',
+      default: ['false'],
+      fields: [
+        { kind: 'option', label: 'Statement', options: ['false', 'true'], labels: { true: 'Yes', false: 'No' } },
+      ],
+    });
+    const witch = spec({
+      key: 'k2',
+      title: 'Witch (Bo)',
+      action: 'apply_curse',
+      preview: true,
+      control: 'toggle',
+      recorded: ['b'],
+      fields: [{ kind: 'player', label: 'Cursed', options: ['a', 'b'] }],
+    });
+    render(<Day view={dayView({ dayActions: [gossip, witch] })} />);
+    expect(screen.getByRole('button', { name: 'No' }).getAttribute('aria-pressed')).toBe('true');
+    const statement = screen.getByRole('button', { name: 'Yes' });
+    expect(statement.getAttribute('aria-pressed')).toBe('false');
+    await userEvent.click(statement);
+    expect(run).toHaveBeenLastCalledWith({
+      type: 'day_action',
+      abilityId: 'a1',
+      action: 'statement',
+      values: ['true'],
+      mode: 'accept',
+    });
+    expect(screen.getByRole('button', { name: 'Bo' }).getAttribute('aria-pressed')).toBe('true');
+    await userEvent.click(screen.getByRole('button', { name: 'Ann' }));
+    expect(run).toHaveBeenLastCalledWith({
+      type: 'day_action',
+      abilityId: 'a1',
+      action: 'apply_curse',
+      values: ['a'],
+      mode: 'accept',
+    });
+    expect(screen.queryByRole('button', { name: 'Use' })).toBeNull();
+  });
+
+  it('rows: Add records a complete new row with the others, and one can be removed', async () => {
+    const juggler = spec({
+      title: 'Juggler (Ann)',
+      action: 'guesses',
+      control: 'rows',
+      maxRows: 5,
+      recorded: ['a', 'empath'],
+      fields: [
+        { kind: 'player', label: 'Player', options: ['a', 'b'] },
+        { kind: 'role', label: 'Character', options: ['empath', 'beggar'] },
+      ],
+    });
+    render(<Day view={dayView({ dayActions: [juggler] })} />);
+    expect((screen.getByLabelText('Player 1') as HTMLSelectElement).value).toBe('a');
+    await userEvent.selectOptions(screen.getByLabelText('Player 2'), 'b');
+    expect(run).not.toHaveBeenCalled();
+    await userEvent.selectOptions(screen.getByLabelText('Character 2'), 'beggar');
+    expect(run).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(run).toHaveBeenLastCalledWith({
+      type: 'day_action',
+      abilityId: 'a1',
+      action: 'guesses',
+      values: ['a', 'empath', 'b', 'beggar'],
+      mode: 'accept',
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(run).toHaveBeenLastCalledWith({
+      type: 'day_action',
+      abilityId: 'a1',
+      action: 'guesses',
+      values: [],
       mode: 'accept',
     });
   });
 
   it('a fact Start Night waits for shows its preselected answer, and holds Start Night only while it has none', () => {
     const fake = spec({
-      title: 'Cannibal (Ann): what they will think they ate',
+      title: 'Cannibal (Ann)',
       action: 'fake_eat',
       fields: [{ kind: 'role', label: 'Character', options: ['empath', 'slayer'] }],
       blocksNight: true,
       recorded: ['slayer'],
     });
     const { rerender } = render(<Day view={dayView({ dayActions: [fake] })} />);
-    const select = screen.getByLabelText('Cannibal (Ann): what they will think they ate') as HTMLSelectElement;
+    const select = screen.getByLabelText('Cannibal (Ann)') as HTMLSelectElement;
     expect(select.value).toBe('slayer');
     expect((screen.getByRole('button', { name: 'Start Night 2' }) as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByRole('button', { name: 'Force start night' })).toBeNull();
@@ -483,16 +600,62 @@ describe('the Day tab', () => {
     expect(screen.getByRole('button', { name: 'Force start night' })).toBeTruthy();
   });
 
-  it('puts an action with a preview under "Day abilities"', () => {
+  it('a Now event defaults to no one, previews when chosen, and happens on Use', async () => {
     const shot = spec({
       title: 'Slayer (Ann)',
       action: 'shoot',
       preview: true,
       fields: [{ kind: 'player', label: 'Target', options: ['a', 'b'] }],
     });
+    run.mockResolvedValueOnce({ ok: true, data: { summary: 'Bo is not the Demon: nothing happens.' } } as never);
     render(<Day view={dayView({ dayActions: [shot] })} />);
-    expect(within(section('Day abilities')).getByRole('heading', { name: 'Slayer (Ann)' })).toBeTruthy();
-    expect(within(section('Facts for tonight')).queryByText('Slayer (Ann)')).toBeNull();
+    const select = screen.getByLabelText('Slayer (Ann)') as HTMLSelectElement;
+    expect(select.value).toBe('');
+    expect(select.options[0]?.text).toBe('No one');
+    const use = screen.getByRole('button', { name: 'Use' }) as HTMLButtonElement;
+    expect(use.disabled).toBe(true);
+    await userEvent.selectOptions(select, 'b');
+    expect(run).toHaveBeenLastCalledWith({
+      type: 'day_action',
+      abilityId: 'a1',
+      action: 'shoot',
+      values: ['b'],
+      mode: 'preview',
+    });
+    expect(await screen.findByText('Bo is not the Demon: nothing happens.')).toBeTruthy();
+    await userEvent.click(use);
+    expect(run).toHaveBeenLastCalledWith({
+      type: 'day_action',
+      abilityId: 'a1',
+      action: 'shoot',
+      values: ['b'],
+      mode: 'accept',
+    });
+  });
+
+  it('a confirmed Now event shows its choice, locked, and Use again takes it back', async () => {
+    const shot = spec({
+      title: 'Slayer (Ann)',
+      action: 'shoot',
+      preview: true,
+      clearable: true,
+      recorded: ['b'],
+      fields: [{ kind: 'player', label: 'Target', options: ['a', 'b'] }],
+    });
+    render(<Day view={dayView({ dayActions: [shot] })} />);
+    const select = screen.getByLabelText('Slayer (Ann)') as HTMLSelectElement;
+    expect(select.value).toBe('b');
+    expect(select.disabled).toBe(true);
+    const use = screen.getByRole('button', { name: 'Use' });
+    expect(use.getAttribute('aria-pressed')).toBe('true');
+    await userEvent.click(use);
+    expect(run).toHaveBeenLastCalledWith({
+      type: 'day_action',
+      abilityId: 'a1',
+      action: 'shoot',
+      values: [],
+      mode: 'accept',
+    });
   });
 
   it('choosing from the list records the execution, which happens at Start Night', async () => {
@@ -504,7 +667,7 @@ describe('the Day tab', () => {
       ({ at: 'Day 2', kind: 'execution', text: '', playerId }) as StorytellerView['dayEvents'][number];
     rerender(<Day view={dayView({ dayEvents: [chosen('a')] })} />);
     expect((screen.getByLabelText('Executed') as HTMLSelectElement).value).toBe('a');
-    expect(screen.getByText('executed at dusk', { exact: false })).toBeTruthy();
+    expect(screen.getByText('To be executed')).toBeTruthy();
     await userEvent.selectOptions(screen.getByLabelText('Executed'), '');
     expect(run).toHaveBeenLastCalledWith({ type: 'record_execution', playerId: null, died: true });
     rerender(<Day view={dayView({ dayEvents: [chosen(null)] })} />);

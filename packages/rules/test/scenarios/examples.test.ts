@@ -86,7 +86,7 @@ describe('information', () => {
     const chars = { ann: 'flowergirl', bo: 'juggler', cy: 'imp', di: 'butler', ed: 'poisoner', fi: 'sailor' };
     const s = scene(chars).start().dawn();
     s.act('flowergirl', 'demon_voted', ['yes']);
-    s.act('juggler', 'count', ['3']);
+    s.act('juggler', 'guesses', ['cy', 'imp', 'di', 'butler', 'ed', 'poisoner', 'fi', 'imp']);
     s.dusk();
     expect(s.truth('ann')[0]).toMatch(/^Yes/);
     expect(s.truth('bo')[0]).toMatch(/3 correctly/);
@@ -489,7 +489,7 @@ describe('kills and protection', () => {
       s.act('gossip', 'statement', [value]);
       return s.dusk();
     };
-    for (const v of ['false', 'none']) expect(said(v).review().hasDecision('gossip_victim')).toBe(false);
+    expect(said('false').review().hasDecision('gossip_victim')).toBe(false);
     expect(
       said('true')
         .submit({ cy: ['ann'] })
@@ -589,7 +589,8 @@ describe('characters at the table', () => {
     expect(s.inbox('bo')).not.toContain('A Damsel is in play.');
     s.dawn();
     expect(s.dayActions().filter((a) => a.title.includes('Damsel'))).toHaveLength(1);
-    s.act('damsel', 'guess', ['di']);
+    s.act('damsel', 'guess', ['yes']);
+    s.dusk().dawn();
     expect(s.dayActions().filter((a) => a.title.includes('Damsel'))).toEqual([]);
   });
 

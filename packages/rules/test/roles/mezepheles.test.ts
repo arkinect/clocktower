@@ -14,6 +14,14 @@ describe('Mezepheles', () => {
     expect(s.alignment('bo')).toBe('evil');
     expect(s.inbox('bo')).toContain('You are now evil.');
   });
+  it('a recorded speaker can be cleared before dusk', () => {
+    const s = scene(cast, opts).start().dawn();
+    s.act('mezepheles', 'sayer', ['bo']);
+    s.act('mezepheles', 'sayer', []);
+    expect(s.dayActions().find((d) => d.roleId === 'mezepheles')?.recorded).toBeNull();
+    s.dusk().dawn();
+    expect(s.alignment('bo')).toBe('good');
+  });
   it('a poisoned Mezepheles spends the word', () => {
     const s = scene({ ...cast, di: 'poisoner' }, opts)
       .start()

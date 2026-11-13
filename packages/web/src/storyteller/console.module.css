@@ -448,9 +448,9 @@
   font-size: 0.85rem;
 }
 
+/* No nowrap: at phone width "Use dead vote" wraps, or the four-column Day table overflows. */
 .act {
   text-align: right;
-  white-space: nowrap;
 }
 
 .chips {
@@ -524,12 +524,45 @@
   background: var(--line);
 }
 
-.fact {
+/* A day event: its title and when it happens, its question, then its control. */
+.event {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--line);
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+.event p {
+  margin: 0;
+}
+
+.eventTitle {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.eventRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.eventRow select {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+/* Remove and Add share a width, so every row's dropdowns line up. */
+.rowButton {
+  flex: 0 0 76px;
+}
+
+/* The Witch's per-player switch: wide enough to read as a button, not a tag. */
+.wideToggle {
+  min-width: 140px;
 }
 
 /* The Story: each night a table that scrolls sideways on a phone. */

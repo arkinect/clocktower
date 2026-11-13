@@ -15,6 +15,19 @@ describe('Witch', () => {
     expect(s.act('witch', 'apply_curse', ['bo']).effective).toBe(true);
     expect(s.alive('bo')).toBe(false);
   });
+  it('is a switch: pressing it again takes it back, reviving them and cursing them again', () => {
+    const s = cursed();
+    const row = () => s.dayActions().find((d) => d.roleId === 'witch');
+    expect(row()).toMatchObject({ control: 'toggle', preview: true, recorded: null, order: 70 });
+    s.act('witch', 'apply_curse', ['bo']);
+    expect(s.alive('bo')).toBe(false);
+    expect(row()?.recorded).toEqual(['bo']);
+    expect(s.act('witch', 'apply_curse', ['bo']).summary).toBe('Taken back: bo is cursed again and alive.');
+    expect(s.alive('bo')).toBe(true);
+    expect(row()?.recorded).toBeNull();
+    s.act('witch', 'apply_curse', ['bo']);
+    expect(s.alive('bo')).toBe(false);
+  });
   it('a recorded nomination alone does nothing', () => {
     const s = cursed();
     s.nominate('bo', 'cy');

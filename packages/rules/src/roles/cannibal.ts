@@ -101,9 +101,11 @@ export const cannibal = defineRole<State>({
       return [
         {
           action: 'fake_eat',
-          title: `Cannibal (${ctx.name(ctx.holder)}): what they will think they ate`,
-          prompt: 'Which good character do they think they ate?',
+          title: `Cannibal (${ctx.name(ctx.holder)})`,
+          prompt: 'Which good character will the Cannibal think they ate?',
           preview: false,
+          // After the execution, which it depends on.
+          order: 130,
           recorded: role ? [role] : null,
           // Dusk reads it, so Start Night waits for it.
           blocksNight: options.length > 0,

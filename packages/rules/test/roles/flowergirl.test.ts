@@ -22,9 +22,19 @@ describe('Flowergirl', () => {
     s.dusk().review();
     expect(s.hasDecision('flowergirl_voted')).toBe(false);
   });
-  it('not recorded by day: Start Night goes through, and Review asks before dawn can be published', () => {
-    const s = scene(cast).start().dawn().dusk();
-    expect(s.state.phase.kind).toBe('night');
+  it('shows "No" by default, which dusk records, so Review does not ask', () => {
+    const s = scene(cast).start().dawn();
+    expect(s.dayActions().find((d) => d.roleId === 'flowergirl')).toMatchObject({ default: ['no'], recorded: null });
+    s.dusk().review();
+    expect(s.hasDecision('flowergirl_voted')).toBe(false);
+    expect(s.truth('ann')).toEqual(['No, a Demon did not vote today.']);
+  });
+  it('a Philosopher who chooses it tonight had no day to record it: Review asks before dawn can be published', () => {
+    const s = scene({ ...cast, ann: 'philosopher' })
+      .start()
+      .dawn();
+    expect(s.dayActions().filter((d) => d.roleId === 'flowergirl')).toEqual([]);
+    s.dusk().submit({ ann: ['flowergirl'] });
     s.review();
     const d = s.decision('flowergirl_voted');
     expect(d).toMatchObject({ required: true, chosen: null, title: 'Flowergirl: did a Demon vote on Day 1?' });
@@ -34,7 +44,7 @@ describe('Flowergirl', () => {
       'Waiting for a decision: Flowergirl: did a Demon vote on Day 1? Answer it or force.',
     );
     s.decide('flowergirl_voted', 'yes');
-    expect(s.truth('ann')).toEqual(['Yes, a Demon voted today.']);
+    expect(s.truth('ann')).toContain('Yes, a Demon voted today.');
     s.g.st({ type: 'publish_dawn', force: false });
     expect(s.state.phase.kind).toBe('day');
   });

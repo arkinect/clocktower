@@ -2,14 +2,20 @@ import { roleId, type PlayerId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
 import type { AbilityCtx } from '../night/context';
 
+/** The answer "they chose no one": a real answer, which spends the ability. */
+const NO_ONE = 'none';
+
 interface State {
-  target: { day: number; player: PlayerId } | null;
+  /** Today's answer. `player` null: they chose no one. */
+  target: { day: number; player: PlayerId | null } | null;
   soberAtDeath: boolean | null;
 }
 
-/** Today's public choice, which belongs to every holder of the ability. */
-const target = (ctx: AbilityCtx<State>) =>
-  ctx.peers.find((a) => a.state.target?.day === ctx.n)?.state.target?.player ?? null;
+/** Today's answer, which belongs to every holder of the ability: undefined while there is none. */
+const answer = (ctx: AbilityCtx<State>) => ctx.peers.find((a) => a.state.target?.day === ctx.n)?.state.target;
+
+/** Today's chosen player, if they chose one. */
+const target = (ctx: AbilityCtx<State>) => answer(ctx)?.player ?? null;
 
 /**
  * The day they learn they died. A night death shows at dawn. So does an execution: it happens at dusk, and whether it
@@ -22,22 +28,6 @@ function learnedOn(ctx: AbilityCtx<State>): number | null {
   return at.kind === 'night' || life.cause === 'execution' ? at.n + 1 : at.n;
 }
 
-/** Not recorded during the day: the Storyteller must answer it before dawn (or force, which means no choice). */
-function askedTarget(ctx: AbilityCtx<State>): PlayerId | null {
-  const chosen = ctx.decide<string>({
-    key: { kind: 'moonchild_target' },
-    title: `Moonchild (${ctx.name(ctx.holder)}): who did they choose?`,
-    description: 'Not recorded during the day.',
-    options: [
-      ...ctx.aliveAtDuskIds.map((id) => ({ id, label: ctx.name(id) })),
-      { id: 'none', label: "They didn't choose" },
-    ],
-    default: 'none',
-    required: true,
-  });
-  return chosen === 'none' ? null : (chosen as PlayerId);
-}
-
 export const moonchild = defineRole<State>({
   id: roleId('moonchild'),
   name: 'Moonchild',
@@ -45,7 +35,7 @@ export const moonchild = defineRole<State>({
   abilityText:
     'When you learn that you died, publicly choose 1 alive player. Tonight, if it was a good player, they die.',
   reminder:
-    'Record the chosen player in the Day panel on the day they learn they died: the morning after a night death or an execution.',
+    'Record the chosen player on the Day tab on the day they learn they died: the morning after a night death or an execution. No one unless changed.',
   night: { other: 250, note: 'Only if a target was chosen' },
   flags: { worksWhileDead: true },
   initialState: () => ({ target: null, soberAtDeath: null }),
@@ -56,28 +46,46 @@ export const moonchild = defineRole<State>({
     onRevive(ctx, id) {
       if (id === ctx.holder) ctx.setState({ soberAtDeath: null });
     },
-    // Also when nothing was recorded on the day they learned of their death: Review then asks who they chose.
-    wakes: (ctx) => !ctx.aliveAtDusk(ctx.holder) && !ctx.ability.used && (!!target(ctx) || learnedOn(ctx) === ctx.n),
+    // Only the night after a player was chosen. Dusk records "no one" if nothing else was, so Review never asks.
+    wakes: (ctx) => !ctx.aliveAtDusk(ctx.holder) && !ctx.ability.used && !!target(ctx),
     dayActions(ctx) {
-      if (ctx.isAlive(ctx.holder) || ctx.ability.used) return [];
+      const today = answer(ctx);
+      // Only on the day they learn they died: they choose then or not at all. "No one" spends it at once, but it stays
+      // shown that day so it can be changed.
+      if (ctx.isAlive(ctx.holder) || learnedOn(ctx) !== ctx.n || (ctx.ability.used && !today)) return [];
       return [
         {
           action: 'target',
           title: `Moonchild (${ctx.name(ctx.holder)})`,
           prompt: 'Who did they publicly choose?',
           preview: false,
-          recorded: target(ctx) ? [target(ctx) as string] : null,
-          neededTonight: true,
-          fields: [{ kind: 'player', label: 'Target', options: ctx.alive }],
+          // First thing in the day: they choose when they learn they died. "No one" unless changed: dusk records it.
+          order: 5,
+          default: [NO_ONE],
+          recorded: today ? [today.player ?? NO_ONE] : null,
+          fields: [
+            {
+              kind: 'option',
+              label: 'Target',
+              options: [NO_ONE, ...ctx.alive],
+              labels: Object.fromEntries([[NO_ONE, 'No one'], ...ctx.alive.map((id) => [id, ctx.name(id)])]),
+            },
+          ],
         },
       ];
     },
     applyDayAction(ctx, _action, values) {
-      ctx.setState({ target: { day: ctx.n, player: values[0] as PlayerId } });
-      return { summary: `Moonchild's target: ${ctx.name(values[0])}.`, effective: true };
+      const player = values[0] === NO_ONE ? null : (values[0] as PlayerId);
+      ctx.setState({ target: { day: ctx.n, player } });
+      // No one: the ability is spent now, as nothing wakes tonight. A player: spent when it resolves tonight.
+      ctx.markUsed(player === null);
+      return {
+        summary: player ? `Moonchild's target: ${ctx.name(player)}.` : 'The Moonchild chose no one.',
+        effective: true,
+      };
     },
     resolve(ctx) {
-      const t = target(ctx) ?? askedTarget(ctx);
+      const t = target(ctx);
       ctx.markUsed();
       if (!t) {
         ctx.outcome('no player chosen');

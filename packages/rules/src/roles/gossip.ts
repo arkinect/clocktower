@@ -10,7 +10,7 @@ export const gossip = defineRole<State>({
   name: 'Gossip',
   type: 'townsfolk',
   abilityText: 'Each day, you may make a public statement. Tonight, if it was true, a player dies.',
-  reminder: 'Enter True, False or None for the statement in the Day panel.',
+  reminder: 'On the Day tab, answer Yes if the statement was true.',
   night: { other: 210, note: 'Only if the statement was true' },
   initialState: () => ({ verdict: null }),
   ability: {
@@ -22,16 +22,20 @@ export const gossip = defineRole<State>({
       return [
         {
           action: 'statement',
-          title: "Gossip's statement",
-          prompt: 'Was it true?',
+          title: `Gossip (${ctx.name(ctx.holder)})`,
+          prompt: 'Was their public statement true?',
           preview: false,
-          recorded: verdict ? [verdict] : null,
+          order: 10,
+          control: 'toggle',
+          // Off: false, or no statement at all. An older game's "none" shows as off.
+          recorded: verdict ? [verdict === 'true' ? 'true' : 'false'] : null,
+          default: ['false'],
           fields: [
             {
               kind: 'option',
               label: 'Statement',
-              options: ['none', 'true', 'false'],
-              labels: { none: 'None', true: 'True', false: 'False' },
+              options: ['false', 'true'],
+              labels: { true: 'Yes', false: 'No' },
             },
           ],
         },

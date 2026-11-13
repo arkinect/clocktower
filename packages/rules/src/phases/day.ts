@@ -1,7 +1,7 @@
 import { clone } from '../util/clone';
-import type { PlayerId, RoleId } from '@ct/protocol';
+import type { ActionSpec, PlayerId, RoleId } from '@ct/protocol';
 import { roleDef } from '../abilities/registry';
-import type { DayEventInfo, Instance } from '../abilities/define';
+import type { DayActionDraft, DayEventInfo, Instance } from '../abilities/define';
 import type { GameState } from '../model/state';
 import type { Run } from '../night/run';
 import { validateChoice } from '../night/wake';
@@ -53,6 +53,34 @@ export function fireExecutionAtDusk(run: Run, n: number) {
 /** The day specs of an ability, built fresh: legality always comes from the hook. */
 function dayActionsOf(run: Run, a: Instance) {
   return roleDef(a.roleId).ability.dayActions?.(run.ctx(a)) ?? [];
+}
+
+/**
+ * One value per field for a select or toggle. Rows take whole rows, up to `maxRows`, and none clears them. A clearable
+ * action also takes none.
+ */
+function dayValuesError(spec: ActionSpec, draft: DayActionDraft, values: string[]): string | null {
+  if (!values.length && (draft.clearable || draft.control === 'rows')) return null;
+  if (draft.control !== 'rows') return validateChoice(spec, { values });
+  const width = spec.fields.length;
+  if (values.length % width !== 0) return `${spec.title}: fill in every part of each row.`;
+  if (values.length / width > (draft.maxRows ?? 1)) return `${spec.title}: at most ${draft.maxRows ?? 1} rows.`;
+  for (let i = 0; i < values.length; i += width) {
+    const error = validateChoice(spec, { values: values.slice(i, i + width) });
+    if (error) return error;
+  }
+  return null;
+}
+
+/** At dusk, what the Day tab showed by default (the Flowergirl's "No") is recorded wherever nothing else was. */
+export function recordDayDefaults(run: Run) {
+  for (const a of run.reader.instances) {
+    const hook = roleDef(a.roleId).ability.applyDayAction;
+    if (!hook) continue;
+    for (const d of dayActionsOf(run, a)) {
+      if (d.default && !d.recorded) hook(run.ctx(a), d.action, d.default, 'none');
+    }
+  }
 }
 
 /** The titles of today's day actions that must be answered before Start Night and aren't yet. */
@@ -203,7 +231,13 @@ export const dayCommands = [
       const hook = roleDef(a.roleId).ability.applyDayAction;
       const spec = dayActionsOf(run, a).find((d) => d.action === cmd.action);
       need(hook && spec, 'That action is not available.');
-      const error = validateChoice(run.fullSpec(a, cmd.action, spec), { values: cmd.values });
+      // Confirmed today: only taking it back (no values) is allowed, never a second use on top. The Witch's switches,
+      // one per player, are each their own.
+      need(
+        !(spec.preview !== false && spec.recorded && cmd.values.length && spec.control !== 'toggle'),
+        'Already used today: take it back first.',
+      );
+      const error = dayValuesError(run.fullSpec(a, cmd.action, spec), spec, cmd.values);
       need(!error, error ?? '');
       const force = cmd.mode === 'force_success' ? 'success' : cmd.mode === 'force_fail' ? 'fail' : 'none';
       const outcome = hook(run.ctx(a), cmd.action, cmd.values, force);

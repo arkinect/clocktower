@@ -27,6 +27,18 @@ export interface DayActionDraft extends SpecDraft {
   neededTonight?: boolean;
   /** Start Night waits for an answer (or force): dusk itself reads it. Default false. */
   blocksNight?: boolean;
+  /** Its place in the Day events list, roughly when in a day it happens. Default 1000, after the rest. */
+  order?: number;
+  /** How the Day tab asks for it (see DayActionSpec). Default 'select'. */
+  control?: 'select' | 'toggle' | 'rows';
+  /** Shown while nothing is recorded, and recorded at dusk if nothing else was. Default none. */
+  default?: string[];
+  /** Rows only: how many. Default 1. */
+  maxRows?: number;
+  /** applyDayAction gets no values to take the answer back. Default false. */
+  clearable?: boolean;
+  /** The select's "nothing happened" option. */
+  emptyLabel?: string;
 }
 
 export interface DayActionOutcome {

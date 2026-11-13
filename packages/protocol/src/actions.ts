@@ -47,6 +47,21 @@ export const DayActionSpec = ActionSpec.extend({
   neededTonight: z.boolean(),
   /** Start Night waits for an answer (or force): dusk itself reads it. */
   blocksNight: z.boolean().optional(),
+  /** Its place in the Day events list: roughly when in a day it happens. */
+  order: z.number().int().min(0).max(10000).optional(),
+  /**
+   * How the Day tab asks for it. A select (the default). A toggle: an option field's two options are off then on, and
+   * a player field gives one toggle per player, with `recorded` listing those on. Rows: each row is one value per
+   * field, up to `maxRows`, sent and recorded as one flat list.
+   */
+  control: z.enum(['select', 'toggle', 'rows']).optional(),
+  /** Shown while nothing is recorded. Dusk records it if nothing else was. */
+  default: z.array(optionId).nullable().optional(),
+  maxRows: z.number().int().min(1).max(8).optional(),
+  /** Sending no values takes the answer back. */
+  clearable: z.boolean().optional(),
+  /** The select's "nothing happened" option: "No one" for a player, "No" otherwise. */
+  emptyLabel: text.optional(),
 });
 export type DayActionSpec = z.infer<typeof DayActionSpec>;
 

@@ -9,9 +9,20 @@ describe('Psychopath', () => {
     const s = scene(cast).start().dawn();
     expect(s.act('psychopath', 'kill', ['bo']).effective).toBe(true);
     expect(s.alive('bo')).toBe(false);
-    expect(psycho(s)).toEqual([]);
+    // Shown confirmed, the dead player still listed, until the day ends.
+    expect(psycho(s)[0]?.recorded).toEqual(['bo']);
+    expect(psycho(s)[0]?.fields[0]?.options).toContain('bo');
     s.dusk().dawn();
     expect(psycho(s)).toHaveLength(1);
+    expect(psycho(s)[0]?.recorded).toBeNull();
+  });
+  it('a second Use takes it back: the player lives, and they can choose again', () => {
+    const s = scene(cast).start().dawn();
+    s.act('psychopath', 'kill', ['bo']);
+    s.act('psychopath', 'kill', []);
+    expect(s.alive('bo')).toBe(true);
+    expect(psycho(s)[0]?.recorded).toBeNull();
+    expect(s.act('psychopath', 'kill', ['di']).effective).toBe(true);
   });
   it('an impaired Psychopath kills nobody', () => {
     const s = scene({ ...cast, di: 'poisoner' })

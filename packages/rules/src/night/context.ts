@@ -287,9 +287,20 @@ export class AbilityCtx<S> extends HookCtx<S> {
     return e?.kind === 'execution' && e.died && e.playerId && this.isAlive(e.playerId) ? e.playerId : null;
   }
 
-  /** Makes a player today's execution (replacing any earlier choice). They are executed at dusk. Day only. */
-  execute(target: PlayerId) {
-    this.run.recordExecution(target, true);
+  /** Today's choice of execution as recorded (null: none recorded), whether or not it kills. Day only. */
+  get executionChoiceToday(): { playerId: PlayerId | null; died: boolean } | null {
+    if (this.moment.kind !== 'day') return null;
+    const n = this.moment.n;
+    const e = this.run.world.events.findLast((x) => x.kind === 'execution' && x.at.kind === 'day' && x.at.n === n);
+    return e?.kind === 'execution' ? { playerId: e.playerId, died: e.died } : null;
+  }
+
+  /**
+   * Makes a player today's execution (replacing any earlier choice), or none with null. They are executed at dusk. Day
+   * only.
+   */
+  execute(target: PlayerId | null, died = true) {
+    this.run.recordExecution(target, target !== null && died);
   }
 
   revive(player: PlayerId, reason: string): boolean {

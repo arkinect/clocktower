@@ -6,7 +6,7 @@ import { Run, hashDecision, type Resolution } from '../night/run';
 import { newNightPhase } from '../night/phase';
 import { nightStory } from '../night/story';
 import { actionSpecs, expectedActors, resolveNight, validateChoice, validateSubmission } from '../night/wake';
-import { executeAtDusk, fireExecutionAtDusk, unansweredBeforeNight } from './day';
+import { executeAtDusk, fireExecutionAtDusk, recordDayDefaults, unansweredBeforeNight } from './day';
 import { defineCommand, need, type CmdCtx } from './define';
 
 /** The first time this night has follow-up questions, whatever brought them, the countdown gets more time. */
@@ -286,6 +286,8 @@ export const nightCommands = [
       // The execution first, while today's conditions (the Devil's Advocate's mark, today's poison) still hold. Then
       // the dusk hooks, so an heir (the Scarlet Woman) is the Demon before the execution's triggers ask.
       const dusk = ctx.run();
+      // Before the execution, which can change who holds what (the Cannibal), so the answers are today's.
+      recordDayDefaults(dusk);
       executeAtDusk(dusk, n);
       for (const a of ctx.r.instances) roleDef(a.roleId).ability.onDusk?.(dusk.ctx(a));
       fireExecutionAtDusk(dusk, n);

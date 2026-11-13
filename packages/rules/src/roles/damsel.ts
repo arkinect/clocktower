@@ -5,6 +5,8 @@ const DAMSEL = roleId('damsel');
 
 interface State {
   result: string | null;
+  /** The day a right guess was confirmed: until it ends, a second Use takes it back. */
+  day?: number | null;
 }
 
 export const damsel = defineRole<State>({
@@ -12,9 +14,9 @@ export const damsel = defineRole<State>({
   name: 'Damsel',
   type: 'outsider',
   abilityText: 'All Minions know a Damsel is in play. If a Minion publicly guesses you (once), your team loses.',
-  reminder: "Record a Minion's guess in the Day panel.",
+  reminder: 'If a Minion publicly guesses the Damsel correctly, record it on the Day tab. A wrong guess needs nothing.',
   flags: { oncePerGame: 'auto' },
-  initialState: () => ({ result: null }),
+  initialState: () => ({ result: null, day: null }),
   night: { first: 120 },
   ability: {
     briefing(ctx) {
@@ -36,30 +38,43 @@ export const damsel = defineRole<State>({
       if (ctx.n >= 0 && change.to && ctx.isActive(ctx.ability)) ctx.grantToGame(DAMSEL, ctx.ability.used, ctx.state);
     },
     dayActions(ctx) {
-      if (!ctx.firstPeer || ctx.peers.some((a) => a.used)) return [];
+      const today = ctx.ability.used && ctx.state.day === ctx.n;
+      if (!ctx.firstPeer || (ctx.peers.some((a) => a.used) && !today)) return [];
       return [
         {
           action: 'guess',
-          title: 'Damsel guess',
-          prompt: 'Who did a Minion publicly guess?',
-          fields: [{ kind: 'player', label: 'Guess', options: ctx.seated }],
+          title: ctx.ability.holder.kind === 'player' ? `Damsel (${ctx.name(ctx.holder)})` : 'Damsel',
+          prompt: 'Did a Minion publicly guess the Damsel correctly?',
+          order: 50,
+          emptyLabel: 'No',
+          clearable: true,
+          recorded: today ? ['yes'] : null,
+          fields: [{ kind: 'option', label: 'Guessed', options: ['yes'], labels: { yes: 'Yes, correctly' } }],
         },
       ];
     },
+    // Only a right guess is recorded. A wrong one changes nothing, so the Day tab has nothing to say about it.
     applyDayAction(ctx, _action, values) {
-      const t = values[0] as PlayerId;
+      if (!values.length) {
+        if (ctx.state.day !== ctx.n) return { summary: 'Nothing to take back.', effective: false };
+        ctx.markUsed(false);
+        ctx.setState({ result: null, day: null });
+        ctx.suppressGameEnd('damsel');
+        return { summary: 'Taken back: no Minion guessed the Damsel.', effective: true };
+      }
       ctx.markUsed();
+      const damsels = ctx.seated.filter((id) => ctx.character(id) === DAMSEL);
       let summary: string;
       let win = false;
-      if (ctx.character(t) !== DAMSEL) summary = `${ctx.name(t)} is not the Damsel. Wrong guess, nothing happens.`;
-      else if (!ctx.isAlive(t) || ctx.isImpaired(t))
+      if (!damsels.length) summary = 'Nobody is the Damsel now: nothing happens.';
+      else if (damsels.every((t: PlayerId) => !ctx.isAlive(t) || ctx.isImpaired(t)))
         summary = 'The guess has no effect because the Damsel is drunk, poisoned or dead.';
       else {
         win = true;
         summary = 'The Damsel was guessed: the good team loses.';
         ctx.suggestGameEnd('damsel', 'evil', summary);
       }
-      ctx.setState({ result: summary });
+      ctx.setState({ result: summary, day: ctx.n });
       return { summary, effective: win };
     },
     summary: (ctx) => (ctx.state.result ? [ctx.state.result] : []),
