@@ -4,7 +4,8 @@ import { expect, test } from '@playwright/test';
 import { WebSocket } from 'ws';
 import { BASE, ScriptedPlayer, ScriptedStoryteller } from './client';
 
-const CODE = 'dayevents';
+// The server's always-present default game: the server allows 4 live games, and the other specs already use the other 3.
+const CODE = 'default';
 const CAST: [string, string][] = [
   ['Ann', 'gossip'],
   ['Bo', 'juggler'],
