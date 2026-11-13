@@ -15,9 +15,6 @@ leaves them out of the execution instead, which is why the Psychopath has no day
 The fix is a "they survive it (my ruling)" control beside the execution dropdown that sends `died: false`, plus a
 rules test that such an execution counts, kills nobody and leaves the Cannibal unfed.
 
-## inconsistent placement of abilities in the day menu between 
-facts for tonight 
-and 
-day abilities
+## Inconsistent placement of abilities in the day menu between "facts for tonight" and "day abilities"
 
 everything goes into day abilities (or some kind of day checklist)
