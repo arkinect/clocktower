@@ -47,4 +47,18 @@ describe('Balloonist', () => {
     s.nextNight();
     expect(s.truth('ann')).toEqual(['You learn nothing new.']);
   });
+  it('flags a written answer as out of date when a decision changes the true answer under it', () => {
+    const s = scene(
+      { ann: 'balloonist', bo: 't1', cy: 'd1', di: 't2', ed: 'm1' },
+      { fields: { balloonist: { outsiders: '+0' } } },
+    )
+      .start()
+      .review();
+    const d = s.decision('balloonist');
+    s.g.st({ type: 'override_result', resultKey: s.row('ann').key, lines: ['A written answer'] });
+    expect(s.row('ann').staleOverride).toBe(false);
+    const other = d.options.find((o) => o.id !== d.default)?.id as string;
+    s.decide('balloonist', other);
+    expect(s.row('ann')).toMatchObject({ final: ['A written answer'], staleOverride: true });
+  });
 });

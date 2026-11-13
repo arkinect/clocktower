@@ -1,3 +1,4 @@
+import type { PlayerId } from '@ct/protocol';
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
 
@@ -14,6 +15,37 @@ describe('Mezepheles', () => {
     expect(s.alignment('bo')).toBe('evil');
     expect(s.inbox('bo')).toContain('You are now evil.');
   });
+  it('asks the Storyteller nothing at night: the outcome follows from the Day tab', () => {
+    const s = scene(cast, opts).start().dawn();
+    s.act('mezepheles', 'sayer', ['bo']);
+    s.dusk().review();
+    expect(s.hasDecision('mezepheles')).toBe(false);
+  });
+  it('an impaired Mezepheles asks nothing', () => {
+    const s = scene(cast, opts).start().dawn();
+    s.act('mezepheles', 'sayer', ['bo']);
+    s.dusk();
+    s.g.st({ type: 'add_condition', target: 'ann' as PlayerId, condition: 'poisoned' });
+    s.review();
+    expect(s.hasDecision('mezepheles')).toBe(false);
+  });
+  it('does not turn an evil speaker', () => {
+    const s = scene(cast, opts).start().dawn();
+    s.act('mezepheles', 'sayer', ['cy']);
+    s.dusk().dawn();
+    expect(s.alignment('cy')).toBe('evil');
+    expect(s.inbox('cy')).not.toContain('You are now evil.');
+  });
+  it('a Mezepheles made drunk the night after the word is said spends it with no effect', () => {
+    const s = scene(cast, opts).start().dawn();
+    s.act('mezepheles', 'sayer', ['bo']);
+    s.dusk();
+    s.g.st({ type: 'add_condition', target: 'ann' as PlayerId, condition: 'drunk' });
+    s.dawn();
+    expect(s.alignment('bo')).toBe('good');
+    expect(s.inbox('bo')).not.toContain('You are now evil.');
+    expect(s.dayActions()).toEqual([]);
+  });
   it('a recorded speaker can be cleared before dusk', () => {
     const s = scene(cast, opts).start().dawn();
     s.act('mezepheles', 'sayer', ['bo']);
@@ -22,7 +54,7 @@ describe('Mezepheles', () => {
     s.dusk().dawn();
     expect(s.alignment('bo')).toBe('good');
   });
-  it('a poisoned Mezepheles spends the word', () => {
+  it('poisoned the night after the word is said: the word is spent with no effect', () => {
     const s = scene({ ...cast, di: 'poisoner' }, opts)
       .start()
       .dawn();
@@ -31,6 +63,7 @@ describe('Mezepheles', () => {
       .submit({ di: ['ann'] })
       .dawn();
     expect(s.alignment('bo')).toBe('good');
+    expect(s.inbox('bo')).not.toContain('You are now evil.');
     expect(s.dayActions()).toEqual([]);
   });
 });

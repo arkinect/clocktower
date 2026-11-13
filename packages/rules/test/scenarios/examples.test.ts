@@ -425,7 +425,7 @@ describe('kills and protection', () => {
       .nextNight()
       .submit({ ann: ['cy'] })
       .review();
-    expect(s.hasDecision('scarlet_woman')).toBe(true);
+    expect(s.hasDecision('scarlet_woman')).toBe(false);
     s.dawn();
     expect(s.character('bo')).toBe('imp');
   });
@@ -452,7 +452,7 @@ describe('kills and protection', () => {
     s.nextNight()
       .submit({ bo: ['di'] })
       .review();
-    expect(s.hasDecision('grandmother_link')).toBe(true);
+    expect(s.hasDecision('grandmother_link')).toBe(false);
     expect([...s.res.deaths].sort()).toEqual(['ann', 'di']);
     const t = scene(chars)
       .start()

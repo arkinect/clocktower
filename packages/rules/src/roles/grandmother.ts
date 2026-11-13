@@ -59,17 +59,8 @@ export const grandmother = defineRole<State>({
         ctx.outcome('grandchild killed by the Demon, but the Grandmother is impaired');
         return;
       }
-      const dies = ctx.decide({
-        key: { kind: 'grandmother_link' },
-        title: `Grandmother ${ctx.name(me)} dies too?`,
-        description: `${ctx.name(child)} (her grandchild) was killed by the Demon.`,
-        options: [
-          { id: 'yes', label: 'Yes, she dies too' },
-          { id: 'no', label: 'No' },
-        ],
-        default: 'yes',
-      });
-      if (dies === 'yes') ctx.attemptKill(me, 'grandchild_link');
+      // Nothing to confirm: a sober Grandmother dies with a grandchild the Demon kills.
+      ctx.attemptKill(me, 'grandchild_link');
     },
   },
 });

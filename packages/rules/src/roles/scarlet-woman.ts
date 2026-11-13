@@ -26,17 +26,7 @@ export const scarletWoman = defineRole<State>({
         ctx.setState({ heir: { demon: death.playerId, aliveBefore: death.aliveBefore } });
         return;
       }
-      const yes = ctx.decide({
-        key: { kind: 'scarlet_woman', subject: death.playerId },
-        title: `Scarlet Woman ${ctx.name(me)} becomes the Demon?`,
-        description: `${ctx.name(death.playerId)} (the Demon) died with ${death.aliveBefore} players alive.`,
-        options: [
-          { id: 'yes', label: 'Yes, she becomes the Demon' },
-          { id: 'no', label: 'No' },
-        ],
-        default: 'yes',
-      });
-      if (yes !== 'yes') return;
+      // Nothing to confirm: the conditions above settle it.
       handOverDemon(ctx, me, death.playerId);
       ctx.outcome(`${ctx.name(me)} (Scarlet Woman) becomes the Demon`);
     },

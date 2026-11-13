@@ -31,7 +31,7 @@ async function decide(page: Page, label: string) {
   await expect(select).toHaveValue(value as string);
 }
 
-test('from the lobby to publishing night 2, with a changed decision, a stale override and an execution', async ({
+test('from the lobby to publishing night 2, with a changed decision, a written answer and an execution', async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -104,27 +104,26 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
   await expect(page).toHaveURL(/storyteller\/day/);
   await page.getByRole('button', { name: 'Start Night 2' }).click();
 
-  // Night 2: write an answer, then change the decision under it.
+  // Night 2: only a drunk or poisoned player's result is on the Review tab, so the Poisoner takes Ann, and the Imp
+  // attacks Bo (already dead) so nobody dies. Write her an answer in place of the suggested false one.
   await expect(page).toHaveURL(/storyteller\/night/, { timeout: 10_000 });
   await ann?.submit();
-  await di?.submit((o) => o === ed?.id);
-  await ed?.submit((o) => o === di?.id);
+  await di?.submit((o) => o === ann?.id);
+  await ed?.submit((o) => o === bo?.id);
   await closeNight(page);
   const result = page.getByRole('article').filter({ hasText: 'Ann Balloonist' });
+  await expect(result.getByText('poisoned')).toBeVisible();
   await result.getByLabel('Answer for Balloonist').selectOption({ label: 'Write an answer…' });
   await page.getByLabel('One line per message line').fill('An answer from the Storyteller');
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(result.locator('select option:checked')).toHaveText(/An answer from the Storyteller/);
 
-  // Change the decision to another option.
-  const decision = page.getByRole('combobox', { name: /Balloonist Ann: show which player/ });
+  // Changing the decision under it keeps the written answer.
+  const decision = page.getByRole('combobox', { name: /Balloonist Ann.*show which player/ });
   const current = await decision.inputValue();
   const values = await decision.locator('option').evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value));
   await decision.selectOption(values.find((v) => v && v !== current) as string);
-  await expect(result.getByText('The night changed after you wrote this answer.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Publish dawn' })).toBeDisabled();
-  await result.getByRole('button', { name: 'Keep this answer' }).click();
-  await expect(result.getByText('The night changed after you wrote this answer.')).toBeHidden();
+  await expect(result.locator('select option:checked')).toHaveText(/An answer from the Storyteller/);
   await page.getByRole('button', { name: 'Publish dawn' }).click();
   await expect(page).toHaveURL(/storyteller\/day/);
   await ann?.waitFor((v) => v.phase.kind === 'day' && v.phase.n === 3);

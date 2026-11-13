@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Choice, PlayerId, QuestionView, ResultView, ReviewItem, ReviewView, StorytellerView } from '@ct/protocol';
+import type { Choice, QuestionView, ResultView, ReviewItem, StorytellerView } from '@ct/protocol';
 import { useCommand, useNames } from '../app/store';
 import { Picker, choiceComplete } from '../ui/Picker';
 import { Button, Card, HoldButton } from '../ui/ui';
@@ -118,7 +118,7 @@ function Decision({ d }: { d: ReviewItem }) {
       </h3>
       <p>{d.description}</p>
       {d.stale && <p className="muted small">This no longer applies. Clear it to carry on.</p>}
-      {/* Always a dropdown: every option the rule allows, the suggestion marked. */}
+      {/* Always a dropdown: every option the rule allows, starting on the suggestion. */}
       <select
         aria-label={d.title}
         value={(d.required ? d.chosen : (d.chosen ?? d.default)) ?? ''}
@@ -128,7 +128,6 @@ function Decision({ d }: { d: ReviewItem }) {
         {d.options.map((o) => (
           <option key={o.id} value={o.id}>
             {o.label}
-            {o.id === d.default && !d.required ? ' (suggested)' : ''}
           </option>
         ))}
       </select>
@@ -172,61 +171,6 @@ function Question({ view, q }: { view: StorytellerView; q: QuestionView }) {
   );
 }
 
-function Malfunctions({ view, review }: { view: StorytellerView; review: ReviewView }) {
-  const { run, pending } = useCommand();
-  const { add, remove } = review.malfunctionAdjust;
-  const counted = review.malfunctions.filter((m) => !remove.includes(m.playerId));
-  const push = (nextAdd: PlayerId[], nextRemove: PlayerId[]) =>
-    void run({ type: 'adjust_malfunctions', add: nextAdd, remove: nextRemove });
-  // Malfunctions come from impairments set on the Grimoire; this only lets you leave one out of the count.
-  if (!review.malfunctions.length && !add.length) return null;
-  return (
-    <Section title={`Malfunctions (${counted.length + add.length})`}>
-      <ul className={styles['rows']}>
-        {review.malfunctions.map((m) => (
-          <li key={`${m.playerId}:${m.cause}`}>
-            <span className={styles['grow']}>
-              <Who view={view} id={m.playerId} role />
-              <span className="muted small"> {m.detail}</span>
-            </span>
-            <Button
-              tiny
-              disabled={pending}
-              onClick={() =>
-                push(
-                  add,
-                  remove.includes(m.playerId) ? remove.filter((x) => x !== m.playerId) : [...remove, m.playerId],
-                )
-              }
-            >
-              {remove.includes(m.playerId) ? 'Count it' : 'Do not count'}
-            </Button>
-          </li>
-        ))}
-        {add.map((id) => (
-          <li key={id}>
-            <span className={styles['grow']}>
-              <Who view={view} id={id} role /> <span className="muted small">added by you</span>
-            </span>
-            <Button
-              tiny
-              disabled={pending}
-              onClick={() =>
-                push(
-                  add.filter((x) => x !== id),
-                  remove,
-                )
-              }
-            >
-              Remove
-            </Button>
-          </li>
-        ))}
-      </ul>
-    </Section>
-  );
-}
-
 export function Review({ view }: { view: StorytellerView }) {
   const { run, pending } = useCommand();
   const review = view.review;
@@ -242,6 +186,9 @@ export function Review({ view }: { view: StorytellerView }) {
     review.decisions.some((d) => d.stale) ||
     review.questions.some((q) => !q.answered) ||
     review.results.some((r) => r.staleOverride);
+  // A sober player's information is true and goes out as it is. Only a drunk or poisoned one needs a choice, plus
+  // any answer you already wrote, so it can be checked.
+  const shown = review.results.filter((r) => r.impaired || r.overridden || r.staleOverride);
   return (
     <div>
       {required.length > 0 && (
@@ -274,21 +221,27 @@ export function Review({ view }: { view: StorytellerView }) {
         </Section>
       )}
       <Section title="What each player learns">
-        {review.results.map((r) => (
+        {shown.map((r) => (
           <Result key={r.key} view={view} r={r} />
         ))}
-        {!review.results.length && <p className="muted">Nobody learns anything tonight.</p>}
+        {!shown.length && (
+          <p className="muted">
+            {review.results.length
+              ? 'Nobody who learns something tonight is drunk or poisoned: they get the true answer.'
+              : 'Nobody learns anything tonight.'}
+          </p>
+        )}
       </Section>
       {review.notices.length > 0 && (
         <Section title="Notices">
           {review.notices.map((n, i) => (
             <p key={i}>
-              <Who view={view} id={n.playerId} />: <b>{n.title}.</b> {n.lines.join(' ')}
+              <Who view={view} id={n.playerId} />: <b>{/[.!?]$/.test(n.title) ? n.title : `${n.title}.`}</b>{' '}
+              {n.lines.join(' ')}
             </p>
           ))}
         </Section>
       )}
-      <Malfunctions view={view} review={review} />
       {SHOW_GAME_END_CARDS &&
         review.gameEnd.map((g) => (
           <Card key={g.key} tone="notice">
