@@ -18,6 +18,7 @@ export const virgin = defineRole({
           prompt: 'Who nominated them? Only the first nomination counts.',
           fields: [{ kind: 'player', label: 'Nominator', options: ctx.seated.filter((x) => x !== ctx.holder) }],
           preview: true,
+          order: 80,
         },
       ];
     },

@@ -308,6 +308,12 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
           recorded: d.recorded ?? null,
           neededTonight: d.neededTonight ?? false,
           ...(d.blocksNight ? { blocksNight: true } : {}),
+          order: d.order ?? 1000,
+          control: d.control ?? 'select',
+          default: d.default ?? null,
+          ...(d.maxRows ? { maxRows: d.maxRows } : {}),
+          ...(d.clearable ? { clearable: true } : {}),
+          ...(d.emptyLabel ? { emptyLabel: d.emptyLabel } : {}),
         })),
       )
     : [];

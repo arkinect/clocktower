@@ -524,12 +524,42 @@
   background: var(--line);
 }
 
-.fact {
+/* A day event: its title and when it happens, its question, then its control. */
+.event {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--line);
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+.event p {
+  margin: 0;
+}
+
+.eventHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.eventHead h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.eventRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.eventRow select {
+  flex: 1 1 140px;
+  min-width: 0;
 }
 
 /* The Story: each night a table that scrolls sideways on a phone. */

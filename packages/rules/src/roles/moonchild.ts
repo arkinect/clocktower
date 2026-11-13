@@ -64,8 +64,13 @@ export const moonchild = defineRole<State>({
         {
           action: 'target',
           title: `Moonchild (${ctx.name(ctx.holder)})`,
-          prompt: 'Who did they publicly choose?',
+          prompt: 'Who did they publicly choose? If good, they die tonight.',
           preview: false,
+          // First thing in the day: they choose when they learn they died. No default: they must choose, so Review asks
+          // if this is left blank.
+          order: 5,
+          clearable: true,
+          emptyLabel: 'Not chosen yet',
           recorded: target(ctx) ? [target(ctx) as string] : null,
           neededTonight: true,
           fields: [{ kind: 'player', label: 'Target', options: ctx.alive }],
@@ -73,6 +78,10 @@ export const moonchild = defineRole<State>({
       ];
     },
     applyDayAction(ctx, _action, values) {
+      if (!values.length) {
+        ctx.setState({ target: null });
+        return { summary: "Moonchild's choice cleared.", effective: true };
+      }
       ctx.setState({ target: { day: ctx.n, player: values[0] as PlayerId } });
       return { summary: `Moonchild's target: ${ctx.name(values[0])}.`, effective: true };
     },

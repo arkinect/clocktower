@@ -25,17 +25,20 @@ export const flowergirl = defineRole<State>({
       return [
         {
           action: 'demon_voted',
-          title: 'Flowergirl: did a Demon vote today?',
-          prompt: 'Recorded for the Flowergirl tonight.',
+          title: `Flowergirl (${ctx.name(ctx.holder)})`,
+          prompt: 'Did a Demon vote today?',
           preview: false,
+          order: 110,
           recorded: voted ? [voted.value ? 'yes' : 'no'] : null,
-          // A living holder learns it tonight. If it's left blank, that night's Review asks.
+          // "No" unless changed: dusk records it. Review only asks when nobody held the ability today (a Philosopher
+          // who chooses it tonight).
+          default: ['no'],
           neededTonight: ctx.peers.some((a) => a.holder.kind === 'player' && ctx.isAlive(a.holder.id)),
           fields: [
             {
               kind: 'option',
               label: 'Demon voted',
-              options: ['yes', 'no'],
+              options: ['no', 'yes'],
               labels: { yes: 'Yes', no: 'No' },
             },
           ],

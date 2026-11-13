@@ -24,6 +24,7 @@ export const psychopath = defineRole<State>({
           prompt: 'Who did they choose? They die.',
           fields: [{ kind: 'player', label: 'Chosen', options: ctx.alive }],
           preview: true,
+          order: 40,
         },
       ];
     },

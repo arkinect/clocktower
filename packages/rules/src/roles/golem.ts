@@ -19,6 +19,7 @@ export const golem = defineRole({
           prompt: 'Who did they nominate? If not the Demon, they die.',
           fields: [{ kind: 'player', label: 'Nominee', options: ctx.seated.filter((x) => x !== ctx.holder) }],
           preview: true,
+          order: 90,
         },
       ];
     },

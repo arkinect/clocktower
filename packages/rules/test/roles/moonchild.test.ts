@@ -16,6 +16,14 @@ describe('Moonchild', () => {
     s.dusk().dawn();
     expect(s.alive('bo')).toBe(false);
   });
+  it('a recorded choice can be cleared, and then Review asks again', () => {
+    const s = scene(cast).start().dawn().execute('ann').dusk().dawn();
+    s.act('moonchild', 'target', ['bo']);
+    s.act('moonchild', 'target', []);
+    expect(fact(s)).toMatchObject({ recorded: null, clearable: true, default: null });
+    s.dusk().review();
+    expect(s.hasDecision('moonchild_target')).toBe(true);
+  });
   it('an evil target lives', () => {
     const s = scene(cast).start().dawn().execute('ann').dusk().dawn();
     s.act('moonchild', 'target', ['di']);

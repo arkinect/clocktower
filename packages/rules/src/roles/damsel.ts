@@ -12,7 +12,7 @@ export const damsel = defineRole<State>({
   name: 'Damsel',
   type: 'outsider',
   abilityText: 'All Minions know a Damsel is in play. If a Minion publicly guesses you (once), your team loses.',
-  reminder: "Record a Minion's guess in the Day panel.",
+  reminder: 'If a Minion publicly guesses the Damsel correctly, record it on the Day tab. A wrong guess needs nothing.',
   flags: { oncePerGame: 'auto' },
   initialState: () => ({ result: null }),
   night: { first: 120 },
@@ -40,19 +40,22 @@ export const damsel = defineRole<State>({
       return [
         {
           action: 'guess',
-          title: 'Damsel guess',
-          prompt: 'Who did a Minion publicly guess?',
-          fields: [{ kind: 'player', label: 'Guess', options: ctx.seated }],
+          title: ctx.ability.holder.kind === 'player' ? `Damsel (${ctx.name(ctx.holder)})` : 'Damsel',
+          prompt: 'Did a Minion publicly guess the Damsel correctly?',
+          order: 50,
+          emptyLabel: 'No',
+          fields: [{ kind: 'option', label: 'Guessed', options: ['yes'], labels: { yes: 'Yes, correctly' } }],
         },
       ];
     },
-    applyDayAction(ctx, _action, values) {
-      const t = values[0] as PlayerId;
+    // Only a right guess is recorded. A wrong one changes nothing, so the Day tab has nothing to say about it.
+    applyDayAction(ctx) {
       ctx.markUsed();
+      const damsels = ctx.seated.filter((id) => ctx.character(id) === DAMSEL);
       let summary: string;
       let win = false;
-      if (ctx.character(t) !== DAMSEL) summary = `${ctx.name(t)} is not the Damsel. Wrong guess, nothing happens.`;
-      else if (!ctx.isAlive(t) || ctx.isImpaired(t))
+      if (!damsels.length) summary = 'Nobody is the Damsel now: nothing happens.';
+      else if (damsels.every((t: PlayerId) => !ctx.isAlive(t) || ctx.isImpaired(t)))
         summary = 'The guess has no effect because the Damsel is drunk, poisoned or dead.';
       else {
         win = true;

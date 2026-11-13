@@ -17,6 +17,7 @@ export const slayer = defineRole({
           action: 'shoot',
           title: `Slayer (${ctx.name(ctx.holder)})`,
           prompt: 'Who did they shoot?',
+          order: 30,
           fields: [{ kind: 'player', label: 'Target', options: ctx.seated }],
         },
       ];

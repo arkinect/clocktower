@@ -212,12 +212,12 @@ describe('Cannibal jinxes, as they reach the phone', () => {
 
   it('Jinx (Cannibal & Juggler): a Juggler executed on a later day gives the Cannibal nothing', () => {
     const s = day1({ ...cast, di: 'juggler' });
-    s.act('juggler', 'count', ['3']);
+    s.act('juggler', 'guesses', ['di', 'juggler']);
     s.dusk().dawn().execute('di').dusk();
     expect(s.truth('ann')).toEqual([]);
   });
 
-  it('Jinx (Cannibal & Juggler): the real Juggler still wakes with no count entered', () => {
+  it('Jinx (Cannibal & Juggler): the real Juggler still wakes with no guesses recorded', () => {
     const s = day1({ ...cast, di: 'juggler' }).dusk();
     expect(s.res.results.some((r) => r.playerId === 'di' && r.roleId === 'juggler')).toBe(true);
   });

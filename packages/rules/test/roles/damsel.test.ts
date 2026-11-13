@@ -10,13 +10,22 @@ describe('Damsel', () => {
   });
   it('a right guess offers evil the win', () => {
     const s = scene(cast).start().dawn();
-    expect(s.act('damsel', 'guess', ['ann']).effective).toBe(true);
+    expect(s.act('damsel', 'guess', ['yes']).effective).toBe(true);
     expect(s.winners()).toContain('evil');
   });
-  it('a wrong guess is spent', () => {
+  it('only a right guess is recorded, as yes or no, and it is spent', () => {
     const s = scene(cast).start().dawn();
-    expect(s.act('damsel', 'guess', ['di']).effective).toBe(false);
+    const row = s.dayActions().find((d) => d.roleId === 'damsel');
+    expect(row).toMatchObject({ title: 'Damsel (ann)', preview: true, emptyLabel: 'No', order: 50 });
+    expect(row?.fields[0]?.options).toEqual(['yes']);
+    s.act('damsel', 'guess', ['yes']);
     expect(s.dayActions()).toEqual([]);
+  });
+  it('a right guess of a dead Damsel does nothing', () => {
+    const s = scene(cast).start().dawn();
+    s.g.st({ type: 'mark_alive', playerId: 'ann' as never, alive: false });
+    expect(s.act('damsel', 'guess', ['yes']).effective).toBe(false);
+    expect(s.winners()).not.toContain('evil');
   });
   it('the guess outlives the character', () => {
     const s = scene({ ...cast, di: 'huntsman' })
@@ -24,6 +33,6 @@ describe('Damsel', () => {
       .submit({ di: ['ann'] })
       .decide('huntsman_new_role', 'empath');
     s.dawn();
-    expect(s.dayActions().map((d) => d.title)).toContain('Damsel guess');
+    expect(s.dayActions().map((d) => d.title)).toContain('Damsel');
   });
 });

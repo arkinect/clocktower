@@ -72,13 +72,12 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
   await expect(page.getByRole('button', { name: 'Di (minion)' })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('button', { name: 'Publish dawn' }).click();
 
-  // Day 1: a day action with a preview, then an execution.
+  // Day 1: a day event that happens now, previewed as it is chosen, then an execution.
   await expect(page).toHaveURL(/storyteller\/day/);
   const action = page.getByRole('article').filter({ hasText: 'Slayer' });
   await action.locator('select').selectOption({ label: 'Cy' });
-  await action.getByRole('button', { name: 'Preview' }).click();
   await expect(action.getByText('Cy is not the Demon: nothing happens.')).toBeVisible();
-  await action.getByRole('button', { name: 'Accept' }).click();
+  await action.getByRole('button', { name: 'Confirm' }).click();
   await expect(page.getByRole('article').filter({ hasText: 'Slayer' })).toHaveCount(0);
   await page.getByLabel(/^Executed/).selectOption({ label: 'Cy (Empath)' });
   await expect(page.getByText('executed at dusk', { exact: false })).toBeVisible({ timeout: 10_000 });
