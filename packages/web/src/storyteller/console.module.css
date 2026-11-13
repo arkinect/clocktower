@@ -448,9 +448,9 @@
   font-size: 0.85rem;
 }
 
+/* No nowrap: at phone width "Use dead vote" wraps, or the four-column Day table overflows. */
 .act {
   text-align: right;
-  white-space: nowrap;
 }
 
 .chips {
