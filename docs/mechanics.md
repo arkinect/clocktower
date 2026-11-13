@@ -227,7 +227,7 @@ Known limits:
 | Kazali         |       | First night, night*   | `setupRules.counts`, `changeCharacter` on chosen players           |
 | Legion         |       | Night*, votes         | `setupRules.duplicates`, `adjustVote`, `registersAs`               |
 | Leviathan      |       | Passive               | `notify` to all, `onDayEvent`, `onDusk`, `suggestGameEnd`          |
-| Lil' Monsta    | yes   | Each night            | `move`, `holderIsDemon`, `registersOther` for its babysitter       |
+| Lil' Monsta    | yes   | Each night            | `move`, `holderIsDemon` per instance, `decide` for the kill        |
 | Lleech         |       | First night, night*   | conditions, `interceptKill`, `onDeath`                             |
 | Lord of Typhon |       | First night, night*   | `setupRules.neighbours`, `setupRules.counts`                       |
 | No Dashii      | yes   | Night*                | `deriveConditions`                                                 |

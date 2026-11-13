@@ -274,8 +274,8 @@ export interface RoleFlags {
   startInfo?: boolean;
   /** 'auto': the engine marks it used. 'manual': the Storyteller ticks it. */
   oncePerGame?: 'auto' | 'manual';
-  /** Holding this ability makes the holder the Demon. */
-  holderIsDemon?: boolean;
+  /** Holding this ability makes the holder the Demon. A function decides it per instance. */
+  holderIsDemon?: boolean | ((a: Instance) => boolean);
   /** Wakes only on a night they die, and then though dead. Impairment is taken at the moment of death. */
   wakesOnNightDeath?: boolean;
   /** With wakesOnNightDeath: also acts once the order is done, for a death after its slot. */
@@ -292,6 +292,8 @@ export interface RoleFlags {
   passive?: boolean;
   /** The first choice when the Storyteller picks which Minion takes over from the Demon. */
   demonHeir?: boolean;
+  /** In play, the evil team gets no Demon bluffs. */
+  noBluffs?: boolean;
 }
 
 export interface RoleDef<S = unknown> {

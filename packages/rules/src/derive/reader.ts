@@ -1,6 +1,6 @@
 // Read helpers over a game state. Everything a hook may ask about the world, and nothing that changes it.
 import type { Alignment, CharacterType, PlayerId, RoleId } from '@ct/protocol';
-import { allRoles, findRole, jinxBetween, roleDef } from '../abilities/registry';
+import { allRoles, findRole, jinxBetween, makesDemon, roleDef } from '../abilities/registry';
 import type { GameEvent, GameState, Moment, Player } from '../model/state';
 import { momentOrder } from '../model/state';
 import type { Instance, RoleDef } from '../abilities/define';
@@ -43,8 +43,7 @@ export class Reader {
   };
 
   /** A player with a Demon character, or holding an ability that makes them the Demon. */
-  isDemon = (id: PlayerId): boolean =>
-    this.typeOf(id) === 'demon' || this.abilitiesOf(id).some((a) => roleDef(a.roleId).flags.holderIsDemon);
+  isDemon = (id: PlayerId): boolean => this.typeOf(id) === 'demon' || this.abilitiesOf(id).some(makesDemon);
 
   get demons(): PlayerId[] {
     return this.seated.filter(this.isDemon);

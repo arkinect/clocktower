@@ -39,6 +39,9 @@ export function handOverDemon(ctx: AbilityCtx<unknown>, to: PlayerId, from: Play
   const options = { pending };
   if (src.kind === 'ability') {
     ctx.move(src.id, to);
+    // A token remembers who inherited it, for a jinx that keeps it there (Lil' Monsta & Scarlet Woman).
+    const token = ctx.instance(src.id);
+    if (token) token.state = { ...(token.state as object), heir: to };
     const name = ctx.role(ctx.instance(src.id)?.roleId ?? ctx.ability.roleId).name;
     ctx.notify(to, name, [`You hold ${name}'s token. You are the Demon.`], options);
     return;

@@ -23,6 +23,14 @@ async function closeNight(page: Page) {
   await expect(page.getByRole('heading', { name: 'What each player learns' })).toBeVisible();
 }
 
+/** Picks an option in a Review decision's dropdown, by the start of its label. */
+async function decide(page: Page, label: string) {
+  const select = page.locator('select', { has: page.locator('option', { hasText: label }) });
+  const value = await select.locator('option', { hasText: label }).getAttribute('value');
+  await select.selectOption(value as string);
+  await expect(select).toHaveValue(value as string);
+}
+
 test('from the lobby to publishing night 2, with a changed decision, a stale override and an execution', async ({
   page,
 }) => {
@@ -68,8 +76,7 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
   for (const p of players) await p.submit((o) => o === ed?.id);
   await closeNight(page);
   // The Balloonist shows one character type a night. Spending the Minion and the Demon first leaves a real choice.
-  await page.getByRole('button', { name: 'Di (minion)' }).click();
-  await expect(page.getByRole('button', { name: 'Di (minion)' })).toHaveAttribute('aria-pressed', 'true');
+  await decide(page, 'Di (minion)');
   await page.getByRole('button', { name: 'Publish dawn' }).click();
 
   // Day 1: a day event that happens now, previewed as it is chosen, then an execution.
@@ -92,8 +99,7 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
   await ed?.submit((o) => o === bo?.id);
   await bo?.submit();
   await closeNight(page);
-  await page.getByRole('button', { name: 'Ed (demon)' }).click();
-  await expect(page.getByRole('button', { name: 'Ed (demon)' })).toHaveAttribute('aria-pressed', 'true');
+  await decide(page, 'Ed (demon)');
   await page.getByRole('button', { name: 'Publish dawn' }).click();
   await expect(page).toHaveURL(/storyteller\/day/);
   await page.getByRole('button', { name: 'Start Night 2' }).click();
@@ -110,8 +116,11 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(result.locator('select option:checked')).toHaveText(/An answer from the Storyteller/);
 
-  const decision = page.getByRole('group', { name: /Balloonist Ann: show which player/ });
-  await decision.getByRole('button', { pressed: false }).click();
+  // Change the decision to another option.
+  const decision = page.getByRole('combobox', { name: /Balloonist Ann: show which player/ });
+  const current = await decision.inputValue();
+  const values = await decision.locator('option').evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value));
+  await decision.selectOption(values.find((v) => v && v !== current) as string);
   await expect(result.getByText('The night changed after you wrote this answer.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Publish dawn' })).toBeDisabled();
   await result.getByRole('button', { name: 'Keep this answer' }).click();

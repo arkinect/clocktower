@@ -1,7 +1,7 @@
 // Every role definition, in sheet order. The core looks roles up here by id and never names one.
 import type { CharacterType, RoleId } from '@ct/protocol';
 import type { JinxDef } from '../jinxes/define';
-import type { RoleDef } from './define';
+import type { Instance, RoleDef } from './define';
 
 const roles = new Map<RoleId, RoleDef>();
 const scripted: RoleId[] = [];
@@ -27,6 +27,12 @@ export function roleDef(id: RoleId): RoleDef {
   const def = roles.get(id);
   if (!def) throw new Error(`Unknown role ${id}`);
   return def;
+}
+
+/** Whether holding this instance makes its holder the Demon. */
+export function makesDemon(a: Instance): boolean {
+  const flag = roleDef(a.roleId).flags.holderIsDemon;
+  return typeof flag === 'function' ? flag(a) : !!flag;
 }
 
 export const findRole = (id: string): RoleDef | undefined => roles.get(id as RoleId);

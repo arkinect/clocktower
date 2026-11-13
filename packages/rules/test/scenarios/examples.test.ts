@@ -658,12 +658,12 @@ describe('characters at the table', () => {
     s.g.st({ type: 'suggest_bluffs' });
     s.start();
     expect(s.inbox('ann').join(' ')).toMatch(/Minions/);
-    expect(s.inbox('ann').join(' ')).toMatch(/bluffs/);
+    expect(s.inbox('ann').join(' ')).not.toMatch(/bluffs/);
     expect(s.g.view(as('cy')).me.messages.map((m) => m.title)).toEqual(['Your fellow Minions']);
     s.submit({ di: ['ed', 'gus'] }).nextNight();
     expect(s.character('ann')).toBe('baron');
     expect(s.specs('ann').map((x) => x.roleId)).toContain('lil_monsta');
-    s.submit({ ann: { lil_monsta: ['bo', 'ed'] }, di: ['bo', 'gus'] }).review();
+    s.submit({ ann: { lil_monsta: ['bo'] }, di: ['bo', 'gus'] }).decide('lil_monsta', 'ed');
     expect(s.res.deaths).toContain('ed');
     expect(row(s, 'ann')).toBeDefined();
     expect(result(s, 'di')?.truth[0]).toMatch(/Yes/);

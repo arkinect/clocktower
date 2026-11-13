@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Choice, PlayerId, QuestionView, ResultView, ReviewItem, ReviewView, StorytellerView } from '@ct/protocol';
 import { useCommand, useNames } from '../app/store';
 import { Picker, choiceComplete } from '../ui/Picker';
-import { Button, Card, HoldButton, Segments } from '../ui/ui';
+import { Button, Card, HoldButton } from '../ui/ui';
 import { InputSheet, Lines, SHOW_GAME_END_CARDS, Section, Who, causeLabel, useSeats } from './common';
 import styles from './console.module.css';
 import { NightCard } from './Story';
@@ -118,12 +118,20 @@ function Decision({ d }: { d: ReviewItem }) {
       </h3>
       <p>{d.description}</p>
       {d.stale && <p className="muted small">This no longer applies. Clear it to carry on.</p>}
-      <Segments
-        label={d.title}
-        options={d.options.map((o) => ({ id: o.id, text: o.label }))}
-        value={d.required ? d.chosen : (d.chosen ?? d.default)}
-        onChange={(option) => void run({ type: 'decide', key: d.key, option })}
-      />
+      {/* Always a dropdown: every option the rule allows, the suggestion marked. */}
+      <select
+        aria-label={d.title}
+        value={(d.required ? d.chosen : (d.chosen ?? d.default)) ?? ''}
+        onChange={(e) => void run({ type: 'decide', key: d.key, option: e.target.value })}
+      >
+        {d.required && d.chosen === null && <option value="">Choose…</option>}
+        {d.options.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.label}
+            {o.id === d.default && !d.required ? ' (suggested)' : ''}
+          </option>
+        ))}
+      </select>
       {d.chosen === null ? (
         <p className="muted small">{d.required ? 'Answer this before dawn.' : 'Using the default.'}</p>
       ) : (

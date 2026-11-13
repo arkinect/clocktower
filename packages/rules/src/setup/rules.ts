@@ -200,6 +200,8 @@ export function setupChecklist(s: GameState): CheckItem[] {
     }
   }
   for (const j of allJinxes()) if (j.hooks?.checklist) items.push(...j.hooks.checklist(r));
+  // Some Demons (Lil' Monsta) come with no bluffs at all.
+  if (r.inPlay.some((role) => roleDef(role).flags.noBluffs)) return items;
   const cands = bluffCandidates(s);
   const bluffs = s.setup.bluffs;
   items.push({
