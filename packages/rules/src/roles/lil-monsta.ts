@@ -18,6 +18,7 @@ export const lilMonsta = defineRole({
       field: 'minion',
       title: "The Minion the Lil' Monsta player becomes",
       kind: 'role',
+      rowLabel: 'plays as',
       options: (r) =>
         r
           .scriptOfType('minion')

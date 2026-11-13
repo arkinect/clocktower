@@ -10,6 +10,7 @@ import type {
   RoleCard,
   RoleId,
   StoryEntry,
+  StoryNight,
   StorytellerView,
 } from '@ct/protocol';
 import { roleCard } from '../abilities/define';
@@ -17,10 +18,11 @@ import type { Instance } from '../abilities/define';
 import { allRoles, findRole, nightSheet, roleDef, scriptOrder } from '../abilities/registry';
 import { computeImpairment } from '../derive/impairment';
 import { Reader } from '../derive/reader';
-import type { Condition, GameState } from '../model/state';
+import type { Condition, GameState, StoryRow } from '../model/state';
 import { phaseMoment } from '../model/state';
 import { HookCtx } from '../night/context';
 import { Run } from '../night/run';
+import { nightStory } from '../night/story';
 import { actionSpecs, expectedActors, resolveNight, wakingAbilities } from '../night/wake';
 import { setupFields } from '../phases/setup';
 import {
@@ -155,30 +157,34 @@ function conditionView(r: Reader, c: Condition): ConditionView {
   };
 }
 
+function storyNight(n: number, rows: StoryRow[], deaths: PlayerId[], revived: PlayerId[]): StoryNight {
+  return {
+    kind: 'night',
+    n,
+    deaths,
+    revived,
+    rows: rows.map((row, seat) => ({
+      playerId: row.playerId,
+      seat,
+      name: row.name,
+      character: row.character,
+      believed: row.believed,
+      alignment: row.alignment,
+      aliveAtStart: row.aliveAtStart,
+      aliveAtEnd: row.aliveAtEnd,
+      causes: row.causes,
+      // The stored row keeps only the slot, and the engine version stays put for this.
+      actions: row.actions.map((x) => ({ roleId: null, ...x })),
+      received: row.received,
+    })),
+  };
+}
+
 function story(s: GameState, r: Reader): StoryEntry[] {
   const out: StoryEntry[] = [];
   for (const e of s.events) {
     if (e.kind !== 'night_record') continue;
-    out.push({
-      kind: 'night',
-      n: e.at.n,
-      deaths: e.deaths,
-      revived: e.revived,
-      rows: e.rows.map((row, seat) => ({
-        playerId: row.playerId,
-        seat,
-        name: row.name,
-        character: row.character,
-        believed: row.believed,
-        alignment: row.alignment,
-        aliveAtStart: row.aliveAtStart,
-        aliveAtEnd: row.aliveAtEnd,
-        causes: row.causes,
-        // The stored row keeps only the slot, and the engine version stays put for this.
-        actions: row.actions.map((x) => ({ roleId: null, ...x })),
-        received: row.received,
-      })),
-    });
+    out.push(storyNight(e.at.n, e.rows, e.deaths, e.revived));
   }
   // Every day that has started: Day N goes before Night N.
   const days = new Set(s.events.filter((e) => e.at.kind === 'day').map((e) => e.at.n));
@@ -288,6 +294,7 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
         })
       : [];
   const res = p.kind === 'night' && p.stage === 'review' ? resolveNight(s) : null;
+  const tonight = p.kind === 'night' ? p.n : 0;
   const run = p.kind === 'day' ? new Run({ world: clone(s) as GameState, moment, seed: 0, now: options.now }) : null;
   const dayActions = run
     ? run.reader.instances.flatMap((a) =>
@@ -345,6 +352,7 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
           malfunctionAdjust: p.kind === 'night' ? p.malfunctionAdjust : { add: [], remove: [] },
           gameEnd: res.gameEnd,
           log: res.log,
+          story: storyNight(tonight, nightStory(s, res, tonight), res.deaths, res.revived),
         }
       : null,
     dayActions,

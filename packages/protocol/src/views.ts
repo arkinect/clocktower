@@ -136,6 +136,8 @@ export const SetupFieldSpec = z.object({
   options: z.array(z.object({ id: z.string(), label: z.string() })),
   value: z.string().nullable(),
   suggestible: z.boolean(),
+  /** Shown in this player's row under Characters, as "<name> <label>", instead of with the other fields. */
+  row: z.object({ playerId: PlayerId, label: z.string() }).optional(),
 });
 export type SetupFieldSpec = z.infer<typeof SetupFieldSpec>;
 
@@ -219,6 +221,36 @@ export const GameEndSuggestion = z.object({
 });
 export type GameEndSuggestion = z.infer<typeof GameEndSuggestion>;
 
+/** A night as a table: one row per seated player, in seat order. */
+export const StoryNight = z.object({
+  kind: z.literal('night'),
+  n: z.number(),
+  deaths: z.array(PlayerId),
+  revived: z.array(PlayerId),
+  rows: z.array(
+    z.object({
+      playerId: PlayerId,
+      /** 0-based position in the night's rows. */
+      seat: z.number(),
+      name: z.string(),
+      character: RoleId.nullable(),
+      believed: RoleId.nullable(),
+      alignment: Alignment,
+      aliveAtStart: z.boolean(),
+      aliveAtEnd: z.boolean(),
+      causes: z.array(z.string()),
+      /** `roleId` is null when only the slot was stored: print the slot then. */
+      actions: z.array(
+        z.object({ roleId: RoleId.nullable(), slot: z.string(), input: z.string(), outcome: z.string() }),
+      ),
+      received: z.array(
+        z.object({ title: z.string(), lines: z.array(z.string()), truth: z.array(z.string()).nullable() }),
+      ),
+    }),
+  ),
+});
+export type StoryNight = z.infer<typeof StoryNight>;
+
 export const ReviewView = z.object({
   actors: z.array(ActorRow),
   results: z.array(ResultView),
@@ -231,6 +263,8 @@ export const ReviewView = z.object({
   malfunctionAdjust: z.object({ add: z.array(PlayerId), remove: z.array(PlayerId) }),
   gameEnd: z.array(GameEndSuggestion),
   log: z.array(z.string()),
+  /** Tonight as the Story tab will show it once published. */
+  story: StoryNight,
 });
 export type ReviewView = z.infer<typeof ReviewView>;
 
@@ -261,36 +295,6 @@ export const PromptView = z.object({
   options: z.array(z.object({ id: z.string(), label: z.string() })),
 });
 export type PromptView = z.infer<typeof PromptView>;
-
-/** A night as a table: one row per seated player, in seat order. */
-export const StoryNight = z.object({
-  kind: z.literal('night'),
-  n: z.number(),
-  deaths: z.array(PlayerId),
-  revived: z.array(PlayerId),
-  rows: z.array(
-    z.object({
-      playerId: PlayerId,
-      /** 0-based position in the night's rows. */
-      seat: z.number(),
-      name: z.string(),
-      character: RoleId.nullable(),
-      believed: RoleId.nullable(),
-      alignment: Alignment,
-      aliveAtStart: z.boolean(),
-      aliveAtEnd: z.boolean(),
-      causes: z.array(z.string()),
-      /** `roleId` is null when only the slot was stored: print the slot then. */
-      actions: z.array(
-        z.object({ roleId: RoleId.nullable(), slot: z.string(), input: z.string(), outcome: z.string() }),
-      ),
-      received: z.array(
-        z.object({ title: z.string(), lines: z.array(z.string()), truth: z.array(z.string()).nullable() }),
-      ),
-    }),
-  ),
-});
-export type StoryNight = z.infer<typeof StoryNight>;
 
 /** A day as a few labelled lines. */
 export const StoryDay = z.object({

@@ -317,6 +317,7 @@ export function setupFields(r: import('../derive/reader').Reader) {
           options: f.options(r),
           value: f.shown ? f.shown(r, value) : value,
           suggestible: !!f.suggest,
+          ...(f.rowLabel && a.holder.kind === 'player' ? { row: { playerId: a.holder.id, label: f.rowLabel } } : {}),
         };
       });
   });

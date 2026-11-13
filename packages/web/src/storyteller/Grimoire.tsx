@@ -10,11 +10,19 @@ import {
   causeLabel,
   causesWithoutRow,
   conditionLabel,
+  OWN_ROLE_DRUNK,
   phaseText,
   useSeats,
   useTypeOf,
 } from './common';
 import styles from './console.module.css';
+
+/** The end-game buttons. The one the rules suggest shimmers. */
+const ENDINGS = [
+  { winner: 'good', label: 'Good wins' },
+  { winner: 'evil', label: 'Evil wins' },
+  { winner: null, label: 'End with no winner' },
+] as const;
 
 /** Statuses the Storyteller can add by hand. A player holds each one at most once. */
 const CONDITIONS = ['poisoned', 'drunk', 'mad'] as const;
@@ -26,7 +34,12 @@ function SeatToken({ p, i, n, onOpen }: { p: GrimoirePlayer; i: number; n: numbe
   const { left, top, size } = seatPlace(i, n);
   const character = p.character ? names.roles[p.character] : 'No character';
   const believes = p.self.character && p.self.character !== p.character ? names.roles[p.self.character] : null;
-  const tags = [...(p.impaired ? ['impaired'] : []), ...p.conditions.map((c) => c.label)];
+  // Name the impairment ("drunk", "poisoned"), never a bare "impaired". Causes without a status row of their own,
+  // such as the No Dashii's poison, still show.
+  const unlisted = causesWithoutRow(p).map((c) =>
+    causeLabel(c) === OWN_ROLE_DRUNK ? OWN_ROLE_DRUNK : (c.split(':')[0] ?? '').toLowerCase(),
+  );
+  const tags = [...new Set([...p.conditions.map(conditionLabel), ...unlisted])];
   const facts = [
     character,
     p.alignment,
@@ -342,16 +355,8 @@ function fieldValue(f: SetupFieldSpec, names: ReturnType<typeof useNames>) {
 /** Removes every player, the Storyteller included, and resets the script. */
 export function NewGameButton() {
   const { run } = useCommand();
-  return (
-    <div>
-      {/* This phone is signed out too, so nothing waits for the reply. */}
-      <HoldButton onConfirm={() => void run({ type: 'new_game' })}>New game (erase)</HoldButton>
-      <p className="muted small">
-        Removes every player, you included (everyone joins again), resets the script to the default, and ends any game
-        in progress. Settings are kept.
-      </p>
-    </div>
-  );
+  // This phone is signed out too, so nothing waits for the reply.
+  return <HoldButton onConfirm={() => void run({ type: 'new_game' })}>New game (erase)</HoldButton>;
 }
 
 export function Grimoire({ view }: { view: StorytellerView }) {
@@ -362,6 +367,10 @@ export function Grimoire({ view }: { view: StorytellerView }) {
   const [changing, setChanging] = useState(false);
   const open = seated.find((p) => p.id === openId);
   const ended = view.phase.kind === 'ended';
+  // Game-end suggestions: those standing from earlier, and tonight's while the night is in review.
+  const suggested = [...view.gameEnd, ...(view.review?.gameEnd ?? [])].filter(
+    (g, i, all) => all.findIndex((x) => x.key === g.key) === i,
+  );
   const close = () => {
     setOpenId(null);
     setChanging(false);
@@ -377,11 +386,6 @@ export function Grimoire({ view }: { view: StorytellerView }) {
                 <div>
                   {seated.filter((p) => p.alive).length} / {seated.length} alive
                 </div>
-                {view.setup.bluffs.length > 0 && (
-                  <div className="muted small">
-                    Bluffs: {view.setup.bluffs.map((b) => names.roles[b] ?? b).join(', ')}
-                  </div>
-                )}
               </div>
               {seated.map((p, i) => (
                 <SeatToken key={p.id} p={p} i={i} n={seated.length} onOpen={() => setOpenId(p.id)} />
@@ -434,11 +438,22 @@ export function Grimoire({ view }: { view: StorytellerView }) {
             </Button>
           ) : (
             <>
-              <HoldButton onConfirm={() => void run({ type: 'end_game', winner: 'good' })}>Good wins</HoldButton>
-              <HoldButton onConfirm={() => void run({ type: 'end_game', winner: 'evil' })}>Evil wins</HoldButton>
-              <HoldButton onConfirm={() => void run({ type: 'end_game', winner: null })}>End with no winner</HoldButton>
+              {ENDINGS.map(({ winner, label }) => {
+                const why = suggested.filter((g) => g.winner === winner).map((g) => g.reason);
+                return (
+                  <span key={label} title={why.length ? `The rules suggest this: ${why.join(' ')}` : undefined}>
+                    <HoldButton
+                      className={why.length ? styles['suggested'] : undefined}
+                      onConfirm={() => void run({ type: 'end_game', winner })}
+                    >
+                      {label}
+                    </HoldButton>
+                  </span>
+                );
+              })}
             </>
           )}
+          <NewGameButton />
         </div>
         <details>
           <summary>Force a phase</summary>
@@ -451,7 +466,6 @@ export function Grimoire({ view }: { view: StorytellerView }) {
             ))}
           </div>
         </details>
-        <NewGameButton />
       </Section>
     </div>
   );

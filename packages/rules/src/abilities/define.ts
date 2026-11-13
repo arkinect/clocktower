@@ -134,6 +134,11 @@ export interface SetupField {
   when?(r: Reader): boolean;
   /** What a stored value means now, if that can change with the rest of the setup. */
   shown?(r: Reader, value: string | null): string | null;
+  /**
+   * Shown under the holder's character choice, after their name ("Bo plays as"), instead of in the
+   * Character setup list.
+   */
+  rowLabel?: string;
 }
 
 export interface SetupQuery {

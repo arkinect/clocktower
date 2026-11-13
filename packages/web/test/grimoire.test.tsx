@@ -79,6 +79,8 @@ const view = (players: GrimoirePlayer[], over: Record<string, unknown> = {}) =>
     settings: { notifyOnRoleChange: true },
     setup: { bluffs: [], fields: [] },
     storytellerAbilities: [],
+    gameEnd: [],
+    review: null,
     ...over,
   }) as unknown as StorytellerView;
 
@@ -243,6 +245,23 @@ describe('changing a character', () => {
     expect(run).toHaveBeenCalledWith({ type: 'assign_character', playerId: 'a', roleId: 'slayer' });
   });
 
+  it('names the impairment on a seat token, never a bare "impaired"', () => {
+    const drunk = ConditionView.parse({
+      id: 'c1',
+      type: 'drunk',
+      name: null,
+      label: 'drunk',
+      until: 'removed',
+      sourceLabel: 'storyteller',
+    });
+    const ann = player({ impaired: true, causes: ['drunk:storyteller'], conditions: [drunk] });
+    // Bo is poisoned by a cause with no status row of its own, such as the No Dashii's.
+    const bo = player({ id: 'b', name: 'Bo', seat: 1, impaired: true, causes: ['poisoned:No Dashii'] });
+    render(<Grimoire view={view([ann, bo])} />);
+    expect(screen.getByRole('button', { name: /^Seat 1: / }).getAttribute('title')).toBe('Empath, good, drunk');
+    expect(screen.getByRole('button', { name: /^Seat 2: / }).getAttribute('title')).toBe('Empath, good, poisoned');
+  });
+
   it('opens from the seat sheet in place of it', async () => {
     render(<Grimoire view={view([player({})])} />);
     await userEvent.click(screen.getByRole('button', { name: /^Seat 1: / }));
@@ -253,6 +272,23 @@ describe('changing a character', () => {
 });
 
 describe('game facts and controls', () => {
+  it("highlights the ending the rules suggest, from the day or from tonight's review", () => {
+    const noDemon = { key: 'no_demon', winner: 'good', reason: 'No Demon is alive.' };
+    const glows = () =>
+      ['Good wins', 'Evil wins', 'End with no winner'].filter((name) =>
+        /suggested/.test(screen.getByRole('button', { name }).className),
+      );
+    const { unmount } = render(<Grimoire view={view([player({})])} />);
+    expect(glows()).toEqual([]);
+    unmount();
+    render(<Grimoire view={view([player({})], { gameEnd: [noDemon] })} />);
+    expect(glows()).toEqual(['Good wins']);
+    cleanup();
+    const twoLeft = { key: 'two_left', winner: 'evil', reason: 'Only two players are alive.' };
+    render(<Grimoire view={view([player({})], { review: { gameEnd: [twoLeft] } })} />);
+    expect(glows()).toEqual(['Evil wins']);
+  });
+
   it('lists the setup fields in words', () => {
     const field = {
       abilityId: 'f',
@@ -268,9 +304,14 @@ describe('game facts and controls', () => {
     expect(screen.getByText('Demon bluffs: Slayer')).toBeTruthy();
   });
 
+  it('New game (erase) sits with the endings, above Force a phase', () => {
+    render(<Grimoire view={view([])} />);
+    const row = screen.getByText('Good wins').closest('.row');
+    expect(row?.textContent).toContain('New game (erase)');
+  });
+
   it('New game (erase) is a hold button', () => {
     render(<NewGameButton />);
-    expect(screen.getByText(/Settings are kept/)).toBeTruthy();
     hold('New game (erase)');
     expect(run).toHaveBeenCalledWith({ type: 'new_game' });
   });

@@ -1,10 +1,10 @@
 import { clone } from '../util/clone';
 import type { PlayerId } from '@ct/protocol';
 import { roleDef } from '../abilities/registry';
-import { computeImpairment } from '../derive/impairment';
-import type { GameState, NightPhase, StoryRow } from '../model/state';
+import type { GameState, NightPhase } from '../model/state';
 import { Run, hashDecision, type Resolution } from '../night/run';
 import { newNightPhase } from '../night/phase';
+import { nightStory } from '../night/story';
 import { actionSpecs, expectedActors, resolveNight, validateChoice, validateSubmission } from '../night/wake';
 import { executeAtDusk, fireExecutionAtDusk } from './day';
 import { defineCommand, need, type CmdCtx } from './define';
@@ -19,42 +19,6 @@ function extendForFollowUps(ctx: CmdCtx<'night'>) {
 }
 
 const collecting = (p: NightPhase) => p.stage === 'collecting' || p.stage === 'briefing';
-
-function nightStory(s: GameState, res: Resolution, n: number): StoryRow[] {
-  const end = computeImpairment(res.after, { kind: 'night', n });
-  return s.seats
-    .filter((x) => x.left === null)
-    .map(({ playerId: pid }) => {
-      const p = s.players[pid]!;
-      const rows = res.actors.filter((r) => r.playerId === pid);
-      const causes = new Set(rows.flatMap((r) => r.causes));
-      for (const c of end[pid]?.causes ?? []) causes.add(c);
-      return {
-        playerId: pid,
-        name: p.name,
-        character: p.character,
-        believed: s.setup.bag[pid] ?? null,
-        alignment: p.alignment,
-        aliveAtStart: p.life.alive,
-        aliveAtEnd: !!res.after.players[pid]?.life.alive,
-        impaired: causes.size > 0,
-        causes: [...causes],
-        actions: rows.map((r) => ({ slot: r.slot, input: r.input, outcome: r.outcome })),
-        received: [
-          ...res.results
-            .filter((r) => r.playerId === pid)
-            .map((r) => ({
-              title: r.title,
-              lines: r.final,
-              truth: r.final.join('\n') !== r.truth.join('\n') ? r.truth : null,
-            })),
-          ...res.notices
-            .filter((x) => x.playerId === pid)
-            .map((x) => ({ title: x.title, lines: x.lines, truth: null })),
-        ],
-      };
-    });
-}
 
 const appearsDead = (run: Run, id: PlayerId) =>
   run.reader.abilitiesOf(id).some((a) => roleDef(a.roleId).ability.appearsDead?.(run.ctx(a)));

@@ -368,7 +368,10 @@ describe('the end of the game on a phone', () => {
 });
 
 describe('setup assignment', () => {
-  const setupView = { setup: { believedOptions: {} }, script: ['empath', 'beggar'] } as unknown as StorytellerView;
+  const setupView = {
+    setup: { believedOptions: {}, fields: [] },
+    script: ['empath', 'beggar'],
+  } as unknown as StorytellerView;
 
   it("asks for a Traveller's alignment", () => {
     render(<AssignRow view={setupView} player={player({ character: 'beggar' })} />);
@@ -379,6 +382,26 @@ describe('setup assignment', () => {
     render(<AssignRow view={setupView} player={player({ character: 'empath' })} />);
     expect(screen.queryByLabelText('Alignment of Ann')).toBeNull();
     expect(screen.getByLabelText('Character for Ann')).toBeTruthy();
+  });
+
+  it("puts a field tied to the player (Lil' Monsta's Minion) in their row", async () => {
+    const field = SetupFieldSpec.parse({
+      abilityId: 'lm',
+      field: 'minion',
+      title: "The Minion the Lil' Monsta player becomes",
+      kind: 'role',
+      options: [{ id: 'empath', label: 'Empath' }],
+      value: null,
+      suggestible: false,
+      row: { playerId: 'a', label: 'plays as' },
+    });
+    const v = { ...setupView, setup: { ...setupView.setup, fields: [field] } } as StorytellerView;
+    render(<AssignRow view={v} player={player({ character: 'empath' })} />);
+    await userEvent.selectOptions(screen.getByLabelText('Ann plays as'), 'empath');
+    expect(run).toHaveBeenCalledWith({ type: 'set_setup_field', abilityId: 'lm', field: 'minion', value: 'empath' });
+    cleanup();
+    render(<AssignRow view={v} player={player({ id: 'b', name: 'Bo', character: 'empath' })} />);
+    expect(screen.queryByLabelText('Bo plays as')).toBeNull();
   });
 });
 

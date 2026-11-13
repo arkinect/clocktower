@@ -304,10 +304,6 @@
   color: var(--error);
 }
 
-.optional {
-  color: var(--muted);
-}
-
 /* Shown in the checklist, in the same style: it never blocks the start. */
 .warning {
   color: var(--warn);
@@ -596,4 +592,55 @@
 .rows > li.ability {
   display: grid;
   gap: 4px;
+}
+
+/* An end-game button the rules suggest: a gold border, and a gold band sweeping across it now and then. The button
+   already clips to its rounded edge. */
+.suggested {
+  border-color: var(--gold);
+}
+
+.suggested::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    color-mix(in srgb, var(--gold) 60%, transparent) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 2.4s ease-in-out infinite;
+}
+
+/* Sweep across in the first 60%, then rest off to the side. */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  60%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Less motion asked for: nothing slides, the gold fades in and out instead. */
+@media (prefers-reduced-motion: reduce) {
+  .suggested::after {
+    transform: none;
+    background: var(--gold);
+    animation: breathe 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }

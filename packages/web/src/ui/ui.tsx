@@ -55,6 +55,7 @@ export function HoldButton({
   seconds = 3,
   variant = 'danger',
   big,
+  className,
 }: {
   onConfirm: () => void;
   children: ReactNode;
@@ -62,6 +63,7 @@ export function HoldButton({
   seconds?: number;
   variant?: Variant;
   big?: boolean;
+  className?: string | undefined;
 }) {
   const [armed, setArmed] = useState(false);
   const timer = useRef<number | undefined>(undefined);
@@ -86,7 +88,7 @@ export function HoldButton({
       big={big ?? false}
       disabled={disabled ?? false}
       onClick={press}
-      className={armed ? styles['armed'] : ''}
+      className={cx(armed && styles['armed'], className)}
     >
       <span className={styles['fill']} style={{ animationDuration: `${seconds}s` }} />
       <span className={styles['label']}>

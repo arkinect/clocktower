@@ -43,6 +43,20 @@ describe('the story', () => {
     expect(night(s, 1)?.deaths).toEqual(['ed']);
   });
 
+  it('the review shows tonight exactly as the story will once dawn is published', () => {
+    const s = scene(cast)
+      .start()
+      .submit({ bo: ['cy'] })
+      .dawn()
+      .execute('di')
+      .dusk();
+    s.submit({ ann: ['ed'], bo: ['cy'] }).review();
+    const live = s.g.grimoire().review?.story;
+    expect(live).toMatchObject({ kind: 'night', n: 1, deaths: ['ed'] });
+    s.dawn();
+    expect(live).toEqual(night(s, 1));
+  });
+
   it('a day has its final execution, its deaths and its notes', () => {
     const s = scene(cast).start().dawn().execute('di');
     s.g.st({ type: 'set_notes', text: 'Loud day' });

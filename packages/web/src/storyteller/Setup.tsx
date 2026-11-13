@@ -41,8 +41,8 @@ function Checklist({ view }: { view: StorytellerView }) {
     <Section title="Before Night 0">
       <ul className={styles['checks']}>
         {checklist.map((c) => (
-          <li key={c.id} className={c.done ? styles['done'] : c.blocking ? styles['todo'] : styles['optional']}>
-            {c.done ? '✓' : c.blocking ? '✗' : '•'} {c.label}
+          <li key={c.id} className={c.done ? styles['done'] : c.blocking ? styles['todo'] : styles['warning']}>
+            {c.done ? '✓' : c.blocking ? '✗' : '⚠'} {c.label}
           </li>
         ))}
         {warnings.map((w) => (
@@ -219,7 +219,27 @@ export function AssignRow({ view, player }: { view: StorytellerView; player: Gri
           onChange={(roleId) => void run({ type: 'set_believed', playerId: player.id, roleId })}
         />
       )}
+      {view.setup.fields
+        .filter((f) => f.row?.playerId === player.id)
+        .map((f) => (
+          <RowField key={`${f.abilityId}:${f.field}`} spec={f} label={`${player.name} ${f.row?.label ?? ''}`} />
+        ))}
     </div>
+  );
+}
+
+/** A setup field shown in its holder's Characters row, styled as the Drunk's "believes they are". */
+function RowField({ spec, label }: { spec: SetupFieldSpec; label: string }) {
+  const { run } = useCommand();
+  if (spec.kind !== 'role') return <Field spec={{ ...spec, title: label }} />;
+  return (
+    <RoleSelect
+      label={label}
+      value={spec.value}
+      options={spec.options.map((o) => o.id)}
+      none="Choose…"
+      onChange={(value) => void run({ type: 'set_setup_field', abilityId: spec.abilityId, field: spec.field, value })}
+    />
   );
 }
 
@@ -309,10 +329,12 @@ export function Field({ spec }: { spec: SetupFieldSpec }) {
 }
 
 function Fields({ view }: { view: StorytellerView }) {
-  if (!view.setup.fields.length) return null;
+  // Fields tied to a player's row are shown there, under Characters.
+  const fields = view.setup.fields.filter((f) => !f.row);
+  if (!fields.length) return null;
   return (
     <Section title="Character setup">
-      {view.setup.fields.map((f) => (
+      {fields.map((f) => (
         <Field key={`${f.abilityId}:${f.field}`} spec={f} />
       ))}
     </Section>
