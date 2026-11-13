@@ -32,7 +32,9 @@ export function demonInfoLines(run: Run, demon: PlayerId, draft: EvilInfoDraft =
   const seen = draft.demonSees.filter((id) => id !== demon);
   const lines = [seen.length ? `Your Minions: ${seen.map(r.name).join(', ')}` : 'You have no Minions.'];
   lines.push(...draft.demonLines);
-  if (r.w.setup.bluffs.length) lines.push(`Not in play (bluffs): ${r.w.setup.bluffs.map(r.roleName).join(', ')}`);
+  const noBluffs = r.instances.some((a) => roleDef(a.roleId).flags.noBluffs);
+  if (r.w.setup.bluffs.length && !noBluffs)
+    lines.push(`Not in play (bluffs): ${r.w.setup.bluffs.map(r.roleName).join(', ')}`);
   lines.push('Tell your Minions who you are in person.');
   return lines;
 }

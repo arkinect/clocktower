@@ -13,7 +13,7 @@ import type {
   RegistrationQuery,
   SpecDraft,
 } from '../abilities/define';
-import { roleDef } from '../abilities/registry';
+import { makesDemon, roleDef } from '../abilities/registry';
 import { subRng, type Rng } from '../util/rng';
 import { demonInfoLines } from './evil-info';
 import type { Run } from './run';
@@ -433,7 +433,7 @@ export class AbilityCtx<S> extends HookCtx<S> {
 
   /** The Demon a hand-over must copy: the ability that makes `player` the Demon, or their character. */
   demonSource(player: PlayerId): { kind: 'ability'; id: string } | { kind: 'character'; role: RoleId } | null {
-    const token = this.abilitiesOf(player).find((a) => roleDef(a.roleId).flags.holderIsDemon);
+    const token = this.abilitiesOf(player).find(makesDemon);
     if (token) return { kind: 'ability', id: token.id };
     const c = this.character(player);
     return c ? { kind: 'character', role: c } : null;

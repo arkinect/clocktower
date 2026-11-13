@@ -13,6 +13,21 @@ instance caused (`roles/vigormortis.ts`). Test: `roles/vigormortis.test.ts`, "ru
 The text says [+1 Minion]. The type counts stay as they are, because the player in the Demon slot becomes a Minion at
 the first dawn and holds the token. That already is the extra Minion.
 
+## Who babysits Lil' Monsta, and who dies
+
+The player who was Lil' Monsta keeps the Minions' choice for the rest of the game, dead or alive: each night they
+choose any living player to babysit the token, themselves included, and can take it back from anyone. The babysitter
+is the Demon but chooses nothing, and holding the token never changes their alignment (a Mezepheles still can).
+Choosing the babysitter is not an ability, so nothing impairs it.
+
+Each night every evil player but the keeper is told "<name> is babysitting Lil' Monsta", the babysitter included.
+That one line is all anyone is told: nobody is told they are the Demon or that they no longer are, and a good
+babysitter is told nothing.
+
+The Storyteller chooses who dies, as the character text leaves it to them, from a dropdown: any living player but the
+babysitter, or nobody. It starts on a random suggestion, nobody included. A drunk or poisoned babysitter kills nobody. A Scarlet Woman
+who takes the token over keeps it (the jinx), and the keeper no longer wakes. Test: `roles/lil-monsta.test.ts`.
+
 ## Decisions are keyed by what they decide
 
 A Storyteller decision is keyed by the attacker, the cause and the attempt, not by its order in the night. An attack the

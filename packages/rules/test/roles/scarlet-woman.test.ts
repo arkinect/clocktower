@@ -73,13 +73,13 @@ describe('Scarlet Woman', () => {
     s.execute('ann').dusk();
     expect(s.character('bo')).toBe('imp');
   });
-  it('catches a night kill of the Demon, as a Review decision', () => {
+  it('catches a night kill of the Demon without asking', () => {
     const s = scene({ ...cast, cy: 'assassin' })
       .start()
       .nextNight()
       .submit({ cy: ['ann'] })
       .review();
-    expect(s.hasDecision('scarlet_woman')).toBe(true);
+    expect(s.hasDecision('scarlet_woman')).toBe(false);
     s.dawn();
     expect(s.character('bo')).toBe('imp');
   });

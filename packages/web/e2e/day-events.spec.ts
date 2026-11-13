@@ -33,11 +33,13 @@ async function storyteller() {
   const { playerId } = (await res.json()) as { playerId: string };
   const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0] as string;
   const ws = new WebSocket(`${BASE.replace('http', 'ws')}/ws`, { headers: { origin: BASE, cookie } });
+  // Listen before the socket opens: the server sends the welcome (with the role catalog) straight away.
+  const st = new ScriptedStoryteller(ws, playerId);
   await new Promise((resolve, reject) => {
     ws.once('open', resolve);
     ws.once('error', reject);
   });
-  return { st: new ScriptedStoryteller(ws, playerId), cookie };
+  return { st, cookie };
 }
 
 test('the Day tab with every day event', async ({ page }) => {

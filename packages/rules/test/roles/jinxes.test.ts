@@ -87,6 +87,25 @@ describe("Jinx (Lil' Monsta & Scarlet Woman)", () => {
     expect(token?.holder).toEqual({ kind: 'player', id: 'bo' });
     expect(s.character('bo')).toBe('scarlet_woman');
   });
+  it('the keeper cannot take it back from her', () => {
+    const s = scene(
+      { ann: 'lil_monsta', bo: 'scarlet_woman', cy: 'm1', di: 't1', ed: 't2', fi: 't3', gu: 't4' },
+      { fields: { lil_monsta: { minion: 'baron' } } },
+    )
+      .start()
+      .nextNight();
+    s.submit({ ann: ['cy'] })
+      .decide('lil_monsta', 'none')
+      .dawn();
+    s.execute('cy').dusk();
+    expect(s.specs('ann')).toEqual([]);
+    s.decide('lil_monsta', 'di').dawn();
+    expect(s.alive('di')).toBe(false);
+    const token = Object.values(s.state.abilities).find(
+      (a) => a.roleId === ('lil_monsta' as never) && a.origin.kind !== 'character',
+    );
+    expect(token?.holder).toEqual({ kind: 'player', id: 'bo' });
+  });
 });
 
 describe('Jinx (Scarlet Woman & Al-Hadikhia)', () => {

@@ -65,19 +65,9 @@ export const mezepheles = defineRole<State>({
         ctx.outcome('impaired: no conversion, word spent');
         return;
       }
-      const alive = ctx.isAlive(t);
-      const convert = ctx.decide({
-        key: { kind: 'mezepheles' },
-        title: `Mezepheles: convert ${ctx.name(t)} to evil?`,
-        description: `${ctx.name(t)} said the word.${alive ? '' : ' They are dead.'}`,
-        options: [
-          { id: 'convert', label: 'Convert to evil' },
-          { id: 'skip', label: 'Skip' },
-        ],
-        default: alive && ctx.alignmentOf(t) === 'good' ? 'convert' : 'skip',
-      });
-      if (convert !== 'convert') {
-        ctx.outcome('conversion skipped');
+      // Nothing to confirm: the outcome follows from who said the word and whether the Mezepheles is impaired.
+      if (!ctx.isAlive(t) || ctx.alignmentOf(t) !== 'good') {
+        ctx.outcome(`${ctx.name(t)} is not a living good player: no conversion`);
         return;
       }
       ctx.changeAlignment(t, 'evil', 'said the Mezepheles word');
