@@ -1,6 +1,5 @@
 import { roleId, type AbilityId, type PlayerId, type RoleId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
-import { allRoles } from '../abilities/registry';
 import type { AbilityCtx } from '../night/context';
 
 interface State {
@@ -9,6 +8,8 @@ interface State {
   fake: boolean;
   eaten: AbilityId | null;
   roleId: RoleId | null;
+  /** The Storyteller's choice, made by day, of what an evil executee will look like to the Cannibal. */
+  plan?: { day: number; executee: PlayerId; role: RoleId } | null;
 }
 
 const CANNIBAL = roleId('cannibal');
@@ -40,6 +41,32 @@ function setEaten(ctx: AbilityCtx<State>, role: RoleId | null, fake: boolean) {
   }
 }
 
+/** What an evil executee can look like: a good character on the script, other than the Cannibal. */
+const fakes = (ctx: AbilityCtx<State>) =>
+  [...ctx.charactersOfType('townsfolk'), ...ctx.charactersOfType('outsider')].filter((r) => r !== CANNIBAL);
+
+/** The Storyteller's choice for this executee today, if they made one. */
+function planned(ctx: AbilityCtx<State>, executee: PlayerId): RoleId | null {
+  const plan = ctx.state.plan;
+  const ok = plan && plan.day === ctx.n && plan.executee === executee && fakes(ctx).includes(plan.role);
+  return ok ? plan.role : null;
+}
+
+/** A random good character, preselected on the Day tab. It comes out the same every time, so dusk uses what was shown. */
+function suggestion(ctx: AbilityCtx<State>, executee: PlayerId): RoleId | null {
+  const options = fakes(ctx);
+  return options.length ? ctx.stableRng(`fake:${ctx.n}:${executee}`).pick(options) : null;
+}
+
+/** Today's execution, when it would feed this Cannibal an evil player. */
+function evilMeal(ctx: AbilityCtx<State>): PlayerId | null {
+  if (ctx.ability.activeUntil === 'removed' || ctx.ability.holder.kind !== 'player') return null;
+  const me = ctx.holder;
+  const executee = ctx.executeeToday;
+  if (!executee || executee === me || !ctx.isAlive(me)) return null;
+  return ctx.alignmentOf(executee) === 'evil' ? executee : null;
+}
+
 export const cannibal = defineRole<State>({
   id: CANNIBAL,
   name: 'Cannibal',
@@ -47,8 +74,8 @@ export const cannibal = defineRole<State>({
   abilityText:
     'You have the ability of the recently killed executee. If they are evil, you are poisoned until a good player dies by execution.',
   reminder:
-    'Gains the ability when an execution kills someone, as the night starts. An evil executee gives a random good character on the script instead, as false information, and poisons the Cannibal. Change it in the Day panel from the next day.',
-  initialState: () => ({ ate: false, fake: false, eaten: null, roleId: null }),
+    'Gains the ability when an execution kills someone, as the night starts. An evil executee gives a good character on the script instead, as false information, and poisons the Cannibal. Choose that character on the Day tab while the evil player is set to be executed; a random one is preselected.',
+  initialState: () => ({ ate: false, fake: false, eaten: null, roleId: null, plan: null }),
   ability: {
     onDayEvent(ctx, e) {
       if (e.kind !== 'execution' || !e.died || !e.playerId) return;
@@ -59,42 +86,41 @@ export const cannibal = defineRole<State>({
       const good = ctx.alignmentOf(executee) === 'good';
       // An evil executee: the poisoned Cannibal believes they ate a good player, so they get a good character from the
       // script to play as, which gives false information.
-      const fakes = [...ctx.charactersOfType('townsfolk'), ...ctx.charactersOfType('outsider')].filter(
-        (r) => r !== CANNIBAL,
-      );
-      const fake = fakes.length ? ctx.rng(`eat:${ctx.n}`).pick(fakes) : null;
-      setEaten(ctx, good ? ctx.character(executee) : fake, !good);
+      setEaten(ctx, good ? ctx.character(executee) : (planned(ctx, executee) ?? suggestion(ctx, executee)), !good);
+      ctx.setState({ plan: null });
       // "Poisoned until a good player dies by execution": any earlier eat's poison ends here.
       for (const c of ctx.conditionsFrom('poisoned')) ctx.removeCondition(c);
       if (!good && !ctx.believed) ctx.addCondition(me, 'poisoned', { until: 'removed' });
     },
     dayActions(ctx) {
-      if (!ctx.state.ate) return [];
-      const roles = allRoles().filter(
-        (r) => r.id !== CANNIBAL && ['townsfolk', 'outsider', 'minion', 'demon'].includes(r.type),
-      );
+      const executee = evilMeal(ctx);
+      if (!executee) return [];
+      const options = fakes(ctx);
+      // The suggestion counts as the answer until the Storyteller picks another.
+      const role = planned(ctx, executee) ?? suggestion(ctx, executee);
       return [
         {
-          action: 'set_ability',
-          title: `Cannibal (${ctx.name(ctx.holder)}): eaten ability`,
-          prompt: 'Which ability do they have?',
+          action: 'fake_eat',
+          title: `Cannibal (${ctx.name(ctx.holder)}): what they will think they ate`,
+          prompt: 'Which good character do they think they ate?',
           preview: false,
-          recorded: [ctx.state.roleId ?? 'none'],
-          fields: [
-            {
-              kind: 'option',
-              label: 'Ability',
-              options: ['none', ...roles.map((r) => r.id)],
-              labels: { none: 'No ability', ...Object.fromEntries(roles.map((r) => [r.id, r.name])) },
-            },
-          ],
+          recorded: role ? [role] : null,
+          // Dusk reads it, so Start Night waits for it.
+          blocksNight: options.length > 0,
+          fields: [{ kind: 'role', label: 'Character', options }],
         },
       ];
     },
     applyDayAction(ctx, _action, values) {
-      const value = values[0] === 'none' ? null : (values[0] as RoleId);
-      if (value !== ctx.state.roleId) setEaten(ctx, value, ctx.state.fake);
-      return { summary: `The Cannibal now has: ${ctx.roleName(value)}.`, effective: true };
+      const executee = evilMeal(ctx);
+      const role = values[0] as RoleId;
+      if (!executee)
+        return { summary: 'Today’s execution would not feed the Cannibal an evil player.', effective: false };
+      ctx.setState({ plan: { day: ctx.n, executee, role } });
+      return {
+        summary: `If ${ctx.name(executee)} dies at dusk, the Cannibal thinks they ate: ${ctx.roleName(role)}.`,
+        effective: true,
+      };
     },
     summary: (ctx) =>
       ctx.state.ate ? [`Ate: ${ctx.roleName(ctx.state.roleId)}${ctx.state.fake ? ' (false information)' : ''}`] : [],

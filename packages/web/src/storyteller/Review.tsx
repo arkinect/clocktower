@@ -223,30 +223,36 @@ export function Review({ view }: { view: StorytellerView }) {
   const { run, pending } = useCommand();
   const review = view.review;
   if (!review) return <Card>There is no night to review yet.</Card>;
-  const needed = review.decisions.filter(missing);
-  const others = review.decisions.filter((d) => !missing(d));
+  // Required decisions stay in the top card once answered, so answering one doesn't move it.
+  const required = review.decisions.filter((d) => d.required);
+  const others = review.decisions.filter((d) => !d.required);
+  const unanswered = required.some(missing);
+  // accept_all_defaults skips required decisions, so the button is only for a non-required one still open.
+  const undecided = others.some((d) => d.chosen === null && !d.stale);
   const blocked =
-    needed.length > 0 ||
+    unanswered ||
     review.decisions.some((d) => d.stale) ||
     review.questions.some((q) => !q.answered) ||
     review.results.some((r) => r.staleOverride);
   return (
     <div>
-      {needed.length > 0 && (
-        <Card tone="warn">
+      {required.length > 0 && (
+        <Card {...(unanswered ? { tone: 'warn' as const } : {})}>
           <p>
             <b>Not recorded during the day.</b> Answer these before you publish dawn.
           </p>
-          {needed.map((d) => (
+          {required.map((d) => (
             <Decision key={d.hash} d={d} />
           ))}
         </Card>
       )}
       {others.length > 0 && (
         <Section title="Decisions">
-          <Button tiny disabled={pending} onClick={() => void run({ type: 'accept_all_defaults' })}>
-            Accept all defaults
-          </Button>
+          {undecided && (
+            <Button tiny disabled={pending} onClick={() => void run({ type: 'accept_all_defaults' })}>
+              Accept all defaults
+            </Button>
+          )}
           {others.map((d) => (
             <Decision key={d.hash} d={d} />
           ))}

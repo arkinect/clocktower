@@ -55,6 +55,15 @@ function dayActionsOf(run: Run, a: Instance) {
   return roleDef(a.roleId).ability.dayActions?.(run.ctx(a)) ?? [];
 }
 
+/** The titles of today's day actions that must be answered before Start Night and aren't yet. */
+export function unansweredBeforeNight(run: Run): string[] {
+  return run.reader.instances.flatMap((a) =>
+    dayActionsOf(run, a)
+      .filter((d) => d.blocksNight && !d.recorded)
+      .map((d) => d.title ?? roleDef(a.roleId).name),
+  );
+}
+
 export const dayCommands = [
   defineCommand({
     type: 'seen_role',

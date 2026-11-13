@@ -42,9 +42,10 @@ Test: `roles/moonchild.test.ts`.
 
 ## The Cannibal eating an evil player
 
-The Cannibal is poisoned, and believes they ate a good player. They get a random Townsfolk or Outsider from the script,
-other than the Cannibal, as a believed-only ability: they wake as it and get false information. The Storyteller can
-change it on the Day tab from the next day. Test: `scenarios/cannibal.test.ts`.
+The Cannibal is poisoned, and believes they ate a good player. They get a Townsfolk or Outsider from the script,
+other than the Cannibal, as a believed-only ability: they wake as it and get false information. While an evil player is
+set to be executed, the Day tab asks which one, with a random one preselected; dusk uses whatever is selected. What
+a Cannibal ate cannot be changed afterwards. Test: `scenarios/cannibal.test.ts`.
 
 ## Protection from execution
 

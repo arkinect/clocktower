@@ -412,6 +412,7 @@ export function Day({ view }: { view: StorytellerView }) {
   if (view.phase.kind !== 'day') return <Card>It is not day.</Card>;
   const facts = view.dayActions.filter((a) => !a.preview);
   const abilities = view.dayActions.filter((a) => a.preview);
+  const blocked = view.dayActions.some((a) => a.blocksNight && !a.recorded);
   // Hidden while the app has no Traveller characters.
   const travellers = catalog.some((c) => c.type === 'traveller');
   return (
@@ -480,9 +481,21 @@ export function Day({ view }: { view: StorytellerView }) {
           )}
           <Usage seated={seated} />
           {travellers && <Travellers view={view} seated={seated} />}
-          <HoldButton big variant="primary" disabled={pending} onConfirm={() => void run({ type: 'start_night' })}>
+          <HoldButton
+            big
+            variant="primary"
+            disabled={blocked || pending}
+            onConfirm={() => void run({ type: 'start_night' })}
+          >
             Start Night {view.phase.n}
           </HoldButton>
+          {blocked && (
+            <>
+              <HoldButton onConfirm={() => void run({ type: 'start_night', force: true })}>
+                Force start night
+              </HoldButton>
+            </>
+          )}
         </div>
       </div>
     </div>

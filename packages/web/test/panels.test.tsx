@@ -8,6 +8,8 @@ import {
   DayActionSpec,
   GrimoirePlayer,
   Jinx,
+  ReviewItem,
+  ReviewView,
   RoleCard,
   SetupFieldSpec,
   type PlayerView,
@@ -29,6 +31,7 @@ vi.mock('../src/app/store', () => ({
 import { Ended } from '../src/player/PlayerApp';
 import { RoleCardView, RoleList, typeName } from '../src/player/parts';
 import { Day, DayAction, Usage } from '../src/storyteller/Day';
+import { Review } from '../src/storyteller/Review';
 import { AssignRow, Field } from '../src/storyteller/Setup';
 import { InputSheet, causeLabel, causesWithoutRow, phaseText } from '../src/storyteller/common';
 import { HoldButton, UpdateBar } from '../src/ui/ui';
@@ -462,6 +465,24 @@ describe('the Day tab', () => {
     });
   });
 
+  it('a fact Start Night waits for shows its preselected answer, and holds Start Night only while it has none', () => {
+    const fake = spec({
+      title: 'Cannibal (Ann): what they will think they ate',
+      action: 'fake_eat',
+      fields: [{ kind: 'role', label: 'Character', options: ['empath', 'slayer'] }],
+      blocksNight: true,
+      recorded: ['slayer'],
+    });
+    const { rerender } = render(<Day view={dayView({ dayActions: [fake] })} />);
+    const select = screen.getByLabelText('Cannibal (Ann): what they will think they ate') as HTMLSelectElement;
+    expect(select.value).toBe('slayer');
+    expect((screen.getByRole('button', { name: 'Start Night 2' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByRole('button', { name: 'Force start night' })).toBeNull();
+    rerender(<Day view={dayView({ dayActions: [{ ...fake, recorded: null }] })} />);
+    expect((screen.getByRole('button', { name: 'Start Night 2' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Force start night' })).toBeTruthy();
+  });
+
   it('puts an action with a preview under "Day abilities"', () => {
     const shot = spec({
       title: 'Slayer (Ann)',
@@ -529,5 +550,59 @@ describe('the Day tab', () => {
   it('shows Travellers when the catalog has one', () => {
     render(<Day view={dayView()} />);
     expect(screen.getByRole('heading', { name: 'Travellers' })).toBeTruthy();
+  });
+});
+
+describe('the Review tab', () => {
+  const decision = (over: Record<string, unknown>) =>
+    ReviewItem.parse({
+      key: { kind: 'flowergirl_voted', ability: null },
+      hash: 'h1',
+      title: 'Flowergirl: did a Demon vote on Day 1?',
+      description: 'Not recorded during the day.',
+      options: [
+        { id: 'yes', label: 'Yes' },
+        { id: 'no', label: 'No' },
+      ],
+      default: 'no',
+      chosen: null,
+      stale: false,
+      required: true,
+      ...over,
+    });
+  const reviewView = (decisions: ReviewItem[]) =>
+    ({
+      ...console_({ kind: 'night', n: 2, stage: 'review' }),
+      review: ReviewView.parse({
+        actors: [],
+        results: [],
+        decisions,
+        questions: [],
+        notices: [],
+        deaths: [],
+        revived: [],
+        malfunctions: [],
+        malfunctionAdjust: { add: [], remove: [] },
+        gameEnd: [],
+        log: [],
+        story: { kind: 'night', n: 2, deaths: [], revived: [], rows: [] },
+      }),
+    }) as StorytellerView;
+  const topCard = () => screen.getByText('Not recorded during the day.', { selector: 'b' }).closest('p')?.parentElement;
+
+  it('keeps an answered required decision in the top card, with no Decisions section or Accept all defaults', () => {
+    render(<Review view={reviewView([decision({ chosen: 'yes' })])} />);
+    expect(within(topCard() as HTMLElement).getByRole('heading', { name: /Flowergirl/ })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Decisions' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Accept all defaults' })).toBeNull();
+  });
+
+  it('offers Accept all defaults only while an optional decision is undecided', () => {
+    const optional = decision({ hash: 'h2', title: 'Imp: who dies?', required: false });
+    const { rerender } = render(<Review view={reviewView([optional])} />);
+    expect(screen.getByRole('button', { name: 'Accept all defaults' })).toBeTruthy();
+    rerender(<Review view={reviewView([{ ...optional, chosen: 'yes' }])} />);
+    expect(screen.getByRole('heading', { name: 'Decisions' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Accept all defaults' })).toBeNull();
   });
 });
