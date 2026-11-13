@@ -19,7 +19,8 @@ rules test that such an execution counts, kills nobody and leaves the Cannibal u
 
 everything goes into day abilities (or some kind of day checklist)
 
-## lil monsta 
+## lil monsta
+
 the simplificaiton has the current token holder decide who holds it next
 this functionally prevents the minions from handing lil monsta off to someone good. there's no mechanism to reclaim, and no mechanism to kill
 
