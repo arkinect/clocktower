@@ -136,6 +136,8 @@ export const SetupFieldSpec = z.object({
   options: z.array(z.object({ id: z.string(), label: z.string() })),
   value: z.string().nullable(),
   suggestible: z.boolean(),
+  /** Shown in this player's row under Characters, as "<name> <label>", instead of with the other fields. */
+  row: z.object({ playerId: PlayerId, label: z.string() }).optional(),
 });
 export type SetupFieldSpec = z.infer<typeof SetupFieldSpec>;
 

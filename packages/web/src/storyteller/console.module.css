@@ -304,10 +304,6 @@
   color: var(--error);
 }
 
-.optional {
-  color: var(--muted);
-}
-
 /* Shown in the checklist, in the same style: it never blocks the start. */
 .warning {
   color: var(--warn);

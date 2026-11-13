@@ -355,16 +355,8 @@ function fieldValue(f: SetupFieldSpec, names: ReturnType<typeof useNames>) {
 /** Removes every player, the Storyteller included, and resets the script. */
 export function NewGameButton() {
   const { run } = useCommand();
-  return (
-    <div>
-      {/* This phone is signed out too, so nothing waits for the reply. */}
-      <HoldButton onConfirm={() => void run({ type: 'new_game' })}>New game (erase)</HoldButton>
-      <p className="muted small">
-        Removes every player, you included (everyone joins again), resets the script to the default, and ends any game
-        in progress. Settings are kept.
-      </p>
-    </div>
-  );
+  // This phone is signed out too, so nothing waits for the reply.
+  return <HoldButton onConfirm={() => void run({ type: 'new_game' })}>New game (erase)</HoldButton>;
 }
 
 export function Grimoire({ view }: { view: StorytellerView }) {
@@ -461,6 +453,7 @@ export function Grimoire({ view }: { view: StorytellerView }) {
               })}
             </>
           )}
+          <NewGameButton />
         </div>
         <details>
           <summary>Force a phase</summary>
@@ -473,7 +466,6 @@ export function Grimoire({ view }: { view: StorytellerView }) {
             ))}
           </div>
         </details>
-        <NewGameButton />
       </Section>
     </div>
   );

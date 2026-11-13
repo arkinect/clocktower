@@ -304,9 +304,14 @@ describe('game facts and controls', () => {
     expect(screen.getByText('Demon bluffs: Slayer')).toBeTruthy();
   });
 
+  it('New game (erase) sits with the endings, above Force a phase', () => {
+    render(<Grimoire view={view([])} />);
+    const row = screen.getByText('Good wins').closest('.row');
+    expect(row?.textContent).toContain('New game (erase)');
+  });
+
   it('New game (erase) is a hold button', () => {
     render(<NewGameButton />);
-    expect(screen.getByText(/Settings are kept/)).toBeTruthy();
     hold('New game (erase)');
     expect(run).toHaveBeenCalledWith({ type: 'new_game' });
   });

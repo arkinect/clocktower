@@ -16,11 +16,13 @@ The fix is a "they survive it (my ruling)" control beside the execution dropdown
 rules test that such an execution counts, kills nobody and leaves the Cannibal unfed.
 
 ## canibal fixes
+
 at the moment, when the canibal eats an evil person, they become poisoned and get some random good ability that doesn't work.
 however, that they are poisoned is not indicated in the grimoire, or anywhere else. this must be fixed
 there's also no need to change which ability they get durring the day. this can be removed from the day ui
 
 ## canibal / philosopher interactions with information gained durring the day.
-in the case where the flowergirl question (did demon vote) wasn't answered durring the day, and must be answered in the review section, the 'accept all defaults' button goes into the decisions section rather than the what players learn section. 
+
+in the case where the flowergirl question (did demon vote) wasn't answered durring the day, and must be answered in the review section, the 'accept all defaults' button goes into the decisions section rather than the what players learn section.
 
 I think i can't remove this from the review screen because if the philosopher becomes the flowergirl at night then this needs to be answered here. the visual bug will have to be fixed, but I will wait to see if this is an actual issue until a game is played with more people.
