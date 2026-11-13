@@ -10,7 +10,7 @@ export const gossip = defineRole<State>({
   name: 'Gossip',
   type: 'townsfolk',
   abilityText: 'Each day, you may make a public statement. Tonight, if it was true, a player dies.',
-  reminder: 'On the Day tab, turn on "The statement was true" if it was.',
+  reminder: 'On the Day tab, answer Yes if the statement was true.',
   night: { other: 210, note: 'Only if the statement was true' },
   initialState: () => ({ verdict: null }),
   ability: {
@@ -23,7 +23,7 @@ export const gossip = defineRole<State>({
         {
           action: 'statement',
           title: `Gossip (${ctx.name(ctx.holder)})`,
-          prompt: 'Was their public statement true? If so, a player dies tonight.',
+          prompt: 'Was their public statement true?',
           preview: false,
           order: 10,
           control: 'toggle',
@@ -35,7 +35,7 @@ export const gossip = defineRole<State>({
               kind: 'option',
               label: 'Statement',
               options: ['false', 'true'],
-              labels: { false: 'Not true, or none', true: 'The statement was true' },
+              labels: { true: 'Yes', false: 'No' },
             },
           ],
         },

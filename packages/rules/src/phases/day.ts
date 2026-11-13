@@ -231,6 +231,12 @@ export const dayCommands = [
       const hook = roleDef(a.roleId).ability.applyDayAction;
       const spec = dayActionsOf(run, a).find((d) => d.action === cmd.action);
       need(hook && spec, 'That action is not available.');
+      // Confirmed today: only taking it back (no values) is allowed, never a second use on top. The Witch's switches,
+      // one per player, are each their own.
+      need(
+        !(spec.preview !== false && spec.recorded && cmd.values.length && spec.control !== 'toggle'),
+        'Already used today: take it back first.',
+      );
       const error = dayValuesError(run.fullSpec(a, cmd.action, spec), spec, cmd.values);
       need(!error, error ?? '');
       const force = cmd.mode === 'force_success' ? 'success' : cmd.mode === 'force_fail' ? 'fail' : 'none';

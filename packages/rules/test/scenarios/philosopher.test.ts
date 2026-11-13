@@ -335,6 +335,7 @@ describe('a gained day ability works on the day after choosing', () => {
     expect(s.act('slayer', 'shoot', ['bo'], { mode: 'preview' }).effective).toBe(true);
     s.act('slayer', 'shoot', ['bo']);
     expect(s.alive('bo')).toBe(false);
+    s.dusk().dawn();
     expect(s.dayActions().filter((a) => a.title.includes('Slayer'))).toEqual([]);
   });
 

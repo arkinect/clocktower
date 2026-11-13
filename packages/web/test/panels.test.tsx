@@ -444,7 +444,7 @@ describe('the Day tab', () => {
     expect(screen.getByRole('button', { name: 'Start Night 2' })).toBeTruthy();
   });
 
-  it('lists every event under "Day events" in the order of a day, each marked Now or Tonight', () => {
+  it('lists every event under "Day events" in the order of a day, with no Now or Tonight tag', () => {
     const flowergirl = spec({ order: 110, recorded: ['yes'] });
     const shot = spec({
       key: 'k2',
@@ -457,8 +457,8 @@ describe('the Day tab', () => {
     render(<Day view={dayView({ dayActions: [flowergirl, shot] })} />);
     const events = within(section('Day events')).getAllByRole('article');
     expect(events.map((e) => within(e).getByRole('heading').textContent)).toEqual(['Slayer (Ann)', 'Flowergirl (Ann)']);
-    expect(within(events[0] as HTMLElement).getByText('Now')).toBeTruthy();
-    expect(within(events[1] as HTMLElement).getByText('Tonight')).toBeTruthy();
+    expect(screen.queryByText('Now')).toBeNull();
+    expect(screen.queryByText('Tonight')).toBeNull();
     expect((screen.getByLabelText('Flowergirl (Ann)') as HTMLSelectElement).value).toBe('yes');
     expect(screen.queryByRole('heading', { name: 'Facts for tonight' })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Day abilities' })).toBeNull();
@@ -470,7 +470,7 @@ describe('the Day tab', () => {
     expect(select.value).toBe('no');
     expect([...select.options].map((o) => o.text)).toEqual(['No', 'Yes']);
     expect(screen.queryByText(/Needed tonight/)).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Use' })).toBeNull();
     await userEvent.selectOptions(select, 'yes');
     expect(run).toHaveBeenCalledWith({
       type: 'day_action',
@@ -481,17 +481,17 @@ describe('the Day tab', () => {
     });
   });
 
-  it('a Tonight event with no default gets a quiet hint, and a clearable one can be set back to no one', async () => {
+  it('a Tonight event with no default has no hint, and a clearable one can be set back to no one', async () => {
     const moonchild = spec({
       title: 'Moonchild (Ann)',
       action: 'target',
-      neededTonight: true,
+      blocksNight: true,
       clearable: true,
       emptyLabel: 'Not chosen yet',
       fields: [{ kind: 'player', label: 'Target', options: ['a', 'b'] }],
     });
     const { rerender } = render(<Day view={dayView({ dayActions: [moonchild] })} />);
-    expect(screen.getByText('Needed tonight. If you leave it, Review will ask for it.')).toBeTruthy();
+    expect(screen.queryByText(/Needed tonight|Review/)).toBeNull();
     rerender(<Day view={dayView({ dayActions: [{ ...moonchild, recorded: ['b'] }] })} />);
     await userEvent.selectOptions(screen.getByLabelText('Moonchild (Ann)'), '');
     expect(run).toHaveBeenCalledWith({
@@ -510,7 +510,7 @@ describe('the Day tab', () => {
       control: 'toggle',
       default: ['false'],
       fields: [
-        { kind: 'option', label: 'Statement', options: ['false', 'true'], labels: { true: 'The statement was true' } },
+        { kind: 'option', label: 'Statement', options: ['false', 'true'], labels: { true: 'Yes', false: 'No' } },
       ],
     });
     const witch = spec({
@@ -523,7 +523,8 @@ describe('the Day tab', () => {
       fields: [{ kind: 'player', label: 'Cursed', options: ['a', 'b'] }],
     });
     render(<Day view={dayView({ dayActions: [gossip, witch] })} />);
-    const statement = screen.getByRole('button', { name: 'The statement was true' });
+    expect(screen.getByRole('button', { name: 'No' }).getAttribute('aria-pressed')).toBe('true');
+    const statement = screen.getByRole('button', { name: 'Yes' });
     expect(statement.getAttribute('aria-pressed')).toBe('false');
     await userEvent.click(statement);
     expect(run).toHaveBeenLastCalledWith({
@@ -542,10 +543,10 @@ describe('the Day tab', () => {
       values: ['a'],
       mode: 'accept',
     });
-    expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Use' })).toBeNull();
   });
 
-  it('rows: a complete new row is recorded with the others, and one can be removed', async () => {
+  it('rows: Add records a complete new row with the others, and one can be removed', async () => {
     const juggler = spec({
       title: 'Juggler (Ann)',
       action: 'guesses',
@@ -562,6 +563,8 @@ describe('the Day tab', () => {
     await userEvent.selectOptions(screen.getByLabelText('Player 2'), 'b');
     expect(run).not.toHaveBeenCalled();
     await userEvent.selectOptions(screen.getByLabelText('Character 2'), 'beggar');
+    expect(run).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
     expect(run).toHaveBeenLastCalledWith({
       type: 'day_action',
       abilityId: 'a1',
@@ -597,7 +600,7 @@ describe('the Day tab', () => {
     expect(screen.getByRole('button', { name: 'Force start night' })).toBeTruthy();
   });
 
-  it('a Now event defaults to no one, previews when chosen, and happens on Confirm', async () => {
+  it('a Now event defaults to no one, previews when chosen, and happens on Use', async () => {
     const shot = spec({
       title: 'Slayer (Ann)',
       action: 'shoot',
@@ -609,8 +612,8 @@ describe('the Day tab', () => {
     const select = screen.getByLabelText('Slayer (Ann)') as HTMLSelectElement;
     expect(select.value).toBe('');
     expect(select.options[0]?.text).toBe('No one');
-    const confirm = screen.getByRole('button', { name: 'Confirm' }) as HTMLButtonElement;
-    expect(confirm.disabled).toBe(true);
+    const use = screen.getByRole('button', { name: 'Use' }) as HTMLButtonElement;
+    expect(use.disabled).toBe(true);
     await userEvent.selectOptions(select, 'b');
     expect(run).toHaveBeenLastCalledWith({
       type: 'day_action',
@@ -620,12 +623,37 @@ describe('the Day tab', () => {
       mode: 'preview',
     });
     expect(await screen.findByText('Bo is not the Demon: nothing happens.')).toBeTruthy();
-    await userEvent.click(confirm);
+    await userEvent.click(use);
     expect(run).toHaveBeenLastCalledWith({
       type: 'day_action',
       abilityId: 'a1',
       action: 'shoot',
       values: ['b'],
+      mode: 'accept',
+    });
+  });
+
+  it('a confirmed Now event shows its choice, locked, and Use again takes it back', async () => {
+    const shot = spec({
+      title: 'Slayer (Ann)',
+      action: 'shoot',
+      preview: true,
+      clearable: true,
+      recorded: ['b'],
+      fields: [{ kind: 'player', label: 'Target', options: ['a', 'b'] }],
+    });
+    render(<Day view={dayView({ dayActions: [shot] })} />);
+    const select = screen.getByLabelText('Slayer (Ann)') as HTMLSelectElement;
+    expect(select.value).toBe('b');
+    expect(select.disabled).toBe(true);
+    const use = screen.getByRole('button', { name: 'Use' });
+    expect(use.getAttribute('aria-pressed')).toBe('true');
+    await userEvent.click(use);
+    expect(run).toHaveBeenLastCalledWith({
+      type: 'day_action',
+      abilityId: 'a1',
+      action: 'shoot',
+      values: [],
       mode: 'accept',
     });
   });
@@ -639,7 +667,7 @@ describe('the Day tab', () => {
       ({ at: 'Day 2', kind: 'execution', text: '', playerId }) as StorytellerView['dayEvents'][number];
     rerender(<Day view={dayView({ dayEvents: [chosen('a')] })} />);
     expect((screen.getByLabelText('Executed') as HTMLSelectElement).value).toBe('a');
-    expect(screen.getByText('executed at dusk', { exact: false })).toBeTruthy();
+    expect(screen.getByText('To be executed')).toBeTruthy();
     await userEvent.selectOptions(screen.getByLabelText('Executed'), '');
     expect(run).toHaveBeenLastCalledWith({ type: 'record_execution', playerId: null, died: true });
     rerender(<Day view={dayView({ dayEvents: [chosen(null)] })} />);

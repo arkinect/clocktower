@@ -102,7 +102,7 @@ export const cannibal = defineRole<State>({
         {
           action: 'fake_eat',
           title: `Cannibal (${ctx.name(ctx.holder)})`,
-          prompt: `${ctx.name(executee)} is evil: which good character will the Cannibal think they ate?`,
+          prompt: 'Which good character will the Cannibal think they ate?',
           preview: false,
           // After the execution, which it depends on.
           order: 130,

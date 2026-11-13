@@ -56,7 +56,7 @@ export const witch = defineRole<State>({
         {
           action: 'apply_curse',
           title: `Witch (${ctx.name(ctx.holder)})`,
-          prompt: 'If the cursed player nominated, press their name: they die. Press again to take it back.',
+          prompt: 'Did this player nominate?',
           preview: true,
           order: 70,
           control: 'toggle',

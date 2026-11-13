@@ -590,6 +590,7 @@ describe('characters at the table', () => {
     s.dawn();
     expect(s.dayActions().filter((a) => a.title.includes('Damsel'))).toHaveLength(1);
     s.act('damsel', 'guess', ['yes']);
+    s.dusk().dawn();
     expect(s.dayActions().filter((a) => a.title.includes('Damsel'))).toEqual([]);
   });
 

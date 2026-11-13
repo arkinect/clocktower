@@ -35,7 +35,7 @@ export const devilsAdvocate = defineRole<State>({
         ctx.outcome('impaired: no effect');
         return;
       }
-      ctx.addCondition(t, 'marker', { until: 'dusk', name: 'Survives execution' });
+      ctx.addCondition(t, 'marker', { until: 'dusk', name: 'Defended' });
       ctx.outcome(`${ctx.name(t)} survives execution tomorrow`);
     },
     interceptKill(ctx, kill) {

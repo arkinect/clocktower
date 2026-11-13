@@ -40,7 +40,7 @@ export const mezepheles = defineRole<State>({
         {
           action: 'sayer',
           title: `Mezepheles (${ctx.name(ctx.holder)})`,
-          prompt: 'Who was the first to say the word? A good player becomes evil tonight.',
+          prompt: 'Who was the first to say the word?',
           preview: false,
           order: 60,
           clearable: true,

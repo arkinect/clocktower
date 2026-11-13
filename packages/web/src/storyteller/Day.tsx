@@ -125,7 +125,10 @@ export function DayAction({ view, spec }: { view: StorytellerView; spec: DayActi
   );
 }
 
-/** Impairment with its causes, and every other condition with its source ("Cursed (Witch)"). */
+/**
+ * Impairment with its causes, then every other condition. A marker ("Cursed") comes from one character only, so it
+ * shows alone. Any other condition, such as madness, can come from several, so it shows its source.
+ */
 export function Status({ player }: { player: GrimoirePlayer }) {
   const others = player.conditions.filter((c) => c.type !== 'drunk' && c.type !== 'poisoned');
   if (!player.causes.length && !others.length) return null;
@@ -138,7 +141,7 @@ export function Status({ player }: { player: GrimoirePlayer }) {
       ))}
       {others.map((c) => (
         <span key={c.id} className={styles['chipPlain']}>
-          {c.label} ({c.sourceLabel})
+          {c.type === 'marker' ? c.label : `${c.label} (${c.sourceLabel})`}
         </span>
       ))}
     </span>
@@ -148,6 +151,7 @@ export function Status({ player }: { player: GrimoirePlayer }) {
 /** The day's players, as in 0.4.2: who they are, what affects them today, and one action. */
 function Players({ view, seated }: { view: StorytellerView; seated: GrimoirePlayer[] }) {
   const { run, pending } = useCommand();
+  const names = useNames();
   const chosen = chosenForExecution(view);
   return (
     <Section title={`Day ${view.phase.n}`}>
@@ -156,11 +160,15 @@ function Players({ view, seated }: { view: StorytellerView; seated: GrimoirePlay
           {seated.map((p) => (
             <tr key={p.id}>
               <td>
-                <Who view={view} id={p.id} role />
-                {chosen === p.id && p.alive && <span className={styles['tag']}> executed at dusk</span>}
+                <Who view={view} id={p.id} />
               </td>
+              <td className="muted">{p.character ? (names.roles[p.character] ?? p.character) : ''}</td>
+              {/* Every status, after the role. */}
               <td>
-                <Status player={p} />
+                <span className={styles['chips']}>
+                  {chosen === p.id && p.alive && <span className={styles['chipPlain']}>To be executed</span>}
+                  <Status player={p} />
+                </span>
               </td>
               <td className={styles['act']}>
                 {p.alive ? (
@@ -240,20 +248,14 @@ function Execution({ view, seated }: { view: StorytellerView; seated: GrimoirePl
   );
 }
 
-/** "Now" happens the moment it is confirmed. "Tonight" is only recorded: dusk or the night reads it. */
-const when = (spec: DayActionSpec) => (spec.preview ? 'Now' : 'Tonight');
-
 /** The select's "nothing happened" option. */
 const emptyLabel = (spec: DayActionSpec) => spec.emptyLabel ?? (spec.fields[0]?.kind === 'player' ? 'No one' : 'No');
 
-/** Every day event looks the same: its title, when it happens, its question, then its control. */
+/** Every day event looks the same: its title, its question, then its control. A Use button marks one that happens now. */
 function EventFrame({ spec, children }: { spec: DayActionSpec; children: ReactNode }) {
   return (
     <article className={styles['event']}>
-      <div className={styles['eventHead']}>
-        <h3>{spec.title}</h3>
-        <span className={styles['tag']}>{when(spec)}</span>
-      </div>
+      <h3 className={styles['eventTitle']}>{spec.title}</h3>
       {spec.prompt && <p className="muted small">{spec.prompt}</p>}
       {children}
     </article>
@@ -276,13 +278,15 @@ const sendDay = (
     ...(decisions.length ? { decisions } : {}),
   });
 
-/** Happens in the moment: choosing shows what it would do, and Confirm makes it happen. */
+/** Happens in the moment: choosing shows what it would do, and Use makes it happen. Use again takes it back. */
 function NowEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpec }) {
   const names = useNames();
   const { dead } = useSeats(view);
   const { run, pending } = useCommand();
   const field = spec.fields[0] as ActionField;
-  const [value, setValue] = useState('');
+  const confirmed = spec.recorded?.[0] ?? null;
+  const [draft, setValue] = useState('');
+  const value = confirmed ?? draft;
   const [preview, setPreview] = useState<Preview | null>(null);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const decisions: Decisions = (preview?.decisions ?? []).flatMap((d) => {
@@ -303,7 +307,7 @@ function NowEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpec }
         <select
           aria-label={spec.title}
           value={value}
-          disabled={pending}
+          disabled={pending || !!confirmed}
           onChange={(e) => {
             const v = e.target.value;
             setValue(v);
@@ -319,11 +323,18 @@ function NowEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpec }
             </option>
           ))}
         </select>
-        <Button tiny variant="primary" disabled={!value || pending} onClick={() => void go('accept', value)}>
-          Confirm
+        <Button
+          tiny
+          variant="primary"
+          on={!!confirmed}
+          aria-pressed={!!confirmed}
+          disabled={!value || pending}
+          onClick={() => void (confirmed ? sendDay(run, spec, []) : go('accept', value))}
+        >
+          Use
         </Button>
       </div>
-      {preview && value && (
+      {preview && value && !confirmed && (
         <Card tone="notice">
           <p>{preview.summary}</p>
           {(preview.decisions ?? []).map((d) => (
@@ -382,9 +393,6 @@ function TonightEvent({ view, spec }: { view: StorytellerView; spec: DayActionSp
           </option>
         ))}
       </select>
-      {spec.neededTonight && !spec.recorded && !spec.default && (
-        <p className="muted small">Needed tonight. If you leave it, Review will ask for it.</p>
-      )}
     </EventFrame>
   );
 }
@@ -399,20 +407,19 @@ function ToggleEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpe
   const { run, pending } = useCommand();
   const field = spec.fields[0] as ActionField;
   if (field.kind === 'option') {
+    // Yes first, then No: the second option is "yes", the first "no".
     const [off = '', on = ''] = field.options;
-    const isOn = (spec.recorded?.[0] ?? spec.default?.[0] ?? off) === on;
+    const value = spec.recorded?.[0] ?? spec.default?.[0] ?? off;
     return (
       <EventFrame spec={spec}>
-        <div className="row">
-          <Button
-            on={isOn}
-            aria-pressed={isOn}
-            disabled={pending}
-            onClick={() => void sendDay(run, spec, [isOn ? off : on])}
-          >
-            {field.labels?.[on] ?? on}
-          </Button>
-        </div>
+        <Segments
+          label={spec.title}
+          options={[on, off].map((o) => ({ id: o, text: field.labels?.[o] ?? o }))}
+          value={value}
+          onChange={(v) => {
+            if (!pending && v !== value) void sendDay(run, spec, [v]);
+          }}
+        />
       </EventFrame>
     );
   }
@@ -423,6 +430,7 @@ function ToggleEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpe
         {field.options.map((o) => (
           <Button
             key={o}
+            className={styles['wideToggle']}
             on={onSet.has(o)}
             aria-pressed={onSet.has(o)}
             disabled={pending}
@@ -439,7 +447,7 @@ function ToggleEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpe
 const chunk = (values: string[], width: number) =>
   Array.from({ length: Math.floor(values.length / width) }, (_, i) => values.slice(i * width, i * width + width));
 
-/** Up to `maxRows` rows of one value per field (the Juggler's guesses). A row is recorded once it is complete. */
+/** Up to `maxRows` rows of one value per field (the Juggler's guesses). The last row is new: Add records it. */
 function RowsEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpec }) {
   const names = useNames();
   const { dead } = useSeats(view);
@@ -482,7 +490,12 @@ function RowsEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpec 
               save(saved.map((x, j) => (j === r ? x.map((y, k) => (k === i ? v : y)) : x))),
             ),
           )}
-          <Button tiny disabled={pending} onClick={() => save(saved.filter((_, j) => j !== r))}>
+          <Button
+            tiny
+            className={styles['rowButton']}
+            disabled={pending}
+            onClick={() => save(saved.filter((_, j) => j !== r))}
+          >
             Remove
           </Button>
         </div>
@@ -495,16 +508,21 @@ function RowsEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpec 
               draft,
               i,
               `${f.label} ${saved.length + 1}`,
-              (v) => {
-                const next = draft.map((y, k) => (k === i ? v : y));
-                if (next.every(Boolean)) {
-                  save([...saved, next]);
-                  setDraft(blank());
-                } else setDraft(next);
-              },
+              (v) => setDraft(draft.map((y, k) => (k === i ? v : y))),
               `${f.label}…`,
             ),
           )}
+          <Button
+            tiny
+            className={styles['rowButton']}
+            disabled={!draft.every(Boolean) || pending}
+            onClick={() => {
+              save([...saved, draft]);
+              setDraft(blank());
+            }}
+          >
+            Add
+          </Button>
         </div>
       )}
     </EventFrame>
@@ -615,6 +633,9 @@ export function Usage({ seated }: { seated: GrimoirePlayer[] }) {
   );
 }
 
+/** Off for now: may come back. */
+const SHOW_ABILITY_TRACKER = false;
+
 function Notes({ view }: { view: StorytellerView }) {
   const { run } = useCommand();
   return (
@@ -702,7 +723,8 @@ export function Day({ view }: { view: StorytellerView }) {
             {!events.length && <p className="muted">No character needs anything recorded today.</p>}
             <Notes view={view} />
           </Section>
-          <Usage seated={seated} />
+          {/* The ability tracker is hidden for now. */}
+          {SHOW_ABILITY_TRACKER && <Usage seated={seated} />}
           {travellers && <Travellers view={view} seated={seated} />}
           <HoldButton
             big

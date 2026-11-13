@@ -77,10 +77,11 @@ test('from the lobby to publishing night 2, with a changed decision, a stale ove
   const action = page.getByRole('article').filter({ hasText: 'Slayer' });
   await action.locator('select').selectOption({ label: 'Cy' });
   await expect(action.getByText('Cy is not the Demon: nothing happens.')).toBeVisible();
-  await action.getByRole('button', { name: 'Confirm' }).click();
-  await expect(page.getByRole('article').filter({ hasText: 'Slayer' })).toHaveCount(0);
+  await action.getByRole('button', { name: 'Use' }).click();
+  // Stays confirmed for the rest of the day: a second press would take it back.
+  await expect(action.getByRole('button', { name: 'Use' })).toHaveAttribute('aria-pressed', 'true');
   await page.getByLabel(/^Executed/).selectOption({ label: 'Cy (Empath)' });
-  await expect(page.getByText('executed at dusk', { exact: false })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('To be executed')).toBeVisible({ timeout: 10_000 });
   await page.getByRole('button', { name: 'Start Night 1' }).click();
   await cy?.waitFor((v) => v.phase.kind === 'night' && !v.me.alive);
 

@@ -29,6 +29,7 @@ export const flowergirl = defineRole<State>({
           prompt: 'Did a Demon vote today?',
           preview: false,
           order: 110,
+          control: 'toggle',
           recorded: voted ? [voted.value ? 'yes' : 'no'] : null,
           // "No" unless changed: dusk records it. Review only asks when nobody held the ability today (a Philosopher
           // who chooses it tonight).

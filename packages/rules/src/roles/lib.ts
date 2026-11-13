@@ -83,3 +83,35 @@ export function drunkFromTheStart(ctx: AbilityCtx<unknown>) {
 export function soberOnChange(ctx: AbilityCtx<unknown>) {
   for (const c of ctx.conditionsFrom('drunk')) ctx.removeCondition(c);
 }
+
+/**
+ * A day action confirmed today, kept so the Day tab shows it confirmed and a second Use takes it back. `died`: the
+ * target died of it, so taking it back revives them.
+ */
+export interface Confirmed {
+  day: number;
+  target: PlayerId;
+  died: boolean;
+}
+
+/** The confirmation, if it was today. */
+export const confirmedToday = (ctx: AbilityCtx<unknown>, c: Confirmed | null | undefined): Confirmed | null =>
+  c && c.day === ctx.n ? c : null;
+
+/** Runs a day action that may kill `target`, and records what it did. */
+export function confirmKill(
+  ctx: AbilityCtx<unknown>,
+  target: PlayerId,
+  act: () => DayActionOutcome,
+): { outcome: DayActionOutcome; confirmed: Confirmed } {
+  const wasAlive = ctx.isAlive(target);
+  const outcome = act();
+  return { outcome, confirmed: { day: ctx.n, target, died: wasAlive && !ctx.isAlive(target) } };
+}
+
+/** Takes a confirmed day action back: whoever died of it lives again. */
+export function takeBack(ctx: AbilityCtx<unknown>, c: Confirmed | null, what: string): DayActionOutcome {
+  if (!c) return { summary: 'Nothing to take back.', effective: false };
+  if (c.died && !ctx.isAlive(c.target)) ctx.revive(c.target, `the ${what} was taken back`);
+  return { summary: `Taken back${c.died ? `: ${ctx.name(c.target)} is alive` : ''}.`, effective: true };
+}

@@ -30,6 +30,9 @@ describe('Virgin', () => {
     const s = scene(cast).start().dawn();
     expect(s.act('virgin', 'nominated', ['di']).effective).toBe(false);
     expect(s.alive('di')).toBe(true);
+    expect(s.state.abilities[s.ability('virgin')]?.used).toBe(true);
+    expect(virgin(s)[0]?.recorded).toEqual(['di']);
+    s.dusk().dawn();
     expect(virgin(s)).toEqual([]);
   });
   it('an impaired Virgin spends the use for nothing', () => {
@@ -39,7 +42,16 @@ describe('Virgin', () => {
       .dawn();
     expect(s.act('virgin', 'nominated', ['bo']).summary).toBe('The Virgin is drunk or poisoned: nothing happens.');
     expect(s.alive('bo')).toBe(true);
-    expect(virgin(s)).toEqual([]);
+    expect(s.state.abilities[s.ability('virgin')]?.used).toBe(true);
+  });
+  it('a second Use takes it back: the execution chosen before is restored', () => {
+    const s = scene(cast).start().dawn().execute('di');
+    s.act('virgin', 'nominated', ['bo']);
+    expect(executions(s).at(-1)).toMatchObject({ playerId: 'bo', died: true });
+    s.act('virgin', 'nominated', []);
+    expect(executions(s).at(-1)).toMatchObject({ playerId: 'di', died: true });
+    expect(virgin(s)[0]?.recorded).toBeNull();
+    expect(s.state.abilities[s.ability('virgin')]?.used).toBe(false);
   });
   it('a preview changes nothing', () => {
     const s = scene(cast).start().dawn();

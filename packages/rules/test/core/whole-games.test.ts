@@ -61,6 +61,12 @@ function playDay(g: TestGame, ids: PlayerId[], rng: Rng) {
   }
   for (const q of g.state.prompts) g.st({ type: 'resolve_prompt', id: q.id, option: rng.pick(q.options).id });
   for (const q of g.state.gameEnd) g.st({ type: 'dismiss_game_end', key: q.key });
+  // Start Night waits for these (the Moonchild's choice, the Cannibal's false character): answer them at random.
+  for (const d of g.grimoire().dayActions) {
+    if (!d.blocksNight || d.recorded) continue;
+    const values = d.fields.map((f) => rng.pick(f.options));
+    g.st({ type: 'day_action', abilityId: d.abilityId, action: d.action, values, mode: 'accept' });
+  }
 }
 
 function checkPhones(g: TestGame, ids: PlayerId[]) {

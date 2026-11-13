@@ -19,7 +19,16 @@ describe('Damsel', () => {
     expect(row).toMatchObject({ title: 'Damsel (ann)', preview: true, emptyLabel: 'No', order: 50 });
     expect(row?.fields[0]?.options).toEqual(['yes']);
     s.act('damsel', 'guess', ['yes']);
+    expect(s.dayActions()[0]?.recorded).toEqual(['yes']);
+    s.dusk().dawn();
     expect(s.dayActions()).toEqual([]);
+  });
+  it('a second Use takes it back: no win, and the guess is not spent', () => {
+    const s = scene(cast).start().dawn();
+    s.act('damsel', 'guess', ['yes']);
+    s.act('damsel', 'guess', []);
+    expect(s.winners()).not.toContain('evil');
+    expect(s.dayActions()[0]?.recorded).toBeNull();
   });
   it('a right guess of a dead Damsel does nothing', () => {
     const s = scene(cast).start().dawn();

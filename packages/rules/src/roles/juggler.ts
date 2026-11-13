@@ -39,7 +39,7 @@ export const juggler = defineRole<State>({
         {
           action: 'guesses',
           title: `Juggler (${ctx.name(ctx.holder)})`,
-          prompt: 'Which character did they guess for each player? Tonight works out how many were right.',
+          prompt: 'Which character did they guess for each player?',
           preview: false,
           order: 20,
           control: 'rows',

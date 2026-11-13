@@ -538,14 +538,7 @@
   margin: 0;
 }
 
-.eventHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.eventHead h3 {
+.eventTitle {
   margin: 0;
   font-size: 1rem;
 }
@@ -560,6 +553,16 @@
 .eventRow select {
   flex: 1 1 140px;
   min-width: 0;
+}
+
+/* Remove and Add share a width, so every row's dropdowns line up. */
+.rowButton {
+  flex: 0 0 76px;
+}
+
+/* The Witch's per-player switch: wide enough to read as a button, not a tag. */
+.wideToggle {
+  min-width: 140px;
 }
 
 /* The Story: each night a table that scrolls sideways on a phone. */
