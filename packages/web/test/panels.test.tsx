@@ -736,12 +736,29 @@ describe('the Review tab', () => {
       required: true,
       ...over,
     });
-  const reviewView = (decisions: ReviewItem[]) =>
+  const result = (over: Record<string, unknown> = {}) => ({
+    key: 'r1',
+    playerId: 'a',
+    roleId: 'butler',
+    title: 'Butler',
+    truth: ['Your master is Bo.'],
+    suggested: ['Your master is Bo.'],
+    transformed: null,
+    final: ['Your master is Bo.'],
+    impaired: true,
+    causes: ['poisoned:Poisoner'],
+    overridden: false,
+    staleOverride: false,
+    alternatives: [],
+    confirmation: true,
+    ...over,
+  });
+  const reviewView = (decisions: ReviewItem[], results: unknown[] = []) =>
     ({
       ...console_({ kind: 'night', n: 2, stage: 'review' }),
       review: ReviewView.parse({
         actors: [],
-        results: [],
+        results,
         decisions,
         questions: [],
         notices: [],
@@ -770,6 +787,18 @@ describe('the Review tab', () => {
     rerender(<Review view={reviewView([{ ...optional, chosen: 'yes' }])} />);
     expect(screen.getByRole('heading', { name: 'Decisions' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Accept all defaults' })).toBeNull();
+  });
+
+  it('lists an impaired result only when there is a false answer to choose, or one you wrote', () => {
+    const learns = () => screen.queryByRole('heading', { name: 'What each player learns' });
+    const { rerender } = render(<Review view={reviewView([], [result()])} />);
+    expect(learns()).toBeNull();
+    rerender(<Review view={reviewView([], [result({ overridden: true, final: ['Written.'] })])} />);
+    expect(learns()).toBeTruthy();
+    rerender(<Review view={reviewView([], [result({ confirmation: false })])} />);
+    expect(learns()).toBeTruthy();
+    rerender(<Review view={reviewView([], [result({ confirmation: false, impaired: false, causes: [] })])} />);
+    expect(learns()).toBeNull();
   });
 });
 

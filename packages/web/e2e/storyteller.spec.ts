@@ -118,12 +118,8 @@ test('from the lobby to publishing night 2, with a changed decision, a written a
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(result.locator('select option:checked')).toHaveText(/An answer from the Storyteller/);
 
-  // Changing the decision under it keeps the written answer.
-  const decision = page.getByRole('combobox', { name: /Balloonist Ann.*show which player/ });
-  const current = await decision.inputValue();
-  const values = await decision.locator('option').evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value));
-  await decision.selectOption(values.find((v) => v && v !== current) as string);
-  await expect(result.locator('select option:checked')).toHaveText(/An answer from the Storyteller/);
+  // An impaired Balloonist has nothing true to decide: the false name is chosen here, not under Decisions.
+  await expect(page.getByRole('combobox', { name: /Balloonist Ann.*show which player/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Publish dawn' }).click();
   await expect(page).toHaveURL(/storyteller\/day/);
   await ann?.waitFor((v) => v.phase.kind === 'day' && v.phase.n === 3);

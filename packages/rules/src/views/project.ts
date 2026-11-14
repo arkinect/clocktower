@@ -349,7 +349,7 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
     review: res
       ? {
           actors: res.actors,
-          results: res.results.map(({ confirmation: _confirmation, ...row }) => row),
+          results: res.results,
           decisions: res.decisions,
           questions: res.questions,
           notices: res.notices,

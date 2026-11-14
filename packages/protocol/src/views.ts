@@ -187,6 +187,8 @@ export const ResultView = z.object({
   overridden: z.boolean(),
   staleOverride: z.boolean(),
   alternatives: z.array(z.array(z.string())),
+  /** Only confirms a choice: it has no false version, so Review has nothing to ask about it. */
+  confirmation: z.boolean(),
 });
 export type ResultView = z.infer<typeof ResultView>;
 

@@ -48,6 +48,24 @@ describe('Balloonist', () => {
     s.nextNight();
     expect(s.decision('balloonist').options.map((o) => o.id)).toEqual(['bo', 'di']);
   });
+  it('when impaired, the false name is picked with the result rather than as a decision', () => {
+    const s = scene(
+      { ann: 'balloonist', bo: 't1', cy: 'd1', di: 't2', ed: 'poisoner' },
+      { fields: { balloonist: { outsiders: '+0' } } },
+    )
+      .start()
+      .submit({ ed: ['ann'] })
+      .review();
+    expect(s.hasDecision('balloonist')).toBe(false);
+    const row = s.row('ann');
+    expect(row).toMatchObject({ impaired: true, confirmation: false });
+    expect(row.alternatives).toEqual([['bo'], ['cy'], ['di'], ['ed']]);
+    expect(row.alternatives).toContainEqual(row.final);
+    // Tomorrow's type differs from whoever the answer that went out named.
+    s.g.st({ type: 'override_result', resultKey: row.key, lines: ['cy'] });
+    s.nextNight();
+    expect(s.decision('balloonist').options.map((o) => o.id)).toEqual(['bo', 'di', 'ed']);
+  });
   it("counts whoever babysits Lil' Monsta as the Demon, and the Minion who chooses as a Minion", () => {
     const cast = { ann: 'lil_monsta', bo: 'balloonist', cy: 't1', di: 't2', ed: 't3', fi: 't4', gu: 't5' };
     const s = scene(cast, { fields: { lil_monsta: { minion: 'baron' }, balloonist: { outsiders: '+0' } } }).start();
