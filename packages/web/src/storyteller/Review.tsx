@@ -106,18 +106,14 @@ function Result({ view, r }: { view: StorytellerView; r: ResultView }) {
 }
 
 /** Asked tonight because the day didn't record it: no default is taken. */
-const missing = (d: ReviewItem) => d.required && d.chosen === null && !d.stale;
+const missing = (d: ReviewItem) => d.required && d.chosen === null;
 
 function Decision({ d }: { d: ReviewItem }) {
   const { run } = useCommand();
   return (
     <article className={styles['result']}>
-      <h3>
-        {d.title}
-        {d.stale ? <span className={styles['warn']}> (out of date)</span> : null}
-      </h3>
+      <h3>{d.title}</h3>
       {d.description && <p>{d.description}</p>}
-      {d.stale && <p className="muted small">This no longer applies. Clear it to carry on.</p>}
       {/* Always a dropdown: every option the rule allows, starting on the suggestion. */}
       <select
         aria-label={d.title}
@@ -131,13 +127,7 @@ function Decision({ d }: { d: ReviewItem }) {
           </option>
         ))}
       </select>
-      {d.chosen === null ? (
-        d.required && <p className="muted small">Answer this before dawn.</p>
-      ) : (
-        <Button tiny onClick={() => void run({ type: 'decide', key: d.key, option: null })}>
-          Clear
-        </Button>
-      )}
+      {missing(d) && <p className="muted small">Answer this before dawn.</p>}
     </article>
   );
 }
@@ -179,13 +169,8 @@ export function Review({ view }: { view: StorytellerView }) {
   const required = review.decisions.filter((d) => d.required);
   const others = review.decisions.filter((d) => !d.required);
   const unanswered = required.some(missing);
-  // accept_all_defaults skips required decisions, so the button is only for a non-required one still open.
-  const undecided = others.some((d) => d.chosen === null && !d.stale);
   const blocked =
-    unanswered ||
-    review.decisions.some((d) => d.stale) ||
-    review.questions.some((q) => !q.answered) ||
-    review.results.some((r) => r.staleOverride);
+    unanswered || review.questions.some((q) => !q.answered) || review.results.some((r) => r.staleOverride);
   // Decisions set what is true; this section sets the lie told to a drunk or poisoned player. A sober player's
   // information goes out as it is, and so does a confirmation ("You chose Bo"), which has no false version. An answer
   // you already wrote always shows, so it can be checked.
@@ -204,11 +189,6 @@ export function Review({ view }: { view: StorytellerView }) {
       )}
       {others.length > 0 && (
         <Section title="Decisions">
-          {undecided && (
-            <Button tiny disabled={pending} onClick={() => void run({ type: 'accept_all_defaults' })}>
-              Accept all defaults
-            </Button>
-          )}
           {others.map((d) => (
             <Decision key={d.hash} d={d} />
           ))}

@@ -23,4 +23,15 @@ describe('Innkeeper', () => {
     expect(s.act('slayer', 'shoot', ['cy']).effective).toBe(true);
     expect(s.alive('cy')).toBe(false);
   });
+  it('a saved answer that is no longer one of the two leaves the question unanswered', () => {
+    const s = scene(cast)
+      .start()
+      .nextNight()
+      .submit({ ann: ['bo', 'di'] });
+    s.decide('innkeeper', 'di');
+    s.g.st({ type: 'reopen_collecting' });
+    s.submit({ ann: ['bo', 'ed'] }).review();
+    expect(s.decision('innkeeper').chosen).toBeNull();
+    expect(s.decision('innkeeper').options.map((o) => o.id)).toEqual(['bo', 'ed']);
+  });
 });

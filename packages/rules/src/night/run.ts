@@ -217,35 +217,9 @@ export class Run {
       options: input.options.map((o) => ({ id: o.id, label: o.label })),
       default: input.default,
       chosen: valid ? (raw as string) : null,
-      stale: false,
       required: !!input.required,
     });
     return valid ? (raw as T) : input.default;
-  }
-
-  /** Decisions the Storyteller recorded that this run no longer asks. */
-  private staleDecisions(): ReviewItem[] {
-    if (!this.night) return [];
-    const out: ReviewItem[] = [];
-    for (const [hash, d] of Object.entries(this.night.decisions)) {
-      const asked = this.decisions.get(hash);
-      if (!asked) {
-        out.push({
-          key: d.key,
-          hash,
-          title: 'This decision no longer applies',
-          description: `${d.key.kind}: recorded "${d.option}".`,
-          options: [],
-          default: d.option,
-          chosen: d.option,
-          stale: true,
-          required: false,
-        });
-      } else if (asked.chosen === null) {
-        asked.stale = true;
-      }
-    }
-    return out;
   }
 
   // ---- output ----
@@ -977,7 +951,7 @@ export class Run {
     return {
       actors: this.actors,
       results: this.results,
-      decisions: [...this.decisions.values(), ...this.staleDecisions()],
+      decisions: [...this.decisions.values()],
       questions: this.questions,
       notices: this.notices,
       deaths: this.deaths,
