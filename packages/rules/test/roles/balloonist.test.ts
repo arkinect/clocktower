@@ -38,14 +38,40 @@ describe('Balloonist', () => {
     const field = s.g.grimoire().setup.fields.find((f) => f.title.startsWith('Godfather'));
     expect(field?.options.map((o) => o.id)).toEqual(['+1']);
   });
-  it('shows a new type each night, then nothing', () => {
-    const s = scene({ ann: 'balloonist', bo: 't1', cy: 'd1' }).start();
+  it('shows a type different from last night, and may return to an earlier one', () => {
+    const s = scene({ ann: 'balloonist', bo: 't1', cy: 'd1', di: 't2' }).start();
     s.decide('balloonist', 'bo');
     expect(s.truth('ann')).toEqual(['bo']);
-    s.nextNight().decide('balloonist', 'cy');
+    s.nextNight();
+    expect(s.decision('balloonist').options.map((o) => o.id)).toEqual(['cy']);
     expect(s.truth('ann')).toEqual(['cy']);
     s.nextNight();
-    expect(s.truth('ann')).toEqual(['You learn nothing new.']);
+    expect(s.decision('balloonist').options.map((o) => o.id)).toEqual(['bo', 'di']);
+  });
+  it("counts whoever babysits Lil' Monsta as the Demon, and the Minion who chooses as a Minion", () => {
+    const cast = { ann: 'lil_monsta', bo: 'balloonist', cy: 't1', di: 't2', ed: 't3', fi: 't4', gu: 't5' };
+    const s = scene(cast, { fields: { lil_monsta: { minion: 'baron' }, balloonist: { outsiders: '+0' } } }).start();
+    const labels = () =>
+      Object.fromEntries(s.decision('balloonist').options.map((o) => [o.id, /\((.*)\)/.exec(o.label)?.[1]]));
+    const night = (sitter: string) =>
+      s
+        .nextNight()
+        .submit({ ann: [sitter] })
+        .decide('lil_monsta', 'none');
+    // Night 0: still the Lil' Monsta character.
+    expect(labels()).toMatchObject({ ann: 'demon' });
+    s.decide('balloonist', 'cy');
+    // The keeper babysits: a Minion character, but the Demon.
+    night('ann');
+    expect(labels()).toEqual({ ann: 'demon' });
+    // A Townsfolk babysits: they are the Demon, and the keeper is only a Minion.
+    night('di');
+    expect(labels()).toMatchObject({ ann: 'minion', cy: 'townsfolk' });
+    expect(labels()).not.toHaveProperty('di');
+    s.decide('balloonist', 'ann');
+    night('di');
+    expect(labels()).toMatchObject({ di: 'demon', cy: 'townsfolk' });
+    expect(labels()).not.toHaveProperty('ann');
   });
   it('flags a written answer as out of date when a decision changes the true answer under it', () => {
     const s = scene(

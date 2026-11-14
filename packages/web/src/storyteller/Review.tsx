@@ -116,7 +116,7 @@ function Decision({ d }: { d: ReviewItem }) {
         {d.title}
         {d.stale ? <span className={styles['warn']}> (out of date)</span> : null}
       </h3>
-      <p>{d.description}</p>
+      {d.description && <p>{d.description}</p>}
       {d.stale && <p className="muted small">This no longer applies. Clear it to carry on.</p>}
       {/* Always a dropdown: every option the rule allows, starting on the suggestion. */}
       <select
@@ -132,7 +132,7 @@ function Decision({ d }: { d: ReviewItem }) {
         ))}
       </select>
       {d.chosen === null ? (
-        <p className="muted small">{d.required ? 'Answer this before dawn.' : 'Using the default.'}</p>
+        d.required && <p className="muted small">Answer this before dawn.</p>
       ) : (
         <Button tiny onClick={() => void run({ type: 'decide', key: d.key, option: null })}>
           Clear
@@ -220,18 +220,13 @@ export function Review({ view }: { view: StorytellerView }) {
           ))}
         </Section>
       )}
-      <Section title="What each player learns">
-        {shown.map((r) => (
-          <Result key={r.key} view={view} r={r} />
-        ))}
-        {!shown.length && (
-          <p className="muted">
-            {review.results.length
-              ? 'Nobody who learns something tonight is drunk or poisoned: they get the true answer.'
-              : 'Nobody learns anything tonight.'}
-          </p>
-        )}
-      </Section>
+      {shown.length > 0 && (
+        <Section title="What each player learns">
+          {shown.map((r) => (
+            <Result key={r.key} view={view} r={r} />
+          ))}
+        </Section>
+      )}
       {review.notices.length > 0 && (
         <Section title="Notices">
           {review.notices.map((n, i) => (

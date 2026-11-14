@@ -38,6 +38,7 @@ jobs:
         run: |
           git checkout "$TAG"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
       - if: steps.tag.outputs.tag != ''
         uses: docker/setup-qemu-action@v3
       - if: steps.tag.outputs.tag != ''
@@ -66,6 +67,8 @@ jobs:
           pull: true
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          build-args: BUILD_ID=${{ steps.checkout.outputs.sha }}
+          build-args: |
+            BUILD_ID=${{ steps.checkout.outputs.sha }}
+            APP_VERSION=${{ steps.checkout.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

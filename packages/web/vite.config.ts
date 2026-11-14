@@ -2,10 +2,10 @@ import { readFileSync } from 'node:fs';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-// The release version is the root package's, shown in the Storyteller's Log tab.
-const { version } = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
-  version: string;
-};
+// The release version, shown in the Storyteller's Log tab. A release build passes the tag it was built from
+// (APP_VERSION), so the number follows the tag. Anything else falls back to the root package's version.
+const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as { version: string };
+const version = process.env['APP_VERSION'] || pkg.version;
 
 const server = process.env['VITE_SERVER'] ?? 'http://localhost:8080';
 

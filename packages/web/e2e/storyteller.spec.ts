@@ -20,7 +20,7 @@ async function tab(page: Page, name: string) {
 async function closeNight(page: Page) {
   await expect(page.getByRole('button', { name: 'Close the night' })).toBeEnabled();
   await page.getByRole('button', { name: 'Close the night' }).click();
-  await expect(page.getByRole('heading', { name: 'What each player learns' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Publish dawn' })).toBeVisible();
 }
 
 /** Picks an option in a Review decision's dropdown, by the start of its label. */
@@ -75,7 +75,7 @@ test('from the lobby to publishing night 2, with a changed decision, a written a
   // The Poisoner stays off the Balloonist, whose decision the test depends on.
   for (const p of players) await p.submit((o) => o === ed?.id);
   await closeNight(page);
-  // The Balloonist shows one character type a night. Spending the Minion and the Demon first leaves a real choice.
+  // The Balloonist shows a different character type from the night before: the Minion, then the Demon.
   await decide(page, 'Di (minion)');
   await page.getByRole('button', { name: 'Publish dawn' }).click();
 

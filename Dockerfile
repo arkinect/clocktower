@@ -11,6 +11,8 @@ COPY packages/server/package.json packages/server/
 COPY packages/web/package.json packages/web/
 RUN npm ci
 COPY . ./
+# The release tag without its "v", shown in the Log tab. Empty for a local build, which shows package.json's version.
+ARG APP_VERSION=
 RUN npm run typecheck && npm run boundaries && npm run build
 RUN FUZZ_GAMES=50 npm test
 
