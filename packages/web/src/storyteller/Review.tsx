@@ -186,9 +186,10 @@ export function Review({ view }: { view: StorytellerView }) {
     review.decisions.some((d) => d.stale) ||
     review.questions.some((q) => !q.answered) ||
     review.results.some((r) => r.staleOverride);
-  // A sober player's information is true and goes out as it is. Only a drunk or poisoned one needs a choice, plus
-  // any answer you already wrote, so it can be checked.
-  const shown = review.results.filter((r) => r.impaired || r.overridden || r.staleOverride);
+  // Decisions set what is true; this section sets the lie told to a drunk or poisoned player. A sober player's
+  // information goes out as it is, and so does a confirmation ("You chose Bo"), which has no false version. An answer
+  // you already wrote always shows, so it can be checked.
+  const shown = review.results.filter((r) => (r.impaired && !r.confirmation) || r.overridden || r.staleOverride);
   return (
     <div>
       {required.length > 0 && (

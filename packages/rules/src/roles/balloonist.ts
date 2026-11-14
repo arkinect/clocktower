@@ -54,15 +54,16 @@ export const balloonist = defineRole<State>({
       const last = ctx.state.last ?? null;
       const labelled = (ids: PlayerId[]) => ids.map((x) => ({ id: x, label: `${ctx.name(x)} (${typeOf(x)})` }));
       if (ctx.impaired) {
-        const pick = ctx.decide({
-          key: { kind: 'balloonist' },
-          title: `Balloonist ${ctx.name(ctx.holder)} (impaired): show which player?`,
-          description: '',
-          options: labelled(others),
-          default: ctx.rng('pick').pick(others),
+        // Nothing true to decide: the false name is chosen with the result, like any other impaired answer.
+        ctx.inform({
+          truth: ['(impaired, no true information)'],
+          falseLines: [ctx.name(ctx.rng('pick').pick(others))],
+          alternatives: others.map((x) => [ctx.name(x)]),
         });
-        ctx.setState({ last: typeOf(pick) });
-        ctx.inform({ truth: ['(impaired, no true information)'], falseLines: [ctx.name(pick)] });
+        // Whoever the answer going out names; a written answer that names nobody leaves tomorrow open.
+        const told = ctx.resultsFor(ctx.holder).at(-1)?.final.join(' ');
+        const shown = others.find((x) => ctx.name(x) === told);
+        ctx.setState({ last: shown ? typeOf(shown) : null });
         return;
       }
       const candidates = others.filter((x) => typeOf(x) !== last);
