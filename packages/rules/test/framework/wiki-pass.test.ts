@@ -1,7 +1,7 @@
 // One test per primitive the per-character pass added to docs/mechanics.md. Every character here is a throwaway.
 import { roleId, type PlayerId, type RoleId } from '@ct/protocol';
 import { describe, expect, it } from 'vitest';
-import { defineRole, registerRole, type RoleDef, type SetupRules } from '../../src';
+import { defineJinx, defineRole, registerJinx, registerRole, type RoleDef, type SetupRules } from '../../src';
 import { scene } from '../scenario';
 
 function fake<S>(def: Parameters<typeof defineRole<S>>[0]): RoleId {
@@ -405,6 +405,16 @@ describe('per-character pass: waking', () => {
     expect(stoppedNight.truth('a')).toEqual(['1 woke']);
   });
 
+  it('a jinx can wake an ability that would otherwise sleep', () => {
+    const asleep = scene({ a: SLEEPER, b: 't1', c: 'd1', d: 't2', e: 't3' }, { extra: [WAKER] })
+      .start()
+      .submit({})
+      .review();
+    expect(asleep.res.actors.some((x) => x.playerId === 'a')).toBe(false);
+    const woken = scene({ a: SLEEPER, b: WAKER, c: 'd1', d: 't2', e: 't3' }).start().submit({}).review();
+    expect(woken.truth('a')).toEqual(['Awake']);
+  });
+
   it('nightEnd sees what happened after its own slot', () => {
     const s = scene({ a: REGRETTER, b: 't1', c: LATE_DRUNK, d: 'd1', e: 't2' }).start().nextNight().review();
     expect(s.res.deaths).toEqual(['a']);
@@ -577,6 +587,14 @@ describe('per-character pass: setup and views', () => {
     expect(s.truth('b')).toEqual(['Mine']);
   });
 
+  it('notBluffable keeps a good character that is out of play off the Demon bluffs', () => {
+    const s = scene({ a: 't1', b: 't2', c: 'd1', d: 't3', e: 't4' }, { extra: [NO_BLUFF] });
+    const candidates = s.g.grimoire().setup.bluffCandidates;
+    expect(candidates).toContain('t-town-5');
+    expect(candidates).not.toContain(NO_BLUFF);
+    expect(s.g.rejected('st' as PlayerId, { type: 'set_bluffs', roleIds: [NO_BLUFF] })).toMatch(/Bluffs must be/);
+  });
+
   it('hidesCharacter shows a player nothing until the hook lets it go', () => {
     const s = scene({ a: 't1', b: 't2', c: 'd1', d: 't3', e: 't4' }, { extra: [HIDER] });
     s.g.st({ type: 'set_storyteller_characters', roleIds: [HIDER] });
@@ -592,6 +610,42 @@ describe('per-character pass: setup and views', () => {
     expect(s.alive('a')).toBe(true);
     expect(s.state.publicDead).toEqual(['a']);
   });
+});
+
+const SLEEPER = fake({
+  id: roleId('w-sleeper'),
+  name: 'Sleeper',
+  type: 'townsfolk',
+  abilityText: 'You do not wake, unless a jinx wakes you.',
+  night: { first: 800, other: 800 },
+  ability: {
+    wakes: (ctx) => ctx.jinx('wakes'),
+    resolve: (ctx) => ctx.inform({ truth: ['Awake'] }),
+  },
+});
+const WAKER = fake({
+  id: roleId('w-waker'),
+  name: 'Waker',
+  type: 'townsfolk',
+  abilityText: 'You have no ability of your own.',
+});
+registerJinx(
+  defineJinx({
+    a: SLEEPER,
+    b: WAKER,
+    text: 'If the Waker is in play, the Sleeper wakes each night.',
+    handling: 'engine',
+    source: 'test',
+    hooks: { wakes: (ctx) => ctx.inPlay.includes(WAKER) },
+  }),
+);
+
+const NO_BLUFF = fake({
+  id: roleId('w-no-bluff'),
+  name: 'No Bluff',
+  type: 'townsfolk',
+  abilityText: 'You are never a Demon bluff.',
+  setupRules: { notBluffable: true },
 });
 
 const SELF_COPY = fake({

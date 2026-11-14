@@ -4,3 +4,16 @@ updates:
     directory: /
     schedule:
       interval: weekly
+  # The base images in the Dockerfile and the actions the workflows run.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    # A new Node major is a decision, not an update: package.json's engines and the CI's Node go with it.
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

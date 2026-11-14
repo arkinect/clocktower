@@ -1,6 +1,6 @@
 // The command registry. Each command declares who may send it and in which phases; the dispatcher enforces both before
 // the handler runs, so no handler guards its own phase.
-import type { Command, CommandOf, CommandType, Decisions, PlayerId } from '@ct/protocol';
+import type { CommandOf, CommandType, Decisions, PlayerId } from '@ct/protocol';
 import { hashDecision, Run } from '../night/run';
 import { Reader } from '../derive/reader';
 import type { GameState, Moment, Phase } from '../model/state';
@@ -84,5 +84,3 @@ export function buildCtx(
     },
   };
 }
-
-export type { Command };

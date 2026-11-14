@@ -20,7 +20,7 @@ import type {
   RoleDef,
   SpecDraft,
 } from '../abilities/define';
-import { allJinxes, findRole, nightSheet, roleDef } from '../abilities/registry';
+import { allJinxes, nightSheet, roleDef } from '../abilities/registry';
 import { externalImpairment, computeImpairment, type Impairment } from '../derive/impairment';
 import { Reader } from '../derive/reader';
 import type { Condition, ConditionType, GameState, Holder, Moment, NightPhase, Origin } from '../model/state';
@@ -122,13 +122,10 @@ export class Run {
   private currentRow: ActorRow | null = null;
   private currentChoice = new Map<string, Choice | null>();
   private readonly chosenThisRun = new Set<string>();
-  private killSeq = 0;
   /** Resolving the night, rather than answering who is asked to submit. */
   private walking = false;
   /** The ability on its second act tonight, which keeps its results and decisions apart from the first. */
   private acting: string | null = null;
-  /** Set when a day command is only being previewed. */
-  dayDeaths: PlayerId[] = [];
 
   constructor(o: RunOptions) {
     this.world = o.world;
@@ -1003,5 +1000,3 @@ export class Run {
     w.gameEnd = w.gameEnd.filter((g) => !this.suppressed.has(g.key));
   }
 }
-
-export const roleExists = (id: string) => !!findRole(id);

@@ -1,6 +1,6 @@
 // The console and phone parts that decide what a person reads. Views are built by hand: the web never imports the rules.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   AbilityView,
@@ -28,11 +28,14 @@ vi.mock('../src/app/store', () => ({
   useNames: () => ({ players: { a: 'Ann', b: 'Bo' }, roles: {} }),
 }));
 
-import { Ended } from '../src/player/PlayerApp';
+// The idle games are not under test: the night screen only needs something to put in their place.
+vi.mock('../src/games/NightGames', () => ({ default: () => null }));
+
+import { Ended, Night } from '../src/player/PlayerApp';
 import { RoleCardView, RoleList, typeName } from '../src/player/parts';
 import { Day, DayAction, Usage } from '../src/storyteller/Day';
 import { Review } from '../src/storyteller/Review';
-import { AssignRow, Field } from '../src/storyteller/Setup';
+import { AssignRow, Field, Settings, TypeCounts, countsHint } from '../src/storyteller/Setup';
 import { InputSheet, causeLabel, causesWithoutRow, phaseText } from '../src/storyteller/common';
 import { HoldButton, UpdateBar } from '../src/ui/ui';
 
@@ -767,5 +770,138 @@ describe('the Review tab', () => {
     rerender(<Review view={reviewView([{ ...optional, chosen: 'yes' }])} />);
     expect(screen.getByRole('heading', { name: 'Decisions' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Accept all defaults' })).toBeNull();
+  });
+});
+
+describe('setup: character type counts', () => {
+  const seven = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((id, seat) => player({ id, name: id.toUpperCase(), seat }));
+  const countsView = (target: number[], source: 'default' | 'override' = 'default') =>
+    ({ players: seven, setup: { counts: { target, actual: [0, 0, 0, 0], source } } }) as unknown as StorytellerView;
+  const field = (name: RegExp) => screen.getByLabelText(name) as HTMLInputElement;
+
+  it('holds an edit until the four counts add up to the player count, then sends them together', () => {
+    render(<TypeCounts view={countsView([5, 0, 1, 1])} />);
+    fireEvent.change(field(/^Townsfolk/), { target: { value: '4' } });
+    expect(run).not.toHaveBeenCalled();
+    expect(field(/^Townsfolk/).value).toBe('4');
+    fireEvent.change(field(/^Outsiders/), { target: { value: '1' } });
+    expect(run).toHaveBeenCalledWith({ type: 'set_type_counts', counts: [4, 1, 1, 1] });
+  });
+
+  it('sends nothing when an edit is undone', () => {
+    render(<TypeCounts view={countsView([5, 0, 1, 1])} />);
+    fireEvent.change(field(/^Townsfolk/), { target: { value: '4' } });
+    fireEvent.change(field(/^Townsfolk/), { target: { value: '5' } });
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('drops the held edit once the game shows the same counts', () => {
+    const { rerender } = render(<TypeCounts view={countsView([5, 0, 1, 1])} />);
+    fireEvent.change(field(/^Townsfolk/), { target: { value: '4' } });
+    fireEvent.change(field(/^Outsiders/), { target: { value: '1' } });
+    rerender(<TypeCounts view={countsView([4, 1, 1, 1], 'override')} />);
+    expect(field(/^Townsfolk/).getAttribute('aria-invalid')).toBeNull();
+    // A later change by the rules (a Baron, say) now shows, since nothing is held over it.
+    rerender(<TypeCounts view={countsView([3, 2, 1, 1], 'override')} />);
+    expect(field(/^Outsiders/).value).toBe('2');
+  });
+
+  it('drops a held edit when the number of seated players changes', () => {
+    const { rerender } = render(<TypeCounts view={countsView([5, 0, 1, 1])} />);
+    fireEvent.change(field(/^Townsfolk/), { target: { value: '4' } });
+    const eight = { ...countsView([5, 1, 1, 1]), players: [...seven, player({ id: 'h', name: 'H', seat: 7 })] };
+    rerender(<TypeCounts view={eight as StorytellerView} />);
+    expect(field(/^Townsfolk/).value).toBe('5');
+    expect(field(/^Townsfolk/).getAttribute('aria-invalid')).toBeNull();
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('has a line for a held edit, which stays off the console while it is switched off', () => {
+    expect(countsHint([4, 0, 1, 1], 7)).toBe('Adds up to 6 of 7. Not saved yet.');
+    render(<TypeCounts view={countsView([5, 0, 1, 1])} />);
+    fireEvent.change(field(/^Townsfolk/), { target: { value: '4' } });
+    expect(screen.queryByText(/Not saved yet/)).toBeNull();
+  });
+
+  it('Back to the default forgets a held edit', async () => {
+    render(<TypeCounts view={countsView([4, 1, 1, 1], 'override')} />);
+    fireEvent.change(field(/^Townsfolk/), { target: { value: '2' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Back to the default' }));
+    expect(run).toHaveBeenCalledWith({ type: 'set_type_counts', counts: null });
+    expect(field(/^Townsfolk/).value).toBe('4');
+  });
+});
+
+describe('setup: countdown settings', () => {
+  const settingsView = {
+    settings: {
+      evilInfoPolicy: 'house',
+      countdownSeconds: 120,
+      followUpExtensionSeconds: 30,
+      announceDeaths: true,
+      notifyOnRoleChange: true,
+    },
+  } as unknown as StorytellerView;
+  const leave = (label: string, value: string) => {
+    const input = screen.getByLabelText(label) as HTMLInputElement;
+    fireEvent.change(input, { target: { value } });
+    fireEvent.blur(input);
+    return input;
+  };
+
+  it('sends a changed countdown when the field is left', () => {
+    render(<Settings view={settingsView} />);
+    leave('Night countdown in seconds', '90');
+    expect(run).toHaveBeenCalledWith({ type: 'set_settings', countdownSeconds: 90 });
+    leave('Extra seconds for a follow-up question', '45');
+    expect(run).toHaveBeenLastCalledWith({ type: 'set_settings', followUpExtensionSeconds: 45 });
+  });
+
+  it('brings a number the server would refuse inside the range it accepts', () => {
+    render(<Settings view={settingsView} />);
+    expect(leave('Night countdown in seconds', '5').value).toBe('10');
+    expect(run).toHaveBeenLastCalledWith({ type: 'set_settings', countdownSeconds: 10 });
+    expect(leave('Night countdown in seconds', '99999').value).toBe('3600');
+    expect(run).toHaveBeenLastCalledWith({ type: 'set_settings', countdownSeconds: 3600 });
+  });
+
+  it('sends nothing for a field left as it was, or left empty', () => {
+    render(<Settings view={settingsView} />);
+    leave('Night countdown in seconds', '120');
+    expect(leave('Night countdown in seconds', '').value).toBe('120');
+    expect(run).not.toHaveBeenCalled();
+  });
+});
+
+describe('the night on a phone', () => {
+  const spec = {
+    key: 'k',
+    roleId: null,
+    title: 'Poisoner',
+    prompt: 'Choose a player.',
+    fields: [{ kind: 'player', label: 'Player', options: ['a', 'b'] }],
+    distinct: false,
+    allowDecline: false,
+  };
+  const nightView = (n: number, submission: Record<string, { values: string[] }> | null) =>
+    ({
+      deadAtDawn: [],
+      serverNow: 0,
+      phase: { kind: 'night', n, stage: 'collecting', deadline: null, winner: null, endedReason: null },
+      me: { id: 'a', actions: [spec], questions: [], submitted: submission !== null, submission },
+    }) as unknown as PlayerView;
+  const chosen = () => (screen.getByLabelText('Player') as HTMLSelectElement).value;
+
+  it('Change opens on what was submitted, on a phone that has just reloaded too', async () => {
+    render(<Night view={nightView(1, { k: { values: ['b'] } })} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Change' }));
+    expect(chosen()).toBe('b');
+  });
+
+  it('a new night starts with nothing chosen', async () => {
+    const { rerender } = render(<Night view={nightView(1, { k: { values: ['b'] } })} />);
+    rerender(<Night view={nightView(2, null)} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Night action' }));
+    expect(chosen()).toBe('');
   });
 });

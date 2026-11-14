@@ -1,5 +1,5 @@
 // A thin renderer of PlayerView. It holds no rules: every option and message comes from the server.
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import type { ActionSpec, Choice, PlayerView } from '@ct/protocol';
 import { useCommand, useGame, useNames } from '../app/store';
 import { Picker, choiceComplete } from '../ui/Picker';
@@ -154,7 +154,7 @@ function useDead(view: PlayerView) {
   return useMemo(() => new Set<string>(view.deadAtDawn), [view.deadAtDawn]);
 }
 
-function Night({ view }: { view: PlayerView }) {
+export function Night({ view }: { view: PlayerView }) {
   const specs = view.me.actions;
   const names = useNames();
   const dead = useDead(view);
@@ -165,7 +165,11 @@ function Night({ view }: { view: PlayerView }) {
   const collecting = view.phase.stage === 'collecting';
   const n = view.phase.n;
 
+  // A new night starts empty. The night this screen opened on keeps what was submitted, so Change shows it.
+  const shownNight = useRef(n);
   useEffect(() => {
+    if (shownNight.current === n) return;
+    shownNight.current = n;
     setChoice({});
     setEditing(false);
     setSheet(false);

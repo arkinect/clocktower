@@ -1,4 +1,4 @@
-import type { PlayerId, RoleId } from '@ct/protocol';
+import type { RoleId } from '@ct/protocol';
 import type { Reader } from '../derive/reader';
 import type { AbilityCtx } from '../night/context';
 
@@ -23,5 +23,3 @@ export function countBelieved(ctx: AbilityCtx<unknown>, who: RoleId, name: strin
     }
   }
 }
-
-export type { PlayerId };

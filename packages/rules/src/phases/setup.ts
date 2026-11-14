@@ -1,6 +1,5 @@
 import type { PlayerId, RoleId } from '@ct/protocol';
-import { findRole, PLAYER_TYPES, roleDef } from '../abilities/registry';
-import type { Counts } from '../abilities/define';
+import { findRole, roleDef } from '../abilities/registry';
 import { deliverEvilInfo } from '../night/evil-info';
 import { newNightPhase } from '../night/phase';
 import { HookCtx } from '../night/context';
@@ -228,8 +227,9 @@ export const setupCommands = [
       need(a, 'No such ability.');
       const field = roleDef(a.roleId).setupFields?.find((f) => f.field === cmd.field);
       need(field, 'That role has no such setup choice.');
-      if (cmd.value !== null) {
-        const value = field.kind === 'text' ? cmd.value.trim() : cmd.value;
+      // What is stored is what was checked: a text value goes in trimmed.
+      const value = cmd.value !== null && field.kind === 'text' ? cmd.value.trim() : cmd.value;
+      if (value !== null) {
         need(value, 'Enter a value.');
         if (field.kind !== 'text') {
           need(
@@ -241,7 +241,7 @@ export const setupCommands = [
         need(!error, error ?? '');
       }
       const state = a.state as { setup?: Record<string, string | null> };
-      a.state = { ...state, setup: { ...state.setup, [cmd.field]: cmd.value } };
+      a.state = { ...state, setup: { ...state.setup, [cmd.field]: value } };
     },
   }),
   defineCommand({
@@ -322,6 +322,3 @@ export function setupFields(r: import('../derive/reader').Reader) {
       });
   });
 }
-
-export type { Counts };
-export const playerTypes = PLAYER_TYPES;

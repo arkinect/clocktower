@@ -23,7 +23,13 @@ const collecting = (p: NightPhase) => p.stage === 'collecting' || p.stage === 'b
 const appearsDead = (run: Run, id: PlayerId) =>
   run.reader.abilitiesOf(id).some((a) => roleDef(a.roleId).ability.appearsDead?.(run.ctx(a)));
 
-/** One atomic step that commits the night and sends everyone to the day. */
+/**
+ * One atomic step that commits the night and sends everyone to the day.
+ *
+ * Only the fields copied below come over from the resolved night; results and notices are sent from here. Whatever
+ * else a night hook writes on its copy of the game (the inbox, pending notices, the published seating, prompts,
+ * events) is dropped. The "dawn carries over" test in test/invariants/real-roles.test.ts fails when a role does.
+ */
 function publish(s: GameState, res: Resolution, n: number, seed: number, now: number) {
   const before = new Set(s.seats.map((x) => x.playerId).filter((id) => s.players[id]?.life.alive));
   const rows = nightStory(s, res, n);
@@ -115,16 +121,6 @@ export const nightCommands = [
     phases: ['night'],
     handle(ctx, cmd) {
       ctx.phase.deadline = Math.max(ctx.phase.deadline ?? ctx.now, ctx.now) + cmd.seconds * 1000;
-      ctx.keepResolution();
-    },
-  }),
-  defineCommand({
-    type: 'set_countdown',
-    by: 'storyteller',
-    phases: ['night'],
-    handle(ctx, cmd) {
-      ctx.s.settings.countdownSeconds = cmd.seconds;
-      if (ctx.phase.stage === 'collecting') ctx.phase.deadline = ctx.now + cmd.seconds * 1000;
       ctx.keepResolution();
     },
   }),

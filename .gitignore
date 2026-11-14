@@ -4,6 +4,7 @@ dist
 coverage
 *.tsbuildinfo
 playwright-report
+screenshots
 test-results
 data
 data-public

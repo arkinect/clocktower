@@ -113,7 +113,7 @@ Known limits:
 | Fortune Teller | yes   | Each night                           | `setupFields`, `registers`                                                                                  |
 | Gambler        | yes   | Night*                               | role field, `attemptKill`                                                                                   |
 | General        |       | Each night                           | Storyteller's judgement through `decide`                                                                    |
-| Gossip         | yes   | Day, then night*                     | statements, `decide`                                                                                        |
+| Gossip         | yes   | Day, then night*                     | day action (fact), `decide`                                                                                 |
 | Grandmother    | yes   | First night, on death                | `onDeath`                                                                                                   |
 | High Priestess |       | Each night                           | `decide` of a player                                                                                        |
 | Huntsman       | yes   | Night, once                          | `changeCharacter`                                                                                           |
@@ -202,7 +202,7 @@ Known limits:
 | Harpy            |       | Each night                                 | mad condition, `record_broke_madness`                                |
 | Marionette       | yes   | Setup                                      | `believes`, `setupRules.neighbours`                                  |
 | Mastermind       | yes   | At dusk, after the Demon's execution       | `suppressGameEnd`, `onDayEvent` (execution at dusk)                  |
-| Mezepheles       | yes   | First night, on the word                   | `record_statement`, `changeAlignment`                                |
+| Mezepheles       | yes   | First night, on the word                   | day action (who said it), `changeAlignment`                          |
 | Organ Grinder    | yes   | Each night, votes                          | conditions, `dayNotice`                                              |
 | Pit-Hag          |       | Night*                                     | `changeCharacter`, `decide` for arbitrary deaths                     |
 | Poisoner         | yes   | Each night                                 | conditions                                                           |

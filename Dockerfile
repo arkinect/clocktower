@@ -18,7 +18,10 @@ RUN FUZZ_GAMES=50 npm test
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
-RUN npm init -y >/dev/null && npm install --omit=dev better-sqlite3@11.10.0
+# The exact version the tests ran against, read from the lockfile so the two can never drift apart.
+COPY package-lock.json /tmp/lock.json
+RUN npm init -y >/dev/null \
+ && npm install --omit=dev "better-sqlite3@$(node -p "require('/tmp/lock.json').packages['node_modules/better-sqlite3'].version")"
 
 # ---- run ----
 FROM node:22-bookworm-slim

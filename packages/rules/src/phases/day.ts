@@ -1,5 +1,5 @@
 import { clone } from '../util/clone';
-import type { ActionSpec, PlayerId, RoleId } from '@ct/protocol';
+import type { ActionSpec, PlayerId } from '@ct/protocol';
 import { roleDef } from '../abilities/registry';
 import type { DayActionDraft, DayEventInfo, Instance } from '../abilities/define';
 import type { GameState } from '../model/state';
@@ -447,5 +447,3 @@ export const dayCommands = [
     },
   }),
 ];
-
-export type { RoleId };

@@ -18,7 +18,7 @@ who is drunk or poisoned and what everyone learns, and the Storyteller reviews e
 - **55 characters**: the full night logic for each, including drunk/poisoned, registration (Recluse, red herring),
   protections, the Mayor bounce, starpass, Scarlet Woman, revivals, and the Ravenkeeper's second round.
 - **Players' phones**: their role (tap to reveal), the script's role list, night order and seating, a night picker
-  with only legal choices, private results at dawn. Two idle mini-games unlock once a player has submitted.
+  with only legal choices, private results at dawn. Three idle mini-games unlock once a player has submitted.
 - **Storyteller console**: setup checklist (distribution, bluffs, Drunk/Marionette, red herring…), live
   submission board, a review screen where every result can be edited before it's sent, a day panel, a grimoire,
   a circle view of the table, a per-night story of the game and an event log.
@@ -87,7 +87,7 @@ Run it by hand, or from cron:
 Run `git pull` first if the release changed the compose file, the Caddyfile or the script.
 
 A saved game from another engine version can't be resumed. It is archived at startup and a fresh lobby opens. Each
-release says so in [CHANGELOG.md](CHANGELOG.md) if it does this.
+release says so in its [release notes](https://github.com/arkinect/clocktower/releases) if it does this.
 
 The script touches this stack only, so old images stay until you run `docker image prune`.
 

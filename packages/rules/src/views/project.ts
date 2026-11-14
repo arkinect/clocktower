@@ -15,7 +15,7 @@ import type {
 } from '@ct/protocol';
 import { roleCard } from '../abilities/define';
 import type { Instance } from '../abilities/define';
-import { allRoles, findRole, nightSheet, roleDef, scriptOrder } from '../abilities/registry';
+import { allRoles, findRole, roleDef, scriptOrder } from '../abilities/registry';
 import { computeImpairment } from '../derive/impairment';
 import { Reader } from '../derive/reader';
 import type { Condition, GameState, StoryRow } from '../model/state';
@@ -380,5 +380,3 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
 export function project(s: GameState, viewer: PlayerId, options: ProjectOptions): PlayerView | StorytellerView {
   return viewer === s.storytellerId ? storytellerView(s, viewer, options) : playerView(s, viewer, options.now);
 }
-
-export { nightSheet };

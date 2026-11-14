@@ -10,6 +10,7 @@ import { dayCommands } from './phases/day';
 import { createGame } from './model/create';
 import type { GameState } from './model/state';
 import { carryResolution } from './night/wake';
+import { dropStaleCounts } from './setup/rules';
 
 const registry = new Map<string, CommandDef>(
   [...lobbyCommands, ...setupCommands, ...nightCommands, ...dayCommands].map((c) => [c.type, c]),
@@ -51,6 +52,8 @@ export function dispatch(state: GameState, actor: PlayerId | null, input: unknow
     const next = produce(state, (draft) => {
       const s = draft as GameState;
       def.handle(buildCtx(s, state, actor, inputs.now, inputs.seed, out), command);
+      // Here, not in each command: joining, removing, reseating and Travellers all change who is seated.
+      dropStaleCounts(s);
       s.seq += 1;
     });
     if (out.keep) carryResolution(state, next);

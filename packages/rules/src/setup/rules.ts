@@ -63,6 +63,18 @@ export function targetCounts(s: GameState, playerCount: number, roles: readonly 
   return { counts: c.map((x) => Math.max(0, x)) as Counts, source: 'default' as const };
 }
 
+/**
+ * A count override is four numbers that add up to the seated players, checked when it is set. Once a seat is filled
+ * or emptied during setup it can no longer fit the table, so it goes back to the default instead of staying in force
+ * where nothing would point it out.
+ */
+export function dropStaleCounts(s: GameState) {
+  const override = s.setup.rules.countsOverride;
+  if (!override || s.phase.kind !== 'setup') return;
+  const seated = s.seats.filter((x) => x.left === null).length;
+  if (override.reduce((a, b) => a + b, 0) !== seated) s.setup.rules.countsOverride = null;
+}
+
 export function actualCounts(s: GameState): Counts {
   const r = reader(s);
   const c: Counts = [0, 0, 0, 0];
@@ -116,13 +128,15 @@ export function suggestDistribution(s: GameState, rng: Rng): Record<string, Role
   return { error: 'Not enough enabled roles of each type for this player count.' };
 }
 
-/** Good roles that are not in play and not anyone's believed role. */
+/** Good roles that are not in play, not anyone's believed role, and not barred from the bluffs by their own rule. */
 export function bluffCandidates(s: GameState): RoleId[] {
   const r = reader(s);
   const taken = new Set([...r.inPlay, ...r.believedInPlay]);
   return r.script.filter((x) => {
     const def = roleDef(x);
-    return def.alignment === 'good' && PLAYER_TYPES.includes(def.type) && !taken.has(x);
+    return (
+      def.alignment === 'good' && PLAYER_TYPES.includes(def.type) && !taken.has(x) && !def.setupRules?.notBluffable
+    );
   });
 }
 

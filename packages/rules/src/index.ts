@@ -2,6 +2,7 @@ import './roles';
 
 export { dispatch, replay, type DispatchResult, type Inputs, type LogEntry } from './dispatch';
 export { createGame } from './model/create';
+export { NAME_MAX } from './phases/lobby';
 export { allCards, catalog, playerView, project, storytellerView } from './views/project';
 export { ENGINE_VERSION, GameState, type GameState as GameStateT, type Phase } from './model/state';
 export { defineRole, type RoleDef, type SetupRules } from './abilities/define';

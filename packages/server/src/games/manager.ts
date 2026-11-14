@@ -28,6 +28,13 @@ interface Job {
   done(o: Outcome): void;
 }
 
+/**
+ * Commands that start the game over. The command limit counts from the last one, and never refuses one, so a full
+ * game can always be left. The bound is on each game, by design: the log as a whole grows by one game's share every
+ * time the Storyteller starts over, and only the Storyteller can.
+ */
+const STARTS_OVER: readonly string[] = ['new_game', 'play_again'];
+
 const viewHash = (view: View) => {
   return createHash('sha1')
     .update(JSON.stringify({ ...view, serverNow: 0 }))
@@ -40,6 +47,8 @@ export class LiveGame {
   private draining = false;
   lastActivity: number;
   logLength: number;
+  /** Commands since the game last started over. The log itself keeps every game played under this code. */
+  private sinceFresh: number;
   /** The idle card tables. They live and die with the process: nothing about them is stored. */
   readonly cards = new Tables({
     eligible: (playerId) => this.idleAtNight(playerId),
@@ -55,9 +64,11 @@ export class LiveGame {
     private readonly onRemoved: (code: string, playerId: string) => void,
     private readonly audit: Audit,
     logLength: number,
+    sinceFresh: number,
   ) {
     this.lastActivity = Date.now();
     this.logLength = logLength;
+    this.sinceFresh = sinceFresh;
   }
 
   get code() {
@@ -69,7 +80,8 @@ export class LiveGame {
     if (this.queue.length >= this.limits.queuePerGame) {
       return Promise.resolve({ ok: false, error: 'The server is busy. Please try again.' });
     }
-    if (this.logLength >= this.limits.commandsPerGame) {
+    // One game may not grow without bound, but the way out of a full one must stay open.
+    if (this.sinceFresh >= this.limits.commandsPerGame && !STARTS_OVER.includes(command.type)) {
       return Promise.resolve({ ok: false, error: 'This game has reached its command limit.' });
     }
     return new Promise((done) => {
@@ -106,6 +118,7 @@ export class LiveGame {
     const before = this.state;
     this.state = res.state;
     this.logLength += 1;
+    this.sinceFresh = STARTS_OVER.includes(job.command.type) ? 0 : this.sinceFresh + 1;
     this.lastActivity = now;
     this.store.save(this.code, ENGINE_VERSION, JSON.stringify(res.state), this.logLength, res.entry);
     this.afterChange(before);
@@ -201,8 +214,8 @@ export class Games {
     private readonly now: () => number = Date.now,
   ) {}
 
-  private live(state: GameStateT, logLength: number) {
-    const g = new LiveGame(state, this.store, this.limits, this.dropSessions, this.audit, logLength);
+  private live(state: GameStateT, logLength: number, sinceFresh: number) {
+    const g = new LiveGame(state, this.store, this.limits, this.dropSessions, this.audit, logLength, sinceFresh);
     this.games.set(state.code, g);
     return g;
   }
@@ -213,7 +226,7 @@ export class Games {
       const parsed = this.parse(row.snapshot);
       if (row.engine !== ENGINE_VERSION) this.archive(row, `engine ${row.engine}`);
       else if (!parsed.state) this.archive(row, parsed.reason);
-      else this.live(parsed.state, this.store.logLength(row.code));
+      else this.live(parsed.state, this.store.logLength(row.code), this.store.logLengthSince(row.code, STARTS_OVER));
     }
   }
 
@@ -259,7 +272,7 @@ export class Games {
     if (this.games.size >= this.limits.liveGames && !this.evictIdle()) return null;
     const state = createGame(code, this.now());
     this.store.save(code, ENGINE_VERSION, JSON.stringify(state), 0, null);
-    return this.live(state, 0);
+    return this.live(state, 0, 0);
   }
 }
 
