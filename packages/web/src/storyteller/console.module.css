@@ -200,18 +200,6 @@
   padding: 6px 0;
 }
 
-.addRow {
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-}
-
-/* Sits on the select's baseline: the field's bottom margin, and the select's height. */
-.addRow > button {
-  margin-bottom: 8px;
-  min-height: 40px;
-}
-
 .check {
   display: flex;
   gap: 8px;
@@ -265,14 +253,6 @@
 
 .warn {
   color: var(--warn);
-}
-
-.good {
-  color: var(--good);
-}
-
-.evil {
-  color: var(--evil);
 }
 
 .mono {

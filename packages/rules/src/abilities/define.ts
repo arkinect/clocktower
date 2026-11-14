@@ -176,7 +176,7 @@ export interface SetupRules {
   neighbours?: CharacterType;
   /** Several players may hold the same character: this one, or any good character. */
   duplicates?: 'self' | 'good';
-  /** The Storyteller may not put this character on a good player's bluff list, and so on. */
+  /** Never offered or accepted as a Demon bluff, even when good and out of play. */
   notBluffable?: boolean;
 }
 

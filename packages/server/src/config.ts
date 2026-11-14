@@ -1,5 +1,6 @@
 // Everything tunable. The numbers are starting values.
 import path from 'node:path';
+import { NAME_MAX } from '@ct/rules';
 
 export interface Limits {
   /** Tokens a second and burst for requests with no session, across all addresses. */
@@ -19,6 +20,7 @@ export interface Limits {
   playersPerGame: number;
   liveGames: number;
   nameLength: number;
+  /** Per game played, not per game code: New game and Play again start the count again. */
   commandsPerGame: number;
   queuePerGame: number;
   bodyBytes: number;
@@ -41,7 +43,7 @@ export const DEFAULT_LIMITS: Limits = {
   heartbeatMisses: 2,
   playersPerGame: 30,
   liveGames: 4,
-  nameLength: 24,
+  nameLength: NAME_MAX,
   commandsPerGame: 20_000,
   queuePerGame: 32,
   bodyBytes: 64 * 1024,

@@ -13,6 +13,18 @@ describe('Recluse', () => {
     expect(s.truth('ann')).toEqual(['1 of your alive neighbours is evil.']);
     expect(s.res.malfunctions.map((m) => m.cause)).toContain('recluse');
   });
+  it('can register as an evil character to someone who learns characters', () => {
+    const s = scene({ ann: 'ravenkeeper', bo: 'recluse', cy: 'imp', di: 't2', ed: 't3' })
+      .start()
+      .nextNight()
+      .submit({ cy: ['ann'] })
+      .review();
+    s.answer('ann', ['bo']);
+    expect(s.truth('ann')).toEqual(['bo is the Recluse.']);
+    s.decide('registration', 'imp');
+    expect(s.truth('ann')).toEqual(['bo is the Imp.']);
+    expect(s.res.malfunctions.map((m) => m.cause)).toContain('recluse');
+  });
   it('a poisoned Recluse asks nothing', () => {
     const s = scene({ ...cast, cy: 'poisoner' })
       .start()

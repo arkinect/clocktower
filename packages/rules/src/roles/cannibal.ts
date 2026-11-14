@@ -128,5 +128,3 @@ export const cannibal = defineRole<State>({
       ctx.state.ate ? [`Ate: ${ctx.roleName(ctx.state.roleId)}${ctx.state.fake ? ' (false information)' : ''}`] : [],
   },
 });
-
-export type { PlayerId };

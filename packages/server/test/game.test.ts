@@ -215,3 +215,32 @@ describe('restart', () => {
     expect(denied.status).toBe(403);
   });
 });
+
+describe('the command limit', () => {
+  const settle = (game: LiveGame, id: string) =>
+    game.submit(id as PlayerId, { type: 'set_settings', announceDeaths: true });
+
+  it('counts one game at a time: a full game still takes New game, and the next starts from nothing', async () => {
+    const config = testConfig({}, { commandsPerGame: 6 });
+    const h = await up(config);
+    const st = await connect(h, 'Storyteller', { wantsStoryteller: true });
+    const game = h.app.games.get('default') as LiveGame;
+    // The join was the first command of six.
+    for (let i = 0; i < 5; i++) expect((await settle(game, st.id)).ok).toBe(true);
+    expect(await settle(game, st.id)).toEqual({ ok: false, error: 'This game has reached its command limit.' });
+    expect((await game.submit(st.id as PlayerId, { type: 'new_game' })).ok).toBe(true);
+
+    const next = await connect(h, 'Storyteller', { wantsStoryteller: true });
+    for (let i = 0; i < 2; i++) expect((await settle(game, next.id)).ok).toBe(true);
+    // The log still holds both games, for the export.
+    expect(h.app.store.log('default')).toHaveLength(10);
+
+    // A restart picks the count up where it was: three commands into the second game, not ten into the log.
+    await h.app.close();
+    opened.splice(opened.indexOf(h), 1);
+    const again = await up(config);
+    const restored = again.app.games.get('default') as LiveGame;
+    for (let i = 0; i < 3; i++) expect((await settle(restored, next.id)).ok).toBe(true);
+    expect((await settle(restored, next.id)).ok).toBe(false);
+  });
+});

@@ -1,6 +1,6 @@
 // Read helpers over a game state. Everything a hook may ask about the world, and nothing that changes it.
 import type { Alignment, CharacterType, PlayerId, RoleId } from '@ct/protocol';
-import { allRoles, findRole, jinxBetween, makesDemon, roleDef } from '../abilities/registry';
+import { allRoles, findRole, makesDemon, roleDef } from '../abilities/registry';
 import type { GameEvent, GameState, Moment, Player } from '../model/state';
 import { momentOrder } from '../model/state';
 import type { Instance, RoleDef } from '../abilities/define';
@@ -126,11 +126,6 @@ export class Reader {
 
   eventsAt = (at: Moment): GameEvent[] => this.w.events.filter((e) => e.at.kind === at.kind && e.at.n === at.n);
 
-  /** Events of the day just before this night. */
-  get today(): GameEvent[] {
-    return this.eventsAt({ kind: 'day', n: this.moment.n });
-  }
-
   /** The latest value any holder of a role stored in a setup field, even one that has since gone. */
   setupValue(role: RoleId, field: string): string | null {
     let value: string | null = null;
@@ -155,6 +150,4 @@ export class Reader {
       return rule === 'self' ? x.id === role : def.alignment === 'good' && def.type !== 'traveller';
     });
   };
-
-  jinxWith = (a: RoleId, b: RoleId) => jinxBetween(a, b);
 }

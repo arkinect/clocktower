@@ -4,8 +4,12 @@ import { assertHidden } from '../helpers/hidden';
 import { fuzzGame, seatedIds } from '../helpers/fuzz';
 import { PLAIN_SCRIPT } from '../helpers/plain';
 
+declare const __FUZZ_GAMES__: number;
+
 describe('fuzz', () => {
-  const games = 1000;
+  // A small FUZZ_GAMES (the Docker build's) shortens this run too. A large one does not lengthen it: the nightly
+  // thousands are for the real roles.
+  const games = Math.min(1000, __FUZZ_GAMES__ * 2);
 
   it(`${games} random command sequences never throw and hide what they should`, () => {
     let accepted = 0;

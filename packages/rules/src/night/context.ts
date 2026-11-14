@@ -2,23 +2,12 @@
 // through the Run, which keeps impairment, histories and logs right.
 import type { Alignment, CharacterType, PlayerId, RoleId } from '@ct/protocol';
 import { Reader } from '../derive/reader';
-import type { AbilityInstance, Condition, ConditionType, Holder } from '../model/state';
-import type {
-  ConditionOptions,
-  DayActionOutcome,
-  DecideInput,
-  InterceptResult,
-  KillAttempt,
-  Registration,
-  RegistrationQuery,
-  SpecDraft,
-} from '../abilities/define';
+import type { AbilityInstance, Condition, ConditionType } from '../model/state';
+import type { ConditionOptions, DecideInput, Registration, RegistrationQuery, SpecDraft } from '../abilities/define';
 import { makesDemon, roleDef } from '../abilities/registry';
 import { subRng, type Rng } from '../util/rng';
 import { demonInfoLines } from './evil-info';
 import type { Run } from './run';
-
-export type { DayActionOutcome, InterceptResult };
 
 /** A read-only context: derived conditions, visibility and checklists run where nothing may change. */
 export class HookCtx<S> extends Reader {
@@ -38,10 +27,6 @@ export class HookCtx<S> extends Reader {
     const h = this.ability.holder;
     if (h.kind !== 'player') throw new Error('This ability has no player holder.');
     return h.id;
-  }
-
-  get holderKind(): Holder['kind'] {
-    return this.ability.holder.kind;
   }
 
   /** The value the Storyteller chose in one of this role's setup fields. */
@@ -176,15 +161,6 @@ export class AbilityCtx<S> extends HookCtx<S> {
   /** How someone died tonight, if they did. */
   deathCauseTonight = (id: PlayerId): string | null => this.run.deathCause[id] ?? null;
 
-  /** Everyone who died tonight so far, in order. */
-  get deathsTonight(): readonly PlayerId[] {
-    return this.run.deaths;
-  }
-
-  get revivedTonight(): readonly PlayerId[] {
-    return this.run.revived;
-  }
-
   rng = (key: string): Rng => this.run.rng(`${this.ability.id}:${key}`);
 
   /**
@@ -230,10 +206,6 @@ export class AbilityCtx<S> extends HookCtx<S> {
   /** Learned the moment an ability gives nothing back. */
   resultsFor(player: PlayerId) {
     return this.run.results.filter((r) => r.playerId === player);
-  }
-
-  actedTonight(player: PlayerId, ability: string): boolean {
-    return this.run.acted.has(`${player}:${ability}`);
   }
 
   /** Whether a player has woken for any of their own abilities so far tonight. */
@@ -441,11 +413,9 @@ export class AbilityCtx<S> extends HookCtx<S> {
 }
 
 export type JinxPoint =
-  'onGain' | 'beforeMalfunctionCount' | 'replaceResolve' | 'afterRevive' | 'wakesDead' | 'replacePicker';
+  'onGain' | 'beforeMalfunctionCount' | 'replaceResolve' | 'afterRevive' | 'wakes' | 'wakesDead' | 'replacePicker';
 export type JinxReply<K extends JinxPoint> = K extends 'afterRevive'
   ? PlayerId | null
   : K extends 'replacePicker'
     ? SpecDraft | null
     : boolean;
-
-export type { KillAttempt };

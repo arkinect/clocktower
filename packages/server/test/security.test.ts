@@ -4,8 +4,10 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PROTOCOL_VERSION } from '@ct/protocol';
 import { ENGINE_VERSION } from '@ct/rules';
+import { cookieHeader, SESSION_SECONDS, SESSIONS_PER_PLAYER, Sessions } from '../src/auth/sessions';
 import { assertSafe, DEFAULT_LIMITS, loadConfig, StartupRefused } from '../src/config';
 import { LiveGame } from '../src/games/manager';
+import { Store } from '../src/store/store';
 import { originAllowed } from '../src/ws/hub';
 import { BucketMap, PasswordBackoff, TokenBucket, clientIp } from '../src/limits/limits';
 import { Client, connect, dial, join, open, start, table, testConfig, tokenOf, type Harness } from './helpers/client';
@@ -74,6 +76,46 @@ describe('tokens', () => {
     expect(res.status).toBe(200);
     expect(tokenOf(again)).toBeTruthy();
     expect(tokenOf(again)).not.toBe(tokenOf(j.cookie));
+  });
+});
+
+describe('sessions', () => {
+  const life = SESSION_SECONDS * 1000;
+
+  it('one player keeps only the newest few, however often they rejoin', () => {
+    const store = new Store(':memory:');
+    const sessions = new Sessions(store, 0);
+    const tokens = Array.from({ length: SESSIONS_PER_PLAYER + 2 }, (_, i) => sessions.issue('g', 'ann', i));
+    const other = sessions.issue('g', 'bo', 0);
+    expect(store.sessions()).toHaveLength(SESSIONS_PER_PLAYER + 1);
+    expect(sessions.find(tokens[0] as string, 100)).toBeNull();
+    expect(sessions.find(tokens[1] as string, 100)).toBeNull();
+    expect(sessions.find(tokens[2] as string, 100)?.playerId).toBe('ann');
+    expect(sessions.find(tokens.at(-1) as string, 100)?.playerId).toBe('ann');
+    expect(sessions.find(other, 100)?.playerId).toBe('bo');
+    store.close();
+  });
+
+  it('end when their cookie does', () => {
+    const store = new Store(':memory:');
+    const sessions = new Sessions(store, 0);
+    const token = sessions.issue('g', 'ann', 0);
+    expect(cookieHeader(token, false)).toContain(`Max-Age=${SESSION_SECONDS}`);
+    expect(sessions.find(token, life)?.playerId).toBe('ann');
+    expect(sessions.find(token, life + 1)).toBeNull();
+    expect(store.sessions()).toEqual([]);
+    store.close();
+  });
+
+  it('are cleared out at startup once they have ended', () => {
+    const store = new Store(':memory:');
+    const before = new Sessions(store, 0);
+    before.issue('g', 'ann', 0);
+    const kept = before.issue('g', 'bo', life);
+    const after = new Sessions(store, life + 1);
+    expect(store.sessions().map((s) => s.playerId)).toEqual(['bo']);
+    expect(after.find(kept, life + 1)?.playerId).toBe('bo');
+    store.close();
   });
 });
 

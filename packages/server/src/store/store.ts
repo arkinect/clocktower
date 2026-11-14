@@ -64,6 +64,18 @@ export class Store {
     return row.n;
   }
 
+  /** Commands logged after the last one of these types: how far into its current game the log is. */
+  logLengthSince(code: string, types: readonly string[]): number {
+    const marks = types.map(() => '?').join(', ');
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM commands WHERE code = ? AND seq > COALESCE(
+           (SELECT MAX(seq) FROM commands WHERE code = ? AND json_extract(entry, '$.command.type') IN (${marks})), 0)`,
+      )
+      .get(code, code, ...types) as { n: number };
+    return row.n;
+  }
+
   /** Moves a game aside, keeping only the newest archives so the disk cannot fill. */
   archive(row: GameRow, reason: string, now: number, keep: number) {
     this.db.transaction(() => {
@@ -84,7 +96,9 @@ export class Store {
   }
 
   sessions(): SessionRow[] {
-    const rows = this.db.prepare('SELECT hash, code, player_id, created_at FROM sessions').all() as {
+    const rows = this.db
+      .prepare('SELECT hash, code, player_id, created_at FROM sessions ORDER BY created_at')
+      .all() as {
       hash: string;
       code: string;
       player_id: string;
@@ -101,6 +115,15 @@ export class Store {
 
   dropSessions(code: string, playerId: string) {
     this.db.prepare('DELETE FROM sessions WHERE code = ? AND player_id = ?').run(code, playerId);
+  }
+
+  dropSession(hash: string) {
+    this.db.prepare('DELETE FROM sessions WHERE hash = ?').run(hash);
+  }
+
+  /** Forgets every session created before this time. */
+  pruneSessions(before: number) {
+    this.db.prepare('DELETE FROM sessions WHERE created_at < ?').run(before);
   }
 
   close() {

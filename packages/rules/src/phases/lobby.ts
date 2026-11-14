@@ -3,11 +3,14 @@ import type { GameState, Player } from '../model/state';
 import { SETUP_MOMENT } from '../model/state';
 import { ALL_PHASES, defineCommand, need } from './define';
 
+/** The longest name a player may have. The server cuts a longer one down to this before it gets here. */
+export const NAME_MAX = 24;
+
 /** Control characters out, spaces collapsed; null when not a usable name. */
 export function cleanName(raw: string): string | null {
   const printable = [...raw].filter((c) => c.charCodeAt(0) >= 32 && c.charCodeAt(0) !== 127).join('');
   const n = printable.replace(/\s+/g, ' ').trim();
-  return n && n.length <= 24 ? n : null;
+  return n && n.length <= NAME_MAX ? n : null;
 }
 
 const nameTaken = (s: GameState, name: string, except?: PlayerId) =>
@@ -42,11 +45,16 @@ export const lobbyCommands = [
     phases: ALL_PHASES,
     handle(ctx, cmd) {
       const name = cleanName(cmd.name);
-      need(name, 'Enter a name of 1 to 24 characters.');
+      need(name, `Enter a name of 1 to ${NAME_MAX} characters.`);
       need(!nameTaken(ctx.s, name), 'That name is already taken. If it is you, use "I\'m already in this game".');
       need(!ctx.s.players[cmd.id], 'That player already exists.');
       ctx.s.players[cmd.id] = newPlayer(cmd.id, name, cmd.rolePreference, ctx.now);
       if (cmd.wantsStoryteller && !ctx.s.storytellerId) ctx.s.storytellerId = cmd.id;
+      // Opening setup seats everyone in the lobby. Someone who joins after that takes the next seat, as they would
+      // have then: the console has no other way to seat one player. Once the game has started, a joiner only watches.
+      if (ctx.s.phase.kind === 'setup' && ctx.s.storytellerId !== cmd.id) {
+        ctx.s.seats.push({ playerId: cmd.id, joined: SETUP_MOMENT, left: null });
+      }
       ctx.reply({ playerId: cmd.id, isStoryteller: ctx.s.storytellerId === cmd.id });
     },
   }),

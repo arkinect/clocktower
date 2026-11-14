@@ -18,9 +18,6 @@ export function registerJinx(jinx: JinxDef) {
 
 export const allJinxes = (): readonly JinxDef[] => jinxes;
 
-export const jinxBetween = (x: RoleId, y: RoleId): JinxDef | undefined =>
-  jinxes.find((j) => (j.a === x && j.b === y) || (j.a === y && j.b === x));
-
 export const defaultScript = (): RoleId[] => scripted.slice();
 
 export function roleDef(id: RoleId): RoleDef {

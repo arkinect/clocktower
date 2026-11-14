@@ -23,7 +23,7 @@
     "boundaries:selftest": "node scripts/boundary-selftest.mjs",
     "check:role-ids": "node scripts/check-role-ids.mjs",
     "test": "npm run test --workspaces --if-present",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "npm run test --workspaces --if-present -- --coverage",
     "build": "npm run build -w @ct/web && npm run build -w @ct/server"
   },
   "devDependencies": {

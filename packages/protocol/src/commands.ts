@@ -59,7 +59,6 @@ export const OpenCollecting = c('open_collecting', {});
 export const CloseCollecting = c('close_collecting', { force: z.boolean().optional() });
 export const ReopenCollecting = c('reopen_collecting', {});
 export const ExtendCountdown = c('extend_countdown', { seconds: z.number().int().min(0).max(3600) });
-export const SetCountdown = c('set_countdown', { seconds: Seconds });
 export const SubmitNight = c('submit_night', { actions: Actions });
 export const SubmitFor = c('submit_for', { playerId: PlayerId, actions: Actions });
 export const MarkNoAction = c('mark_no_action', { playerId: PlayerId });
@@ -138,7 +137,6 @@ export const Command = z.discriminatedUnion('type', [
   CloseCollecting,
   ReopenCollecting,
   ExtendCountdown,
-  SetCountdown,
   SubmitNight,
   SubmitFor,
   MarkNoAction,

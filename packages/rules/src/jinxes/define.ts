@@ -1,9 +1,8 @@
 // A jinx is one file per pair. It carries the official text, and may add behaviour at the extension points below.
 // Both roles' files stay free of each other's names: a role calls a generic extension, the jinx answers it.
-import type { Alignment, PlayerId, RoleId } from '@ct/protocol';
+import type { PlayerId, RoleId } from '@ct/protocol';
 import type { Reader } from '../derive/reader';
 import type { AbilityCtx } from '../night/context';
-import type { Instance, SetupQuery } from '../abilities/define';
 
 export interface JinxDef {
   a: RoleId;
@@ -33,8 +32,6 @@ export interface JinxHooks {
   /** Setup checklist rows. */
   checklist?(r: Reader): { id: string; label: string; done: boolean; blocking: boolean }[];
   warnings?(r: Reader): string[];
-  /** A demon-handover happened; lets a jinx refine the description. */
-  note?(q: SetupQuery): string | null;
 }
 
 export type AbilityHookPicker = (ctx: AbilityCtx<unknown>) => import('../abilities/define').SpecDraft | null;
@@ -42,9 +39,3 @@ export type AbilityHookPicker = (ctx: AbilityCtx<unknown>) => import('../abiliti
 export function defineJinx(jinx: JinxDef): JinxDef {
   return jinx;
 }
-
-export function jinxLabel(names: { a: string; b: string }): string {
-  return `Jinx (${names.a} & ${names.b})`;
-}
-
-export type { Alignment, Instance };

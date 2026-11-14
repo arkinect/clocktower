@@ -8,7 +8,7 @@ The Pandemonium Institute. They are reproduced here only so that groups who own 
 easily, and they are **not** covered by this project's MIT licence. The MIT licence applies to this project's
 own source code only.
 
-The character icons in `client/public/icons/` were taken from
+The character icons in `packages/web/public/icons/` were taken from
 [bra1n/townsquare](https://github.com/bra1n/townsquare) (clocktower.online) and resized, except `zealot.png` and
 `organ_grinder.png`, which come from
 [ThePandemoniumInstitute/botc-release](https://github.com/ThePandemoniumInstitute/botc-release) and were resized.

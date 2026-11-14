@@ -10,6 +10,7 @@ import type { Store } from '../store/store';
 
 const CODE = /^[A-Za-z0-9_-]{1,32}$/;
 
+/** Cuts an over-long name down so it is not refused outright. The rules do the real cleaning, and judge the result. */
 const cleanName = (raw: string, max: number) =>
   [...raw]
     .filter((ch) => {

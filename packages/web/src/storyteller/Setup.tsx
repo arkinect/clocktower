@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Alignment, GrimoirePlayer, RoleCard, RoleId, SetupFieldSpec, StorytellerView } from '@ct/protocol';
 import { useCommand, useGame, useNames } from '../app/store';
 import { typeName } from '../player/parts';
@@ -9,6 +9,29 @@ import styles from './console.module.css';
 const SCRIPT_TYPES = ['townsfolk', 'outsider', 'minion', 'demon', 'traveller'] as const;
 const TABLE_TYPES = ['fabled', 'loric'] as const;
 const COUNT_LABELS = ['Townsfolk', 'Outsiders', 'Minions', 'Demons'];
+/**
+ * A line under the type counts while an edit is held back. Off: it would be something new on the console. Until it is
+ * on, the only sign of a held edit is that the fields keep what was typed.
+ */
+export const SHOW_COUNTS_HINT = false;
+
+/** What that line says: how far the held counts are from the table. */
+export const countsHint = (counts: readonly number[], players: number) =>
+  `Adds up to ${counts.reduce((a, b) => a + b, 0)} of ${players}. Not saved yet.`;
+
+/** The countdown lengths the server accepts, in seconds. */
+const SECONDS = { min: 10, max: 3600 };
+
+/**
+ * Reads a seconds field as it is left. A number outside the range is brought inside it and anything else goes back
+ * to the saved value, so the field always shows what is in force. Returns null when nothing has changed.
+ */
+export function secondsOnBlur(input: HTMLInputElement, saved: number): number | null {
+  const typed = input.value.trim() === '' ? NaN : Number(input.value);
+  const next = Number.isFinite(typed) ? Math.min(SECONDS.max, Math.max(SECONDS.min, Math.round(typed))) : saved;
+  input.value = String(next);
+  return next === saved ? null : next;
+}
 
 export function Setup({ view }: { view: StorytellerView }) {
   const live = view.phase.kind !== 'lobby' && view.phase.kind !== 'setup';
@@ -341,12 +364,32 @@ function Fields({ view }: { view: StorytellerView }) {
   );
 }
 
-function TypeCounts({ view }: { view: StorytellerView }) {
+export function TypeCounts({ view }: { view: StorytellerView }) {
   const { run } = useCommand();
+  const { seated } = useSeats(view);
   const { target, actual, source } = view.setup.counts;
+  // The four counts must add up to the player count, and changing one of them never does. So edits are held here
+  // and sent once the row adds up again.
+  const [draft, setDraft] = useState<number[] | null>(null);
+  const shown = draft ?? target;
+  // The draft goes once the game shows the same counts, so the fields never flick back to the old ones in between.
+  const saved = draft !== null && draft.every((x, i) => x === target[i]);
+  useEffect(() => {
+    if (saved) setDraft(null);
+  }, [saved]);
+  // A held edit was built towards the old player count. Once that changes it can never add up, so it goes.
+  const players = seated.length;
+  useEffect(() => setDraft(null), [players]);
+  const held = draft !== null && !saved && draft.reduce((a, b) => a + b, 0) !== players;
   const set = (i: number, n: number) => {
-    const counts = target.map((x, j) => (j === i ? n : x));
-    void run({ type: 'set_type_counts', counts });
+    const counts = shown.map((x, j) => (j === i ? n : x));
+    setDraft(counts);
+    // Back to what is already in force: there is nothing to send.
+    if (counts.every((x, j) => x === target[j])) return;
+    if (counts.reduce((a, b) => a + b, 0) !== players) return;
+    void run({ type: 'set_type_counts', counts }).then((ack) => {
+      if (!ack.ok) setDraft(null);
+    });
   };
   return (
     <Section title="Character types">
@@ -360,14 +403,22 @@ function TypeCounts({ view }: { view: StorytellerView }) {
               type="number"
               min={0}
               max={40}
-              value={target[i] ?? 0}
+              aria-invalid={draft !== null && !saved ? true : undefined}
+              value={shown[i] ?? 0}
               onChange={(e) => set(i, Number(e.target.value))}
             />
           </label>
         ))}
       </div>
+      {SHOW_COUNTS_HINT && held && <p className="muted small">{countsHint(shown, players)}</p>}
       {source === 'override' && (
-        <Button tiny onClick={() => void run({ type: 'set_type_counts', counts: null })}>
+        <Button
+          tiny
+          onClick={() => {
+            setDraft(null);
+            void run({ type: 'set_type_counts', counts: null });
+          }}
+        >
           Back to the default
         </Button>
       )}
@@ -375,9 +426,19 @@ function TypeCounts({ view }: { view: StorytellerView }) {
   );
 }
 
-function Settings({ view }: { view: StorytellerView }) {
+export function Settings({ view }: { view: StorytellerView }) {
   const { run } = useCommand();
   const s = view.settings;
+  const seconds = (field: 'countdownSeconds' | 'followUpExtensionSeconds') => ({
+    type: 'number' as const,
+    min: SECONDS.min,
+    max: SECONDS.max,
+    defaultValue: s[field],
+    onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+      const next = secondsOnBlur(e.target, s[field]);
+      if (next !== null) void run({ type: 'set_settings', [field]: next });
+    },
+  });
   return (
     <Section title="Settings">
       <div className={styles['field']}>
@@ -405,23 +466,11 @@ function Settings({ view }: { view: StorytellerView }) {
       </div>
       <label className={styles['inline']}>
         <span>Night countdown in seconds</span>
-        <input
-          key={s.countdownSeconds}
-          type="number"
-          min={0}
-          defaultValue={s.countdownSeconds}
-          onBlur={(e) => void run({ type: 'set_settings', countdownSeconds: Number(e.target.value) })}
-        />
+        <input key={s.countdownSeconds} {...seconds('countdownSeconds')} />
       </label>
       <label className={styles['inline']}>
         <span>Extra seconds for a follow-up question</span>
-        <input
-          key={s.followUpExtensionSeconds}
-          type="number"
-          min={0}
-          defaultValue={s.followUpExtensionSeconds}
-          onBlur={(e) => void run({ type: 'set_settings', followUpExtensionSeconds: Number(e.target.value) })}
-        />
+        <input key={s.followUpExtensionSeconds} {...seconds('followUpExtensionSeconds')} />
       </label>
       <label className={styles['check']}>
         <input
