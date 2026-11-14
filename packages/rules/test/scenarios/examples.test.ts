@@ -94,17 +94,19 @@ describe('information', () => {
     expect(result(s, 'bo')).toBeUndefined();
   });
 
-  it('a Balloonist only ever shows a name, and a new type each night', () => {
+  it('a Balloonist only ever shows a name, and never the same type two nights running', () => {
     const chars = { ann: 'balloonist', bo: 'empath', cy: 'butler', di: 'imp', ed: 'poisoner' };
     const s = scene(chars).start();
-    const seen = new Set<string>();
-    for (let n = 0; n < 4; n++) {
+    const types: string[] = [];
+    for (let n = 0; n < 6; n++) {
       const line = s.truth('ann')[0] as string;
       expect(line).not.toMatch(/\(/);
-      seen.add(s.g.player(as(/\b(bo|cy|di|ed|ann)\b/.exec(line)?.[0] ?? 'ann')).character as string);
+      const shown = as(/\b(bo|cy|di|ed)\b/.exec(line)?.[0] ?? 'ann');
+      // One player of each type here, so the character stands for the type.
+      types.push(s.g.player(shown).character as string);
       s.nextNight();
     }
-    expect(seen.size).toBe(4);
+    expect(types.every((t, i) => !!t && t !== types[i - 1])).toBe(true);
   });
 
   it('a Mathematician hears the count, and the Storyteller can add to it', () => {

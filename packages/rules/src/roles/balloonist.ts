@@ -4,17 +4,17 @@ import { defineRole } from '../abilities/define';
 const BALLOONIST = roleId('balloonist');
 
 interface State {
-  shown: string[];
+  /** The character type of the player shown last night, true or not: tonight's has to differ from it. */
+  last: string | null;
 }
 
 export const balloonist = defineRole<State>({
   id: BALLOONIST,
   name: 'Balloonist',
   type: 'townsfolk',
-  abilityText:
-    'Each night, you learn 1 player of each character type, until there are no more types to learn. [+0 or +1 Outsider]',
+  abilityText: 'Each night, you learn a player of a different character type than last night. [+0 or +1 Outsider]',
   night: { first: 170, other: 350 },
-  initialState: () => ({ shown: [] }),
+  initialState: () => ({ last: null }),
   // Not `late`, so the Godfather's "is there an Outsider to remove" check sees this choice.
   setupRules: {
     counts(c, q) {
@@ -51,32 +51,34 @@ export const balloonist = defineRole<State>({
       const typeOf = (id: PlayerId) => (ctx.isDemon(id) ? 'demon' : (ctx.typeOf(id) ?? ''));
       const others = ctx.seated.filter((x) => x !== ctx.holder);
       if (!others.length) return;
-      const shown = ctx.state.shown;
+      const last = ctx.state.last ?? null;
       const labelled = (ids: PlayerId[]) => ids.map((x) => ({ id: x, label: `${ctx.name(x)} (${typeOf(x)})` }));
       if (ctx.impaired) {
         const pick = ctx.decide({
           key: { kind: 'balloonist' },
           title: `Balloonist ${ctx.name(ctx.holder)} (impaired): show which player?`,
-          description: 'Any player may be shown.',
+          description: '',
           options: labelled(others),
           default: ctx.rng('pick').pick(others),
         });
+        ctx.setState({ last: typeOf(pick) });
         ctx.inform({ truth: ['(impaired, no true information)'], falseLines: [ctx.name(pick)] });
         return;
       }
-      const candidates = others.filter((x) => !shown.includes(typeOf(x)));
+      const candidates = others.filter((x) => typeOf(x) !== last);
       if (!candidates.length) {
-        ctx.inform({ truth: ['You learn nothing new.'] });
+        ctx.setState({ last: null });
+        ctx.inform({ truth: ['There is no player of a different character type to show.'] });
         return;
       }
       const pick = ctx.decide({
         key: { kind: 'balloonist' },
         title: `Balloonist ${ctx.name(ctx.holder)}: show which player?`,
-        description: `Types already shown: ${shown.join(', ') || 'none'}.`,
+        description: '',
         options: labelled(candidates),
         default: ctx.rng('pick').pick(candidates),
       });
-      ctx.setState({ shown: [...shown, typeOf(pick)] });
+      ctx.setState({ last: typeOf(pick) });
       ctx.inform({ truth: [ctx.name(pick)] });
     },
   },

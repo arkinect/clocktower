@@ -62,9 +62,7 @@ function SeatToken({ p, i, n, onOpen }: { p: GrimoirePlayer; i: number; n: numbe
       title={facts.join(', ')}
       onClick={onOpen}
     >
-      <span className={p.alive ? styles['tokenName'] : `${styles['tokenName']} ${styles['dead']}`}>
-        {i + 1} {p.name}
-      </span>
+      <span className={p.alive ? styles['tokenName'] : `${styles['tokenName']} ${styles['dead']}`}>{p.name}</span>
       <span className={`${styles['tokenLine']} type-${typeOf(p.character) ?? ''}`}>{character}</span>
       {believes && <span className={`${styles['tokenLine']} muted`}>thinks {believes}</span>}
       {tags.length > 0 && <span className={`${styles['tokenLine']} ${styles['warn']}`}>{tags.join(', ')}</span>}
