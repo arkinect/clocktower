@@ -166,7 +166,6 @@ export const ReviewItem = z.object({
   options: z.array(z.object({ id: z.string(), label: z.string() })),
   default: z.string(),
   chosen: z.string().nullable(),
-  stale: z.boolean(),
   /** Publish dawn waits for an answer (or force). The default is never taken for it. */
   required: z.boolean(),
 });

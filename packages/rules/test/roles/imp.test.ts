@@ -31,6 +31,19 @@ describe('Imp', () => {
     expect(s.character('bo')).toBe('imp');
     expect(s.alignment('bo')).toBe('evil');
   });
+  it('a starpass pick is dropped when the Imp chooses someone else after all', () => {
+    const s = scene(cast)
+      .start()
+      .nextNight()
+      .submit({ ann: ['ann'] })
+      .decide('starpass', 'bo');
+    s.g.st({ type: 'reopen_collecting' });
+    s.submit({ ann: ['cy'] }).review();
+    expect(s.res.decisions).toEqual([]);
+    s.g.st({ type: 'publish_dawn' });
+    expect(s.character('bo')).not.toBe('imp');
+    expect(s.alive('cy')).toBe(false);
+  });
   it('no kill when poisoned', () => {
     const s = scene({ ...cast, bo: 'poisoner' })
       .start()

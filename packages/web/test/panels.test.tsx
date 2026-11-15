@@ -732,7 +732,6 @@ describe('the Review tab', () => {
       ],
       default: 'no',
       chosen: null,
-      stale: false,
       required: true,
       ...over,
     });
@@ -773,20 +772,19 @@ describe('the Review tab', () => {
     }) as StorytellerView;
   const topCard = () => screen.getByText('Not recorded during the day.', { selector: 'b' }).closest('p')?.parentElement;
 
-  it('keeps an answered required decision in the top card, with no Decisions section or Accept all defaults', () => {
+  it('keeps an answered required decision in the top card, with no Decisions section', () => {
     render(<Review view={reviewView([decision({ chosen: 'yes' })])} />);
     expect(within(topCard() as HTMLElement).getByRole('heading', { name: /Flowergirl/ })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Decisions' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Accept all defaults' })).toBeNull();
   });
 
-  it('offers Accept all defaults only while an optional decision is undecided', () => {
-    const optional = decision({ hash: 'h2', title: 'Imp: who dies?', required: false });
-    const { rerender } = render(<Review view={reviewView([optional])} />);
-    expect(screen.getByRole('button', { name: 'Accept all defaults' })).toBeTruthy();
-    rerender(<Review view={reviewView([{ ...optional, chosen: 'yes' }])} />);
-    expect(screen.getByRole('heading', { name: 'Decisions' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Accept all defaults' })).toBeNull();
+  it('lists an optional decision under Decisions with only its dropdown', () => {
+    render(
+      <Review view={reviewView([decision({ hash: 'h2', title: 'Imp: who dies?', required: false, chosen: 'yes' })])} />,
+    );
+    const section = screen.getByRole('heading', { name: 'Decisions' }).parentElement as HTMLElement;
+    expect(within(section).getByRole('combobox', { name: 'Imp: who dies?' })).toBeTruthy();
+    expect(within(section).queryByRole('button')).toBeNull();
   });
 
   it('lists an impaired result only when there is a false answer to choose, or one you wrote', () => {

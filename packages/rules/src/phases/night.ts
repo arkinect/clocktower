@@ -193,7 +193,7 @@ export const nightCommands = [
       // Records the defaults the current resolution asks. A later choice re-runs the night as usual.
       for (const d of resolveNight(ctx.base).decisions) {
         // A required decision is a fact the day didn't record: only the Storyteller can answer it.
-        if (d.chosen === null && !d.stale && !d.required) {
+        if (d.chosen === null && !d.required) {
           ctx.phase.decisions[d.hash] = { key: d.key, option: d.default };
         }
       }
@@ -265,7 +265,7 @@ export const nightCommands = [
         !res.questions.some((q) => !q.answered) || cmd.force,
         'Waiting for an answer to a follow-up question. Answer for them or force.',
       );
-      const missing = res.decisions.find((d) => d.required && d.chosen === null && !d.stale);
+      const missing = res.decisions.find((d) => d.required && d.chosen === null);
       need(!missing || cmd.force, `Waiting for a decision: ${missing?.title ?? ''} Answer it or force.`);
       publish(ctx.s, res, ctx.phase.n, ctx.seed, ctx.now);
     },

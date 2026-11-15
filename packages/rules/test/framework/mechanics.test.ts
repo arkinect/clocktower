@@ -723,19 +723,18 @@ describe('mechanics', () => {
 });
 
 describe('decisions', () => {
-  it('a changed earlier decision leaves later ones attached, and flags the stale one', () => {
+  it('a changed earlier decision leaves later ones attached, and drops the one no longer asked', () => {
     const s = scene({ a: EARLY, ...five })
       .start()
       .review();
     s.decide('later', 'b').decide('only_a', 'b').decide('first', 'b');
     const by = (k: string) => s.g.grimoire().review?.decisions.find((d) => d.key.kind === k);
     expect(by('later')?.chosen).toBe('b');
-    expect(by('later')?.stale).toBe(false);
-    expect(by('only_a')?.stale).toBe(true);
+    expect(by('only_a')).toBeUndefined();
     expect(s.truth('a')).toEqual(['b b']);
+    // Asked again, it comes back with the answer saved for it.
     s.decide('first', 'a');
     expect(by('only_a')?.chosen).toBe('b');
-    expect(by('only_a')?.stale).toBe(false);
   });
 
   it('night resolution is deterministic', () => {
