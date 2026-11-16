@@ -1,22 +1,35 @@
 import { roleId, type PlayerId, type RoleId } from '@ct/protocol';
-import { defineRole } from '../abilities/define';
+import { defineRole, type Instance } from '../abilities/define';
 import type { AbilityCtx } from '../night/context';
 
-interface Guess {
-  player: PlayerId;
-  role: RoleId;
-}
-
 interface State {
-  /** The guesses made on their 1st day. */
-  guesses?: Guess[] | null;
-  /** A count entered by hand, from games saved before the guesses were recorded. */
-  correct: number | null;
+  /** Whether they guessed publicly on their 1st day, as the Storyteller recorded it. Null: not recorded. */
+  juggled: boolean | null;
 }
 
-/** Today's guesses, which belong to every holder of the ability (the Cannibal's jinx). */
-const guessesOf = (ctx: AbilityCtx<State>) => ctx.peers.find((a) => a.state.guesses?.length)?.state.guesses ?? null;
-const countOf = (ctx: AbilityCtx<State>) => ctx.peers.find((a) => a.state.correct !== null)?.state.correct ?? null;
+/** Today's answer, which belongs to every holder of the ability (the Cannibal's jinx). */
+const juggled = (ctx: AbilityCtx<State>) => ctx.peers.some((a) => a.state.juggled);
+
+/** The Juggler themself, or a Drunk who thinks they are one: the Cannibal's copy is hidden from its holder. */
+const ownsIt = (a: Instance) => a.shownAs === a.roleId;
+
+/**
+ * The guesses the Juggler entered tonight, as player and character pairs. A Cannibal's hidden copy reads the executed
+ * Juggler's (the jinx).
+ */
+function guessesOf(ctx: AbilityCtx<State>): { player: PlayerId; role: RoleId }[] {
+  const values = ctx.choice.length
+    ? ctx.choice
+    : (ctx.peers
+        .filter(ownsIt)
+        .map((a) => ctx.choiceOf(a))
+        .find((c) => c.length) ?? []);
+  const out: { player: PlayerId; role: RoleId }[] = [];
+  for (let i = 0; i + 1 < values.length; i += 2) {
+    out.push({ player: values[i] as PlayerId, role: values[i + 1] as RoleId });
+  }
+  return out;
+}
 
 export const juggler = defineRole<State>({
   id: roleId('juggler'),
@@ -24,49 +37,68 @@ export const juggler = defineRole<State>({
   type: 'townsfolk',
   abilityText:
     "On your 1st day, publicly guess up to 5 players' characters. That night, you learn how many you got correct.",
-  reminder: 'Record the guesses on the Day tab. Tonight works out how many were right, and Review lets you change it.',
-  night: { other: 340, note: 'Night 1 only' },
-  initialState: () => ({ guesses: null, correct: null }),
+  reminder:
+    'On the Day tab, record whether they guessed publicly. If they did, that night they enter their own guesses and learn how many were right.',
+  night: { other: 340, note: 'Night 1 only, if they guessed publicly' },
+  initialState: () => ({ juggled: null }),
   ability: {
-    // A hidden copy has something to learn only if guesses were recorded (the Cannibal's jinx).
-    wakes: (ctx) =>
-      ctx.n === 1 && (!!guessesOf(ctx) || countOf(ctx) !== null || ctx.ability.shownAs === ctx.ability.roleId),
+    wakes: (ctx) => ctx.n === 1 && juggled(ctx),
+    // Executed on their 1st day and eaten by the Cannibal: the dead Juggler still enters the guesses, for the jinx.
+    wakesDead: (ctx) =>
+      ctx.n === 1 &&
+      ownsIt(ctx.ability) &&
+      ctx.peers.some(
+        (a) => !ownsIt(a) && a.activeUntil !== 'removed' && a.holder.kind === 'player' && ctx.isAlive(a.holder.id),
+      ),
+    picker(ctx) {
+      if (!ownsIt(ctx.ability)) return null;
+      const roles = (['townsfolk', 'outsider', 'minion', 'demon'] as const).flatMap((t) => ctx.charactersOfType(t));
+      return {
+        prompt: 'Enter the guesses you made today: up to 5 players, and the character you guessed for each.',
+        maxRows: 5,
+        distinct: true,
+        fields: [
+          { kind: 'player', label: 'Player', options: ctx.seated },
+          { kind: 'role', label: 'Character', options: roles },
+        ],
+      };
+    },
     dayActions(ctx) {
       if (ctx.n !== 1 || !ctx.firstPeer) return [];
-      const guesses = guessesOf(ctx);
-      const roles = (['townsfolk', 'outsider', 'minion', 'demon'] as const).flatMap((t) => ctx.charactersOfType(t));
+      const recorded = ctx.peers.find((a) => a.state.juggled != null)?.state.juggled;
       return [
         {
-          action: 'guesses',
+          action: 'juggled',
           title: `Juggler (${ctx.name(ctx.holder)})`,
-          prompt: 'Which character did they guess for each player?',
+          prompt: 'Did they guess characters publicly today?',
           preview: false,
           order: 20,
-          neededTonight: true,
-          control: 'rows',
-          maxRows: 5,
-          recorded: guesses ? guesses.flatMap((g) => [g.player, g.role]) : null,
-          fields: [
-            { kind: 'player', label: 'Player', options: ctx.seated },
-            { kind: 'role', label: 'Character', options: roles },
-          ],
+          control: 'toggle',
+          // Off unless changed: dusk records it, and a Juggler who did not guess is not asked tonight.
+          recorded: recorded == null ? null : [recorded ? 'yes' : 'no'],
+          default: ['no'],
+          fields: [{ kind: 'option', label: 'Guessed', options: ['no', 'yes'], labels: { yes: 'Yes', no: 'No' } }],
         },
       ];
     },
     applyDayAction(ctx, _action, values) {
-      const guesses: Guess[] = [];
-      for (let i = 0; i + 1 < values.length; i += 2) {
-        guesses.push({ player: values[i] as PlayerId, role: values[i + 1] as RoleId });
-      }
-      ctx.setState({ guesses: guesses.length ? guesses : null, correct: null });
-      return { summary: `Recorded ${guesses.length} guess${guesses.length === 1 ? '' : 'es'}.`, effective: true };
+      const value = values[0] === 'yes';
+      ctx.setState({ juggled: value });
+      return {
+        summary: value
+          ? 'Recorded: they guessed publicly. Tonight they enter their guesses.'
+          : 'Recorded: they did not guess publicly.',
+        effective: true,
+      };
     },
     resolve(ctx) {
+      if (!ctx.canAct) {
+        ctx.outcome('dead: the guesses are for the Cannibal');
+        return;
+      }
       const guesses = guessesOf(ctx);
       // How each guessed player registers to the Juggler tonight: a Recluse or a Spy may count either way.
-      const truth = guesses
-        ? guesses.filter((g) => ctx.registers(g.player, 'character').character === g.role).length
-        : (countOf(ctx) ?? 0);
+      const truth = guesses.filter((g) => ctx.registers(g.player, 'character').character === g.role).length;
       ctx.informNumber(truth, 0, 5, (n) => [`You guessed ${n} correctly.`]);
     },
   },

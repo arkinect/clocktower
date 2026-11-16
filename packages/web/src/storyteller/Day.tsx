@@ -454,7 +454,10 @@ function ToggleEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpe
 const chunk = (values: string[], width: number) =>
   Array.from({ length: Math.floor(values.length / width) }, (_, i) => values.slice(i * width, i * width + width));
 
-/** Up to `maxRows` rows of one value per field (the Juggler's guesses). The last row is new: Add records it. */
+/**
+ * Up to `maxRows` rows of one value per field. The last row is new: Add records it. No role uses it now (the Juggler
+ * enters their own guesses at night), but it stays for one that will.
+ */
 function RowsEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpec }) {
   const names = useNames();
   const { dead } = useSeats(view);

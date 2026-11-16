@@ -321,6 +321,7 @@ export class Run {
       distinct: !!draft.distinct,
       allowDecline,
       ...(draft.declineLabel || stuck ? { declineLabel: draft.declineLabel ?? 'No legal choice' } : {}),
+      ...(draft.maxRows && draft.maxRows > 1 ? { maxRows: draft.maxRows } : {}),
     };
   }
 

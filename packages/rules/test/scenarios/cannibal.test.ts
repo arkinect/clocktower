@@ -212,13 +212,23 @@ describe('Cannibal jinxes, as they reach the phone', () => {
 
   it('Jinx (Cannibal & Juggler): a Juggler executed on a later day gives the Cannibal nothing', () => {
     const s = day1({ ...cast, di: 'juggler' });
-    s.act('juggler', 'guesses', ['di', 'juggler']);
-    s.dusk().dawn().execute('di').dusk();
+    s.act('juggler', 'juggled', ['yes']);
+    s.dusk()
+      .submit({ di: ['di', 'juggler'] })
+      .dawn()
+      .execute('di')
+      .dusk();
+    expect(s.specs('di')).toEqual([]);
     expect(s.truth('ann')).toEqual([]);
   });
 
-  it('Jinx (Cannibal & Juggler): the real Juggler still wakes with no guesses recorded', () => {
-    const s = day1({ ...cast, di: 'juggler' }).dusk();
+  it('Jinx (Cannibal & Juggler): the real Juggler is asked for the guesses, and the Cannibal is not', () => {
+    const s = day1({ ...cast, di: 'juggler' });
+    s.act('juggler', 'juggled', ['yes']);
+    s.dusk();
+    expect(s.specs('di').map((x) => x.roleId)).toEqual(['juggler']);
+    expect(s.specs('ann').map((x) => x.roleId)).not.toContain('juggler');
+    s.submit({ di: ['di', 'juggler'] });
     expect(s.res.results.some((r) => r.playerId === 'di' && r.roleId === 'juggler')).toBe(true);
   });
 });

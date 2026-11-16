@@ -93,6 +93,38 @@ describe('the picker', () => {
     render(<Harness s={spec({})} spy={vi.fn()} />);
     expect(screen.queryByRole('checkbox')).toBeNull();
   });
+
+  describe('rows', () => {
+    const player = { ...players, label: 'Player' };
+    const role = { ...roles, label: 'Character' };
+    const rows = spec({ fields: [player, role], maxRows: 2, distinct: true });
+
+    it('a new row appears once the last is filled in, up to maxRows', async () => {
+      const spy = vi.fn();
+      render(<Harness s={rows} spy={spy} />);
+      expect(screen.queryByLabelText('Player 2')).toBeNull();
+      await userEvent.selectOptions(screen.getByLabelText('Player 1'), 'a');
+      expect(spy).toHaveBeenLastCalledWith({ k: { values: ['a', ''] } });
+      expect(screen.queryByLabelText('Player 2')).toBeNull();
+      await userEvent.selectOptions(screen.getByLabelText('Character 1'), 'imp');
+      await userEvent.selectOptions(screen.getByLabelText('Player 2'), 'b');
+      await userEvent.selectOptions(screen.getByLabelText('Character 2'), 'monk');
+      expect(spy).toHaveBeenLastCalledWith({ k: { values: ['a', 'imp', 'b', 'monk'] } });
+      expect(screen.queryByLabelText('Player 3')).toBeNull();
+    });
+
+    it('a player in another row is greyed out, and Remove takes a row away', async () => {
+      const spy = vi.fn();
+      render(<Harness s={rows} spy={spy} />);
+      await userEvent.selectOptions(screen.getByLabelText('Player 1'), 'a');
+      await userEvent.selectOptions(screen.getByLabelText('Character 1'), 'imp');
+      const taken = screen.getByLabelText('Player 2').querySelector('option[value="a"]') as HTMLOptionElement;
+      expect(taken.disabled).toBe(true);
+      await userEvent.click(screen.getByRole('button', { name: 'Remove' }));
+      expect(spy).toHaveBeenLastCalledWith({ k: { values: [] } });
+      expect(screen.getByLabelText('Player 1')).toBeTruthy();
+    });
+  });
 });
 
 describe('choiceComplete', () => {
@@ -111,6 +143,17 @@ describe('choiceComplete', () => {
     expect(choiceComplete({ ...dup, distinct: false }, { values: ['a', 'a'] })).toBe(true);
     expect(choiceComplete(dup, { values: [], decline: true })).toBe(false);
     expect(choiceComplete({ ...dup, allowDecline: true }, { values: [], decline: true })).toBe(true);
+  });
+
+  it('rows: one to maxRows whole rows, with distinct players across them', () => {
+    const rows = spec({ fields: [players, roles], maxRows: 2, distinct: true });
+    expect(choiceComplete(rows, { values: [] })).toBe(false);
+    expect(choiceComplete(rows, { values: ['a'] })).toBe(false);
+    expect(choiceComplete(rows, { values: ['a', ''] })).toBe(false);
+    expect(choiceComplete(rows, { values: ['a', 'imp'] })).toBe(true);
+    expect(choiceComplete(rows, { values: ['a', 'imp', 'b', 'imp'] })).toBe(true);
+    expect(choiceComplete(rows, { values: ['a', 'imp', 'a', 'monk'] })).toBe(false);
+    expect(choiceComplete(rows, { values: ['a', 'imp', 'b', 'imp', 'c', 'imp'] })).toBe(false);
   });
 
   it('falls back to ids for unknown options', () => {

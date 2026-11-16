@@ -74,16 +74,16 @@ test('the Day tab with every day event', async ({ page }) => {
   await st.waitFor((v) => v.phase.kind === 'day');
 
   // Day 1: the Moonchild has died (so they choose today), and the Witch is set to be executed (so the Cannibal eats
-  // an evil player). One Juggler guess is recorded to show a filled row.
+  // an evil player). The Juggler is recorded as having guessed publicly.
   await st.do({ type: 'mark_alive', playerId: st.player('Kai') as never, alive: false });
   await st.do({ type: 'record_execution', playerId: st.player('Gus') as never, died: true });
   const juggler = await st.waitFor((v) => v.dayActions.some((d) => d.roleId === 'juggler'));
-  const guesses = juggler.dayActions.find((d) => d.roleId === 'juggler');
+  const juggled = juggler.dayActions.find((d) => d.roleId === 'juggler');
   await st.do({
     type: 'day_action',
-    abilityId: guesses?.abilityId as never,
-    action: 'guesses',
-    values: [st.player('Ned'), st.role('imp')],
+    abilityId: juggled?.abilityId as never,
+    action: 'juggled',
+    values: ['yes'],
     mode: 'accept',
   });
   await st.waitFor((v) => v.dayActions.length >= 12);

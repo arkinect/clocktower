@@ -54,14 +54,22 @@ export function expectedActors(state: GameState): PlayerId[] {
 export function validateChoice(spec: ActionSpec, choice: Choice | undefined): string | null {
   if (!choice) return `${spec.title}: make a choice before submitting.`;
   if (choice.decline) return spec.allowDecline ? null : `${spec.title}: you must choose.`;
-  if (choice.values.length !== spec.fields.length) return `${spec.title}: choose ${spec.fields.length} option(s).`;
-  for (const [i, field] of spec.fields.entries()) {
-    if (!field.options.includes(choice.values[i] as string)) {
-      return `${spec.title}: "${field.label}" is not a legal choice.`;
-    }
+  const width = spec.fields.length;
+  if (spec.maxRows) {
+    if (!choice.values.length) return `${spec.title}: fill in at least one row.`;
+    if (choice.values.length % width !== 0) return `${spec.title}: fill in every part of each row.`;
+    if (choice.values.length / width > spec.maxRows) return `${spec.title}: at most ${spec.maxRows} rows.`;
+  } else if (choice.values.length !== width) {
+    return `${spec.title}: choose ${width} option(s).`;
+  }
+  // A row's fields repeat for each row.
+  const fieldAt = (i: number) => spec.fields[i % width];
+  for (const [i, value] of choice.values.entries()) {
+    const field = fieldAt(i);
+    if (!field?.options.includes(value)) return `${spec.title}: "${field?.label}" is not a legal choice.`;
   }
   if (spec.distinct) {
-    const picked = choice.values.filter((_, i) => spec.fields[i]?.kind === 'player');
+    const picked = choice.values.filter((_, i) => fieldAt(i)?.kind === 'player');
     if (new Set(picked).size !== picked.length) return `${spec.title}: choose different players.`;
   }
   return null;

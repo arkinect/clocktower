@@ -111,7 +111,12 @@ export class AbilityCtx<S> extends HookCtx<S> {
 
   /** The submitted choice: empty when there was none or it was declined. */
   get choice(): string[] {
-    const c = this.run.choiceOf(this.ability);
+    return this.choiceOf(this.ability);
+  }
+
+  /** Any instance's submitted choice tonight (a peer's, for a fact the role shares): empty when none or declined. */
+  choiceOf(a: AbilityInstance<unknown>): string[] {
+    const c = this.run.choiceOf(a);
     return c && !c.decline ? c.values : [];
   }
 

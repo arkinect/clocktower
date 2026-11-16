@@ -96,7 +96,7 @@ export const SetNotes = c('set_notes', { text: z.string().max(2000) });
 export const DayAction = c('day_action', {
   abilityId: AbilityId,
   action: z.string().min(1).max(64),
-  // Up to 16: rows (the Juggler's five guesses) send every row's values in one list.
+  // Up to 16: rows send every row's values in one list.
   values: z.array(z.string().min(1).max(64)).max(16),
   mode: z.enum(['preview', 'accept', 'force_success', 'force_fail']),
   decisions: Decisions.optional(),

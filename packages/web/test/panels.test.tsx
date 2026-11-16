@@ -550,8 +550,9 @@ describe('the Day tab', () => {
   });
 
   it('rows: Add records a complete new row with the others, and one can be removed', async () => {
-    const juggler = spec({
-      title: 'Juggler (Ann)',
+    // No role uses rows on the Day tab now (the Juggler enters their own guesses at night); the control stays.
+    const guesser = spec({
+      title: 'Guesser (Ann)',
       action: 'guesses',
       control: 'rows',
       maxRows: 5,
@@ -561,7 +562,7 @@ describe('the Day tab', () => {
         { kind: 'role', label: 'Character', options: ['empath', 'beggar'] },
       ],
     });
-    render(<Day view={dayView({ dayActions: [juggler] })} />);
+    render(<Day view={dayView({ dayActions: [guesser] })} />);
     expect((screen.getByLabelText('Player 1') as HTMLSelectElement).value).toBe('a');
     await userEvent.selectOptions(screen.getByLabelText('Player 2'), 'b');
     expect(run).not.toHaveBeenCalled();

@@ -75,14 +75,14 @@ export class Scene {
     return p;
   }
 
-  /** Night actions by player id. A list answers their first picker, [] declines it. */
+  /** Night actions by player id. A list answers their first picker, [] declines it. A rows picker takes every row. */
   submit(picks: Record<string, Pick>) {
     for (const [id, pick] of Object.entries(picks)) {
       const specs = this.g.view(id as PlayerId).me.actions;
       const actions: Record<string, Choice> = {};
       const choose = (spec: (typeof specs)[number], values: string[]): Choice =>
         values.length
-          ? { values: spec.fields.map((_, i) => toRoleIfNeeded(values[i] as string)) }
+          ? { values: (spec.maxRows ? values : spec.fields.map((_, i) => values[i] as string)).map(toRoleIfNeeded) }
           : { decline: true, values: [] };
       if (Array.isArray(pick)) {
         const spec = specs[0];

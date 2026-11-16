@@ -62,6 +62,15 @@ other than the Cannibal, as a believed-only ability: they wake as it and get fal
 set to be executed, the Day tab asks which one, with a random one preselected; dusk uses whatever is selected. What
 a Cannibal ate cannot be changed afterwards. Test: `scenarios/cannibal.test.ts`.
 
+## The Juggler enters their own guesses
+
+On their 1st day the Day tab asks only whether the Juggler guessed publicly (No unless changed). If they did, that
+night they enter their guesses on their phone (1 to 5 players, each with a character) and are waited for like any
+other picker. The app trusts that what they enter matches what they said at the table. If they did not guess, they
+are not asked and do not wake. A Juggler executed that day and eaten by the Cannibal still enters the guesses, though
+dead, and learns nothing: the Cannibal learns the count (the jinx). The Storyteller can change the guesses on the
+Review tab like any other night choice. Tests: `roles/juggler.test.ts`, `roles/jinxes.test.ts`.
+
 ## Protection from execution
 
 An execution goes through the same protection as any other kill. A player the Devil's Advocate chose last night, a

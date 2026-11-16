@@ -8,6 +8,7 @@ import { ENGINE_VERSION, GameState } from '../../src';
 const SHAPES: Record<number, string> = {
   1: 'c504111005337482',
   2: '249a23b56f34e5f8',
+  3: '9c34db79e1e4149d',
 };
 
 describe('the saved game shape', () => {

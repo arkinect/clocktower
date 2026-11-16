@@ -62,14 +62,7 @@ export function dayActionsOf(run: Run, a: Instance) {
 export function dayValuesError(spec: ActionSpec, draft: DayActionDraft, values: string[]): string | null {
   if (!values.length && (draft.clearable || draft.control === 'rows')) return null;
   if (draft.control !== 'rows') return validateChoice(spec, { values });
-  const width = spec.fields.length;
-  if (values.length % width !== 0) return `${spec.title}: fill in every part of each row.`;
-  if (values.length / width > (draft.maxRows ?? 1)) return `${spec.title}: at most ${draft.maxRows ?? 1} rows.`;
-  for (let i = 0; i < values.length; i += width) {
-    const error = validateChoice(spec, { values: values.slice(i, i + width) });
-    if (error) return error;
-  }
-  return null;
+  return validateChoice({ ...spec, maxRows: draft.maxRows ?? 1 }, { values });
 }
 
 /** At dusk, what the Day tab showed by default (the Flowergirl's "No") is recorded wherever nothing else was. */
