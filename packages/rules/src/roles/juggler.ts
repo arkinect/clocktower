@@ -42,6 +42,7 @@ export const juggler = defineRole<State>({
           prompt: 'Which character did they guess for each player?',
           preview: false,
           order: 20,
+          neededTonight: true,
           control: 'rows',
           maxRows: 5,
           recorded: guesses ? guesses.flatMap((g) => [g.player, g.role]) : null,

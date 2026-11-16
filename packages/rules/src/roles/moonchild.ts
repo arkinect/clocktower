@@ -60,6 +60,7 @@ export const moonchild = defineRole<State>({
           prompt: 'Who did they publicly choose?',
           preview: false,
           // First thing in the day: they choose when they learn they died. "No one" unless changed: dusk records it.
+          neededTonight: true,
           order: 5,
           default: [NO_ONE],
           recorded: today ? [today.player ?? NO_ONE] : null,

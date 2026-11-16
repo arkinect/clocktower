@@ -262,21 +262,28 @@ function EventFrame({ spec, children }: { spec: DayActionSpec; children: ReactNo
   );
 }
 
+/**
+ * By day, a day action. The Review tab draws the facts tonight reads with these same controls, and there the fact is
+ * recorded again.
+ */
 const sendDay = (
   run: ReturnType<typeof useCommand>['run'],
+  view: StorytellerView,
   spec: DayActionSpec,
   values: string[],
   mode: 'preview' | 'accept' | 'force_success' | 'force_fail' = 'accept',
   decisions: Decisions = [],
 ) =>
-  run({
-    type: 'day_action',
-    abilityId: spec.abilityId,
-    action: spec.action,
-    values,
-    mode,
-    ...(decisions.length ? { decisions } : {}),
-  });
+  view.phase.kind === 'night'
+    ? run({ type: 'record_fact', abilityId: spec.abilityId, action: spec.action, values })
+    : run({
+        type: 'day_action',
+        abilityId: spec.abilityId,
+        action: spec.action,
+        values,
+        mode,
+        ...(decisions.length ? { decisions } : {}),
+      });
 
 /** Happens in the moment: choosing shows what it would do, and Use makes it happen. Use again takes it back. */
 function NowEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpec }) {
@@ -294,7 +301,7 @@ function NowEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpec }
     return option ? [{ key: d.key, option }] : [];
   });
   const go = async (mode: 'preview' | 'accept' | 'force_success' | 'force_fail', v: string) => {
-    const ack = await sendDay(run, spec, [v], mode, decisions);
+    const ack = await sendDay(run, view, spec, [v], mode, decisions);
     if (!ack.ok) return;
     if (mode === 'preview') return setPreview(ack.data as Preview);
     setPreview(null);
@@ -329,7 +336,7 @@ function NowEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpec }
           on={!!confirmed}
           aria-pressed={!!confirmed}
           disabled={!value || pending}
-          onClick={() => void (confirmed ? sendDay(run, spec, []) : go('accept', value))}
+          onClick={() => void (confirmed ? sendDay(run, view, spec, []) : go('accept', value))}
         >
           Use
         </Button>
@@ -382,8 +389,8 @@ function TonightEvent({ view, spec }: { view: StorytellerView; spec: DayActionSp
         disabled={pending}
         onChange={(e) => {
           const v = e.target.value;
-          if (v) void sendDay(run, spec, [v]);
-          else if (spec.clearable) void sendDay(run, spec, []);
+          if (v) void sendDay(run, view, spec, [v]);
+          else if (spec.clearable) void sendDay(run, view, spec, []);
         }}
       >
         {empty && <option value="">{emptyLabel(spec)}</option>}
@@ -417,7 +424,7 @@ function ToggleEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpe
           options={[on, off].map((o) => ({ id: o, text: field.labels?.[o] ?? o }))}
           value={value}
           onChange={(v) => {
-            if (!pending && v !== value) void sendDay(run, spec, [v]);
+            if (!pending && v !== value) void sendDay(run, view, spec, [v]);
           }}
         />
       </EventFrame>
@@ -434,7 +441,7 @@ function ToggleEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpe
             on={onSet.has(o)}
             aria-pressed={onSet.has(o)}
             disabled={pending}
-            onClick={() => void sendDay(run, spec, [o])}
+            onClick={() => void sendDay(run, view, spec, [o])}
           >
             {optionText(field, o, names, dead)}
           </Button>
@@ -457,7 +464,7 @@ function RowsEvent({ view, spec }: { view: StorytellerView; spec: DayActionSpec 
   const saved = chunk(spec.recorded ?? [], width);
   const blank = () => spec.fields.map(() => '');
   const [draft, setDraft] = useState<string[]>(blank);
-  const save = (rows: string[][]) => void sendDay(run, spec, rows.flat());
+  const save = (rows: string[][]) => void sendDay(run, view, spec, rows.flat());
   const cell = (
     f: ActionField,
     row: string[],

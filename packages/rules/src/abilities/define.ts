@@ -23,7 +23,7 @@ export interface DayActionDraft extends SpecDraft {
   preview?: boolean;
   /** Today's recorded answer, one value per field. Default null. */
   recorded?: string[] | null;
-  /** Tonight reads this answer. Default false. */
+  /** Tonight reads this answer, so the Review tab can record it again (`record_fact`). Default false. */
   neededTonight?: boolean;
   /** Start Night waits for an answer (or force): dusk itself reads it. Default false. */
   blocksNight?: boolean;

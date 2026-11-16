@@ -43,6 +43,7 @@ export const mezepheles = defineRole<State>({
           prompt: 'Who was the first to say the word?',
           preview: false,
           order: 60,
+          neededTonight: true,
           clearable: true,
           recorded: ctx.state.sayer?.day === ctx.n ? [ctx.state.sayer.player] : null,
           fields: [{ kind: 'player', label: 'Player', options: ctx.seated }],

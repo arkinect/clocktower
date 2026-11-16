@@ -51,7 +51,7 @@ export function fireExecutionAtDusk(run: Run, n: number) {
 }
 
 /** The day specs of an ability, built fresh: legality always comes from the hook. */
-function dayActionsOf(run: Run, a: Instance) {
+export function dayActionsOf(run: Run, a: Instance) {
   return roleDef(a.roleId).ability.dayActions?.(run.ctx(a)) ?? [];
 }
 
@@ -59,7 +59,7 @@ function dayActionsOf(run: Run, a: Instance) {
  * One value per field for a select or toggle. Rows take whole rows, up to `maxRows`, and none clears them. A clearable
  * action also takes none.
  */
-function dayValuesError(spec: ActionSpec, draft: DayActionDraft, values: string[]): string | null {
+export function dayValuesError(spec: ActionSpec, draft: DayActionDraft, values: string[]): string | null {
   if (!values.length && (draft.clearable || draft.control === 'rows')) return null;
   if (draft.control !== 'rows') return validateChoice(spec, { values });
   const width = spec.fields.length;
