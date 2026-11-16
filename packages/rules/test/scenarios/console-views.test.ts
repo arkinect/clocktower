@@ -74,20 +74,27 @@ describe('the ability tracker', () => {
     expect(ability(s, 'cy', 'fisherman')).toMatchObject({ origin: 'granted', perceivedOnly: false, oncePerGame: true });
   });
 
-  it.each(['assassin', 'seamstress', 'philosopher', 'huntsman', 'professor', 'virgin', 'golem', 'slayer'])(
-    '%s is tracked by itself',
-    (role) => {
-      const s = scene({ ann: 'imp', bo: 'm1', cy: role, di: 't2', ed: 't3' }).start();
-      expect(ability(s, 'cy', role)).toMatchObject({ oncePerGame: true, usageAuto: true });
-    },
-  );
+  it.each([
+    'assassin',
+    'seamstress',
+    'philosopher',
+    'huntsman',
+    'professor',
+    'virgin',
+    'golem',
+    'inquisitor',
+    'slayer',
+  ])('%s is tracked by itself', (role) => {
+    const s = scene({ ann: 'imp', bo: 'm1', cy: role, di: 't2', ed: 't3' }).start();
+    expect(ability(s, 'cy', role)).toMatchObject({ oncePerGame: true, usageAuto: true });
+  });
 
   it.each(['artist', 'fool', 'fisherman'])('%s is ticked by hand', (role) => {
     const s = scene({ ann: 'imp', bo: 'm1', cy: role, di: 't2', ed: 't3' }).start();
     expect(ability(s, 'cy', role)).toMatchObject({ oncePerGame: true, usageAuto: false });
   });
 
-  it.each(['virgin', 'golem', 'mastermind', 'mayor', 'tea_lady', 'fisherman', 'zealot', 'organ_grinder'])(
+  it.each(['virgin', 'golem', 'inquisitor', 'mastermind', 'mayor', 'tea_lady', 'fisherman', 'zealot', 'organ_grinder'])(
     '%s has a day reminder',
     (role) => {
       const s = scene({ ann: 'imp', bo: 'm1', cy: role, di: 't2', ed: 't3' }).start();

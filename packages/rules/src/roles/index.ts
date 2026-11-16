@@ -26,6 +26,7 @@ import { grandmother } from './grandmother';
 import { huntsman } from './huntsman';
 import { imp } from './imp';
 import { innkeeper } from './innkeeper';
+import { inquisitor } from './inquisitor';
 import { juggler } from './juggler';
 import { lilMonsta } from './lil-monsta';
 import { marionette } from './marionette';
@@ -87,6 +88,7 @@ const SHEET = [
   fisherman,
   drunk,
   golem,
+  inquisitor,
   recluse,
   moonchild,
   goon,

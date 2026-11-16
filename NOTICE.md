@@ -13,4 +13,7 @@ The character icons in `packages/web/public/icons/` were taken from
 `organ_grinder.png`, which come from
 [ThePandemoniumInstitute/botc-release](https://github.com/ThePandemoniumInstitute/botc-release) and were resized.
 
+The Inquisitor is a homebrew character made for this project, not a character of the game. Its name, ability text and
+icon (`inquisitor.png`) are not The Pandemonium Institute's.
+
 If you are a rights holder and would like something changed or removed, please open an issue.
