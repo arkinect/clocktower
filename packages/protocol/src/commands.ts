@@ -66,6 +66,12 @@ export const ClearSubmission = c('clear_submission', { playerId: PlayerId });
 export const Decide = c('decide', { key: DecisionKey, option: z.string().min(1).max(64).nullable() });
 export const AcceptAllDefaults = c('accept_all_defaults', {});
 export const OverrideResult = c('override_result', { resultKey: Key, lines: z.array(Line).max(10).nullable() });
+/** In review: records again a day fact tonight reads (see DayActionSpec.neededTonight). No values takes it back. */
+export const RecordFact = c('record_fact', {
+  abilityId: AbilityId,
+  action: z.string().min(1).max(64),
+  values: z.array(z.string().min(1).max(64)).max(16),
+});
 export const AdjustMalfunctions = c('adjust_malfunctions', { add: Players, remove: Players });
 export const AnswerQuestion = c('answer_question', { key: Key, choice: Choice });
 export const AnswerQuestionFor = c('answer_question_for', { key: Key, choice: Choice });
@@ -144,6 +150,7 @@ export const Command = z.discriminatedUnion('type', [
   Decide,
   AcceptAllDefaults,
   OverrideResult,
+  RecordFact,
   AdjustMalfunctions,
   AnswerQuestion,
   AnswerQuestionFor,

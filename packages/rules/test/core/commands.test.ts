@@ -135,8 +135,15 @@ describe('the night countdown', () => {
     expect(g.view(pid('Ann')).me.submitted).toBe(true);
     g.st({ type: 'clear_submission', playerId: pid('Ann') });
     expect(g.view(pid('Ann')).me.submitted).toBe(false);
+  });
+
+  it('clear_submission works in review too, to take back a choice the Storyteller entered there', () => {
+    const g = begin(cast(FIVE));
     g.st({ type: 'close_collecting', force: true });
-    expect(g.rejected(ST, { type: 'clear_submission', playerId: pid('Ann') })).toBe('Not collecting.');
+    g.st({ type: 'submit_for', playerId: pid('Ann'), actions: {} });
+    expect(g.view(pid('Ann')).me.submitted).toBe(true);
+    g.st({ type: 'clear_submission', playerId: pid('Ann') });
+    expect(g.view(pid('Ann')).me.submitted).toBe(false);
   });
 });
 

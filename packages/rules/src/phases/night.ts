@@ -6,7 +6,14 @@ import { Run, hashDecision, type Resolution } from '../night/run';
 import { newNightPhase } from '../night/phase';
 import { nightStory } from '../night/story';
 import { actionSpecs, expectedActors, resolveNight, validateChoice, validateSubmission } from '../night/wake';
-import { executeAtDusk, fireExecutionAtDusk, recordDayDefaults, unansweredBeforeNight } from './day';
+import {
+  dayActionsOf,
+  dayValuesError,
+  executeAtDusk,
+  fireExecutionAtDusk,
+  recordDayDefaults,
+  unansweredBeforeNight,
+} from './day';
 import { defineCommand, need, type CmdCtx } from './define';
 
 /** The first time this night has follow-up questions, whatever brought them, the countdown gets more time. */
@@ -144,11 +151,13 @@ export const nightCommands = [
     by: 'storyteller',
     phases: ['night'],
     handle(ctx, cmd) {
-      need(collecting(ctx.phase), 'Not collecting.');
+      // In review too: the Storyteller may change any player's choice, and the night resolves again from it, so
+      // whatever followed from the old choice (a death, a question, a decision) goes and what follows the new one comes.
       need(ctx.r.isSeated(cmd.playerId), 'Not a seated player.');
       const v = validateSubmission(ctx.base, cmd.playerId, cmd.actions, true);
       need(v.ok, v.ok ? '' : v.error);
       ctx.phase.submissions[cmd.playerId] = { actions: v.actions, at: ctx.now, byStoryteller: true };
+      extendForFollowUps(ctx);
     },
   }),
   defineCommand({
@@ -169,8 +178,9 @@ export const nightCommands = [
     by: 'storyteller',
     phases: ['night'],
     handle(ctx, cmd) {
-      need(collecting(ctx.phase), 'Not collecting.');
+      // In review too, to take back a choice the Storyteller entered there for a player who had made none.
       delete ctx.phase.submissions[cmd.playerId];
+      extendForFollowUps(ctx);
     },
   }),
   defineCommand({
@@ -213,6 +223,27 @@ export const nightCommands = [
       const row = resolveNight(ctx.base).results.find((r) => r.key === cmd.resultKey);
       need(row, 'No such result.');
       ctx.phase.overrides[cmd.resultKey] = { lines: cmd.lines, writtenAgainst: row.truth };
+    },
+  }),
+  defineCommand({
+    type: 'record_fact',
+    by: 'storyteller',
+    phases: ['night'],
+    handle(ctx, cmd) {
+      need(ctx.phase.stage === 'review', 'Not in review.');
+      need(ctx.phase.n >= 1, 'No day has happened yet.');
+      // The role's own day hook, run as the day that has just ended: the record changes and the night resolves again
+      // from it. Only a fact tonight reads, so nothing that happens at once (a shot, a kill) can be redone from here.
+      const run = ctx.run({ moment: { kind: 'day', n: ctx.phase.n } });
+      const a = ctx.s.abilities[cmd.abilityId];
+      need(a && run.reader.isActive(a), 'That ability is not in play.');
+      const hook = roleDef(a.roleId).ability.applyDayAction;
+      const spec = dayActionsOf(run, a).find((d) => d.action === cmd.action && d.neededTonight);
+      need(hook && spec, 'That is not a fact tonight reads.');
+      const error = dayValuesError(run.fullSpec(a, cmd.action, spec), spec, cmd.values);
+      need(!error, error ?? '');
+      hook(run.ctx(a), cmd.action, cmd.values, 'none');
+      extendForFollowUps(ctx);
     },
   }),
   defineCommand({

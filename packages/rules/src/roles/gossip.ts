@@ -26,6 +26,7 @@ export const gossip = defineRole<State>({
           prompt: 'Was their public statement true?',
           preview: false,
           order: 10,
+          neededTonight: true,
           control: 'toggle',
           // Off: false, or no statement at all. An older game's "none" shows as off.
           recorded: verdict ? [verdict === 'true' ? 'true' : 'false'] : null,

@@ -266,6 +266,8 @@ export const ReviewView = z.object({
   log: z.array(z.string()),
   /** Tonight as the Story tab will show it once published. */
   story: StoryNight,
+  /** The day's recorded facts that tonight reads, which `record_fact` records again. */
+  facts: z.array(DayActionSpec).default([]),
 });
 export type ReviewView = z.infer<typeof ReviewView>;
 

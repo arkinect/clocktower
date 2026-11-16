@@ -4,6 +4,7 @@ import { clone } from '../util/clone';
 import type {
   AbilityView,
   ConditionView,
+  DayActionSpec,
   PhaseView,
   PlayerId,
   PlayerView,
@@ -237,6 +238,29 @@ function dayLines(s: GameState, r: Reader, n: number) {
   return out;
 }
 
+/** Every active ability's day actions, as the console draws them. */
+function daySpecs(run: Run): DayActionSpec[] {
+  return run.reader.instances.flatMap((a) =>
+    (roleDef(a.roleId).ability.dayActions?.(run.ctx(a)) ?? []).map((d) => ({
+      ...run.fullSpec(a, `${a.id}:${d.action}`, { ...d, title: d.title ?? roleDef(a.roleId).name }),
+      title: d.title ?? roleDef(a.roleId).name,
+      roleId: a.roleId,
+      abilityId: a.id,
+      action: d.action,
+      preview: d.preview ?? true,
+      recorded: d.recorded ?? null,
+      neededTonight: d.neededTonight ?? false,
+      ...(d.blocksNight ? { blocksNight: true } : {}),
+      order: d.order ?? 1000,
+      control: d.control ?? 'select',
+      default: d.default ?? null,
+      ...(d.maxRows ? { maxRows: d.maxRows } : {}),
+      ...(d.clearable ? { clearable: true } : {}),
+      ...(d.emptyLabel ? { emptyLabel: d.emptyLabel } : {}),
+    })),
+  );
+}
+
 export function storytellerView(s: GameState, id: PlayerId, options: ProjectOptions): StorytellerView {
   const moment = phaseMoment(s);
   const r = new Reader(s, moment);
@@ -296,27 +320,15 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
   const res = p.kind === 'night' && p.stage === 'review' ? resolveNight(s) : null;
   const tonight = p.kind === 'night' ? p.n : 0;
   const run = p.kind === 'day' ? new Run({ world: clone(s) as GameState, moment, seed: 0, now: options.now }) : null;
-  const dayActions = run
-    ? run.reader.instances.flatMap((a) =>
-        (roleDef(a.roleId).ability.dayActions?.(run.ctx(a)) ?? []).map((d) => ({
-          ...run.fullSpec(a, `${a.id}:${d.action}`, { ...d, title: d.title ?? roleDef(a.roleId).name }),
-          title: d.title ?? roleDef(a.roleId).name,
-          roleId: a.roleId,
-          abilityId: a.id,
-          action: d.action,
-          preview: d.preview ?? true,
-          recorded: d.recorded ?? null,
-          neededTonight: d.neededTonight ?? false,
-          ...(d.blocksNight ? { blocksNight: true } : {}),
-          order: d.order ?? 1000,
-          control: d.control ?? 'select',
-          default: d.default ?? null,
-          ...(d.maxRows ? { maxRows: d.maxRows } : {}),
-          ...(d.clearable ? { clearable: true } : {}),
-          ...(d.emptyLabel ? { emptyLabel: d.emptyLabel } : {}),
-        })),
-      )
-    : [];
+  const dayActions = run ? daySpecs(run) : [];
+  // In review, the day that has just ended, for the facts tonight reads: `record_fact` records them again.
+  // The first night has no day before it.
+  const facts =
+    res && tonight >= 1
+      ? daySpecs(
+          new Run({ world: clone(s) as GameState, moment: { kind: 'day', n: tonight }, seed: 0, now: options.now }),
+        ).filter((d) => d.neededTonight)
+      : [];
   const dayNotices = run
     ? run.reader.instances.flatMap((a) => {
         const text = roleDef(a.roleId).ability.dayNotice?.(run.ctx(a));
@@ -360,6 +372,7 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
           gameEnd: res.gameEnd,
           log: res.log,
           story: storyNight(tonight, nightStory(s, res, tonight), res.deaths, res.revived),
+          facts,
         }
       : null,
     dayActions,

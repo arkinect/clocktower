@@ -11,7 +11,6 @@ console control before a character that relies on it can be run:
   in 0.5.1. Vote weights (Bureaucrat, Thief, Voudon, Legion), nomination history (Town Crier, Gunslinger) and madness
   (Cerenovus, Harpy, Mutant) all need a recorder on the Day tab.
 - `adjust_malfunctions`, which corrects the count the Mathematician is given. The Review tab has no control for it.
-- `neededTonight` on a day action. The Flowergirl sets it and the console does not read it.
 - Travellers, Fabled and Loric. The commands and panels exist and are tested against throwaway characters, but no such
   character is built, so none has been played from the console.
 
