@@ -1,7 +1,7 @@
 // The one place the client knows about ability input, and it knows only the three field kinds. A new role never
 // changes it. The server sends every option, and checks every answer.
 import type { ActionField, ActionSpec, Choice } from '@ct/protocol';
-import { Segments } from './ui';
+import { Button, Segments } from './ui';
 import styles from './Picker.module.css';
 
 export interface Names {
@@ -15,11 +15,113 @@ export function optionText(f: ActionField, o: string, names: Names, dead?: Reado
   return f.labels?.[o] ?? o;
 }
 
+/** A rows spec's player choices, by position: `distinct` applies across every row. */
+const playerValues = (spec: ActionSpec, values: string[]) =>
+  values.filter((v, i) => v && spec.fields[i % spec.fields.length]?.kind === 'player');
+
 export function choiceComplete(spec: ActionSpec, c: Choice | undefined): boolean {
   if (!c) return false;
   if (c.decline) return spec.allowDecline;
-  if (c.values.length !== spec.fields.length || c.values.some((v) => !v)) return false;
+  if (c.values.some((v) => !v)) return false;
+  if (spec.maxRows) {
+    const width = spec.fields.length;
+    const rows = c.values.length / width;
+    if (!c.values.length || !Number.isInteger(rows) || rows > spec.maxRows) return false;
+    const players = playerValues(spec, c.values);
+    return !spec.distinct || new Set(players).size === players.length;
+  }
+  if (c.values.length !== spec.fields.length) return false;
   return !spec.distinct || new Set(c.values).size === c.values.length;
+}
+
+/** A dropdown for one field: the client's only control for players and characters. */
+function Select({
+  f,
+  label,
+  picked,
+  taken,
+  names,
+  dead,
+  onChange,
+}: {
+  f: ActionField;
+  label?: string;
+  picked: string;
+  taken: string[];
+  names: Names;
+  dead?: ReadonlySet<string> | undefined;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <select aria-label={label} value={picked} onChange={(e) => onChange(e.target.value)}>
+      <option value="">Choose…</option>
+      {f.options.map((o) => (
+        <option key={o} value={o} disabled={taken.includes(o)}>
+          {optionText(f, o, names, dead)}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/**
+ * Up to `maxRows` rows of the spec's fields (the Juggler's guesses). A new row appears once the last is filled in, and
+ * a row emptied or removed goes, so the answer is always whole rows plus at most one being filled in.
+ */
+function Rows({
+  spec,
+  names,
+  values,
+  dead,
+  onChange,
+}: {
+  spec: ActionSpec;
+  names: Names;
+  values: string[];
+  dead?: ReadonlySet<string> | undefined;
+  onChange: (values: string[]) => void;
+}) {
+  const width = spec.fields.length;
+  const max = spec.maxRows ?? 1;
+  const rows = Array.from({ length: Math.ceil(values.length / width) }, (_, r) =>
+    spec.fields.map((_, i) => values[r * width + i] ?? ''),
+  );
+  const last = rows[rows.length - 1];
+  const shown = !last || (last.every(Boolean) && rows.length < max) ? [...rows, spec.fields.map(() => '')] : rows;
+  const save = (next: string[][]) => onChange(next.filter((row) => row.some(Boolean)).flat());
+  return (
+    <>
+      {shown.map((row, r) => (
+        <div key={r} className={styles['row']}>
+          <span>
+            {r + 1} of {max}
+          </span>
+          <div className={styles['rowFields']}>
+            {spec.fields.map((f, i) => (
+              <Select
+                key={i}
+                f={f}
+                label={`${f.label} ${r + 1}`}
+                picked={row[i] ?? ''}
+                // Distinct: a player already in another row is greyed out.
+                taken={
+                  spec.distinct && f.kind === 'player' ? playerValues(spec, shown.filter((_, j) => j !== r).flat()) : []
+                }
+                names={names}
+                dead={dead}
+                onChange={(v) => save(shown.map((x, j) => (j === r ? x.map((y, k) => (k === i ? v : y)) : x)))}
+              />
+            ))}
+            {row.some(Boolean) && (
+              <Button tiny onClick={() => save(shown.filter((_, j) => j !== r))}>
+                Remove
+              </Button>
+            )}
+          </div>
+        </div>
+      ))}
+    </>
+  );
 }
 
 export function Picker({
@@ -50,36 +152,46 @@ export function Picker({
         return (
           <fieldset key={spec.key} className={styles['spec']}>
             <legend>{spec.prompt}</legend>
-            {spec.fields.map((f, i) => {
-              const picked = cur.decline ? '' : (cur.values[i] ?? '');
-              const taken = spec.distinct ? cur.values.filter((_, j) => j !== i) : [];
-              if (f.kind === 'option') {
+            {spec.maxRows ? (
+              <Rows
+                spec={spec}
+                names={names}
+                values={cur.decline ? [] : cur.values}
+                dead={dead}
+                onChange={(values) => set({ values })}
+              />
+            ) : (
+              spec.fields.map((f, i) => {
+                const picked = cur.decline ? '' : (cur.values[i] ?? '');
+                const taken = spec.distinct ? cur.values.filter((_, j) => j !== i) : [];
+                if (f.kind === 'option') {
+                  return (
+                    <div key={i} className={styles['field']}>
+                      <span>{f.label}</span>
+                      <Segments
+                        label={f.label}
+                        options={f.options.map((o) => ({ id: o, text: optionText(f, o, names) }))}
+                        value={picked || null}
+                        onChange={(v) => pick(i, v)}
+                      />
+                    </div>
+                  );
+                }
                 return (
-                  <div key={i} className={styles['field']}>
+                  <label key={i} className={styles['field']}>
                     <span>{f.label}</span>
-                    <Segments
-                      label={f.label}
-                      options={f.options.map((o) => ({ id: o, text: optionText(f, o, names) }))}
-                      value={picked || null}
+                    <Select
+                      f={f}
+                      picked={picked}
+                      taken={taken}
+                      names={names}
+                      dead={dead}
                       onChange={(v) => pick(i, v)}
                     />
-                  </div>
+                  </label>
                 );
-              }
-              return (
-                <label key={i} className={styles['field']}>
-                  <span>{f.label}</span>
-                  <select value={picked} onChange={(e) => pick(i, e.target.value)}>
-                    <option value="">Choose…</option>
-                    {f.options.map((o) => (
-                      <option key={o} value={o} disabled={taken.includes(o)}>
-                        {optionText(f, o, names, dead)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              );
-            })}
+              })
+            )}
             {spec.allowDecline && (
               <label className={styles['check']}>
                 <input

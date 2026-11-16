@@ -119,7 +119,7 @@ Known limits:
 | Huntsman       | yes   | Night, once                          | `changeCharacter`                                                                                           |
 | Innkeeper      | yes   | Night*                               | `interceptKill`, conditions                                                                                 |
 | Investigator   |       | First night                          | `registers`, `startInfo`                                                                                    |
-| Juggler        | yes   | First day, that night                | day action, events                                                                                          |
+| Juggler        | yes   | First day, that night                | day action (did they guess), picker rows, `wakesDead` for the Cannibal's jinx                               |
 | King           |       | Night when dead outnumber living     | `wakes`, `notify` to the Demon                                                                              |
 | Knight         |       | First night                          | `startInfo`                                                                                                 |
 | Librarian      |       | First night                          | `registers`, `startInfo`                                                                                    |

@@ -2,7 +2,8 @@ import { roleId } from '@ct/protocol';
 import { defineJinx } from './define';
 import { DJINN } from './lib';
 
-// Applied by the Juggler's own wake rule: a hidden copy of the ability wakes only if a count was entered.
+// Applied by the Juggler's own wake rules: a hidden copy of the ability wakes only if the Juggler guessed publicly, and
+// the executed Juggler, though dead, then enters the guesses it reads.
 export const cannibalJuggler = defineJinx({
   a: roleId('cannibal'),
   b: roleId('juggler'),

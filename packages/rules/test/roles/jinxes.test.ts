@@ -36,16 +36,30 @@ describe('Jinx (Cannibal & Butler), (Cannibal & Zealot)', () => {
 });
 
 describe('Jinx (Cannibal & Juggler)', () => {
-  it('a Cannibal who eats the Juggler learns the count', () => {
-    const s = scene({ ann: 'cannibal', bo: 'juggler', cy: 'd1', di: 't1', ed: 't2', fi: 't3' }).start().dawn();
-    s.act('juggler', 'guesses', ['cy', 'd1', 'di', 't1', 'ed', 't3']);
+  const cast = { ann: 'cannibal', bo: 'juggler', cy: 'd1', di: 't1', ed: 't2', fi: 't3' };
+  it('a Cannibal who eats the Juggler learns the count of the guesses the dead Juggler enters', () => {
+    const s = scene(cast).start().dawn();
+    s.act('juggler', 'juggled', ['yes']);
     s.execute('bo').dusk();
+    expect(s.specs('ann').map((x) => x.roleId)).not.toContain('juggler');
+    expect(s.specs('bo').map((x) => x.roleId)).toEqual(['juggler']);
+    s.submit({ bo: ['cy', 'd1', 'di', 't1', 'ed', 't3'] });
     expect(s.truth('ann')).toEqual(['You guessed 2 correctly.']);
+    expect(s.truth('bo')).toEqual([]);
   });
-  it('with no guesses recorded, a hidden copy sleeps', () => {
-    const s = scene({ ann: 'cannibal', bo: 'juggler', cy: 'd1', di: 't1', ed: 't2', fi: 't3' }).start().dawn();
+  it('a Juggler who did not guess publicly: the hidden copy sleeps, and the dead Juggler is not asked', () => {
+    const s = scene(cast).start().dawn();
     s.execute('bo').dusk();
+    expect(s.specs('bo')).toEqual([]);
     expect(s.truth('ann')).toEqual([]);
+  });
+  it('a Juggler executed with no Cannibal to eat them is not asked', () => {
+    const s = scene({ ...cast, ann: 't4' })
+      .start()
+      .dawn();
+    s.act('juggler', 'juggled', ['yes']);
+    s.execute('bo').dusk();
+    expect(s.specs('bo')).toEqual([]);
   });
 });
 

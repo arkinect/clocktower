@@ -140,12 +140,17 @@ describe('Review and dawn', () => {
       expect(s.res.after.players['bo']?.alignment).toBe('good');
     });
 
-    it('the Juggler: the guesses can be recorded again, and the count follows', () => {
+    it('the Juggler: the guesses are their own night choice, which Review can change, and the count follows', () => {
       const s = scene({ ann: 'juggler', bo: 'imp', cy: 'poisoner', di: 'empath', ed: 'butler' }).start().dawn();
-      s.act('juggler', 'guesses', ['bo', 'empath']);
-      s.dusk().review();
+      s.act('juggler', 'juggled', ['yes']);
+      s.dusk()
+        .submit({ ann: ['bo', 'empath'] })
+        .review();
       expect(s.truth('ann').join(' ')).toMatch(/\b0\b/);
-      expect(fact(s, 'juggler', 'guesses', ['bo', 'imp', 'di', 'empath']).ok).toBe(true);
+      expect(facts(s).filter((f) => f.roleId === 'juggler')).toEqual([]);
+      const guesses = (values: string[]) =>
+        s.g.tryAs(ST, { type: 'submit_for', playerId: as('ann'), actions: { [s.ability('juggler')]: { values } } });
+      expect(guesses(['bo', 'imp', 'di', 'empath']).ok).toBe(true);
       expect(s.truth('ann').join(' ')).toMatch(/\b2\b/);
     });
 

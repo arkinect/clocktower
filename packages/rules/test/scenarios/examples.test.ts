@@ -86,8 +86,8 @@ describe('information', () => {
     const chars = { ann: 'flowergirl', bo: 'juggler', cy: 'imp', di: 'butler', ed: 'poisoner', fi: 'sailor' };
     const s = scene(chars).start().dawn();
     s.act('flowergirl', 'demon_voted', ['yes']);
-    s.act('juggler', 'guesses', ['cy', 'imp', 'di', 'butler', 'ed', 'poisoner', 'fi', 'imp']);
-    s.dusk();
+    s.act('juggler', 'juggled', ['yes']);
+    s.dusk().submit({ bo: ['cy', 'imp', 'di', 'butler', 'ed', 'poisoner', 'fi', 'imp'] });
     expect(s.truth('ann')[0]).toMatch(/^Yes/);
     expect(s.truth('bo')[0]).toMatch(/3 correctly/);
     s.nextNight();

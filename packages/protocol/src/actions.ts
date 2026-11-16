@@ -24,12 +24,18 @@ export const ActionSpec = z.object({
   distinct: z.boolean(),
   allowDecline: z.boolean(),
   declineLabel: text.optional(),
+  /**
+   * Repeated rows: `fields` is one row, and an answer is 1 to `maxRows` whole rows as one flat list (the Juggler's
+   * guesses). `distinct` then applies across every row.
+   */
+  maxRows: z.number().int().min(1).max(8).optional(),
 });
 export type ActionSpec = z.infer<typeof ActionSpec>;
 
 export const Choice = z.object({
   decline: z.boolean().optional(),
-  values: z.array(optionId).max(8),
+  /** Up to 16: rows (the Juggler's five guesses) send every row's values in one list. */
+  values: z.array(optionId).max(16),
 });
 export type Choice = z.infer<typeof Choice>;
 
@@ -52,12 +58,11 @@ export const DayActionSpec = ActionSpec.extend({
   /**
    * How the Day tab asks for it. A select (the default). A toggle: an option field's two options are off then on, and
    * a player field gives one toggle per player, with `recorded` listing those on. Rows: each row is one value per
-   * field, up to `maxRows`, sent and recorded as one flat list.
+   * field, up to `maxRows`, sent and recorded as one flat list, and none clears them.
    */
   control: z.enum(['select', 'toggle', 'rows']).optional(),
   /** Shown while nothing is recorded. Dusk records it if nothing else was. */
   default: z.array(optionId).nullable().optional(),
-  maxRows: z.number().int().min(1).max(8).optional(),
   /** Sending no values takes the answer back. */
   clearable: z.boolean().optional(),
   /** The select's "nothing happened" option: "No one" for a player, "No" otherwise. */

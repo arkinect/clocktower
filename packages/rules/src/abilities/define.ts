@@ -15,6 +15,8 @@ export interface SpecDraft {
   distinct?: boolean;
   allowDecline?: boolean;
   declineLabel?: string;
+  /** `fields` is one row, and the answer is 1 to this many rows (see ActionSpec). Day rows: how many. Default 1. */
+  maxRows?: number;
 }
 
 export interface DayActionDraft extends SpecDraft {
@@ -33,8 +35,6 @@ export interface DayActionDraft extends SpecDraft {
   control?: 'select' | 'toggle' | 'rows';
   /** Shown while nothing is recorded, and recorded at dusk if nothing else was. Default none. */
   default?: string[];
-  /** Rows only: how many. Default 1. */
-  maxRows?: number;
   /** applyDayAction gets no values to take the answer back. Default false. */
   clearable?: boolean;
   /** The select's "nothing happened" option. */
