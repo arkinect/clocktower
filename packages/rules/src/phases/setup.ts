@@ -99,8 +99,10 @@ export const setupCommands = [
       need(ctx.r.isSeated(cmd.playerId), 'Seat the player first.');
       if (cmd.roleId !== null) {
         need(ctx.r.onScript(cmd.roleId), 'That character is not on the script.');
+        // During setup a character may sit with several players for a while: the checklist blocks the start instead.
         need(
-          ctx.r.mayDuplicate(cmd.roleId) ||
+          ctx.s.phase.kind === 'setup' ||
+            ctx.r.mayDuplicate(cmd.roleId) ||
             !ctx.r.seated.some((id) => id !== cmd.playerId && ctx.r.character(id) === cmd.roleId),
           'That character is already assigned.',
         );

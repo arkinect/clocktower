@@ -142,10 +142,15 @@ describe('setup', () => {
     expect(g.rejected(ST, { type: 'begin_first_night', force: false })).toMatch(/Setup is incomplete/);
   });
 
-  it('will not assign a character twice or off the script', () => {
+  it('lets a character be assigned twice, but will not start until it is undone', () => {
     const g = seated(['Ann', 'Bo']);
     g.st({ type: 'assign_character', playerId: pid('Ann'), roleId: TOWN[0]! });
-    expect(g.rejected(ST, { type: 'assign_character', playerId: pid('Bo'), roleId: TOWN[0]! })).toMatch(/already/);
+    g.st({ type: 'assign_character', playerId: pid('Bo'), roleId: TOWN[0]! });
+    expect(g.player(pid('Bo')).character).toBe(TOWN[0]);
+    const twice = g.grimoire().setup.checklist.filter((c) => c.id.startsWith('duplicate:'));
+    expect(twice).toMatchObject([{ done: false, blocking: true }]);
+    expect(twice[0]?.label).toContain('Ann, Bo');
+    expect(g.rejected(ST, { type: 'begin_first_night' })).toMatch(/Only one player can be/);
     expect(g.rejected(ST, { type: 'set_bluffs', roleIds: [DEMON[0]!] })).toMatch(/Bluffs/);
     expect(g.player(pid('Ann')).alignment).toBe('good');
     g.st({ type: 'assign_character', playerId: pid('Bo'), roleId: OUT[0]! });

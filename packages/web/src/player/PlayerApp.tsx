@@ -50,7 +50,6 @@ export function PlayerApp({ view }: { view: PlayerView }) {
                 )
               }
             />
-            {!view.me.alive && <Card tone="dead">You are dead.</Card>}
           </div>
         )}
         {tab === 'roles' && (

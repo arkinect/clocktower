@@ -578,7 +578,30 @@ describe('per-character pass: setup and views', () => {
     expect(s.character('a')).toBe(MANY);
     s.g.st(assign('b', 't-town-3'));
     expect(s.character('b')).toBe('t-town-3');
-    expect(s.g.rejected('st' as PlayerId, assign('d', 't-demon-1'))).toMatch(/already assigned/);
+    const blocked = () =>
+      s.g
+        .grimoire()
+        .setup.checklist.filter((c) => c.id.startsWith('duplicate:'))
+        .map((c) => c.id);
+    expect(blocked()).toEqual([]);
+    // Any other role may be doubled up while setting up, but the game cannot start until it is undone.
+    s.g.st(assign('d', 't-demon-1'));
+    expect(s.character('d')).toBe('t-demon-1');
+    expect(blocked()).toEqual(['duplicate:t-demon-1']);
+    expect(s.g.rejected('st' as PlayerId, { type: 'begin_first_night' })).toMatch(/Only one player can be/);
+    s.g.st(assign('d', MANY));
+    expect(blocked()).toEqual([]);
+  });
+
+  it('duplicates: once the game is running a role cannot be doubled up', () => {
+    const s = scene({ a: 't1', b: 't2', c: 'd1', d: 't3', e: 't4' }).start();
+    expect(
+      s.g.rejected('st' as PlayerId, {
+        type: 'assign_character',
+        playerId: 'd' as PlayerId,
+        roleId: 't-demon-1' as RoleId,
+      }),
+    ).toMatch(/already assigned/);
   });
 
   it('duplicates: each holder acts for themselves', () => {
