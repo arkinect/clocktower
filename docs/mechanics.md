@@ -305,3 +305,11 @@ All are fixed at setup and held by the Storyteller.
 | Tor                 |       | Setup, passive | `hidesCharacter`, `onDeath`                               |
 | Ventriloquist       |       | Nomination     | Table: mad condition, `died: false`                       |
 | Zenomancer          |       | Any time       | day action, `guaranteesTruth`                             |
+
+### Homebrew
+
+Characters made for this app, not official ones. They are on the default script like any other role.
+
+| Character  | Type     | Built | Acts             | Needs                                             |
+| ---------- | -------- | ----- | ---------------- | ------------------------------------------------- |
+| Inquisitor | Outsider | yes   | Nomination, once | day action, `registers` (alignment), as the Golem |
