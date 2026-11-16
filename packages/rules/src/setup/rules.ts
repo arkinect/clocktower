@@ -187,6 +187,21 @@ export function setupChecklist(s: GameState): CheckItem[] {
     },
   ];
   const inPlay = r.inPlay;
+  // Setup lets a character be given to several players. Unless a rule allows that, it has to be undone to start.
+  const holders = new Map<RoleId, PlayerId[]>();
+  for (const id of ids) {
+    const c = r.character(id);
+    if (c) holders.set(c, [...(holders.get(c) ?? []), id]);
+  }
+  for (const [role, who] of holders) {
+    if (who.length < 2 || r.mayDuplicate(role)) continue;
+    items.push({
+      id: `duplicate:${role}`,
+      label: `Only one player can be the ${roleDef(role).name} (${who.map((id) => r.name(id)).join(', ')})`,
+      done: false,
+      blocking: true,
+    });
+  }
   for (const id of ids) {
     const c = r.character(id);
     const rule = c ? roleDef(c).believes : undefined;

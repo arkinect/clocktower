@@ -300,6 +300,14 @@
   gap: 8px;
 }
 
+/* A label that wraps onto a second line must not push its box below the others in the row. */
+.counts label {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
 .counts span {
   display: block;
   font-size: 0.8rem;
