@@ -1,7 +1,7 @@
 // One test per row of docs/mechanics.md. Every character here is a throwaway: none of them is in the game.
 import { roleId, type PlayerId, type RoleId } from '@ct/protocol';
 import { describe, expect, it } from 'vitest';
-import { defineRole, registerRole, type RoleDef } from '../../src';
+import { defineRole, note, registerRole, type RoleDef } from '../../src';
 import { scene } from '../scenario';
 import { TRAVELLER } from '../helpers/plain';
 import { ST } from '../helpers/game';
@@ -47,7 +47,18 @@ const SEER = fake({
   night: { first: 1100, other: 1100 },
   ability: {
     resolve: (ctx) =>
-      ctx.inform({ truth: [ctx.believed ? 'I only think so' : 'I really can'], falseLines: ['Something false'] }),
+      ctx.inform({ truth: note([ctx.believed ? 'I only think so' : 'I really can']), fake: note(['Something false']) }),
+  },
+});
+
+const COUNTER = fake({
+  id: roleId('x-counter'),
+  name: 'Counter',
+  type: 'townsfolk',
+  abilityText: 'Each night, learn a number.',
+  night: { first: 1101, other: 1101 },
+  ability: {
+    resolve: (ctx) => ctx.informNumber(3, 0, 5, (n) => [`You counted ${n}.`]),
   },
 });
 
@@ -55,11 +66,12 @@ const GIVER = fake({
   id: roleId('x-giver'),
   name: 'Giver',
   type: 'townsfolk',
-  abilityText: 'Grants the Seer, hidden under this name.',
+  abilityText: 'Grants the Seer and the Counter, hidden under this name.',
   night: { first: 1002 },
   ability: {
     resolve(ctx) {
       ctx.grant(ctx.holder, SEER, { shownAs: ctx.ability.roleId, startInfo: true });
+      ctx.grant(ctx.holder, COUNTER, { shownAs: ctx.ability.roleId, startInfo: true });
     },
   },
 });
@@ -126,7 +138,7 @@ const ASKER = fake({
     resolve(ctx) {
       const t = ctx.aliveNeighbours(ctx.holder)[1] as PlayerId;
       const r = ctx.registers(t, 'character');
-      ctx.inform({ truth: [`${r.character} ${r.type} ${r.alignment} ${r.alive ? 'alive' : 'dead'}`] });
+      ctx.tell([`${r.character} ${r.type} ${r.alignment} ${r.alive ? 'alive' : 'dead'}`]);
     },
   },
 });
@@ -301,7 +313,7 @@ const QUIZ = fake({
           fields: [{ kind: 'option', label: 'Answer', options: ['y', 'n'] }],
         },
       });
-      ctx.inform({ truth: [answer ? `They said ${answer[0]}` : 'No answer yet'] });
+      ctx.tell([answer ? `They said ${answer[0]}` : 'No answer yet']);
     },
   },
 });
@@ -401,7 +413,7 @@ const EARLY = fake({
         options,
         default: 'a',
       });
-      ctx.inform({ truth: [`${first} ${later}`] });
+      ctx.tell([`${first} ${later}`]);
     },
   },
 });
@@ -431,10 +443,11 @@ describe('mechanics', () => {
 
   it('gained, hidden and moving abilities', () => {
     const s = scene({ a: GIVER, ...five }).start();
-    const row = s.res.results.find((r) => r.playerId === 'a' && r.roleId === SEER);
-    expect(row?.truth).toEqual(['I really can']);
-    expect(row?.title).toContain('Giver');
-    expect(row?.title).not.toContain('Seer');
+    // Hidden: a number comes bare, under the name it is shown as, and words with no value behind them not at all.
+    const row = s.res.results.find((r) => r.playerId === 'a' && r.roleId === COUNTER);
+    expect(row).toMatchObject({ truth: ['3'], title: 'Giver' });
+    expect(row?.alternatives).toEqual([['0'], ['1'], ['2'], ['3'], ['4'], ['5']]);
+    expect(s.res.results.find((r) => r.playerId === 'a' && r.roleId === SEER)).toBeUndefined();
     const m = scene({ a: MOVER, ...five, c: 't4' })
       .start()
       .dawn();

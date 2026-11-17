@@ -1,5 +1,6 @@
 import { roleId, type PlayerId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
+import { note, player } from '../night/info';
 
 const BALLOONIST = roleId('balloonist');
 
@@ -56,9 +57,9 @@ export const balloonist = defineRole<State>({
       if (ctx.impaired) {
         // Nothing true to decide: the false name is chosen with the result, like any other impaired answer.
         ctx.inform({
-          truth: ['(impaired, no true information)'],
-          falseLines: [ctx.name(ctx.rng('pick').pick(others))],
-          alternatives: others.map((x) => [ctx.name(x)]),
+          truth: note(['(impaired, no true information)']),
+          fake: player(ctx.rng('pick').pick(others)),
+          alternatives: others.map((x) => player(x)),
         });
         // Whoever the answer going out names; a written answer that names nobody leaves tomorrow open.
         const told = ctx.resultsFor(ctx.holder).at(-1)?.final.join(' ');
@@ -69,7 +70,7 @@ export const balloonist = defineRole<State>({
       const candidates = others.filter((x) => typeOf(x) !== last);
       if (!candidates.length) {
         ctx.setState({ last: null });
-        ctx.inform({ truth: ['There is no player of a different character type to show.'] });
+        ctx.tell(['There is no player of a different character type to show.']);
         return;
       }
       const pick = ctx.decide({
@@ -80,7 +81,7 @@ export const balloonist = defineRole<State>({
         default: ctx.rng('pick').pick(candidates),
       });
       ctx.setState({ last: typeOf(pick) });
-      ctx.inform({ truth: [ctx.name(pick)] });
+      ctx.inform({ truth: player(pick) });
     },
   },
 });

@@ -1,7 +1,7 @@
 // One test per primitive the per-character pass added to docs/mechanics.md. Every character here is a throwaway.
 import { roleId, type PlayerId, type RoleId } from '@ct/protocol';
 import { describe, expect, it } from 'vitest';
-import { defineJinx, defineRole, registerJinx, registerRole, type RoleDef, type SetupRules } from '../../src';
+import { defineJinx, defineRole, note, registerJinx, registerRole, type RoleDef, type SetupRules } from '../../src';
 import { scene } from '../scenario';
 
 function fake<S>(def: Parameters<typeof defineRole<S>>[0]): RoleId {
@@ -75,8 +75,7 @@ const WATCHER = fake({
   abilityText: 'Each night, learn how many others woke.',
   night: { first: 900, other: 900 },
   ability: {
-    resolve: (ctx) =>
-      ctx.inform({ truth: [`${ctx.seated.filter((p) => p !== ctx.holder && ctx.wokeTonight(p)).length} woke`] }),
+    resolve: (ctx) => ctx.tell([`${ctx.seated.filter((p) => p !== ctx.holder && ctx.wokeTonight(p)).length} woke`]),
   },
 });
 
@@ -113,7 +112,7 @@ const COUNTER = fake({
   night: { first: 800, other: 800 },
   ability: {
     picker: pick('Counter'),
-    resolve: (ctx) => ctx.inform({ truth: [`You chose ${ctx.choice[0] ?? 'nobody'}`] }),
+    resolve: (ctx) => ctx.tell([`You chose ${ctx.choice[0] ?? 'nobody'}`]),
   },
 });
 const DOUBLER = fake({
@@ -280,7 +279,7 @@ const LENT = fake({
   type: 'townsfolk',
   abilityText: 'Each night, learn a word.',
   night: { first: 850, other: 850 },
-  ability: { resolve: (ctx) => ctx.inform({ truth: ['The word'], falseLines: ['Another word'] }) },
+  ability: { resolve: (ctx) => ctx.inform({ truth: note(['The word']), fake: note(['Another word']) }) },
 });
 const LENDER = fake({
   id: roleId('w-lender'),
@@ -314,10 +313,7 @@ const CHECKER = fake({
   abilityText: 'Each night, learn the alignment of the player in seat b and of the player in seat c.',
   night: { first: 900 },
   ability: {
-    resolve: (ctx) =>
-      ctx.inform({
-        truth: [ctx.registers('b' as PlayerId).alignment, ctx.registers('c' as PlayerId).alignment],
-      }),
+    resolve: (ctx) => ctx.tell([ctx.registers('b' as PlayerId).alignment, ctx.registers('c' as PlayerId).alignment]),
   },
 });
 
@@ -643,7 +639,7 @@ const SLEEPER = fake({
   night: { first: 800, other: 800 },
   ability: {
     wakes: (ctx) => ctx.jinx('wakes'),
-    resolve: (ctx) => ctx.inform({ truth: ['Awake'] }),
+    resolve: (ctx) => ctx.tell(['Awake']),
   },
 });
 const WAKER = fake({
@@ -678,5 +674,5 @@ const SELF_COPY = fake({
   abilityText: 'Each night, learn a word.',
   setupRules: { duplicates: 'self' },
   night: { first: 870 },
-  ability: { resolve: (ctx) => ctx.inform({ truth: ['Mine'] }) },
+  ability: { resolve: (ctx) => ctx.tell(['Mine']) },
 });

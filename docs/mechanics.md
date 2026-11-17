@@ -9,6 +9,7 @@ against throwaway characters. A future official character should mean writing it
 | Character change on any player      | `ctx.changeCharacter`                                                 | Scarlet Woman, Farmer, Huntsman and Damsel, Imp | Pit-Hag, Barber, Hatter, Engineer              |
 | Alignment change                    | `ctx.changeAlignment`                                                 | Goon, Mezepheles                                | Cult Leader                                    |
 | Gained, hidden and moving abilities | `ctx.grant`, `ctx.move`, `shownAs`                                    | Philosopher, Cannibal, Lil' Monsta              | Boffin                                         |
+| Bare information                    | `ctx.inform` typed answers, `say` words; bare when masked             | Cannibal                                        | none named                                     |
 | Believed-only ability               | `perceivedOnly`, `believes`                                           | Drunk, Marionette, Cannibal's false eat         | Lunatic                                        |
 | Abilities with no player holder     | holder `storyteller` or `game`; Loric fixed at setup                  | Damsel's leftover guess                         | Fabled, Loric                                  |
 | Travellers                          | `add_traveller`, `exile_traveller`, public character, resident counts | none                                            | all Travellers                                 |
@@ -77,7 +78,8 @@ Known limits:
   else, and has their choice ignored, so a vanishing picker never tells them anything early.
 - `adjustVote` needs the voters. A count with no names is kept as entered.
 - `hidesCharacter` hides the character card only. A picker's title can still give the role away, so a role file needs
-  `shownAs` as well.
+  `shownAs` as well. An ability shown under another name is masked: its pickers lose their prompt and labels, its
+  results come back as the bare value, and a result in words only is not sent.
 - An execution chosen with `record_execution` (or a day action's `ctx.execute`) happens at dusk and goes through
   `interceptKill` like any other kill, so the Fool, Devil's Advocate, Sailor and Tea Lady stop it. The execution is still recorded,
   with `died: false`. Protection the app doesn't build (Pacifist, Scapegoat) is the Storyteller's to apply.

@@ -1,5 +1,6 @@
 import { roleId, type PlayerId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
+import { note, playerCharacter } from '../night/info';
 
 interface State {
   grandchild: PlayerId | null;
@@ -20,20 +21,24 @@ export const grandmother = defineRole<State>({
       if (ctx.startInfoDue) {
         const others = ctx.seated.filter((x) => x !== me);
         if (!others.length) return;
-        const fmt = (id: PlayerId, r: string | null) => [`Your grandchild is ${ctx.name(id)}, the ${ctx.roleName(r)}.`];
+        const say = (a: ReturnType<typeof playerCharacter>) => [
+          `Your grandchild is ${ctx.name(a.player)}, the ${ctx.roleName(a.role)}.`,
+        ];
         if (ctx.impaired) {
           const rng = ctx.rng('false');
           ctx.setState({ grandchild: null });
+          const fakeChild = rng.pick(others);
           ctx.inform({
-            truth: ['(impaired: no grandchild is recorded)'],
-            falseLines: fmt(rng.pick(others), rng.pick(ctx.script)),
+            truth: note(['(impaired: no grandchild is recorded)']),
+            fake: playerCharacter(fakeChild, rng.pick(ctx.script)),
+            say,
           });
           ctx.outcome('impaired: false grandchild, no link');
           return;
         }
         const goods = others.filter((x) => ctx.alignmentOf(x) === 'good');
         if (!goods.length) {
-          ctx.inform({ truth: ['There is no good player to be your grandchild.'] });
+          ctx.tell(['There is no good player to be your grandchild.']);
           return;
         }
         const pool = goods.filter((x) => {
@@ -49,7 +54,7 @@ export const grandmother = defineRole<State>({
         });
         ctx.setState({ grandchild: child });
         ctx.outcome(`grandchild: ${ctx.name(child)}`);
-        ctx.inform({ truth: fmt(child, ctx.character(child)) });
+        ctx.inform({ truth: playerCharacter(child, ctx.character(child)), say });
         return;
       }
       const child = ctx.state.grandchild;

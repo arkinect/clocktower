@@ -1,7 +1,7 @@
 // The Cannibal in depth: what is eaten, when it starts, what the phone sees, and how it meets the Philosopher.
 import { describe, expect, it } from 'vitest';
 import { as, row, titles } from './lib';
-import { findRole } from '../../src';
+import { allRoles, findRole } from '../../src';
 import { scene, ST, type Scene } from '../scenario';
 
 const cast = { ann: 'cannibal', bo: 'imp', cy: 'poisoner', di: 'empath', ed: 'slayer', fi: 'sailor' };
@@ -279,7 +279,7 @@ describe('the hidden eaten ability', () => {
     expect(phoneText(s, 'ann')).not.toMatch(/fortune_teller|Fortune Teller/);
     s.review();
     expect(phoneText(s, 'ann')).not.toMatch(/fortune_teller|Fortune Teller/);
-    expect(s.row('ann').truth).toEqual(['bo and ed: Yes, one of them is a Demon.']);
+    expect(s.row('ann').truth).toEqual(['Yes']);
     expect(row(s, 'ann')?.roleId).toBe('fortune_teller');
     s.dawn();
     expect(phoneText(s, 'ann')).not.toMatch(/fortune_teller|Fortune Teller/);
@@ -310,6 +310,102 @@ describe('the hidden eaten ability', () => {
     });
     expect(review?.actors.find((a) => a.playerId === 'ann')?.roleId).toBe('fortune_teller');
     expect(Object.values(s.night.submissions['ann' as never]?.actions ?? {})).toEqual([{ values: ['bo', 'ed'] }]);
+  });
+});
+
+describe('the Cannibal is asked with unmarked fields and told bare values', () => {
+  const ate = (role: string) =>
+    scene({ ann: 'cannibal', bo: 'imp', cy: 'poisoner', di: role, ed: 't1', fi: 't2' })
+      .start()
+      .dawn()
+      .execute('di')
+      .dusk();
+  const phone = (s: Scene) => s.g.view(as('ann')).me;
+  const told = (s: Scene) =>
+    phone(s)
+      .messages.filter((m) => m.title === 'Cannibal')
+      .map((m) => m.lines);
+
+  it('a picker has no prompt and fields named only by kind; the Storyteller still sees its words', () => {
+    const s = ate('fortune_teller');
+    const [spec, ...rest] = phone(s).actions;
+    expect(rest).toEqual([]);
+    expect(spec).toMatchObject({ title: 'Cannibal', roleId: 'cannibal', prompt: '' });
+    expect(spec?.fields.map((f) => [f.kind, f.label])).toEqual([
+      ['player', 'Player 1'],
+      ['player', 'Player 2'],
+    ]);
+    const board = s.g.grimoire().board.find((b) => b.playerId === 'ann');
+    expect(board?.specs[0]?.prompt).toBe('Choose 2 players: you learn if either is a Demon.');
+  });
+
+  it('a yes or no comes back as Yes or No, and so do the Storyteller’s alternatives', () => {
+    const s = ate('fortune_teller').submit({ ann: ['bo', 'ed'] });
+    expect(s.row('ann')).toMatchObject({ truth: ['Yes'], alternatives: [['Yes'], ['No']], title: 'Cannibal' });
+    expect(told(s.dawn())).toEqual([['Yes']]);
+  });
+
+  it('a number comes back bare', () => {
+    const s = ate('empath');
+    expect(s.row('ann').truth).toEqual([expect.stringMatching(/^[0-2]$/)]);
+    expect(s.row('ann').alternatives).toEqual([['0'], ['1'], ['2']]);
+  });
+
+  it('a character comes back as its name, after a question with no words', () => {
+    const s = ate('ravenkeeper')
+      .submit({ bo: ['ann'] })
+      .review();
+    const q = s.res.questions.find((x) => x.playerId === 'ann');
+    expect(q?.spec.prompt).toBe('You have died. Choose a player: you learn their character.');
+    expect(phone(s).questions).toEqual([expect.objectContaining({ title: 'Cannibal', prompt: '' })]);
+    expect(phone(s).questions[0]?.fields.map((f) => f.label)).toEqual(['Player']);
+    s.answer('ann', ['bo']);
+    expect(s.row('ann').truth).toEqual(['Imp']);
+  });
+
+  it('a player and their character come back as just that', () => {
+    const s = ate('grandmother');
+    expect(s.row('ann').truth).toEqual([expect.stringMatching(/^[^:]+: [^:]+$/)]);
+    expect(s.row('ann').truth.join()).not.toMatch(/grandchild/i);
+  });
+
+  it('a confirmation of their own choice is not sent, and what they gain through it stays hidden too', () => {
+    const s = ate('philosopher').submit({ ann: ['empath'] });
+    // The Empath it gained answers tonight, bare; "You chose the Empath ability" is not sent.
+    const rows = s.res.results.filter((r) => r.playerId === 'ann');
+    expect(rows.map((r) => [r.roleId, r.title])).toEqual([['empath', 'Cannibal']]);
+    expect(rows[0]?.truth).toEqual([expect.stringMatching(/^[0-2]$/)]);
+    s.dawn();
+    const gainedEmpath = Object.values(s.state.abilities).find((a) => a.roleId === 'empath');
+    expect(gainedEmpath?.shownAs).toBe('cannibal');
+  });
+
+  it.each(
+    allRoles()
+      .filter((r) => (r.type === 'townsfolk' || r.type === 'outsider') && r.id !== 'cannibal')
+      .map((r) => r.id as string),
+  )('eating the %s: nothing on the phone has words around it', (role) => {
+    const s = ate(role);
+    for (let night = 0; night < 2; night++) {
+      for (const spec of phone(s).actions.filter((x) => x.title === 'Cannibal')) {
+        expect(spec.prompt).toBe('');
+        for (const f of spec.fields) expect(f.label).toMatch(/^(Player|Character|Choice)( \d)?$/);
+      }
+      // Different options per field, so a picker of distinct players accepts them.
+      const pick = (fields: { options: string[] }[]) => fields.map((f, i) => f.options[i] ?? f.options[0] ?? '');
+      const [spec] = phone(s).actions;
+      if (spec) s.submit({ ann: pick(spec.fields) });
+      s.review();
+      for (const q of phone(s).questions.filter((x) => x.title === 'Cannibal')) {
+        expect(q.prompt).toBe('');
+        s.answer('ann', pick(q.fields));
+      }
+      for (const r of s.res.results.filter((x) => x.playerId === 'ann' && x.title === 'Cannibal')) {
+        expect(r.final).toHaveLength(1);
+        expect(r.final[0]).not.toMatch(/\b(you|your|is|are|the)\b|[.!?]$/i);
+      }
+      s.dawn().dusk();
+    }
   });
 });
 

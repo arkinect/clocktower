@@ -44,7 +44,8 @@ describe('Jinx (Cannibal & Juggler)', () => {
     expect(s.specs('ann').map((x) => x.roleId)).not.toContain('juggler');
     expect(s.specs('bo').map((x) => x.roleId)).toEqual(['juggler']);
     s.submit({ bo: ['cy', 'd1', 'di', 't1', 'ed', 't3'] });
-    expect(s.truth('ann')).toEqual(['You guessed 2 correctly.']);
+    // The bare count: the Cannibal is not told what it counts.
+    expect(s.truth('ann')).toEqual(['2']);
     expect(s.truth('bo')).toEqual([]);
   });
   it('a Juggler who did not guess publicly: the hidden copy sleeps, and the dead Juggler is not asked', () => {

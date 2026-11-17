@@ -76,7 +76,7 @@ export function playerView(s: GameState, id: PlayerId, now: number): PlayerView 
     p.kind === 'night' && p.stage === 'review'
       ? resolveNight(s)
           .questions.filter((q) => q.playerId === id && !q.answered)
-          .map((q) => q.spec)
+          .map((q) => q.phone)
       : [];
   const sub = p.kind === 'night' ? (p.submissions[id] ?? null) : null;
   const hidden = r.instances.some((a) => roleDef(a.roleId).ability.hidesCharacter?.(new HookCtx(r, a), id));
@@ -309,7 +309,7 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
           return {
             playerId: pid,
             wakes: wakingAbilities(s, pid).map((a) => ({ roleId: a.roleId, title: roleDef(a.roleId).name })),
-            specs: actionSpecs(s, pid),
+            specs: actionSpecs(s, pid, { storyteller: true }),
             expected: expected.has(pid),
             submitted: !!sub,
             byStoryteller: !!sub?.byStoryteller,
@@ -363,7 +363,7 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
           actors: res.actors,
           results: res.results,
           decisions: res.decisions,
-          questions: res.questions,
+          questions: res.questions.map(({ phone: _, ...q }) => q),
           notices: res.notices,
           deaths: res.deaths,
           revived: res.revived,

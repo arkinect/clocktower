@@ -150,8 +150,9 @@ export function Picker({
           set({ values });
         };
         return (
-          <fieldset key={spec.key} className={styles['spec']}>
-            <legend>{spec.prompt}</legend>
+          // A bare picker (the Cannibal's meal) has no prompt: it goes by its title instead.
+          <fieldset key={spec.key} className={styles['spec']} {...(spec.prompt ? {} : { 'aria-label': spec.title })}>
+            {spec.prompt && <legend>{spec.prompt}</legend>}
             {spec.maxRows ? (
               <Rows
                 spec={spec}

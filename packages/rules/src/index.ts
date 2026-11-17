@@ -9,5 +9,6 @@ export { defineRole, type RoleDef, type SetupRules } from './abilities/define';
 export { defineJinx } from './jinxes/define';
 export { allJinxes, allRoles, defaultScript, findRole, registerJinx, registerRole } from './abilities/registry';
 export { resolveNight, wakingAbilities, actionSpecs, expectedActors } from './night/wake';
+export { character, characters, note, num, player, playerCharacter, yesNo, type Answer, type Note } from './night/info';
 export { computeImpairment } from './derive/impairment';
 export { Reader } from './derive/reader';

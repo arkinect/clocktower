@@ -1,7 +1,6 @@
 import { roleId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
 import type { AbilityCtx } from '../night/context';
-import { yesNo } from './lib';
 
 interface State {
   voted: { day: number; value: boolean } | null;
@@ -66,8 +65,7 @@ export const flowergirl = defineRole<State>({
             default: 'no',
             required: true,
           }) === 'yes';
-      const fmt = (v: boolean) => [`${yesNo(v)}, a Demon ${v ? 'voted' : 'did not vote'} today.`];
-      ctx.inform({ truth: fmt(voted), falseLines: fmt(!voted), alternatives: [fmt(true), fmt(false)] });
+      ctx.informYesNo(voted, (v) => [`${v ? 'Yes' : 'No'}, a Demon ${v ? 'voted' : 'did not vote'} today.`]);
     },
   },
 });

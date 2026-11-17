@@ -1,5 +1,6 @@
 import { roleId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
+import { num } from '../night/info';
 
 export const mathematician = defineRole({
   id: roleId('mathematician'),
@@ -28,9 +29,9 @@ export const mathematician = defineRole({
       const others: number[] = [];
       for (let i = 0; i <= capN; i++) if (i !== truth) others.push(i);
       const fake = capN === 0 || !others.length ? (capN === 0 ? 0 : truth) : ctx.rng('number').pick(others);
-      const alternatives: string[][] = [];
-      for (let i = 0; i <= Math.max(capN, truth); i++) alternatives.push(fmt(i));
-      ctx.inform({ truth: fmt(truth), falseLines: fmt(fake), alternatives });
+      const alternatives: ReturnType<typeof num>[] = [];
+      for (let i = 0; i <= Math.max(capN, truth); i++) alternatives.push(num(i));
+      ctx.inform({ truth: num(truth), fake: num(fake), alternatives, say: (a) => fmt(a.n) });
     },
   },
 });

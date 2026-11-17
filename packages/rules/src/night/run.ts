@@ -25,6 +25,7 @@ import { externalImpairment, computeImpairment, type Impairment } from '../deriv
 import { Reader } from '../derive/reader';
 import type { Condition, ConditionType, GameState, Holder, Moment, NightPhase, Origin } from '../model/state';
 import { subRng, type Rng } from '../util/rng';
+import { NO_LEGAL_CHOICE, bare, bareSpec, masked, noLegalChoice, plainLabel, type Answer, type Note } from './info';
 import {
   AbilityCtx,
   type AskInput,
@@ -57,7 +58,10 @@ export interface QuestionRow {
   key: string;
   playerId: PlayerId;
   roleId: RoleId;
+  /** The question with its words, as the Storyteller answers it on the player's behalf. */
   spec: ActionSpec;
+  /** As the asked player's phone shows it: bare, when they don't know the ability by its own name. */
+  phone: ActionSpec;
   answered: boolean;
   answer: Choice | null;
 }
@@ -281,11 +285,21 @@ export class Run {
     return a.shownAs && a.shownAs !== a.roleId ? roleDef(a.shownAs).name : given;
   }
 
-  inform(a: Instance, input: InformInput) {
+  /**
+   * A result for the holder. Each answer goes out in the role's words, or bare when it has none. A holder who doesn't
+   * know the ability by its own name gets the bare value only, and words with no value behind them not at all.
+   */
+  inform<A extends Answer>(a: Instance, input: InformInput<A>) {
     if (a.holder.kind !== 'player') return;
+    const dark = masked(a);
     const imp = this.impairmentOf(a);
-    const falseLines = input.falseLines ?? null;
-    const suggested = imp.impaired && falseLines ? falseLines : input.truth;
+    const fake = input.fake ?? null;
+    const given = imp.impaired && fake ? fake : input.truth;
+    if (dark && given.kind === 'note') return;
+    const lines = (x: A | Note): string[] =>
+      x.kind === 'note' ? x.lines : !dark && input.say ? input.say(x) : bare(x, this.reader);
+    const truth = lines(input.truth);
+    const suggested = lines(given);
     const key = this.acting === a.id ? `${a.id}:again` : (a.id as string);
     const override = this.night?.overrides[key];
     this.results.push({
@@ -293,36 +307,41 @@ export class Run {
       playerId: a.holder.id,
       roleId: a.roleId,
       title: this.shownTitle(a, input.title),
-      truth: input.truth,
+      truth,
       suggested,
       transformed: null,
       final: override?.lines ?? suggested,
       impaired: imp.impaired,
       causes: imp.causes,
       overridden: !!override,
-      staleOverride: !!override && override.writtenAgainst.join('\n') !== input.truth.join('\n'),
-      alternatives: input.alternatives ?? [],
-      confirmation: !falseLines,
+      staleOverride: !!override && override.writtenAgainst.join('\n') !== truth.join('\n'),
+      alternatives: (input.alternatives ?? []).map(lines),
+      confirmation: !fake,
     });
   }
 
+  /** A picker or question with its words, as the Storyteller sees it. Unlabelled fields are called by their kind. */
   fullSpec(a: Instance, key: string, draft: SpecDraft): ActionSpec {
-    const fields = draft.fields;
-    const players = fields.filter((f) => f.kind === 'player');
-    const pool = new Set(players.flatMap((f) => f.options));
-    const stuck = fields.some((f) => f.options.length === 0) || (!!draft.distinct && pool.size < players.length);
+    const fields = draft.fields.map((f, i) => ({ ...f, label: f.label ?? plainLabel(draft.fields, i) }));
+    const stuck = noLegalChoice(fields, !!draft.distinct);
     const allowDecline = !!draft.allowDecline || stuck;
     return {
       key,
       roleId: a.shownAs,
       title: this.shownTitle(a, draft.title),
-      prompt: draft.prompt,
+      prompt: draft.prompt ?? '',
       fields,
       distinct: !!draft.distinct,
       allowDecline,
-      ...(draft.declineLabel || stuck ? { declineLabel: draft.declineLabel ?? 'No legal choice' } : {}),
+      ...(draft.declineLabel || stuck ? { declineLabel: draft.declineLabel ?? NO_LEGAL_CHOICE } : {}),
       ...(draft.maxRows && draft.maxRows > 1 ? { maxRows: draft.maxRows } : {}),
     };
+  }
+
+  /** What `to`'s phone shows of a spec: bare, when it is the holder and they don't know the ability by its own name. */
+  phoneSpec(a: Instance, spec: ActionSpec, to: PlayerId): ActionSpec {
+    const holder = a.holder.kind === 'player' ? a.holder.id : null;
+    return to === holder && masked(a) ? bareSpec(spec) : spec;
   }
 
   ask(a: Instance, input: AskInput): string[] | null {
@@ -336,6 +355,7 @@ export class Run {
       playerId: input.to,
       roleId: a.roleId,
       spec: shown,
+      phone: this.phoneSpec(a, shown, input.to),
       answered: !!answer,
       answer: answer?.choice ?? null,
     });
@@ -809,6 +829,7 @@ export class Run {
       playerId: pid,
       roleId: a.roleId,
       spec,
+      phone: this.phoneSpec(a, spec, pid),
       answered: !!answer,
       answer: answer?.choice ?? null,
     });
