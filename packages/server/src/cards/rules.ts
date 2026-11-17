@@ -53,8 +53,16 @@ export interface Round {
   winner: number | null;
   /** The first id of the next deck this table opens. */
   nextId: number;
-  /** The last card that cost a seat its turn, until that seat next acts: who lost the turn, and what they drew. */
-  hit: { seat: number; drew: number } | null;
+  /**
+   * What the +2s played in a row have piled up for the seat on turn: it draws them all, or plays a +2 of its own and
+   * passes the lot, two more, to the next seat.
+   */
+  owed: number;
+  /**
+   * The last skip or draw card to land on a seat, until that seat next acts: who it was, what they drew, and whether
+   * it cost them their turn. A +2 does not; a skip and a +4 do.
+   */
+  hit: { seat: number; drew: number; missed: boolean } | null;
 }
 
 export function deal(seats: number, rnd: Rnd, firstId = 0): Round {
@@ -75,6 +83,7 @@ export function deal(seats: number, rnd: Rnd, firstId = 0): Round {
     drew: null,
     winner: null,
     nextId: firstId + DECK_SIZE,
+    owed: 0,
     hit: null,
   };
 }
@@ -85,9 +94,11 @@ export function canPlay(card: Card, top: Card, colour: CardColour) {
   return card.colour === null || card.colour === colour || card.face === top.face;
 }
 
-/** What a seat may play now. After drawing, only the drawn card. */
+/** What a seat may play now. Owing cards, only a +2; after drawing, only the drawn card. */
 export function playable(r: Round, seat: number): Card[] {
-  const ok = (r.hands[seat] ?? []).filter((c) => canPlay(c, topCard(r), r.colour));
+  const hand = r.hands[seat] ?? [];
+  if (r.owed) return hand.filter((c) => c.face === 'draw2');
+  const ok = hand.filter((c) => canPlay(c, topCard(r), r.colour));
   return r.drew === null ? ok : ok.filter((c) => c.id === r.drew);
 }
 
@@ -166,19 +177,21 @@ export function play(
   r.hit = null;
   if (card.face === 'skip') {
     steps = 2;
-    r.hit = { seat: nextSeat(r, active), drew: 0 };
+    r.hit = { seat: nextSeat(r, active), drew: 0, missed: true };
   }
   if (card.face === 'reverse') {
     r.dir = r.dir === 1 ? -1 : 1;
     // With two playing, turning round hands the turn straight back.
     if (active.filter(Boolean).length === 2) steps = 2;
   }
-  if (card.face === 'draw2' || card.face === 'wild4') {
+  // A +2 adds to what is owed and hands it on. The next seat keeps its turn: it draws the lot first, unless it has a
+  // +2 to pass it further. Alone at the table, there is nobody to hand it to.
+  if (card.face === 'draw2') r.owed = nextSeat(r, active) === seat ? 0 : r.owed + 2;
+  if (card.face === 'wild4') {
     const victim = nextSeat(r, active);
-    const n = card.face === 'draw2' ? 2 : 4;
     if (victim !== seat) {
-      take(r, victim, n, rnd);
-      r.hit = { seat: victim, drew: n };
+      take(r, victim, 4, rnd);
+      r.hit = { seat: victim, drew: 4, missed: true };
     }
     steps = 2;
   }
@@ -186,11 +199,20 @@ export function play(
   return null;
 }
 
-/** Draws one card. A card that cannot be played ends the turn at once. */
+/**
+ * Draws one card. A card that cannot be played ends the turn at once. A seat that owes cards draws all it owes
+ * instead, and then takes its turn as usual.
+ */
 export function draw(r: Round, seat: number, active: readonly boolean[], rnd: Rnd): string | null {
   const refused = onTurn(r, seat);
   if (refused) return refused;
   if (r.drew !== null) return 'You have already drawn.';
+  if (r.owed) {
+    take(r, seat, r.owed, rnd);
+    r.hit = { seat, drew: r.owed, missed: false };
+    r.owed = 0;
+    return null;
+  }
   const card = take(r, seat, 1, rnd);
   if (card && canPlay(card, topCard(r), r.colour)) r.drew = card.id;
   else advance(r, active);
@@ -223,9 +245,12 @@ export interface Move {
   colour?: CardColour;
 }
 
-/** Picks a card to play, or null to draw. Coloured cards go first, action cards before numbers; wilds are kept. */
-export function chooseMove(hand: readonly Card[], top: Card, colour: CardColour): Move | null {
-  const options = hand.filter((c) => canPlay(c, top, colour));
+/**
+ * Picks a card to play, or null to draw. Coloured cards go first, action cards before numbers; wilds are kept. Owing
+ * cards, it passes them on with a +2 when it has one.
+ */
+export function chooseMove(hand: readonly Card[], top: Card, colour: CardColour, owed = 0): Move | null {
+  const options = hand.filter((c) => (owed ? c.face === 'draw2' : canPlay(c, top, colour)));
   const rank = (c: Card) => (c.colour === null ? 2 : ACTIONS.includes(c.face) ? 0 : 1);
   const card = [...options].sort((a, b) => rank(a) - rank(b))[0];
   if (!card) return null;

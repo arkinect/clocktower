@@ -53,6 +53,8 @@ export const CardsView = z.object({
   myTurn: z.boolean(),
   canDraw: z.boolean(),
   canPass: z.boolean(),
+  /** The cards this phone must draw, from +2s played in a row, unless it passes them on with a +2 of its own. */
+  owed: z.number(),
   /** When this phone's turn runs out. */
   deadline: z.number().nullable(),
   result: z.enum(['won', 'lost']).nullable(),
