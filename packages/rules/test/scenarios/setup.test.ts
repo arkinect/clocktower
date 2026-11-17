@@ -292,7 +292,17 @@ describe('the Organ Grinder', () => {
 
 describe('the night sheet', () => {
   const MODIFIERS = ['philosopher', 'sailor', 'poisoner', 'innkeeper'];
-  const DEMONS = ['imp', 'pukka', 'shabaloth', 'po', 'no_dashii', 'vigormortis', 'al_hadikhia', 'lil_monsta'];
+  const DEMONS = [
+    'imp',
+    'pukka',
+    'shabaloth',
+    'po',
+    'no_dashii',
+    'vigormortis',
+    'al_hadikhia',
+    'lil_monsta',
+    'witch_king',
+  ];
   const KILLS = [...DEMONS, 'gambler', 'assassin', 'godfather', 'gossip', 'moonchild'];
   const INFORMATION = [
     'clockmaker',

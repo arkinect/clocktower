@@ -944,12 +944,15 @@ export class Run {
     }
   }
 
-  /** Suggestions from every ability, then the core's own Demon-count check. */
-  checkGameEnd() {
+  /**
+   * Suggestions from every ability, then the core's own Demon-count check. Two left is checked from dusk on, as the
+   * Demon would wake: by day, the last good player can still nominate the Demon and execute them with dead votes.
+   */
+  checkGameEnd(o: { dusk?: boolean } = {}) {
     const r = this.reader;
     if (r.w.seats.length === 0) return;
     if (r.demons.length && !r.demons.some(r.isAlive)) this.suggestGameEnd('no_demon', 'good', 'No Demon is alive.');
-    if (r.aliveResidents.length <= 2 && r.demons.some(r.isAlive)) {
+    if ((this.isNight || o.dusk) && r.aliveResidents.length <= 2 && r.demons.some(r.isAlive)) {
       this.suggestGameEnd('two_left', 'evil', 'Only two players are alive.');
     }
     for (const a of r.instances) roleDef(a.roleId).ability.checkGameEnd?.(this.ctx(a));
@@ -985,9 +988,9 @@ export class Run {
     };
   }
 
-  /** Writes a day run's findings back to the world. */
-  commitDay() {
-    this.checkGameEnd();
+  /** Writes a day run's findings back to the world. `dusk`: the day is ending, so the night's checks apply too. */
+  commitDay(o: { dusk?: boolean } = {}) {
+    this.checkGameEnd(o);
     const w = this.world;
     for (const m of this.malfunctions) w.events.push({ kind: 'malfunction', at: this.moment, ...m });
     for (const g of this.gameEndRows()) {

@@ -35,8 +35,9 @@ Storyteller has already ruled on keeps that ruling when other answers change.
 
 ## Nominations
 
-The console doesn't record nominations. The Virgin, the Golem and a Witch's curse are day actions the Storyteller uses
-when the nomination happens, each with a preview. The Psychopath's daily kill is one too, so protections such as the
+The console doesn't record nominations. The Virgin, the Golem, a Witch's curse and a Witch King's curse are day actions
+the Storyteller uses when the nomination happens, each with a preview. A Witch King's cursed nominee dies as the
+nomination is made, and the nomination still stands, as any nomination of a dead player does. The Psychopath's daily kill is one too, so protections such as the
 Tea Lady apply.
 
 ## Executions happen at dusk
@@ -46,6 +47,13 @@ happens at dusk (Start Night), to whoever was chosen last. It happens before the
 Advocate's mark and the day's poison still count. Then the dusk hooks run (the Scarlet Woman), and then what the
 execution triggers for other characters (Cannibal, Mastermind, Mayor). A chosen player who is already dead by then
 dies of nothing new. The Virgin's nominator is chosen the same way and dies at dusk. Test: `scenarios/dusk.test.ts`.
+
+## Two players left
+
+Evil wins with 2 players (or 1) alive and a Demon among them, but only from dusk on, as the Demon would wake. A day
+death that leaves 2 alive (a Slayer's shot, a curse) doesn't end the game: the last good player can still nominate the
+Demon and execute them with dead votes. If the day ends with 2 alive and the Demon one of them, evil wins at dusk.
+Travellers don't count. Tests: `framework/mechanics.test.ts` "Travellers", and `roles/witch-king.test.ts`.
 
 ## When the Moonchild learns they died
 

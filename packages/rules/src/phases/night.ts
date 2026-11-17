@@ -318,7 +318,7 @@ export const nightCommands = [
       executeAtDusk(dusk, n);
       for (const a of ctx.r.instances) roleDef(a.roleId).ability.onDusk?.(dusk.ctx(a));
       fireExecutionAtDusk(dusk, n);
-      dusk.commitDay();
+      dusk.commitDay({ dusk: true });
       s.conditions = s.conditions.filter((c) => c.until !== 'dusk');
       const notices = s.pendingNotices;
       s.pendingNotices = [];

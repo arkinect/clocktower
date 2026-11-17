@@ -12,8 +12,8 @@ describe('the jinx list', () => {
       expect(j.source).toMatch(/^https:/);
     }
   });
-  it('the default script has all 56 roles', () => {
-    expect(defaultScript()).toHaveLength(56);
+  it('the default script has all 57 roles', () => {
+    expect(defaultScript()).toHaveLength(57);
   });
 });
 

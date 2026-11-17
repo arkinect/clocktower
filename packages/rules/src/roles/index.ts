@@ -55,6 +55,7 @@ import { teaLady } from './tea-lady';
 import { vigormortis } from './vigormortis';
 import { virgin } from './virgin';
 import { witch } from './witch';
+import { witchKing } from './witch-king';
 import { zealot } from './zealot';
 import '../jinxes';
 
@@ -115,6 +116,7 @@ const SHEET = [
   vigormortis,
   lilMonsta,
   alHadikhia,
+  witchKing,
 ];
 
 for (const role of SHEET) registerRole(role, { onDefaultScript: true });

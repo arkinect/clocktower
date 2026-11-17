@@ -1,6 +1,6 @@
 // Small helpers the role files share. Nothing here names a role.
 import type { PlayerId } from '@ct/protocol';
-import type { DayActionOutcome, DraftField, SpecDraft } from '../abilities/define';
+import type { DayActionDraft, DayActionOutcome, DraftField, SpecDraft } from '../abilities/define';
 import { roleDef } from '../abilities/registry';
 import type { AbilityCtx } from '../night/context';
 
@@ -104,6 +104,70 @@ export function confirmKill(
   const wasAlive = ctx.isAlive(target);
   const outcome = act();
   return { outcome, confirmed: { day: ctx.n, target, died: wasAlive && !ctx.isAlive(target) } };
+}
+
+/**
+ * A curse: a mark until dusk on a player who dies if something happens today (they nominate, or are nominated). The
+ * console doesn't record nominations, so the Storyteller presses the curse's switch on the Day tab when it goes off.
+ */
+const CURSE = 'Cursed';
+
+export interface CurseState {
+  /** Curses that went off, kept so the Day tab shows them switched on and a second press takes them back. */
+  applied?: Confirmed[];
+}
+
+export const curse = (ctx: AbilityCtx<unknown>, target: PlayerId) =>
+  ctx.addCondition(target, 'marker', { until: 'dusk', name: CURSE });
+
+const cursesOn = (ctx: AbilityCtx<unknown>) => ctx.conditionsFrom('marker').filter((c) => c.name === CURSE);
+const appliedToday = (ctx: AbilityCtx<CurseState>) => (ctx.state.applied ?? []).filter((x) => x.day === ctx.n);
+
+/** The Day tab's switches: one per cursed player, on for those the curse went off on today. */
+export function curseSwitches(
+  ctx: AbilityCtx<CurseState>,
+  o: { title: string; prompt: string; order: number },
+): DayActionDraft[] {
+  const on = appliedToday(ctx).map((x) => x.target);
+  const targets = [...new Set([...cursesOn(ctx).map((c) => c.target), ...on])];
+  if (!targets.length) return [];
+  return [
+    {
+      action: 'apply_curse',
+      title: o.title,
+      prompt: o.prompt,
+      preview: true,
+      order: o.order,
+      control: 'toggle',
+      recorded: on.length ? on : null,
+      fields: [{ kind: 'player', label: 'Cursed', options: targets }],
+    },
+  ];
+}
+
+/**
+ * A curse's switch pressed: the curse goes off and kills its target. Pressed again, it is taken back: the target is
+ * cursed again, and alive again if it killed them. `what` names it in the log ("Witch curse").
+ */
+export function applyCurse(
+  ctx: AbilityCtx<CurseState>,
+  target: PlayerId,
+  cause: string,
+  force: 'none' | 'success' | 'fail',
+  what: string,
+): DayActionOutcome {
+  const name = ctx.name(target);
+  const done = appliedToday(ctx).find((x) => x.target === target);
+  if (done) {
+    if (done.died && !ctx.isAlive(target)) ctx.revive(target, `the ${what} was taken back`);
+    curse(ctx, target);
+    ctx.setState({ applied: (ctx.state.applied ?? []).filter((x) => x !== done) });
+    return { summary: `Taken back: ${name} is cursed again${done.died ? ' and alive' : ''}.`, effective: true };
+  }
+  for (const c of cursesOn(ctx)) if (c.target === target) ctx.removeCondition(c);
+  const { outcome, confirmed } = confirmKill(ctx, target, () => dayKill(ctx, target, cause, force));
+  ctx.setState({ applied: [...(ctx.state.applied ?? []), confirmed] });
+  return outcome;
 }
 
 /** Takes a confirmed day action back: whoever died of it lives again. */
