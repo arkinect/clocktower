@@ -22,7 +22,7 @@ export const butler = defineRole({
       if (!t) return;
       if (!ctx.impaired) ctx.addCondition(t, 'marker', { until: 'dusk', name: 'Butler master' });
       ctx.outcome(`master: ${ctx.name(t)}${ctx.impaired ? ' (no effect, impaired)' : ''}`);
-      ctx.inform({ truth: [`Your master is ${ctx.name(t)}.`] });
+      ctx.tell([`Your master is ${ctx.name(t)}.`]);
     },
     dayNotice(ctx) {
       const master = ctx.conditionsFrom('marker')[0];

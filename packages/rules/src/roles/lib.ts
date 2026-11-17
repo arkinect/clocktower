@@ -1,10 +1,10 @@
 // Small helpers the role files share. Nothing here names a role.
-import type { ActionField, PlayerId } from '@ct/protocol';
-import type { DayActionOutcome, SpecDraft } from '../abilities/define';
+import type { PlayerId } from '@ct/protocol';
+import type { DayActionOutcome, DraftField, SpecDraft } from '../abilities/define';
 import { roleDef } from '../abilities/registry';
 import type { AbilityCtx } from '../night/context';
 
-/** A picker of `count` players. Distinct by default. */
+/** A picker of `count` players, labelled by kind ("Player 2"). Distinct by default. */
 export function choosePlayers(
   title: string,
   prompt: string,
@@ -12,11 +12,7 @@ export function choosePlayers(
   options: readonly string[],
   o: { distinct?: boolean; decline?: string } = {},
 ): SpecDraft {
-  const fields: ActionField[] = Array.from({ length: count }, (_, i) => ({
-    kind: 'player',
-    label: count > 1 ? `Player ${i + 1}` : 'Player',
-    options: [...options],
-  }));
+  const fields: DraftField[] = Array.from({ length: count }, () => ({ kind: 'player', options: [...options] }));
   return {
     title,
     prompt,
@@ -26,11 +22,9 @@ export function choosePlayers(
   };
 }
 
-export const yesNo = (v: boolean) => (v ? 'Yes' : 'No');
-
 /** The confirmation a once-per-game choice gives back. */
 export const confirmChoice = (ctx: AbilityCtx<unknown>, target: PlayerId) =>
-  ctx.inform({ truth: [`You chose ${ctx.name(target)}.`] });
+  ctx.tell([`You chose ${ctx.name(target)}.`]);
 
 /** Makes `to` the Demon in place of `from`: a token moves, a character is copied. Gained abilities stay. */
 export function handOverDemon(ctx: AbilityCtx<unknown>, to: PlayerId, from: PlayerId, pending = false) {

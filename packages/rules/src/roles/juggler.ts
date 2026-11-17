@@ -1,6 +1,7 @@
 import { roleId, type PlayerId, type RoleId } from '@ct/protocol';
 import { defineRole, type Instance } from '../abilities/define';
 import type { AbilityCtx } from '../night/context';
+import { masked } from '../night/info';
 
 interface State {
   /** Whether they guessed publicly on their 1st day, as the Storyteller recorded it. Null: not recorded. */
@@ -11,7 +12,7 @@ interface State {
 const juggled = (ctx: AbilityCtx<State>) => ctx.peers.some((a) => a.state.juggled);
 
 /** The Juggler themself, or a Drunk who thinks they are one: the Cannibal's copy is hidden from its holder. */
-const ownsIt = (a: Instance) => a.shownAs === a.roleId;
+const ownsIt = (a: Instance) => !masked(a);
 
 /**
  * The guesses the Juggler entered tonight, as player and character pairs. A Cannibal's hidden copy reads the executed

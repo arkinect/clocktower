@@ -43,7 +43,7 @@ export const philosopher = defineRole({
         }
         if (!ctx.role(role).ability.resolve) ctx.outcome(`Reminder: ${ctx.roleName(role)} is a day or passive ability`);
       }
-      ctx.inform({ truth: [`You chose the ${ctx.roleName(role)} ability.`] });
+      ctx.tell([`You chose the ${ctx.roleName(role)} ability.`]);
     },
   },
 });

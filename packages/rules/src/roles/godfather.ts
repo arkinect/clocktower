@@ -2,6 +2,7 @@ import { roleId, type PlayerId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
 import type { Reader } from '../derive/reader';
 import type { AbilityCtx } from '../night/context';
+import { characters } from '../night/info';
 import { modifiedCounts } from '../setup/rules';
 import { choosePlayers } from './lib';
 
@@ -122,7 +123,7 @@ export const godfather = defineRole({
           if (fake.length) fake[rng.int(fake.length)] = rng.pick(spare);
           else fake = [rng.pick(spare)];
         }
-        ctx.inform({ truth: fmt(listed), falseLines: fmt(fake) });
+        ctx.inform({ truth: characters(listed), fake: characters(fake), say: (a) => fmt(a.roles) });
         return;
       }
       const [t] = ctx.choice as PlayerId[];

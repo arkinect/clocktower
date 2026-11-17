@@ -7,11 +7,17 @@ import type { Reader } from '../derive/reader';
 
 export type Counts = [townsfolk: number, outsiders: number, minions: number, demons: number];
 
-/** A picker or question, before the core fills in its key and the title the holder sees. */
+/** A field as a role writes it. Without a label it is called by its kind ("Player 2"). */
+export type DraftField = Omit<ActionField, 'label'> & { label?: string };
+
+/**
+ * A picker or question, before the core fills in its key and the title the holder sees. The prompt and labels are
+ * words around the fields: a holder who does not know the ability by its own name sees none of them.
+ */
 export interface SpecDraft {
   title?: string;
-  prompt: string;
-  fields: ActionField[];
+  prompt?: string;
+  fields: DraftField[];
   distinct?: boolean;
   allowDecline?: boolean;
   declineLabel?: string;

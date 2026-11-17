@@ -7,6 +7,10 @@ import type { ConditionOptions, DecideInput, Registration, RegistrationQuery, Sp
 import { makesDemon, roleDef } from '../abilities/registry';
 import { subRng, type Rng } from '../util/rng';
 import { demonInfoLines } from './evil-info';
+import { masked, note, num, yesNo, type Answer, type Note } from './info';
+
+type NumberAnswer = ReturnType<typeof num>;
+type YesNoAnswer = ReturnType<typeof yesNo>;
 import type { Run } from './run';
 
 /** A read-only context: derived conditions, visibility and checklists run where nothing may change. */
@@ -36,13 +40,19 @@ export class HookCtx<S> extends Reader {
   }
 }
 
-export interface InformInput {
+/**
+ * A result: the bare answer, and the words a role may put around it. A holder who doesn't know the ability by its own
+ * name gets the bare answer alone, and a note not at all.
+ */
+export interface InformInput<A extends Answer = Answer> {
   title?: string;
-  truth: string[];
-  /** The false lines suggested when impaired. None means a confirmation, which has no false version. */
-  falseLines?: string[] | null;
-  /** Each a full set of lines the Storyteller can pick. */
-  alternatives?: string[][];
+  truth: A | Note;
+  /** The false answer suggested when impaired. None means a confirmation, which has no false version. */
+  fake?: A | Note | null;
+  /** Every answer the Storyteller can pick. */
+  alternatives?: A[];
+  /** The role's words around an answer. Without them the bare answer is the whole result. */
+  say?: (a: A) => string[];
 }
 
 export interface AskInput {
@@ -223,20 +233,40 @@ export class AbilityCtx<S> extends HookCtx<S> {
     return this.run.decide(this.ability, input);
   }
 
-  inform(input: InformInput) {
+  inform<A extends Answer>(input: InformInput<A>) {
     this.run.inform(this.ability, input);
   }
 
   /** A number result: when impaired, a random other number between min and max is suggested. */
-  informNumber(truth: number, min: number, max: number, fmt: (n: number) => string[], title?: string) {
+  informNumber(truth: number, min: number, max: number, say?: (n: number) => string[]) {
     const others: number[] = [];
-    const alternatives: string[][] = [];
+    const alternatives: NumberAnswer[] = [];
     for (let i = min; i <= max; i++) {
-      alternatives.push(fmt(i));
+      alternatives.push(num(i));
       if (i !== truth) others.push(i);
     }
     const fake = others.length ? this.rng('number').pick(others) : truth;
-    this.inform({ truth: fmt(truth), falseLines: fmt(fake), alternatives, ...(title ? { title } : {}) });
+    this.inform<NumberAnswer>({
+      truth: num(truth),
+      fake: num(fake),
+      alternatives,
+      ...(say ? { say: (a) => say(a.n) } : {}),
+    });
+  }
+
+  /** A yes or no result: when impaired, the other is suggested. */
+  informYesNo(truth: boolean, say?: (yes: boolean) => string[]) {
+    this.inform<YesNoAnswer>({
+      truth: yesNo(truth),
+      fake: yesNo(!truth),
+      alternatives: [yesNo(true), yesNo(false)],
+      ...(say ? { say: (a) => say(a.yes) } : {}),
+    });
+  }
+
+  /** A result in words only, with no value to give: a confirmation, or why there is nothing to tell. */
+  tell(lines: string[]) {
+    this.inform({ truth: note(lines) });
   }
 
   notify(player: PlayerId, title: string, lines: string[], options: { pending?: boolean; starting?: boolean } = {}) {
@@ -292,8 +322,15 @@ export class AbilityCtx<S> extends HookCtx<S> {
     this.run.removeCondition(condition.id);
   }
 
+  /**
+   * Gives `to` an ability. One a holder gains through an ability they don't know by its own name (the Cannibal who ate
+   * the Philosopher) goes under the same name, so it gives nothing away either.
+   */
   grant(to: PlayerId, role: RoleId, options: GrantOptions = {}): AbilityInstance {
-    return this.run.grant({ kind: 'player', id: to }, role, { kind: 'granted', by: this.ability.id }, options);
+    const a = this.ability;
+    const inherit = options.shownAs === undefined && masked(a) && a.holder.kind === 'player' && a.holder.id === to;
+    const o = inherit ? { ...options, shownAs: a.shownAs } : options;
+    return this.run.grant({ kind: 'player', id: to }, role, { kind: 'granted', by: a.id }, o);
   }
 
   revoke(id: string) {

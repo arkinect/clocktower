@@ -1,5 +1,6 @@
 import { roleId, type PlayerId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
+import { character } from '../night/info';
 import { choosePlayers } from './lib';
 
 export const ravenkeeper = defineRole({
@@ -32,8 +33,11 @@ export const ravenkeeper = defineRole({
       const truth = ctx.registers(t, 'character').character;
       const others = ctx.script.filter((r) => r !== truth);
       const fake = others.length ? ctx.rng('role').pick(others) : truth;
-      const fmt = (r: string) => [`${ctx.name(t)} is the ${ctx.roleName(r)}.`];
-      ctx.inform({ truth: fmt(truth), falseLines: fmt(fake) });
+      ctx.inform({
+        truth: character(truth),
+        fake: character(fake),
+        say: (a) => [`${ctx.name(t)} is the ${ctx.roleName(a.role)}.`],
+      });
     },
   },
 });

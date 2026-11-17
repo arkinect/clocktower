@@ -48,10 +48,9 @@ export const fortuneTeller = defineRole({
       if (ts.length !== 2) return;
       const herring = ctx.setupValue(FT, 'herring');
       const yes = ts.some((t) => t === herring || ctx.registers(t).type === 'demon');
-      const fmt = (v: boolean) => [
+      ctx.informYesNo(yes, (v) => [
         `${ts.map(ctx.name).join(' and ')}: ${v ? 'Yes, one of them is a Demon.' : 'No, neither is a Demon.'}`,
-      ];
-      ctx.inform({ truth: fmt(yes), falseLines: fmt(!yes), alternatives: [fmt(true), fmt(false)] });
+      ]);
     },
   },
 });

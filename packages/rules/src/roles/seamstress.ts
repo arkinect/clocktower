@@ -24,10 +24,9 @@ export const seamstress = defineRole({
       if (!a || !b) return;
       ctx.markUsed();
       const same = ctx.registers(a).alignment === ctx.registers(b).alignment;
-      const fmt = (v: boolean) => [
+      ctx.informYesNo(same, (v) => [
         `${ctx.name(a)} and ${ctx.name(b)} are ${v ? 'the same alignment' : 'different alignments'}.`,
-      ];
-      ctx.inform({ truth: fmt(same), falseLines: fmt(!same), alternatives: [fmt(true), fmt(false)] });
+      ]);
     },
   },
 });

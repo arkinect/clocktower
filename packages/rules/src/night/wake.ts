@@ -28,15 +28,20 @@ export function wakingAbilities(state: GameState, pid: PlayerId): Instance[] {
   return out;
 }
 
-/** Real pickers for this player tonight. Empty means the client shows a decoy. */
-export function actionSpecs(state: GameState, pid: PlayerId): ActionSpec[] {
+/**
+ * Real pickers for this player tonight, as their phone shows them. Empty means the client shows a decoy. The
+ * Storyteller, entering a choice for them, sees each with its words.
+ */
+export function actionSpecs(state: GameState, pid: PlayerId, o: { storyteller?: boolean } = {}): ActionSpec[] {
   const phase = state.phase;
   if (phase.kind !== 'night') return [];
   const run = queryRun(state, phase);
   const out: ActionSpec[] = [];
   for (const a of wakingAbilities(state, pid)) {
     const draft = run.reader.role(a.roleId).ability.picker?.(run.ctx(a));
-    if (draft) out.push(run.fullSpec(a, a.id, draft));
+    if (!draft) continue;
+    const spec = run.fullSpec(a, a.id, draft);
+    out.push(o.storyteller ? spec : run.phoneSpec(a, spec, pid));
   }
   return out;
 }
