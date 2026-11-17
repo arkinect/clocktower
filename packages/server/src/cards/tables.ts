@@ -6,7 +6,6 @@ import {
   COLOURS,
   HAND_SIZE,
   bestColour,
-  canPlay,
   chooseMove,
   deal,
   draw,
@@ -220,7 +219,7 @@ export class Tables {
     const seat = r.turn;
     const sitter = table.seats[seat] as string | null;
     if (sitter === null) {
-      table.timer = this.after(this.botPause(r.hands[seat] as Card[], r), () => {
+      table.timer = this.after(this.botPause(r, seat), () => {
         if (table.round.turn === seat && table.seats[seat] === null) this.botTurn(table, seat);
         this.changed(table);
       });
@@ -235,9 +234,9 @@ export class Tables {
    * How long a bot takes over a turn. Quick when it has one card to play, slower with a choice or nothing to play,
    * and about one turn in five it stops to think.
    */
-  private botPause(hand: readonly Card[], r: Round) {
+  private botPause(r: Round, seat: number) {
     const { botMinMs, botMaxMs, botThinkMs } = this.timing;
-    const options = hand.filter((c) => canPlay(c, topCard(r), r.colour)).length;
+    const options = playable(r, seat).length;
     const span = (botMaxMs - botMinMs) * (options === 1 ? 0.5 : 1);
     const think = this.rnd() < 0.2 ? this.rnd() * botThinkMs : 0;
     return botMinMs + this.rnd() * span + think;
@@ -252,7 +251,9 @@ export class Tables {
   private botTurn(table: Table, seat: number) {
     const r = table.round;
     const hand = r.hands[seat] as Card[];
-    const move = chooseMove(hand, topCard(r), r.colour);
+    // Owing cards with no +2 to pass them on, it draws them, and its turn goes on.
+    if (r.owed && !chooseMove(hand, topCard(r), r.colour, r.owed)) draw(r, seat, ALL, this.rnd);
+    const move = chooseMove(hand, topCard(r), r.colour, r.owed);
     if (move) {
       play(r, seat, move.card.id, move.colour, ALL, this.rnd);
       return;
@@ -271,10 +272,18 @@ export class Tables {
 
   /** Says who the last skip or draw card landed on, so a +2 on the pile is not taken for one's own. */
   private note(r: Round, seat: number): string | null {
-    if (!r.hit || r.winner !== null) return null;
-    const { drew } = r.hit;
-    if (r.hit.seat === seat) return drew ? `You drew ${drew} and missed a turn.` : 'You were skipped.';
-    return drew ? `Another seat drew ${drew} and missed a turn.` : 'Another seat was skipped.';
+    if (r.winner !== null) return null;
+    if (r.owed) {
+      return r.turn === seat
+        ? `Draw ${r.owed}, or play a +2 to pass them on.`
+        : `Another seat must draw ${r.owed}, or pass them on with a +2.`;
+    }
+    if (!r.hit) return null;
+    const { drew, missed } = r.hit;
+    const mine = r.hit.seat === seat;
+    if (!drew) return mine ? 'You were skipped.' : 'Another seat was skipped.';
+    const lost = missed ? ' and missed a turn' : '';
+    return mine ? `You drew ${drew}${lost}.` : `Another seat drew ${drew}${lost}.`;
   }
 
   private view({ table, seat }: Place): CardsView {
@@ -295,6 +304,7 @@ export class Tables {
       myTurn,
       canDraw: myTurn && r.drew === null,
       canPass: myTurn && r.drew !== null,
+      owed: myTurn ? r.owed : 0,
       deadline: myTurn ? table.deadline : null,
       result: r.winner === null ? null : r.winner === seat ? 'won' : 'lost',
       note: this.note(r, seat),

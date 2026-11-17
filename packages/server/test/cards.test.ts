@@ -41,6 +41,7 @@ function round(hands: Card[][], top: Card, deck: Card[] = []): Round {
     drew: null,
     winner: null,
     nextId: 1000,
+    owed: 0,
     hit: null,
   };
 }
@@ -83,7 +84,7 @@ describe('the Crazy 8s rules', () => {
     expect(r.turn).toBe(1);
   });
 
-  it('skips, reverses and makes the next seat draw', () => {
+  it('skips, reverses, and makes the next seat draw', () => {
     const filler = () => [card('1', 'green', 50), card('2', 'green', 51)];
     let r = round([[card('skip', 'red', 1), ...filler()], filler(), filler(), filler()], card('5', 'red', 9));
     play(r, 0, 1, undefined, ALL, Math.random);
@@ -93,12 +94,60 @@ describe('the Crazy 8s rules', () => {
     play(r, 0, 1, undefined, ALL, Math.random);
     expect([r.dir, r.turn]).toEqual([-1, 3]);
 
-    const deck = [card('7', 'blue', 20), card('8', 'blue', 21), card('9', 'blue', 22)];
-    r = round([[card('draw2', 'red', 1), ...filler()], filler(), filler(), filler()], card('5', 'red', 9), deck);
-    play(r, 0, 1, undefined, ALL, Math.random);
-    expect(r.hands[1]).toHaveLength(4);
+    // A +4 makes the next seat draw four and costs it the turn.
+    const deck = () => [card('6', 'blue', 20), card('7', 'blue', 21), card('8', 'blue', 22), card('9', 'blue', 23)];
+    r = round([[card('wild4', null, 1), ...filler()], filler(), filler(), filler()], card('5', 'red', 9), deck());
+    play(r, 0, 1, 'blue', ALL, Math.random);
+    expect(r.hands[1]).toHaveLength(6);
     expect(r.turn).toBe(2);
-    expect(r.hit).toEqual({ seat: 1, drew: 2 });
+    expect(r.hit).toEqual({ seat: 1, drew: 4, missed: true });
+
+    // A +2 does not: the next seat draws two and then takes its turn.
+    r = round([[card('draw2', 'red', 1), ...filler()], filler(), filler(), filler()], card('5', 'red', 9), deck());
+    play(r, 0, 1, undefined, ALL, Math.random);
+    expect([r.turn, r.owed]).toEqual([1, 2]);
+    expect(r.hands[1]).toHaveLength(2);
+    expect(draw(r, 1, ALL, Math.random)).toBeNull();
+    expect(r.hands[1]).toHaveLength(4);
+    expect([r.turn, r.owed, r.drew]).toEqual([1, 0, null]);
+    expect(r.hit).toEqual({ seat: 1, drew: 2, missed: false });
+    // Its turn goes on as usual: here the blue cards it drew do not follow, so it draws again.
+    expect(playable(r, 1)).toEqual([]);
+    expect(pass(r, 1, ALL)).toBe('Draw a card first.');
+    draw(r, 1, ALL, Math.random);
+    expect(r.hands[1]).toHaveLength(5);
+    expect(r.turn).toBe(2);
+    expect(r.hit).toBeNull();
+  });
+
+  it('lets a +2 pass what is owed on to the next seat, two more each time', () => {
+    const filler = () => [card('1', 'green', 50), card('2', 'green', 51)];
+    const deck = Array.from({ length: 10 }, (_, i) => card('7', 'blue', 20 + i));
+    const r = round(
+      [
+        [card('draw2', 'red', 1), ...filler()],
+        [card('draw2', 'yellow', 2), card('5', 'red', 3), ...filler()],
+        [card('draw2', 'blue', 4), card('2', 'green', 5)],
+        [card('7', 'yellow', 6), ...filler()],
+      ],
+      card('5', 'red', 9),
+      deck,
+    );
+    play(r, 0, 1, undefined, ALL, Math.random);
+    // Owing, only a +2 may be played, of any colour; a card that would otherwise follow may not.
+    expect(playable(r, 1).map((c) => c.id)).toEqual([2]);
+    expect(play(r, 1, 3, undefined, ALL, Math.random)).toBe('You cannot play that card.');
+    expect(play(r, 1, 2, undefined, ALL, Math.random)).toBeNull();
+    expect([r.turn, r.owed, r.colour]).toEqual([2, 4, 'yellow']);
+    expect(r.hands[1]).toHaveLength(3);
+    play(r, 2, 4, undefined, ALL, Math.random);
+    expect([r.turn, r.owed]).toEqual([3, 6]);
+    // Seat 3 has no +2: it draws all six, then plays on the blue +2.
+    expect(playable(r, 3)).toEqual([]);
+    draw(r, 3, ALL, Math.random);
+    expect(r.hands[3]).toHaveLength(9);
+    expect([r.turn, r.owed]).toEqual([3, 0]);
+    expect(playable(r, 3).map((c) => c.id)).toEqual([29, 28, 27, 26, 25, 24]);
   });
 
   it('passes over a seat that is away, and never deals it cards', () => {
@@ -107,9 +156,10 @@ describe('the Crazy 8s rules', () => {
     const deck = [card('7', 'blue', 20), card('8', 'blue', 21), card('9', 'blue', 22)];
     const r = round([[card('draw2', 'red', 1), ...filler()], filler(), filler(), filler()], card('5', 'red', 9), deck);
     play(r, 0, 1, undefined, active, Math.random);
+    expect([r.turn, r.owed]).toEqual([2, 2]);
+    draw(r, 2, active, Math.random);
     expect(r.hands[1]).toHaveLength(2);
     expect(r.hands[2]).toHaveLength(4);
-    expect(r.turn).toBe(3);
   });
 
   it('with two playing, a reverse hands the turn straight back', () => {
@@ -165,28 +215,46 @@ describe('the bot', () => {
     expect(chooseMove([card('3', 'blue', 3)], top, 'red')).toBeNull();
   });
 
+  it('passes what it owes on with a +2 when it has one', () => {
+    const top = card('draw2', 'red', 9);
+    const hand = [card('7', 'red', 1), card('draw2', 'blue', 2)];
+    expect(chooseMove(hand, top, 'red', 2)?.card.id).toBe(2);
+    expect(chooseMove([card('7', 'red', 1)], top, 'red', 2)).toBeNull();
+  });
+
   it('names the colour it holds most of when it plays a wild', () => {
     const hand = [card('wild', null, 1), card('3', 'blue', 3), card('4', 'blue', 4), card('4', 'green', 5)];
     expect(chooseMove(hand, card('5', 'red', 9), 'red')).toEqual({ card: hand[0], colour: 'blue' });
   });
 
   it('can play whole rounds against itself without losing a card, every +2 and +4 landing on the next seat', () => {
+    let stacked = 0;
     for (let seed = 1; seed <= 25; seed++) {
       const rnd = seeded(seed);
       const r = deal(4, rnd);
       for (let turns = 0; r.winner === null && turns < 5000; turns++) {
         const seat = r.turn;
         const hand = r.hands[seat] as Card[];
-        const move = chooseMove(hand, topCard(r), r.colour);
+        if (r.owed && !chooseMove(hand, topCard(r), r.colour, r.owed)) {
+          // Nothing to pass it on with: it draws what it owes and keeps its turn.
+          const [held, owed] = [hand.length, r.owed];
+          expect(draw(r, seat, ALL, rnd)).toBeNull();
+          expect([hand.length, r.turn, r.owed]).toEqual([held + owed, seat, 0]);
+        }
+        const owing = r.owed;
+        const move = chooseMove(hand, topCard(r), r.colour, r.owed);
         if (move) {
           const next = (seat + (move.card.face === 'reverse' ? -r.dir : r.dir) + 4) % 4;
           const held = (r.hands[next] as Card[]).length;
           expect(play(r, seat, move.card.id, move.colour, ALL, rnd)).toBeNull();
-          const owed = move.card.face === 'draw2' ? 2 : move.card.face === 'wild4' ? 4 : 0;
-          if (r.winner === null) {
-            expect((r.hands[next] as Card[]).length).toBe(held + owed);
-            // The seat that drew does not get the turn.
-            if (owed) expect(r.turn).not.toBe(next);
+          if (r.winner === null && move.card.face === 'draw2') {
+            if (owing) stacked += 1;
+            // Nothing is drawn yet: the next seat owes two more and has the turn.
+            expect([(r.hands[next] as Card[]).length, r.owed, r.turn]).toEqual([held, owing + 2, next]);
+          }
+          if (r.winner === null && move.card.face === 'wild4') {
+            expect((r.hands[next] as Card[]).length).toBe(held + 4);
+            expect(r.turn).not.toBe(next);
           }
         } else {
           draw(r, seat, ALL, rnd);
@@ -196,6 +264,7 @@ describe('the bot', () => {
       }
       expect(r.winner).not.toBeNull();
     }
+    expect(stacked).toBeGreaterThan(0);
   });
 });
 

@@ -89,7 +89,7 @@ export function CrazyEights() {
           disabled={!table.canDraw}
           onClick={() => act({ type: 'draw' })}
         >
-          Draw
+          {table.owed ? `Draw ${table.owed}` : 'Draw'}
         </button>
         <div className={`c8-card c8-${table.colour}`} aria-label={`Top card: ${table.colour} ${spoken(table.top)}`}>
           {symbol(table.top)}
