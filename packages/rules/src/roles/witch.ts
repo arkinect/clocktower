@@ -1,26 +1,8 @@
 import { roleId, type PlayerId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
-import type { AbilityCtx } from '../night/context';
-import { choosePlayers, confirmChoice, dayKill } from './lib';
+import { applyCurse, choosePlayers, confirmChoice, curse, curseSwitches, type CurseState } from './lib';
 
-const CURSE = 'Cursed';
-const curseOn = (ctx: AbilityCtx<unknown>) => ctx.conditionsFrom('marker').filter((c) => c.name === CURSE);
-
-interface Applied {
-  day: number;
-  target: PlayerId;
-  /** Whether applying it killed them, so taking it back revives them. */
-  died: boolean;
-}
-
-interface State {
-  applied?: Applied[];
-}
-
-/** Curses applied today, which the Day tab shows switched on. */
-const appliedToday = (ctx: AbilityCtx<State>) => (ctx.state.applied ?? []).filter((x) => x.day === ctx.n);
-
-export const witch = defineRole<State>({
+export const witch = defineRole<CurseState>({
   id: roleId('witch'),
   name: 'Witch',
   type: 'minion',
@@ -45,43 +27,13 @@ export const witch = defineRole<State>({
         ctx.outcome('impaired: no curse');
         return;
       }
-      ctx.addCondition(t, 'marker', { until: 'dusk', name: CURSE });
+      curse(ctx, t);
       ctx.outcome(`${ctx.name(t)} is cursed: dies if they nominate tomorrow`);
     },
-    dayActions(ctx) {
-      const on = appliedToday(ctx).map((x) => x.target);
-      const targets = [...new Set([...curseOn(ctx).map((c) => c.target), ...on])];
-      if (!targets.length) return [];
-      return [
-        {
-          action: 'apply_curse',
-          title: `Witch (${ctx.name(ctx.holder)})`,
-          prompt: 'Did this player nominate?',
-          preview: true,
-          order: 70,
-          control: 'toggle',
-          recorded: on.length ? on : null,
-          fields: [{ kind: 'player', label: 'Cursed', options: targets }],
-        },
-      ];
-    },
-    // A toggle: the second press on the same player takes it back, reviving them if it killed them.
-    applyDayAction(ctx, _action, values, force) {
-      const target = values[0] as PlayerId;
-      const name = ctx.name(target);
-      const done = appliedToday(ctx).find((x) => x.target === target);
-      if (done) {
-        if (done.died && !ctx.isAlive(target)) ctx.revive(target, 'the Witch curse was taken back');
-        ctx.addCondition(target, 'marker', { until: 'dusk', name: CURSE });
-        ctx.setState({ applied: (ctx.state.applied ?? []).filter((x) => x !== done) });
-        return { summary: `Taken back: ${name} is cursed again${done.died ? ' and alive' : ''}.`, effective: true };
-      }
-      const wasAlive = ctx.isAlive(target);
-      for (const c of curseOn(ctx)) if (c.target === target) ctx.removeCondition(c);
-      const outcome = dayKill(ctx, target, 'witch', force);
-      const died = wasAlive && !ctx.isAlive(target);
-      ctx.setState({ applied: [...(ctx.state.applied ?? []), { day: ctx.n, target, died }] });
-      return outcome;
-    },
+    dayActions: (ctx) =>
+      curseSwitches(ctx, { title: `Witch (${ctx.name(ctx.holder)})`, prompt: 'Did this player nominate?', order: 70 }),
+    // A switch: the second press on the same player takes it back, reviving them if it killed them.
+    applyDayAction: (ctx, _action, values, force) =>
+      applyCurse(ctx, values[0] as PlayerId, 'witch', force, 'Witch curse'),
   },
 });

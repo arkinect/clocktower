@@ -214,7 +214,7 @@ Known limits:
 | Summoner         |       | Setup, third night                         | `setupRules.counts` (no Demon), `suppressGameEnd`, `changeCharacter` |
 | Vizier           |       | Day                                        | `notify` to all, `interceptKill`, day action                         |
 | Widow            |       | First night                                | `visibility`, conditions, `notify`                                   |
-| Witch            | yes   | Each night                                 | conditions, `onDayEvent`                                             |
+| Witch            | yes   | Each night                                 | conditions, day action                                               |
 | Wizard           |       | Once, any time                             | Table: a wish has no fixed effect. Reminder only                     |
 | Wraith           |       | Passive                                    | `visibility` of who wakes                                            |
 | Xaan             |       | Night X                                    | `setupRules.counts` with `late`, conditions                          |
@@ -312,6 +312,7 @@ All are fixed at setup and held by the Storyteller.
 
 Characters made for this app, not official ones. They are on the default script like any other role.
 
-| Character  | Type     | Built | Acts             | Needs                                             |
-| ---------- | -------- | ----- | ---------------- | ------------------------------------------------- |
-| Inquisitor | Outsider | yes   | Nomination, once | day action, `registers` (alignment), as the Golem |
+| Character  | Type     | Built | Acts             | Needs                                                  |
+| ---------- | -------- | ----- | ---------------- | ------------------------------------------------------ |
+| Inquisitor | Outsider | yes   | Nomination, once | day action, `registers` (alignment), as the Golem      |
+| Witch King | Demon    | yes   | Each night\*     | conditions, day action: the Witch's curse, on nominees |

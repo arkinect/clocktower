@@ -483,8 +483,12 @@ describe('mechanics', () => {
     s.execute('a').g.st({ type: 'mark_alive', playerId: 'b' as PlayerId, alive: false });
     s.g.st({ type: 'mark_alive', playerId: 'd' as PlayerId, alive: false });
     s.g.st({ type: 'mark_alive', playerId: 'e' as PlayerId, alive: false });
-    // The Demon and a Traveller left: two residents would be three; the Traveller doesn't count.
+    // The Demon and a Traveller left: two residents would be three; the Traveller doesn't count. Two left is checked
+    // from dusk on: by day, the last good player can still execute the Demon.
+    expect(s.state.gameEnd.map((q) => q.key)).not.toContain('two_left');
+    s.dusk();
     expect(s.state.gameEnd.map((q) => q.key)).toContain('two_left');
+    s.dawn();
     s.g.st({ type: 'exile_traveller', playerId: 'vi' as PlayerId });
     expect(s.g.view('a' as PlayerId).players.find((p) => p.id === 'vi')?.exiled).toBe(true);
     expect(s.alive('vi')).toBe(false);
