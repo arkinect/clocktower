@@ -326,7 +326,7 @@ export const StorytellerView = z.object({
     followUpExtensionSeconds: z.number(),
     announceDeaths: z.boolean(),
     notifyOnRoleChange: z.boolean(),
-    evilInfoPolicy: z.enum(['house', 'official']),
+    evilInfoPolicy: z.enum(['house', 'official', 'teensyville']),
   }),
   players: z.array(GrimoirePlayer),
   storytellerAbilities: z.array(AbilityView),

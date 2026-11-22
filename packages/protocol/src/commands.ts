@@ -50,7 +50,7 @@ export const SetSettings = c('set_settings', {
   followUpExtensionSeconds: Seconds.optional(),
   announceDeaths: z.boolean().optional(),
   notifyOnRoleChange: z.boolean().optional(),
-  evilInfoPolicy: z.enum(['house', 'official']).optional(),
+  evilInfoPolicy: z.enum(['house', 'official', 'teensyville']).optional(),
 });
 export const BeginFirstNight = c('begin_first_night', { force: z.boolean().optional() });
 

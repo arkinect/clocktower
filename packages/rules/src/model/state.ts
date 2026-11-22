@@ -16,7 +16,7 @@ import {
 import { z } from 'zod';
 
 /** Bumped by hand when the state schema changes. */
-export const ENGINE_VERSION = 3;
+export const ENGINE_VERSION = 4;
 
 const ids = <T extends z.ZodType>(value: T) => z.record(z.string(), value);
 
@@ -129,7 +129,7 @@ export const Settings = z.object({
   followUpExtensionSeconds: z.number(),
   announceDeaths: z.boolean(),
   notifyOnRoleChange: z.boolean(),
-  evilInfoPolicy: z.enum(['house', 'official']),
+  evilInfoPolicy: z.enum(['house', 'official', 'teensyville']),
 });
 export type Settings = z.infer<typeof Settings>;
 
