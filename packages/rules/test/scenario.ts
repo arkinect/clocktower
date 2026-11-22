@@ -21,7 +21,7 @@ export interface SceneOptions {
   /** Setup fields, by role: { fortune_teller: { herring: 'bo' } }. */
   fields?: Record<string, Record<string, string>>;
   extra?: string[];
-  evilInfoPolicy?: 'house' | 'official';
+  evilInfoPolicy?: 'house' | 'official' | 'teensyville';
 }
 
 type Pick = string[] | Record<string, string[]>;

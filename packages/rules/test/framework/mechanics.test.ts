@@ -538,6 +538,32 @@ describe('mechanics', () => {
     expect(seven.inbox('b').join(' ')).toContain('The Demon is');
   });
 
+  it('evil information: Teensyville hides the evil team from each other at 6 or fewer', () => {
+    const six = { a: 'd1', b: 'm1', c: 'm2', d: 't1', e: 't2', f: 't3' };
+    const small = scene(six, { evilInfoPolicy: 'teensyville' }).start();
+    expect(small.inbox('a').join(' ')).not.toContain('Your Minions');
+    expect(small.inbox('a').join(' ')).toContain('you do not learn who your Minions are');
+    expect(small.inbox('b').join(' ')).not.toContain('The other Minions are');
+    expect(small.inbox('b').join(' ')).not.toContain('The Demon is');
+    expect(small.inbox('b').join(' ')).toContain('you do not learn');
+
+    // A Traveller does not make it a 7-player game, and an evil one still learns the Demon.
+    const withTraveller = scene({ ...six, g: TRAVELLER[0] as string }, { evilInfoPolicy: 'teensyville' }).start();
+    expect(withTraveller.inbox('a').join(' ')).not.toContain('Your Minions');
+
+    const seven = scene({ ...six, g: 't4' }, { evilInfoPolicy: 'teensyville' }).start();
+    expect(seven.inbox('a').join(' ')).toContain('Your Minions: b, c');
+    expect(seven.inbox('b').join(' ')).toContain('The other Minions are: c.');
+    expect(seven.inbox('b').join(' ')).toContain('The Demon is: a.');
+  });
+
+  it('evil information: Teensyville drops what abilities add for the Demon', () => {
+    const cast = { ann: 'imp', bo: 'marionette', cy: 't1', di: 'm1', ed: 't2', fi: 't3' };
+    const s = scene(cast, { believed: { bo: 'empath' }, evilInfoPolicy: 'teensyville' }).start();
+    expect(s.inbox('ann').join(' ')).not.toContain('The Marionette is');
+    expect(s.inbox('ann').join(' ')).not.toContain('di');
+  });
+
   it('follow-up questions extend the deadline when they first appear, once a night', () => {
     const ask = () => {
       const s = scene({ a: QUIZ, b: 't1', c: 'd1', d: 't2', e: 't3' }).start();

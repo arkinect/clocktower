@@ -97,6 +97,14 @@ With the official policy, Minions and the Demon learn each other at 7 or more pl
 script is built for, so the count is of non-Travellers. Six players and a Traveller get the small-game treatment. Test:
 `framework/mechanics.test.ts`, "Travellers do not count towards the official 7".
 
+## Teensyville evil information
+
+The Teensyville policy is Official, except that with 6 or fewer non-Traveller players the Demon and Minions do not
+learn each other. The Demon still learns its bluffs. It counts seated players, not living ones, so a Demon made
+mid-game in a 7-player game still learns its Minions. Anything a `modifyEvilInfo` hook adds for the Demon (the
+Marionette's name) is dropped too. An evil Traveller is still told the Demon. Tests: `framework/mechanics.test.ts`,
+"Teensyville".
+
 ## Who can be chosen at night
 
 "Choose a player" means any seated player, alive or dead, including the chooser: the Imp's How to Run states this,

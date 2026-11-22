@@ -451,7 +451,10 @@ export function Settings({ view }: { view: StorytellerView }) {
             <b>Official:</b> with 7 or more living players (Travellers aside), the Minions are also told who the Demon
             is. With fewer, they learn as under House.
             <br />
-            Either way, an evil Traveller is told who the Demon is.
+            <b>Teensyville:</b> as Official, but with 6 or fewer players (Travellers aside), the Demon and Minions do
+            not learn each other. The Demon still learns its bluffs.
+            <br />
+            Under every rule, an evil Traveller is told who the Demon is.
           </Info>
         </span>
         <Segments
@@ -459,6 +462,7 @@ export function Settings({ view }: { view: StorytellerView }) {
           options={[
             { id: 'house', text: 'House' },
             { id: 'official', text: 'Official' },
+            { id: 'teensyville', text: 'Teensyville' },
           ]}
           value={s.evilInfoPolicy}
           onChange={(evilInfoPolicy) => void run({ type: 'set_settings', evilInfoPolicy })}

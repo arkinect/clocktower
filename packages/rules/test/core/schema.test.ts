@@ -9,6 +9,7 @@ const SHAPES: Record<number, string> = {
   1: 'c504111005337482',
   2: '249a23b56f34e5f8',
   3: '9c34db79e1e4149d',
+  4: '0695a7f97aae90e0',
 };
 
 describe('the saved game shape', () => {

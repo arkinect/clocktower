@@ -1088,6 +1088,18 @@ describe('setup: countdown settings', () => {
     expect(leave('Night countdown in seconds', '').value).toBe('120');
     expect(run).not.toHaveBeenCalled();
   });
+
+  it('offers Teensyville as a third evil information rule', async () => {
+    render(<Settings view={settingsView} />);
+    const group = screen.getByRole('group', { name: 'Evil information' });
+    expect(
+      within(group)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['House', 'Official', 'Teensyville']);
+    await userEvent.click(within(group).getByRole('button', { name: 'Teensyville' }));
+    expect(run).toHaveBeenCalledWith({ type: 'set_settings', evilInfoPolicy: 'teensyville' });
+  });
 });
 
 describe('the night on a phone', () => {
