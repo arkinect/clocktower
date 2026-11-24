@@ -137,6 +137,25 @@ describe('setup', () => {
     expect(g.grimoire().setup.counts).toMatchObject({ target: [5, 1, 1, 1], actual: [5, 1, 1, 1] });
   });
 
+  it('starting the first night republishes the seating, changed since it was last published or never published', () => {
+    const order = (g: ReturnType<typeof seated>) =>
+      g
+        .view(pid('Ann'))
+        .players.filter((p) => p.seat !== null)
+        .sort((a, b) => (a.seat as number) - (b.seat as number))
+        .map((p) => p.name);
+    const g = seated(['Ann', 'Bo', 'Cy']);
+    g.st({ type: 'publish_seating' });
+    g.st({ type: 'set_seating', order: ['Cy', 'Ann', 'Bo'].map(pid) });
+    expect(order(g)).toEqual(['Ann', 'Bo', 'Cy']);
+    g.st({ type: 'begin_first_night', force: true });
+    expect(order(g)).toEqual(['Cy', 'Ann', 'Bo']);
+    const never = seated(['Ann', 'Bo', 'Cy']);
+    expect(order(never)).toEqual([]);
+    never.st({ type: 'begin_first_night', force: true });
+    expect(order(never)).toEqual(['Ann', 'Bo', 'Cy']);
+  });
+
   it('blocks the first night until the checklist is done', () => {
     const g = seated(['Ann', 'Bo']);
     expect(g.rejected(ST, { type: 'begin_first_night', force: false })).toMatch(/Setup is incomplete/);

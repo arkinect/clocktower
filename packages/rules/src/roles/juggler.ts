@@ -6,10 +6,22 @@ import { masked } from '../night/info';
 interface State {
   /** Whether they guessed publicly on their 1st day, as the Storyteller recorded it. Null: not recorded. */
   juggled: boolean | null;
+  /** Everyone's character when that was recorded: a guess is right or wrong when it is made. */
+  characters?: Record<string, RoleId | null> | null;
 }
 
 /** Today's answer, which belongs to every holder of the ability (the Cannibal's jinx). */
 const juggled = (ctx: AbilityCtx<State>) => ctx.peers.some((a) => a.state.juggled);
+
+/**
+ * The character a guess about this player is checked against. Whoever has changed since the guesses (a Minion made the
+ * Imp, at dusk or tonight) counts as what they were. Anyone else counts as they register: a Recluse or a Spy may count
+ * either way.
+ */
+function whenGuessed(ctx: AbilityCtx<State>, player: PlayerId): RoleId | null {
+  const then = ctx.peers.find((a) => a.state.characters)?.state.characters?.[player];
+  return then && then !== ctx.character(player) ? then : ctx.registers(player, 'character').character;
+}
 
 /** The Juggler themself, or a Drunk who thinks they are one: the Cannibal's copy is hidden from its holder. */
 const ownsIt = (a: Instance) => !masked(a);
@@ -84,7 +96,8 @@ export const juggler = defineRole<State>({
     },
     applyDayAction(ctx, _action, values) {
       const value = values[0] === 'yes';
-      ctx.setState({ juggled: value });
+      const characters = Object.fromEntries(ctx.seated.map((id) => [id, ctx.character(id)]));
+      ctx.setState({ juggled: value, characters: value ? characters : null });
       return {
         summary: value
           ? 'Recorded: they guessed publicly. Tonight they enter their guesses.'
@@ -98,8 +111,7 @@ export const juggler = defineRole<State>({
         return;
       }
       const guesses = guessesOf(ctx);
-      // How each guessed player registers to the Juggler tonight: a Recluse or a Spy may count either way.
-      const truth = guesses.filter((g) => ctx.registers(g.player, 'character').character === g.role).length;
+      const truth = guesses.filter((g) => whenGuessed(ctx, g.player) === g.role).length;
       ctx.informNumber(truth, 0, 5, (n) => [`You guessed ${n} correctly.`]);
     },
   },

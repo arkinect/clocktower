@@ -38,6 +38,41 @@ describe('Juggler', () => {
     expect(s.truth('ann')).toEqual(['You guessed 3 correctly.']);
   });
 
+  describe('a guess is right or wrong when it is made', () => {
+    const imps = { ann: 'juggler', bo: 'imp', cy: 'scarlet_woman', di: 't1', ed: 't2', fi: 't3', gu: 't4' };
+    const day1 = () => {
+      const s = scene(imps).start().dawn();
+      s.act('juggler', 'juggled', ['yes']);
+      return s;
+    };
+    const guesses = ['bo', 'imp', 'cy', 'scarlet_woman', 'di', 't2'];
+
+    it('a Minion who becomes the Imp that night was still the Minion', () => {
+      const s = day1()
+        .dusk()
+        .submit({ bo: ['bo'], ann: guesses })
+        .review();
+      expect(s.truth('ann')).toEqual(['You guessed 2 correctly.']);
+      s.dawn();
+      expect(s.character('cy')).toBe('imp');
+    });
+
+    it('so was a Scarlet Woman who took over at dusk', () => {
+      const s = day1().execute('bo').dusk();
+      expect(s.character('cy')).toBe('imp');
+      s.submit({ ann: guesses }).review();
+      expect(s.truth('ann')).toEqual(['You guessed 2 correctly.']);
+    });
+
+    it('guessing the Minion as the Imp was wrong', () => {
+      const s = day1()
+        .dusk()
+        .submit({ bo: ['bo'], ann: ['cy', 'imp'] })
+        .review();
+      expect(s.truth('ann')).toEqual(['You guessed 0 correctly.']);
+    });
+  });
+
   it('is waited for when they guessed publicly', () => {
     const s = night1('yes');
     expect(s.g.grimoire().board?.find((r) => r.playerId === 'ann')?.expected).toBe(true);

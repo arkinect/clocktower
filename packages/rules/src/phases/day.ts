@@ -311,8 +311,11 @@ export const dayCommands = [
       p.alignment = cmd.alignment;
       p.self.alignment = cmd.alignment;
       if (ctx.s.phase.kind !== 'setup' && cmd.alignment === 'evil') {
-        const demons = run.reader.demons.map(run.reader.name).join(', ');
-        run.deliver(cmd.playerId, 'notice', 'The Demon', [`The Demon is: ${demons}.`]);
+        // A dead Imp who passed the Demon on is still an Imp, but not the Demon to tell them about.
+        const { demons, isAlive, name } = run.reader;
+        const living = demons.filter(isAlive);
+        const told = living.length ? living : demons;
+        run.deliver(cmd.playerId, 'notice', 'The Demon', [`The Demon is: ${told.map(name).join(', ')}.`]);
       }
       if (!ctx.s.publishedSeating.includes(cmd.playerId)) ctx.s.publishedSeating.push(cmd.playerId);
     },

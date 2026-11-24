@@ -53,6 +53,20 @@ describe('Flowergirl', () => {
     s.g.st({ type: 'publish_dawn', force: true });
     expect(s.state.phase.kind).toBe('day');
   });
+  it('asks about the Demon by name, and about a dead Demon too, without naming the Flowergirl', () => {
+    const s = scene({ ...cast, cy: 'imp', ed: 'poisoner' })
+      .start()
+      .dawn();
+    const row = () => s.dayActions().find((d) => d.roleId === 'flowergirl');
+    expect(row()).toMatchObject({ title: 'Flowergirl', prompt: 'Did cy vote today?' });
+    s.dusk()
+      .submit({ cy: ['cy'] })
+      .dawn();
+    expect(row()?.prompt).toBe('Did cy or ed vote today?');
+    s.g.st({ type: 'mark_alive', playerId: 'ed' as never, alive: false });
+    s.g.st({ type: 'assign_character', playerId: 'di' as never, roleId: 'imp' as never });
+    expect(row()?.prompt).toBe('Did cy, di or ed vote today?');
+  });
   it('does not act on Night 0', () => {
     expect(scene(cast).start().truth('ann')).toEqual([]);
   });

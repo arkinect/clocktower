@@ -11,6 +11,18 @@ describe('Clockmaker', () => {
     s.nextNight();
     expect(s.truth('ann')).toEqual([]);
   });
+  it('gained after a starpass, it counts from the living Imp', () => {
+    // The dead Imp sits next to the other Minion; the new Imp is 3 steps away.
+    const s = scene({ ann: 'imp', bo: 'm1', cy: 'philosopher', di: 't1', ed: 'scarlet_woman', fi: 't2', gu: 't3' })
+      .start()
+      .nextNight()
+      .submit({ ann: ['ann'] })
+      .dawn()
+      .dusk()
+      .submit({ cy: ['clockmaker'] })
+      .review();
+    expect(s.truth('cy')).toContain('The Demon is 3 steps from its nearest Minion.');
+  });
   it('a Drunk who believes it gets something false, marked impaired', () => {
     const s = scene(
       { ann: 'drunk', bo: 't1', cy: 'd1', di: 't2', ed: 'm1' },
