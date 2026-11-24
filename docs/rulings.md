@@ -59,6 +59,16 @@ Advocate's mark and the day's poison still count. Then the dusk hooks run (the S
 execution triggers for other characters (Cannibal, Mastermind, Mayor). A chosen player who is already dead by then
 dies of nothing new. The Virgin's nominator is chosen the same way and dies at dusk. Test: `scenarios/dusk.test.ts`.
 
+## The Mastermind is judged at the execution
+
+Whether the Mastermind gives an extra day is settled by their state as the Demon is executed, while the day's poison
+still counts. Drunk or poisoned then, there is no extra day, even if they are well again that night. Sober, healthy and
+alive then, there is one, even if they are poisoned or killed that night.
+
+The Al-Hadikhia's jinx follows the same moment, as it stands in for the extra day. In it they must choose 3 good
+players. 3 not being chosen is not "all 3 choose to live", so good wins. They may choose no one only if there are fewer
+than 3 good players, living or dead. Tests: `scenarios/al-hadikhia.test.ts`, `roles/mastermind.test.ts`.
+
 ## Two players left
 
 Evil wins with 2 players (or 1) alive and a Demon among them, but only from dusk on, as the Demon would wake. A day

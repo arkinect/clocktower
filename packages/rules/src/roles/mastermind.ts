@@ -1,9 +1,12 @@
 import { roleId, type PlayerId } from '@ct/protocol';
-import { defineRole } from '../abilities/define';
+import { defineRole, type Instance } from '../abilities/define';
 
 interface State {
   extraDay: number | null;
 }
+
+/** The extra day this Mastermind's ability gave, settled by their state as the Demon was executed. */
+export const extraDay = (a: Instance) => (a.state as State).extraDay;
 
 export const mastermind = defineRole<State>({
   id: roleId('mastermind'),
