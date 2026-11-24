@@ -1,25 +1,31 @@
 // Homebrew: not an official character. The Witch's curse turned round: it goes off on the nominee, not the nominator.
+// Or, instead of cursing, a plain Demon kill.
 import { roleId, type PlayerId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
 import { applyCurse, curse, curseSwitches, type CurseState } from './lib';
+
+const KILL = 'kill';
 
 export const witchKing = defineRole<CurseState>({
   id: roleId('witch_king'),
   name: 'Witch King',
   type: 'demon',
-  abilityText: 'Each night*, choose up to 2 players: if they are nominated tomorrow, they die.',
+  abilityText:
+    'Each night*, choose up to 2 players: if they are nominated tomorrow, they die. Or, choose 1 player: they die.',
   reminder: 'If a cursed player is nominated, apply the curse in the Day panel.',
-  // Among the Demons: it curses from the night they start killing. Its curses kill by day, so tonight's order only
-  // needs it after the Poisoner.
+  // Among the Demons, with the others' kills.
   night: { other: 115 },
   initialState: () => ({ applied: [] }),
   ability: {
-    // Up to 2: each pick is a row, and "No one" leaves both empty.
+    // Up to 2 curses, each a row, or 1 kill. "No one" does neither.
     picker: (ctx) => ({
       title: 'Witch King',
-      prompt: 'Choose up to 2 players: if they are nominated tomorrow, they die.',
+      prompt: 'Curse up to 2 players: if they are nominated tomorrow, they die. Or kill 1 player tonight.',
       fields: [{ kind: 'player', options: ctx.seated }],
-      maxRows: 2,
+      modes: [
+        { id: 'curse', label: 'Curse', maxRows: 2 },
+        { id: KILL, label: 'Kill' },
+      ],
       distinct: true,
       allowDecline: true,
       declineLabel: 'No one',
@@ -27,11 +33,16 @@ export const witchKing = defineRole<CurseState>({
     resolve(ctx) {
       const ts = ctx.choice as PlayerId[];
       if (!ts.length) {
-        ctx.outcome('chose no one: no curse');
+        ctx.outcome('chose no one: no curse, no kill');
         return;
       }
       const names = ts.map(ctx.name).join(' and ');
       ctx.tell([`You chose ${names}.`]);
+      if (ctx.mode === KILL) {
+        if (ctx.impaired) ctx.outcome('impaired: no kill');
+        else ctx.attemptKill(ts[0] as PlayerId, 'demon_attack');
+        return;
+      }
       if (ctx.impaired) {
         ctx.outcome('impaired: no curse');
         return;

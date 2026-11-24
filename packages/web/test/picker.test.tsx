@@ -127,6 +127,53 @@ describe('the picker', () => {
   });
 });
 
+describe('modes', () => {
+  const player = { ...players, label: 'Player' };
+  const either = spec({
+    fields: [player],
+    distinct: true,
+    allowDecline: true,
+    declineLabel: 'No one',
+    modes: [
+      { id: 'curse', label: 'Curse', maxRows: 2 },
+      { id: 'kill', label: 'Kill' },
+    ],
+  });
+  const pressed = (name: string) => screen.getByRole('button', { name }).getAttribute('aria-pressed');
+
+  it('starts on the first, and each has its own number of rows', async () => {
+    const spy = vi.fn();
+    render(<Harness s={either} spy={spy} />);
+    expect(pressed('Curse')).toBe('true');
+    await userEvent.selectOptions(screen.getByLabelText('Player 1'), 'a');
+    await userEvent.selectOptions(screen.getByLabelText('Player 2'), 'b');
+    expect(spy).toHaveBeenLastCalledWith({ k: { mode: 'curse', values: ['a', 'b'] } });
+    await userEvent.click(screen.getByRole('button', { name: 'Kill' }));
+    expect(spy).toHaveBeenLastCalledWith({ k: { mode: 'kill', values: ['a'] } });
+    await userEvent.selectOptions(screen.getByLabelText('Player'), 'c');
+    expect(spy).toHaveBeenLastCalledWith({ k: { mode: 'kill', values: ['c'] } });
+  });
+
+  it('declining leaves no mode, and picking one again takes the decline back', async () => {
+    const spy = vi.fn();
+    render(<Harness s={either} spy={spy} />);
+    await userEvent.click(screen.getByLabelText('No one'));
+    expect(spy).toHaveBeenLastCalledWith({ k: { decline: true, values: [] } });
+    expect([pressed('Curse'), pressed('Kill')]).toEqual(['false', 'false']);
+    await userEvent.click(screen.getByRole('button', { name: 'Kill' }));
+    expect(spy).toHaveBeenLastCalledWith({ k: { mode: 'kill', values: [] } });
+  });
+
+  it('a choice is complete for its own mode', () => {
+    expect(choiceComplete(either, { values: ['a'] })).toBe(false);
+    expect(choiceComplete(either, { mode: 'curse', values: ['a', 'b'] })).toBe(true);
+    expect(choiceComplete(either, { mode: 'kill', values: ['a'] })).toBe(true);
+    expect(choiceComplete(either, { mode: 'kill', values: ['a', 'b'] })).toBe(false);
+    expect(choiceComplete(either, { mode: 'kill', values: [] })).toBe(false);
+    expect(choiceComplete(either, { decline: true, values: [] })).toBe(true);
+  });
+});
+
 describe('choiceComplete', () => {
   const two = spec({ fields: [players, roles], distinct: true });
 

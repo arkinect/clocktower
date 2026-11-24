@@ -130,6 +130,12 @@ export class AbilityCtx<S> extends HookCtx<S> {
     return c && !c.decline ? c.values : [];
   }
 
+  /** Which of the picker's modes was used. Null when it has none, or with no choice or a declined one. */
+  get mode(): string | null {
+    const c = this.run.choiceOf(this.ability);
+    return (c && !c.decline && c.mode) || null;
+  }
+
   /** Whether a choice exists, including a decline. */
   get chose(): boolean {
     return !!this.run.choiceOf(this.ability);

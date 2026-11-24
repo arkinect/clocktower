@@ -1,5 +1,5 @@
 // The scenario language: a game described by its cast, driven one night and day at a time.
-import { roleId, type AbilityId, type Choice, type PlayerId, type RoleId } from '@ct/protocol';
+import { inMode, roleId, type AbilityId, type Choice, type PlayerId, type RoleId } from '@ct/protocol';
 import { defaultScript, resolveNight } from '../src';
 import { computeImpairment } from '../src';
 import { phaseMoment } from '../src/model/state';
@@ -75,15 +75,25 @@ export class Scene {
     return p;
   }
 
-  /** Night actions by player id. A list answers their first picker, [] declines it. A rows picker takes every row. */
+  /**
+   * Night actions by player id. A list answers their first picker, [] declines it. A rows picker takes every row. A
+   * picker with modes takes its first, unless the list starts with another's id (['kill', 'bo']).
+   */
   submit(picks: Record<string, Pick>) {
     for (const [id, pick] of Object.entries(picks)) {
       const specs = this.g.view(id as PlayerId).me.actions;
       const actions: Record<string, Choice> = {};
-      const choose = (spec: (typeof specs)[number], values: string[]): Choice =>
-        values.length
-          ? { values: (spec.maxRows ? values : spec.fields.map((_, i) => values[i] as string)).map(toRoleIfNeeded) }
-          : { decline: true, values: [] };
+      const choose = (asked: (typeof specs)[number], list: string[]): Choice => {
+        if (!list.length) return { decline: true, values: [] };
+        const named = asked.modes?.some((m) => m.id === list[0]);
+        const mode = named ? list[0] : asked.modes?.[0]?.id;
+        const values = named ? list.slice(1) : list;
+        const spec = inMode(asked, mode);
+        return {
+          values: (spec.maxRows ? values : spec.fields.map((_, i) => values[i] as string)).map(toRoleIfNeeded),
+          ...(mode ? { mode } : {}),
+        };
+      };
       if (Array.isArray(pick)) {
         const spec = specs[0];
         if (!spec) throw new Error(`${id} has no picker tonight`);

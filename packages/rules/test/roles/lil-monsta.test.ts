@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ST } from '../helpers/game';
 import { scene, type Scene } from '../scenario';
 
 const cast = { ann: 'lil_monsta', bo: 'm1', cy: 't1', di: 't2', ed: 't3', fi: 't4', gu: 't5' };
@@ -18,6 +19,22 @@ describe("Lil' Monsta", () => {
   it('needs a Minion chosen at setup', () => {
     const s = scene(cast);
     expect(s.g.grimoire().setup.checklist.find((c) => c.id === 'lil_monsta')?.done).toBe(false);
+  });
+  it('cannot become a Minion in play, or the Marionette, who would know what they are', () => {
+    const s = scene({ ...cast, bo: 'poisoner' });
+    const field = () => s.g.grimoire().setup.fields.find((f) => f.field === 'minion');
+    const ids = field()?.options.map((o) => o.id) ?? [];
+    expect(ids).toContain('baron');
+    expect(ids).not.toContain('poisoner');
+    expect(ids).not.toContain('marionette');
+    const set = (value: string) =>
+      s.g.tryAs(ST, {
+        type: 'set_setup_field',
+        abilityId: s.ability('lil_monsta'),
+        field: 'minion',
+        value,
+      });
+    expect(set('marionette').ok).toBe(false);
   });
   it('comes with no bluffs: none asked for at setup, none shown', () => {
     const s = scene(cast, opts);
@@ -47,35 +64,65 @@ describe("Lil' Monsta", () => {
     expect(isDemon(s, 'cy')).toBe(true);
     expect(isDemon(s, 'ann')).toBe(false);
   });
-  it('a good babysitter is never told, stays good and does not choose; the keeper takes the token back', () => {
+  const TOLD = [
+    "You are babysitting Lil' Monsta. Whoever babysits it is the Demon.",
+    'Babysitting does not change your alignment.',
+  ];
+  const told = (s: Scene, id: string) => TOLD.every((line) => s.inbox(id).includes(line));
+  it('a good babysitter is told, stays good and does not choose; the keeper takes the token back', () => {
     const s = scene(cast, opts).start().nextNight();
     s.submit({ ann: ['cy'] })
       .decide('lil_monsta', 'none')
       .dawn();
     expect(s.alignment('cy')).toBe('good');
-    expect(s.inbox('cy').join(' ')).not.toMatch(/Lil' Monsta|Demon/);
+    expect(told(s, 'cy')).toBe(true);
     s.dusk();
     expect(s.specs('cy')).toEqual([]);
     s.submit({ ann: ['ann'] })
       .decide('lil_monsta', 'none')
       .dawn();
     expect(babysitter(s)).toEqual({ kind: 'player', id: 'ann' });
-    expect(s.inbox('cy').join(' ')).not.toMatch(/Lil' Monsta|Demon/);
+    // Nothing more: a good player is never told where the token went.
+    expect(s.inbox('cy').filter((x) => /babysit/.test(x))).toHaveLength(1);
   });
-  it('the evil team is told who babysits, in the third person, and nothing else', () => {
+  it('a good player who does not babysit is told nothing', () => {
+    const s = scene(cast, opts).start().nextNight();
+    s.submit({ ann: ['cy'] })
+      .decide('lil_monsta', 'none')
+      .dawn();
+    expect(s.inbox('di').join(' ')).not.toMatch(/Monsta|babysit/);
+  });
+  it('the evil team is told who babysits, and an evil babysitter that it is them', () => {
     const s = scene(cast, opts).start().nextNight();
     s.submit({ ann: ['bo'] })
       .decide('lil_monsta', 'none')
       .dawn();
-    expect(s.inbox('bo')).toContain("bo is babysitting Lil' Monsta.");
+    expect(told(s, 'bo')).toBe(true);
+    expect(s.inbox('bo').join(' ')).not.toMatch(/bo is babysitting/);
     s.dusk()
       .submit({ ann: ['cy'] })
       .decide('lil_monsta', 'none')
       .dawn();
     expect(s.inbox('bo')).toContain("cy is babysitting Lil' Monsta.");
-    expect(s.inbox('bo').join(' ')).not.toMatch(/You babysit|no longer|You are the Demon/);
     // The keeper chose it, so is not told.
-    expect(s.inbox('ann').join(' ')).not.toMatch(/is babysitting/);
+    expect(s.inbox('ann').join(' ')).not.toMatch(/is babysitting|are babysitting/);
+  });
+  it('a Marionette is not told who babysits, and one who babysits is told just what a good player is', () => {
+    const s = scene({ ...cast, bo: 'marionette', gu: 'm2' }, { ...opts, believed: { bo: 'empath' } })
+      .start()
+      .nextNight();
+    s.submit({ ann: ['cy'] })
+      .decide('lil_monsta', 'none')
+      .dawn();
+    expect(s.inbox('gu')).toContain("cy is babysitting Lil' Monsta.");
+    expect(s.inbox('bo').join(' ')).not.toMatch(/Monsta|babysit/);
+    s.dusk()
+      .submit({ ann: ['bo'] })
+      .dawn();
+    const notice = (id: string) => s.g.view(id as never).me.messages.findLast((m) => m.title === "Lil' Monsta");
+    expect(notice('bo')?.lines).toEqual(TOLD);
+    expect(notice('bo')?.lines).toEqual(notice('cy')?.lines);
+    expect(s.g.view('bo' as never).me.role?.name).toBe('Empath');
   });
   it('the victim list leaves out the babysitter and offers nobody', () => {
     const s = scene(cast, opts).start().nextNight();
@@ -92,14 +139,50 @@ describe("Lil' Monsta", () => {
       .dawn();
     expect(Object.keys(cast).every((id) => s.alive(id))).toBe(true);
   });
-  it('a poisoned babysitter kills nobody', () => {
+  it('cannot be poisoned: a poisoned babysitter still kills, and only their own ability fails', () => {
+    const s = scene({ ...cast, bo: 'poisoner', cy: 'empath' }, opts)
+      .start()
+      .nextNight();
+    s.submit({ bo: ['cy'], ann: ['cy'] }).decide('lil_monsta', 'di');
+    expect(s.row('cy').impaired).toBe(true);
+    s.dawn();
+    expect(s.impaired('cy')).toBe(true);
+    expect(s.alive('di')).toBe(false);
+  });
+  it('a Marionette who babysits kills too', () => {
+    const s = scene({ ...cast, bo: 'marionette' }, { ...opts, believed: { bo: 'empath' } })
+      .start()
+      .nextNight();
+    s.submit({ ann: ['bo'] }).decide('lil_monsta', 'di');
+    expect(s.impaired('bo')).toBe(true);
+    s.dawn();
+    expect(s.alive('di')).toBe(false);
+  });
+  it('a poisoned keeper still chooses, and the Review row does not call it poisoned', () => {
     const s = scene({ ...cast, bo: 'poisoner' }, opts)
       .start()
       .nextNight();
-    s.submit({ bo: ['cy'], ann: ['cy'] }).review();
-    expect(s.hasDecision('lil_monsta')).toBe(false);
+    s.submit({ bo: ['ann'], ann: ['cy'] }).decide('lil_monsta', 'di');
+    expect(s.res.actors.find((a) => a.roleId === 'lil_monsta')).toMatchObject({ impaired: false, causes: [] });
     s.dawn();
-    expect(Object.keys(cast).every((id) => s.alive(id))).toBe(true);
+    expect(s.impaired('ann')).toBe(true);
+    expect(babysitter(s)).toEqual({ kind: 'player', id: 'cy' });
+    expect(s.alive('di')).toBe(false);
+  });
+  it('a poisoned babysitter is no malfunction, unless their own ability goes wrong', () => {
+    const s = scene({ ...cast, bo: 'poisoner', gu: 'mathematician' }, opts)
+      .start()
+      .nextNight();
+    // cy is a plain Townsfolk with nothing to go wrong.
+    s.submit({ bo: ['cy'], ann: ['cy'] }).decide('lil_monsta', 'none');
+    expect(s.truth('gu')).toEqual(["0 players' abilities worked abnormally."]);
+  });
+  it('a dead babysitter kills nobody', () => {
+    const s = scene(cast, opts).start().nextNight();
+    s.submit({ ann: ['cy'] });
+    s.kill('cy');
+    s.review();
+    expect(s.hasDecision('lil_monsta')).toBe(false);
   });
   it('executing the babysitter kills the Demon', () => {
     const s = scene(cast, opts).start().dawn();

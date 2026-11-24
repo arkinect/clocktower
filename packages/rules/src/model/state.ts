@@ -16,7 +16,7 @@ import {
 import { z } from 'zod';
 
 /** Bumped by hand when the state schema changes. */
-export const ENGINE_VERSION = 4;
+export const ENGINE_VERSION = 5;
 
 const ids = <T extends z.ZodType>(value: T) => z.record(z.string(), value);
 

@@ -312,7 +312,7 @@ All are fixed at setup and held by the Storyteller.
 
 Characters made for this app, not official ones. They are on the default script like any other role.
 
-| Character  | Type     | Built | Acts             | Needs                                                  |
-| ---------- | -------- | ----- | ---------------- | ------------------------------------------------------ |
-| Inquisitor | Outsider | yes   | Nomination, once | day action, `registers` (alignment), as the Golem      |
-| Witch King | Demon    | yes   | Each night\*     | conditions, day action: the Witch's curse, on nominees |
+| Character  | Type     | Built | Acts             | Needs                                                                                 |
+| ---------- | -------- | ----- | ---------------- | ------------------------------------------------------------------------------------- |
+| Inquisitor | Outsider | yes   | Nomination, once | day action, `registers` (alignment), as the Golem                                     |
+| Witch King | Demon    | yes   | Each night\*     | picker `modes`; conditions, day action: the Witch's curse, on nominees; `attemptKill` |

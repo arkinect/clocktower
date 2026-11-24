@@ -1,6 +1,15 @@
 // A role is one file: defineRole gives it display data, flags, data rules and hooks. The core only ever iterates
 // ability instances and calls these hooks; it never names a role.
-import type { ActionField, Alignment, CharacterType, DecisionKey, PlayerId, RoleCard, RoleId } from '@ct/protocol';
+import type {
+  ActionField,
+  ActionMode,
+  Alignment,
+  CharacterType,
+  DecisionKey,
+  PlayerId,
+  RoleCard,
+  RoleId,
+} from '@ct/protocol';
 import type { AbilityInstance, Expiry } from '../model/state';
 import type { AbilityCtx, HookCtx } from '../night/context';
 import type { Reader } from '../derive/reader';
@@ -23,6 +32,8 @@ export interface SpecDraft {
   declineLabel?: string;
   /** `fields` is one row, and the answer is 1 to this many rows (see ActionSpec). Day rows: how many. Default 1. */
   maxRows?: number;
+  /** Either/or: the player uses one of these (see ActionSpec), which `ctx.mode` then names. Night pickers only. */
+  modes?: ActionMode[];
 }
 
 export interface DayActionDraft extends SpecDraft {
@@ -290,8 +301,8 @@ export interface RoleFlags {
   asksOnDeath?: boolean;
   /** Shown in the day screen's reminders. */
   dayReminder?: boolean;
-  /** The core sends no "ability impaired" malfunction for this role: it logs its own. */
-  quietImpairment?: boolean;
+  /** The ability belongs to no player: whoever holds it being drunk or poisoned does not affect it. */
+  neverImpaired?: boolean;
   /** Interception order; lower runs first. */
   interceptPriority?: number;
   /** Has an ability that can go wrong without ever waking, for what a malfunction count can plausibly be. */

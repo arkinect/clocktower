@@ -13,6 +13,14 @@ export const ActionField = z.object({
 });
 export type ActionField = z.infer<typeof ActionField>;
 
+/** One way to use an ability that has several. They share the spec's fields, and each has its own number of rows. */
+export const ActionMode = z.object({
+  id: optionId,
+  label: text,
+  maxRows: z.number().int().min(1).max(8).optional(),
+});
+export type ActionMode = z.infer<typeof ActionMode>;
+
 export const ActionSpec = z.object({
   /** The key its answer is submitted under: an ability id at night, a question key for a question. */
   key: z.string().min(1).max(200),
@@ -29,11 +37,23 @@ export const ActionSpec = z.object({
    * guesses). `distinct` then applies across every row.
    */
   maxRows: z.number().int().min(1).max(8).optional(),
+  /** An either/or ability (the Witch King curses or kills): the answer names one of these, and is asked as it says. */
+  modes: z.array(ActionMode).min(2).max(4).optional(),
 });
 export type ActionSpec = z.infer<typeof ActionSpec>;
 
+/** The spec as one of its modes asks it. A spec with no modes is asked as it is. */
+export function inMode(spec: ActionSpec, mode: string | undefined): ActionSpec {
+  if (!spec.modes) return spec;
+  const { modes, maxRows: _, ...rest } = spec;
+  const rows = modes.find((m) => m.id === mode)?.maxRows;
+  return { ...rest, ...(rows ? { maxRows: rows } : {}) };
+}
+
 export const Choice = z.object({
   decline: z.boolean().optional(),
+  /** Which of the spec's modes this is, when it has any. A declined choice has none. */
+  mode: optionId.optional(),
   /** Up to 16: rows (the Juggler's five guesses) send every row's values in one list. */
   values: z.array(optionId).max(16),
 });

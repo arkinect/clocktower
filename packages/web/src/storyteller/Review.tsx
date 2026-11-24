@@ -151,8 +151,11 @@ function Question({ view, q, change }: { view: StorytellerView; q: QuestionView;
   const given = q.answered ? q.answer : null;
   const [choice, setChoice] = useState<Record<string, Choice>>(change && given ? { [q.spec.key]: given } : {});
   const answer = choice[q.spec.key];
-  const said = (c: Choice) =>
-    c.decline ? 'declined' : c.values.map((v) => names.players[v] ?? names.roles[v] ?? v).join(', ');
+  const said = (c: Choice) => {
+    if (c.decline) return 'declined';
+    const mode = q.spec.modes?.find((m) => m.id === c.mode);
+    return `${mode ? `${mode.label}: ` : ''}${c.values.map((v) => names.players[v] ?? names.roles[v] ?? v).join(', ')}`;
+  };
   return (
     <article className={styles['result']}>
       <h3>
@@ -175,7 +178,8 @@ function Question({ view, q, change }: { view: StorytellerView; q: QuestionView;
   );
 }
 
-const choiceText = (c: Choice | undefined) => (!c ? '' : c.decline ? 'decline' : c.values.join(','));
+const choiceText = (c: Choice | undefined) =>
+  !c ? '' : c.decline ? 'decline' : `${c.mode ?? ''}:${c.values.join(',')}`;
 const sameChoice = (a: Choice | undefined, b: Choice | undefined) => choiceText(a) === choiceText(b);
 
 /** The player's choice tonight, as submitted, and a way to make it something else. */
