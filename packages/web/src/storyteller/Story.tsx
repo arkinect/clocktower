@@ -82,11 +82,7 @@ export function NightCard({ night }: { night: StoryNight }) {
                   <td className="muted">{p.seat + 1}</td>
                   <td>
                     <span className={p.aliveAtEnd ? undefined : styles['dead']}>{p.name}</span>
-                    {!p.aliveAtStart ? (
-                      <span className="muted small"> (dead)</span>
-                    ) : !p.aliveAtEnd ? (
-                      <span className={`small ${styles['dead']}`}> (died)</span>
-                    ) : null}
+                    {p.aliveAtStart && !p.aliveAtEnd && <span className={`small ${styles['dead']}`}> (died)</span>}
                   </td>
                   <td>
                     <span className={`type-${type(p.character) ?? ''}`}>{role(p.character)}</span>

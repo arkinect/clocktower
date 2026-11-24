@@ -57,6 +57,14 @@ describe('Witch King', () => {
     s.act('witch_king', 'apply_curse', ['bo']);
     expect(s.alive('bo')).toBe(false);
   });
+  it('shows switches only for the living, and for a curse that has gone off', () => {
+    const s = cursed(['bo', 'cy']);
+    s.g.st({ type: 'mark_alive', playerId: 'cy' as never, alive: false });
+    expect(row(s)?.fields[0]?.options).toEqual(['bo']);
+    s.act('witch_king', 'apply_curse', ['bo']);
+    expect(s.dead('bo', 'cy')).toBe(true);
+    expect(row(s)).toMatchObject({ recorded: ['bo'], fields: [{ options: ['bo'] }] });
+  });
   it('a preview changes nothing, and the Storyteller can force a survival', () => {
     const s = cursed(['bo']);
     s.act('witch_king', 'apply_curse', ['bo'], { mode: 'preview' });

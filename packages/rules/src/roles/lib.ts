@@ -123,13 +123,19 @@ export const curse = (ctx: AbilityCtx<unknown>, target: PlayerId) =>
 const cursesOn = (ctx: AbilityCtx<unknown>) => ctx.conditionsFrom('marker').filter((c) => c.name === CURSE);
 const appliedToday = (ctx: AbilityCtx<CurseState>) => (ctx.state.applied ?? []).filter((x) => x.day === ctx.n);
 
-/** The Day tab's switches: one per cursed player, on for those the curse went off on today. */
+/**
+ * The Day tab's switches: one per living cursed player, as a curse does nothing to the dead. One that went off today
+ * stays, switched on, so it can be taken back.
+ */
 export function curseSwitches(
   ctx: AbilityCtx<CurseState>,
   o: { title: string; prompt: string; order: number },
 ): DayActionDraft[] {
   const on = appliedToday(ctx).map((x) => x.target);
-  const targets = [...new Set([...cursesOn(ctx).map((c) => c.target), ...on])];
+  const waiting = cursesOn(ctx)
+    .map((c) => c.target)
+    .filter((t) => ctx.isAlive(t));
+  const targets = [...new Set([...waiting, ...on])];
   if (!targets.length) return [];
   return [
     {

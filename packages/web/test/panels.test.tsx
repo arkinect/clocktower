@@ -35,7 +35,7 @@ import { Ended, Night } from '../src/player/PlayerApp';
 import { RoleCardView, RoleList, typeName } from '../src/player/parts';
 import { Day, DayAction, Usage } from '../src/storyteller/Day';
 import { Review } from '../src/storyteller/Review';
-import { AssignRow, Field, Settings, TypeCounts, countsHint } from '../src/storyteller/Setup';
+import { AssignRow, Field, RoleChecks, Settings, TypeCounts, countsHint } from '../src/storyteller/Setup';
 import { InputSheet, causeLabel, causesWithoutRow, phaseText } from '../src/storyteller/common';
 import { HoldButton, UpdateBar } from '../src/ui/ui';
 
@@ -388,6 +388,16 @@ describe('setup assignment', () => {
     render(<AssignRow view={setupView} player={player({ character: 'empath' })} />);
     expect(screen.queryByLabelText('Alignment of Ann')).toBeNull();
     expect(screen.getByLabelText('Character for Ann')).toBeTruthy();
+  });
+
+  it('shows what a role does while it is hovered in the script list', async () => {
+    render(<RoleChecks roles={[card]} on={[]} onToggle={() => {}} />);
+    const check = screen.getByRole('checkbox', { name: 'Empath' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    await userEvent.hover(check);
+    expect(screen.getByRole('tooltip').textContent).toBe(card.abilityText);
+    await userEvent.unhover(check);
+    expect(screen.queryByRole('tooltip')).toBeNull();
   });
 
   it("puts a field tied to the player (Lil' Monsta's Minion) in their row", async () => {
@@ -1125,6 +1135,12 @@ describe('the night on a phone', () => {
     render(<Night view={nightView(1, { k: { values: ['b'] } })} />);
     await userEvent.click(screen.getByRole('button', { name: 'Change' }));
     expect(chosen()).toBe('b');
+  });
+
+  it('a player with nothing to change has no bar under the games', () => {
+    const view = nightView(1, {});
+    const { container } = render(<Night view={{ ...view, me: { ...view.me, actions: [] } }} />);
+    expect(container.querySelector('footer')).toBeNull();
   });
 
   it('a new night starts with nothing chosen', async () => {

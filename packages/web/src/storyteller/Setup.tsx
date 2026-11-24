@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Alignment, GrimoirePlayer, RoleCard, RoleId, SetupFieldSpec, StorytellerView } from '@ct/protocol';
 import { useCommand, useGame, useNames } from '../app/store';
 import { typeName } from '../player/parts';
-import { Button, Card, HoldButton, Info, Segments } from '../ui/ui';
+import { Button, Card, HoldButton, HoverTip, Info, Segments } from '../ui/ui';
 import { GROUPS, Section, useSeats, useTypeOf } from './common';
 import styles from './console.module.css';
 
@@ -496,7 +496,7 @@ export function Settings({ view }: { view: StorytellerView }) {
   );
 }
 
-function RoleChecks({
+export function RoleChecks({
   roles,
   on,
   onToggle,
@@ -510,14 +510,16 @@ function RoleChecks({
       {[...roles]
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((r) => (
-          <label key={r.roleId} className={styles['check']}>
-            <input
-              type="checkbox"
-              checked={on.includes(r.roleId)}
-              onChange={(e) => onToggle(r.roleId, e.target.checked)}
-            />
-            <span className={`type-${r.type}`}>{r.name}</span>
-          </label>
+          <HoverTip key={r.roleId} text={r.abilityText}>
+            <label className={styles['check']}>
+              <input
+                type="checkbox"
+                checked={on.includes(r.roleId)}
+                onChange={(e) => onToggle(r.roleId, e.target.checked)}
+              />
+              <span className={`type-${r.type}`}>{r.name}</span>
+            </label>
+          </HoverTip>
         ))}
     </div>
   );

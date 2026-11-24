@@ -41,7 +41,9 @@ async function act(page: Page) {
     }
     await dialog.getByRole('button', { name: 'Submit' }).click();
   }
-  await expect(page.getByText('Submitted. Waiting for everyone.')).toBeVisible();
+  // Done: the games unlock.
+  await expect(page.getByText('The games unlock once you are done.')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Lantern Slice' })).toBeVisible();
 }
 
 test('five phones and a scripted Storyteller play a full game', async ({ browser }) => {

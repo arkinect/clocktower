@@ -217,12 +217,9 @@
   color: var(--gold);
 }
 
-.infoTip {
-  position: absolute;
+.infoTip,
+.hoverTip {
   z-index: 10;
-  top: 100%;
-  left: 0;
-  width: min(320px, 80vw);
   padding: 8px 10px;
   background: var(--card);
   border: 1px solid var(--line);
@@ -230,4 +227,18 @@
   color: var(--text);
   font-size: 0.85rem;
   line-height: 1.4;
+}
+
+.infoTip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: min(320px, 80vw);
+}
+
+/* The mouse passes through it to whatever it covers. */
+.hoverTip {
+  position: fixed;
+  pointer-events: none;
+  box-shadow: 0 6px 24px #0008;
 }

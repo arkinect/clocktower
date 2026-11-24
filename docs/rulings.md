@@ -37,8 +37,9 @@ Storyteller has already ruled on keeps that ruling when other answers change.
 
 The console doesn't record nominations. The Virgin, the Golem, a Witch's curse and a Witch King's curse are day actions
 the Storyteller uses when the nomination happens, each with a preview. A Witch King's cursed nominee dies as the
-nomination is made, and the nomination still stands, as any nomination of a dead player does. The Psychopath's daily kill is one too, so protections such as the
-Tea Lady apply.
+nomination is made, and the nomination still stands, as any nomination of a dead player does. A cursed player
+who is dead has no switch, as neither curse does anything to them. The Psychopath's daily kill is a day action too, so
+protections such as the Tea Lady apply.
 
 ## Executions happen at dusk
 
