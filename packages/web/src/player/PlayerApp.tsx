@@ -185,6 +185,9 @@ export function Night({ view }: { view: PlayerView }) {
   const done = view.me.submitted && !editing;
   // Games unlock only after the player has finished their night action, or the night has closed.
   const unlocked = view.me.submitted || !collecting;
+  const canChange = done && collecting && specs.length > 0;
+  // A player who is done and has nothing to change would have an empty bar, so it goes.
+  const bar = collecting ? !done || canChange : !view.me.submitted;
 
   return (
     <div className={styles['night']}>
@@ -203,35 +206,34 @@ export function Night({ view }: { view: PlayerView }) {
           <p className="muted small">The games unlock once you are done.</p>
         </div>
       )}
-      <footer className={styles['nightBar']}>
-        {done || !collecting ? (
-          <div className={styles['waiting']}>
-            <span>{view.me.submitted ? 'Submitted. Waiting for everyone.' : 'The night is ending.'}</span>
-            {collecting && specs.length > 0 && (
-              <Button
-                tiny
-                onClick={() => {
-                  setEditing(true);
-                  setSheet(true);
-                }}
-              >
-                Change
-              </Button>
-            )}
-          </div>
-        ) : !specs.length ? (
-          <>
-            <div className={styles['waiting']}>No night action tonight.</div>
-            <Button variant="primary" disabled={pending} onClick={() => void submit()}>
-              Continue
+      {bar && (
+        <footer className={styles['nightBar']}>
+          {canChange ? (
+            <Button
+              tiny
+              onClick={() => {
+                setEditing(true);
+                setSheet(true);
+              }}
+            >
+              Change
             </Button>
-          </>
-        ) : (
-          <Button variant="primary" onClick={() => setSheet(true)}>
-            Night action
-          </Button>
-        )}
-      </footer>
+          ) : !collecting ? (
+            <div className={styles['waiting']}>The night is ending.</div>
+          ) : !specs.length ? (
+            <>
+              <div className={styles['waiting']}>No night action tonight.</div>
+              <Button variant="primary" disabled={pending} onClick={() => void submit()}>
+                Continue
+              </Button>
+            </>
+          ) : (
+            <Button variant="primary" onClick={() => setSheet(true)}>
+              Night action
+            </Button>
+          )}
+        </footer>
+      )}
       {sheet && collecting && (
         <Sheet title="Night action" onClose={() => setSheet(false)}>
           <Picker specs={specs} names={names} value={choice} onChange={setChoice} dead={dead} />
@@ -312,7 +314,6 @@ function Day({ view }: { view: PlayerView }) {
           <Messages messages={earlier} />
         </details>
       )}
-      <p className="muted small">Discuss, nominate and vote at the table.</p>
     </div>
   );
 }

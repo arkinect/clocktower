@@ -145,7 +145,6 @@ export function Seating({ view, catalog }: { view: PlayerView; catalog: RoleCard
             <li key={p.id} className={dead ? styles['deadName'] : undefined}>
               {p.name}
               {traveller ? ` (${traveller})` : ''}
-              {dead ? ' (dead)' : ''}
               {p.exiled ? ' (exiled)' : ''}
             </li>
           );

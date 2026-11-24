@@ -28,6 +28,16 @@ describe('Witch', () => {
     s.act('witch', 'apply_curse', ['bo']);
     expect(s.alive('bo')).toBe(false);
   });
+  it('shows no switch for a cursed player who is dead, until they are revived', () => {
+    const s = cursed();
+    const row = () => s.dayActions().find((d) => d.roleId === 'witch');
+    const mark = (alive: boolean) => s.g.st({ type: 'mark_alive', playerId: 'bo' as never, alive });
+    mark(false);
+    expect(row()).toBeUndefined();
+    mark(true);
+    expect(row()?.fields[0]?.options).toEqual(['bo']);
+    expect(s.act('witch', 'apply_curse', ['bo']).effective).toBe(true);
+  });
   it('a recorded nomination alone does nothing', () => {
     const s = cursed();
     s.nominate('bo', 'cy');

@@ -1,5 +1,6 @@
 // The small shared component set. Every game rule lives on the server; these only draw.
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './ui.module.css';
 
 type Variant = 'plain' | 'primary' | 'danger';
@@ -239,5 +240,43 @@ export function Info({ label, children }: { label: string; children: ReactNode }
         </span>
       )}
     </span>
+  );
+}
+
+const TIP_WIDTH = 320;
+const TIP_MARGIN = 8;
+
+/** Beside the hovered thing: below it in the top half of the window and above it in the bottom half, never off the side. */
+function tipPlace(at: DOMRect): CSSProperties {
+  const width = Math.min(TIP_WIDTH, window.innerWidth - 2 * TIP_MARGIN);
+  const left = Math.max(TIP_MARGIN, Math.min(at.left, window.innerWidth - width - TIP_MARGIN));
+  return at.top > window.innerHeight / 2
+    ? { width, left, bottom: window.innerHeight - at.top }
+    : { width, left, top: at.bottom };
+}
+
+/** Shows `text` while the mouse is over what it wraps. A press or a scroll hides it. */
+export function HoverTip({ text, children }: { text: string; children: ReactNode }) {
+  const [place, setPlace] = useState<CSSProperties | null>(null);
+  return (
+    <div
+      onPointerEnter={(e) => {
+        // A tap would leave it open over the next thing to tap.
+        if (e.pointerType !== 'touch') setPlace(tipPlace(e.currentTarget.getBoundingClientRect()));
+      }}
+      onPointerLeave={() => setPlace(null)}
+      onPointerDown={() => setPlace(null)}
+      onWheel={() => setPlace(null)}
+    >
+      {children}
+      {/* In the body, so no panel clips it. */}
+      {place &&
+        createPortal(
+          <div role="tooltip" className={styles['hoverTip']} style={place}>
+            {text}
+          </div>,
+          document.body,
+        )}
+    </div>
   );
 }
