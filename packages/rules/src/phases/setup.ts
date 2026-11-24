@@ -100,10 +100,11 @@ export const setupCommands = [
       if (cmd.roleId !== null) {
         need(ctx.r.onScript(cmd.roleId), 'That character is not on the script.');
         // During setup a character may sit with several players for a while: the checklist blocks the start instead.
+        // During the game a dead holder doesn't count, so a starpass can be put right (the dead Imp is still an Imp).
         need(
           ctx.s.phase.kind === 'setup' ||
             ctx.r.mayDuplicate(cmd.roleId) ||
-            !ctx.r.seated.some((id) => id !== cmd.playerId && ctx.r.character(id) === cmd.roleId),
+            !ctx.r.seated.some((id) => id !== cmd.playerId && ctx.r.isAlive(id) && ctx.r.character(id) === cmd.roleId),
           'That character is already assigned.',
         );
       }
@@ -288,10 +289,9 @@ export const setupCommands = [
         need(ctx.r.scriptOfType('demon').length, 'No Demon is enabled.');
       }
       ctx.s.phase = newNightPhase(0, ctx.seed, 'briefing', null);
-      if (!ctx.s.seatingPublished) {
-        ctx.s.seatingPublished = true;
-        ctx.s.publishedSeating = ctx.r.seated;
-      }
+      // Published as it now stands, whatever the phones were shown during setup.
+      ctx.s.seatingPublished = true;
+      ctx.s.publishedSeating = ctx.r.seated;
       for (const p of Object.values(ctx.s.players)) p.hasSeenRole = false;
       const run = ctx.run({ moment: { kind: 'night', n: 0 } });
       deliverEvilInfo(run);

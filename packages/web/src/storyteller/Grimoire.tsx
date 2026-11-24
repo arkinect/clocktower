@@ -280,9 +280,11 @@ export function ChangeCharacter({ view, p, onDone }: { view: StorytellerView; p:
   const typeOf = useTypeOf();
   const { run, pending } = useCommand();
   const [role, setRole] = useState<RoleId | ''>('');
-  // Only a convenience: the server refuses duplicates and allows the roles that may repeat.
+  // Only a convenience: the server refuses duplicates and allows the roles that may repeat. Dead holders don't count.
   const taken = new Set(
-    view.players.filter((x) => x.seat !== null && x.id !== p.id && x.character).map((x) => x.character as string),
+    view.players
+      .filter((x) => x.seat !== null && x.alive && x.id !== p.id && x.character)
+      .map((x) => x.character as string),
   );
   const traveller = typeOf(p.character) === 'traveller';
   const name = (id: string | null) => (id ? (names.roles[id] ?? id) : 'No character');

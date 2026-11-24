@@ -10,6 +10,19 @@ interface State {
 const recordedToday = (ctx: AbilityCtx<State>) =>
   ctx.peers.find((a) => a.state.voted?.day === ctx.n)?.state.voted ?? null;
 
+/** A dead Demon (an Imp who passed the Demon on) still counts if they vote, which is easy to forget. */
+function deadDemons(ctx: AbilityCtx<State>): string {
+  const dead = ctx.demons.filter((id) => !ctx.isAlive(id)).map(ctx.name);
+  return dead.length ? ` Dead Demons count: ${dead.join(', ')}.` : '';
+}
+
+/** Every Demon by name, living or dead: "Abe", "Abe or Bob", "Abe, Bob or Cal". */
+function demonNames(ctx: AbilityCtx<State>): string {
+  const names = ctx.demons.map(ctx.name);
+  const last = names.pop() ?? 'a Demon';
+  return names.length ? `${names.join(', ')} or ${last}` : last;
+}
+
 export const flowergirl = defineRole<State>({
   id: roleId('flowergirl'),
   name: 'Flowergirl',
@@ -24,8 +37,8 @@ export const flowergirl = defineRole<State>({
       return [
         {
           action: 'demon_voted',
-          title: `Flowergirl (${ctx.name(ctx.holder)})`,
-          prompt: 'Did a Demon vote today?',
+          title: 'Flowergirl',
+          prompt: `Did ${demonNames(ctx)} vote today?`,
           preview: false,
           order: 110,
           control: 'toggle',
@@ -57,7 +70,7 @@ export const flowergirl = defineRole<State>({
         : ctx.decide({
             key: { kind: 'flowergirl_voted', ability: null },
             title: `Flowergirl: did a Demon vote on Day ${ctx.n}?`,
-            description: 'Not recorded during the day.',
+            description: `Not recorded during the day.${deadDemons(ctx)}`,
             options: [
               { id: 'yes', label: 'Yes' },
               { id: 'no', label: 'No' },

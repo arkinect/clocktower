@@ -1,5 +1,6 @@
 import { roleId, type PlayerId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
+import { tellAlignment } from './lib';
 import { WORDS } from './words';
 
 interface State {
@@ -72,7 +73,7 @@ export const mezepheles = defineRole<State>({
         return;
       }
       ctx.changeAlignment(t, 'evil', 'said the Mezepheles word');
-      ctx.notify(t, 'You are now evil.', ['Your character has not changed, but you are now on the evil team.']);
+      tellAlignment(ctx, t, 'evil');
       ctx.outcome(`${ctx.name(t)} becomes evil`);
     },
   },

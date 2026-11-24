@@ -259,7 +259,7 @@ describe('kills and protection', () => {
     expect([...s.res.deaths].sort()).toEqual(['bo', 'cy', 'hal']);
   });
 
-  it('a starpass suggests the Scarlet Woman, the Storyteller picks another, and the new Imp is told', () => {
+  it('a starpass goes to the Scarlet Woman unless she is poisoned: then the Storyteller picks, and the new Imp is told', () => {
     const chars = {
       ann: 'imp',
       bo: 'scarlet_woman',
@@ -272,7 +272,7 @@ describe('kills and protection', () => {
     const s = scene(chars)
       .start()
       .nextNight()
-      .submit({ ann: ['ann'] })
+      .submit({ ann: ['ann'], cy: ['bo'] })
       .review();
     expect(s.decision('starpass').default).toBe('bo');
     s.decide('starpass', 'cy').dawn();

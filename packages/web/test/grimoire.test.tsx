@@ -228,6 +228,13 @@ describe('the seat sheet', () => {
 });
 
 describe('changing a character', () => {
+  it('offers a character only the dead hold', () => {
+    const ann = player({});
+    const bo = player({ id: 'b', name: 'Bo', seat: 1, character: 'imp', alive: false });
+    render(<ChangeCharacter view={view([ann, bo])} p={ann} onDone={() => {}} />);
+    expect((screen.getByRole('option', { name: 'Imp' }) as HTMLOptionElement).disabled).toBe(false);
+  });
+
   it('sends nothing until Confirm is held, and holds back roles already in play', async () => {
     const onDone = vi.fn();
     const ann = player({});

@@ -1,5 +1,6 @@
 import { roleId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
+import { tellAlignment } from './lib';
 
 export const goon = defineRole({
   id: roleId('goon'),
@@ -20,7 +21,8 @@ export const goon = defineRole({
       }
       ctx.addCondition(chooser.player, 'drunk', { until: 'dusk' });
       const alignment = ctx.alignmentOf(chooser.player);
-      ctx.changeAlignment(me, alignment, 'the Goon was chosen');
+      const turned = ctx.alignmentOf(me) !== alignment;
+      if (ctx.changeAlignment(me, alignment, 'the Goon was chosen') && turned) tellAlignment(ctx, me, alignment);
       ctx.outcome(`${ctx.name(chooser.player)} chose the Goon first: drunk until dusk, Goon becomes ${alignment}`);
     },
   },

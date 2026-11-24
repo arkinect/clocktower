@@ -1,5 +1,5 @@
 // Small helpers the role files share. Nothing here names a role.
-import type { PlayerId } from '@ct/protocol';
+import type { Alignment, PlayerId } from '@ct/protocol';
 import type { DayActionDraft, DayActionOutcome, DraftField, SpecDraft } from '../abilities/define';
 import { roleDef } from '../abilities/registry';
 import type { AbilityCtx } from '../night/context';
@@ -25,6 +25,12 @@ export function choosePlayers(
 /** The confirmation a once-per-game choice gives back. */
 export const confirmChoice = (ctx: AbilityCtx<unknown>, target: PlayerId) =>
   ctx.tell([`You chose ${ctx.name(target)}.`]);
+
+/** Tells a player they changed sides. Their character stays the same, so nothing else on their phone shows it. */
+export const tellAlignment = (ctx: AbilityCtx<unknown>, player: PlayerId, alignment: Alignment) =>
+  ctx.notify(player, `You are now ${alignment}.`, [
+    `Your character has not changed, but you are now on the ${alignment} team.`,
+  ]);
 
 /** Makes `to` the Demon in place of `from`: a token moves, a character is copied. Gained abilities stay. */
 export function handOverDemon(ctx: AbilityCtx<unknown>, to: PlayerId, from: PlayerId, pending = false) {

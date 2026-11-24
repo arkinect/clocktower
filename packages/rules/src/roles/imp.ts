@@ -28,7 +28,14 @@ export const imp = defineRole({
         ctx.attemptKill(t, 'demon_attack');
         return;
       }
-      if (!ctx.attemptKill(me, 'demon_attack', { demonHandover: true })) return;
+      const before = ctx.alive.filter((x) => ctx.typeOf(x) === 'minion');
+      if (!ctx.attemptKill(me, 'demon_attack')) return;
+      // A Minion whose own ability made them the Demon as the Imp died (the Scarlet Woman): nothing is left to choose.
+      const taken = before.find(ctx.isDemon);
+      if (taken) {
+        ctx.outcome(`${ctx.name(taken)} becomes the Imp`);
+        return;
+      }
       const minions = ctx.alive.filter((x) => ctx.typeOf(x) === 'minion');
       if (!minions.length) {
         ctx.outcome('starpass: no living Minion');

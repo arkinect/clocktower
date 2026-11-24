@@ -11,8 +11,11 @@ export const clockmaker = defineRole({
   ability: {
     resolve(ctx) {
       const ids = ctx.seated;
-      const demons = ids.filter((id) => ctx.registers(id).type === 'demon');
-      const minions = ids.filter((id) => !demons.includes(id) && ctx.registers(id).type === 'minion');
+      const all = ids.filter((id) => ctx.registers(id).type === 'demon');
+      const minions = ids.filter((id) => !all.includes(id) && ctx.registers(id).type === 'minion');
+      // Gained later, there may be a dead Demon too (an Imp who passed the Demon on): the living one is meant.
+      const living = all.filter(ctx.isAlive);
+      const demons = living.length ? living : all;
       let truth = 0;
       if (demons.length && minions.length) {
         truth = Math.min(...demons.flatMap((d) => minions.map((m) => ctx.seatDistance(d, m))));

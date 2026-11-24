@@ -78,7 +78,23 @@ night they enter their guesses on their phone (1 to 5 players, each with a chara
 other picker. The app trusts that what they enter matches what they said at the table. If they did not guess, they
 are not asked and do not wake. A Juggler executed that day and eaten by the Cannibal still enters the guesses, though
 dead, and learns nothing: the Cannibal learns the count (the jinx). The Storyteller can change the guesses on the
-Review tab like any other night choice. Tests: `roles/juggler.test.ts`, `roles/jinxes.test.ts`.
+Review tab like any other night choice. A guess is checked against the character its player had that day, when the
+Storyteller recorded that they guessed, as the official page marks it: a Minion who becomes the Imp at dusk or that
+night still counts as the Minion. Tests: `roles/juggler.test.ts`, `roles/jinxes.test.ts`.
+
+## A dead Imp
+
+An Imp who kills themself stays the Imp: dead, evil and a Demon. Abilities that find Demons still find them, as the
+Fortune Teller's page says of dead Demons. They no longer wake, and don't keep the game going. An evil Traveller who
+joins later is told only the living Demon (the dead one if none is alive), and a Clockmaker gained later counts from the
+living Demon. A dead Demon's vote counts for the Flowergirl, so the Day tab's question names every Demon, living or dead.
+During the game the Storyteller may give a player a character only the dead hold, so a starpass can be put right. Tests:
+`roles/imp.test.ts`, `roles/clockmaker.test.ts`, `roles/flowergirl.test.ts`.
+
+## A starpass with a Scarlet Woman
+
+With 5 or more alive when the Imp kills themself, a Scarlet Woman who is alive and not drunk or poisoned becomes the Imp,
+as her page says: nobody is asked. Otherwise the Storyteller picks any living Minion. Test: `roles/imp.test.ts`.
 
 ## Protection from execution
 
@@ -92,8 +108,8 @@ protects nobody, and the Devil's Advocate goes before the Fool, so a marked Fool
 ## The Scarlet Woman after a day death
 
 When the Demon dies during the day, the Scarlet Woman becomes the Demon at dusk, with nothing to confirm, if the Demon
-is still dead and she is alive and not drunk or poisoned then. She makes the Demon's choice that same night. A Demon
-death at night is still a Review decision. Test: `roles/scarlet-woman.test.ts`.
+is still dead and she is alive and not drunk or poisoned then. She makes the Demon's choice that same night. When
+the Demon dies at night she takes over at once, and nothing is asked then either. Test: `roles/scarlet-woman.test.ts`.
 
 ## Travellers and the Scarlet Woman
 
