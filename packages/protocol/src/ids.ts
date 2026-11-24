@@ -1,20 +1,36 @@
 import { z } from 'zod';
 
-const id = z.string().min(1).max(64);
+/** Never a name every object inherits: `players['constructor']` would find something. */
+export const Id = z
+  .string()
+  .min(1)
+  .max(64)
+  .refine((v) => !Object.hasOwn(Object.prototype, v));
 
-export const PlayerId = id.brand<'PlayerId'>();
+/** Minted by the server when a player joins. */
+export const PlayerId = z
+  .string()
+  .regex(/^[0-9a-f]{16}$/)
+  .brand<'PlayerId'>();
 export type PlayerId = z.infer<typeof PlayerId>;
 
-export const AbilityId = id.brand<'AbilityId'>();
+/** Minted by the rules, as are condition ids, from the game's one counter. */
+export const AbilityId = z
+  .string()
+  .regex(/^a[0-9]{1,9}$/)
+  .brand<'AbilityId'>();
 export type AbilityId = z.infer<typeof AbilityId>;
 
-export const ConditionId = id.brand<'ConditionId'>();
+export const ConditionId = z
+  .string()
+  .regex(/^c[0-9]{1,9}$/)
+  .brand<'ConditionId'>();
 export type ConditionId = z.infer<typeof ConditionId>;
 
-export const GameId = id.brand<'GameId'>();
+export const GameId = Id.brand<'GameId'>();
 export type GameId = z.infer<typeof GameId>;
 
-export const RoleId = id.brand<'RoleId'>();
+export const RoleId = Id.brand<'RoleId'>();
 export type RoleId = z.infer<typeof RoleId>;
 
 /** Only rules/src/roles and rules/src/jinxes may call this (enforced by lint). Everything else receives RoleIds. */

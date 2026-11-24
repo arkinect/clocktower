@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { PlayerId } from '@ct/protocol';
-import { ENGINE_VERSION } from '@ct/rules';
+import { ENGINE_VERSION, saveState } from '@ct/rules';
 import { Games, IDLE_MS, type LiveGame } from '../src/games/manager';
 import { Store } from '../src/store/store';
 import {
@@ -121,7 +121,7 @@ describe('a headless game over sockets', () => {
       await expect(open(h, { origin: h.base, cookie: c.cookie })).rejects.toThrow('401');
     }
     expect(h.app.games.get('default')!.state).toMatchObject({
-      players: {},
+      players: new Map(),
       storytellerId: null,
       phase: { kind: 'lobby' },
     });
@@ -135,11 +135,11 @@ describe('restart', () => {
     const { st, players } = await table(h);
     await st.do({ type: 'begin_first_night', force: true });
     const cookie = (players[0] as Client).cookie;
-    const before = JSON.stringify(h.app.games.get('default')!.state);
+    const before = saveState(h.app.games.get('default')!.state);
     await h.app.close();
 
     const again = await up(config);
-    expect(JSON.stringify(again.app.games.get('default')!.state)).toBe(before);
+    expect(saveState(again.app.games.get('default')!.state)).toBe(before);
     const c = await dial(again, cookie, players[0]!.id);
     await c.until((v) => v.phase.kind === 'night');
     expect(c.me.me.role?.roleId).toBe('clockmaker');

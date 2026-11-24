@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene, ST } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'golem', bo: 't1', cy: 'imp', di: 't2', ed: 't3' };
 const golem = (s: ReturnType<typeof scene>) => s.dayActions().filter((d) => d.roleId === 'golem');
@@ -10,7 +11,7 @@ describe('Golem', () => {
     expect(s.act('golem', 'nominated', ['bo']).effective).toBe(true);
     expect(s.alive('bo')).toBe(false);
     // Shown confirmed for the rest of the day, then gone.
-    expect(golem(s)[0]?.recorded).toEqual(['bo']);
+    expect(golem(s)[0]?.recorded).toEqual([pid('bo')]);
     s.dusk().dawn();
     expect(golem(s)).toEqual([]);
   });
@@ -18,17 +19,17 @@ describe('Golem', () => {
     const s = scene(cast).start().dawn();
     s.act('golem', 'nominated', ['bo']);
     const again = { type: 'day_action' as const, abilityId: s.ability('golem'), action: 'nominated' };
-    expect(s.g.tryAs(ST, { ...again, values: ['di' as never], mode: 'accept' }).ok).toBe(false);
+    expect(s.g.tryAs(ST, { ...again, values: [pid('di') as never], mode: 'accept' }).ok).toBe(false);
     s.act('golem', 'nominated', []);
     expect(s.alive('bo')).toBe(true);
     expect(golem(s)[0]?.recorded).toBeNull();
-    expect(s.state.abilities[s.ability('golem')]?.used).toBe(false);
+    expect(s.state.abilities.get(s.ability('golem'))?.used).toBe(false);
   });
   it('nothing happens to the Demon, and the use is spent', () => {
     const s = scene(cast).start().dawn();
     expect(s.act('golem', 'nominated', ['cy']).effective).toBe(false);
     expect(s.alive('cy')).toBe(true);
-    expect(s.state.abilities[s.ability('golem')]?.used).toBe(true);
+    expect(s.state.abilities.get(s.ability('golem'))?.used).toBe(true);
   });
   it('an impaired Golem spends the use for nothing', () => {
     const s = scene({ ...cast, di: 'poisoner' })
@@ -37,7 +38,7 @@ describe('Golem', () => {
       .dawn();
     expect(s.act('golem', 'nominated', ['bo']).effective).toBe(false);
     expect(s.alive('bo')).toBe(true);
-    expect(s.state.abilities[s.ability('golem')]?.used).toBe(true);
+    expect(s.state.abilities.get(s.ability('golem'))?.used).toBe(true);
   });
   it('a preview changes nothing', () => {
     const s = scene(cast).start().dawn();

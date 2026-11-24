@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'moonchild', bo: 't1', cy: 'imp', di: 'm1', ed: 't3' };
 const fact = (s: ReturnType<typeof scene>) => s.dayActions().find((d) => d.roleId === 'moonchild');
@@ -23,7 +24,7 @@ describe('Moonchild', () => {
     expect(fact(s)?.fields[0]?.options[0]).toBe('none');
     s.dusk().review();
     expect(s.hasDecision('moonchild_target')).toBe(false);
-    expect(s.state.abilities[s.ability('moonchild')]?.used).toBe(true);
+    expect(s.state.abilities.get(s.ability('moonchild'))?.used).toBe(true);
     s.dawn();
     expect(s.alive('bo')).toBe(true);
     expect(fact(s)).toBeUndefined();
@@ -32,9 +33,9 @@ describe('Moonchild', () => {
     const s = scene(cast).start().dawn().execute('ann').dusk().dawn();
     s.act('moonchild', 'target', ['none']);
     expect(fact(s)?.recorded).toEqual(['none']);
-    expect(s.state.abilities[s.ability('moonchild')]?.used).toBe(true);
+    expect(s.state.abilities.get(s.ability('moonchild'))?.used).toBe(true);
     s.act('moonchild', 'target', ['bo']);
-    expect(s.state.abilities[s.ability('moonchild')]?.used).toBe(false);
+    expect(s.state.abilities.get(s.ability('moonchild'))?.used).toBe(false);
   });
   it('an evil target lives', () => {
     const s = scene(cast).start().dawn().execute('ann').dusk().dawn();
@@ -68,7 +69,7 @@ describe('Moonchild', () => {
     const s = scene(cast).start().dawn().execute('ann').dusk().dawn();
     expect(fact(s)?.recorded).toBeNull();
     s.act('moonchild', 'target', ['bo']);
-    expect(fact(s)?.recorded).toEqual(['bo']);
+    expect(fact(s)?.recorded).toEqual([pid('bo')]);
   });
   it('killed at night: chosen the next day, and Review never asks', () => {
     const s = scene(cast)

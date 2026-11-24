@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'damsel', bo: 'm1', cy: 'imp', di: 't1', ed: 't3' };
 describe('Damsel', () => {
@@ -32,7 +33,7 @@ describe('Damsel', () => {
   });
   it('a right guess of a dead Damsel does nothing', () => {
     const s = scene(cast).start().dawn();
-    s.g.st({ type: 'mark_alive', playerId: 'ann' as never, alive: false });
+    s.g.st({ type: 'mark_alive', playerId: pid('ann') as never, alive: false });
     expect(s.act('damsel', 'guess', ['yes']).effective).toBe(false);
     expect(s.winners()).not.toContain('evil');
   });

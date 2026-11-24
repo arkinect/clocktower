@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { allJinxes, allRoles, defaultScript } from '../../src';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 describe('the jinx list', () => {
   it('every jinx is between two registered roles, with its text and source', () => {
@@ -70,7 +71,7 @@ describe('Jinx (Mathematician & Drunk), (Mathematician & Marionette)', () => {
     const s = scene(cast, { believed: { bo: 'empath' } })
       .start()
       .review();
-    const row = s.res.results.find((r) => r.playerId === 'bo');
+    const row = s.res.results.find((r) => r.playerId === pid('bo'));
     s.g.st({ type: 'override_result', resultKey: row?.key as string, lines: ['Something else.'] });
     expect(s.truth('ann')).toEqual(["1 player's ability worked abnormally."]);
   });
@@ -96,10 +97,10 @@ describe("Jinx (Lil' Monsta & Scarlet Woman)", () => {
       .start()
       .dawn();
     s.execute('ann').dusk();
-    const token = Object.values(s.state.abilities).find(
+    const token = [...s.state.abilities.values()].find(
       (a) => a.roleId === ('lil_monsta' as never) && a.origin.kind !== 'character',
     );
-    expect(token?.holder).toEqual({ kind: 'player', id: 'bo' });
+    expect(token?.holder).toEqual({ kind: 'player', id: pid('bo') });
     expect(s.character('bo')).toBe('scarlet_woman');
   });
   it('the keeper cannot take it back from her', () => {
@@ -116,10 +117,10 @@ describe("Jinx (Lil' Monsta & Scarlet Woman)", () => {
     expect(s.specs('ann')).toEqual([]);
     s.decide('lil_monsta', 'di').dawn();
     expect(s.alive('di')).toBe(false);
-    const token = Object.values(s.state.abilities).find(
+    const token = [...s.state.abilities.values()].find(
       (a) => a.roleId === ('lil_monsta' as never) && a.origin.kind !== 'character',
     );
-    expect(token?.holder).toEqual({ kind: 'player', id: 'bo' });
+    expect(token?.holder).toEqual({ kind: 'player', id: pid('bo') });
   });
 });
 
@@ -145,7 +146,7 @@ describe('Jinx (Al-Hadikhia & Mastermind)', () => {
   };
   it('a dead Al-Hadikhia wakes and picks only good players', () => {
     const s = night();
-    expect(s.specs('ann')[0]?.fields[0]?.options).toEqual(['cy', 'di', 'ed', 'fi']);
+    expect(s.specs('ann')[0]?.fields[0]?.options).toEqual([pid('cy'), pid('di'), pid('ed'), pid('fi')]);
     expect(s.specs('ann')[0]?.allowDecline).toBe(false);
   });
   it('all three live: evil wins', () => {

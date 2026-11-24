@@ -1,6 +1,6 @@
-import type { PlayerId } from '@ct/protocol';
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'mezepheles', bo: 't1', cy: 'imp', di: 't2', ed: 't3' };
 const opts = { fields: { mezepheles: { word: 'apple' } } };
@@ -25,7 +25,7 @@ describe('Mezepheles', () => {
     const s = scene(cast, opts).start().dawn();
     s.act('mezepheles', 'sayer', ['bo']);
     s.dusk();
-    s.g.st({ type: 'add_condition', target: 'ann' as PlayerId, condition: 'poisoned' });
+    s.g.st({ type: 'add_condition', target: pid('ann'), condition: 'poisoned' });
     s.review();
     expect(s.hasDecision('mezepheles')).toBe(false);
   });
@@ -40,7 +40,7 @@ describe('Mezepheles', () => {
     const s = scene(cast, opts).start().dawn();
     s.act('mezepheles', 'sayer', ['bo']);
     s.dusk();
-    s.g.st({ type: 'add_condition', target: 'ann' as PlayerId, condition: 'drunk' });
+    s.g.st({ type: 'add_condition', target: pid('ann'), condition: 'drunk' });
     s.dawn();
     expect(s.alignment('bo')).toBe('good');
     expect(s.inbox('bo')).not.toContain('You are now evil.');

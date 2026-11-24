@@ -389,7 +389,7 @@ describe('HTTP', () => {
     expect((await join(h, 'x'.repeat(70))).status).toBe(400);
     const j = await join(h, ' A\u0007nn '.padEnd(30, 'n'));
     expect(j.status).toBe(200);
-    expect(h.app.games.get('default')?.state.players[j.body.playerId as never]?.name).toHaveLength(24);
+    expect(h.app.games.get('default')?.state.players.get(j.body.playerId as never)?.name).toHaveLength(24);
     await join(h, 'Bo');
     expect((await join(h, 'Cy')).status).toBe(409);
     expect((await join(h, 'Di', {}, 'second')).status).toBe(200);

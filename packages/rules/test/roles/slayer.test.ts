@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'slayer', bo: 't1', cy: 'imp', di: 't2', ed: 't3' };
 describe('Slayer', () => {
@@ -11,7 +12,7 @@ describe('Slayer', () => {
   it('misses anyone else and spends the shot', () => {
     const s = scene(cast).start().dawn();
     expect(s.act('slayer', 'shoot', ['bo']).effective).toBe(false);
-    expect(s.dayActions()[0]?.recorded).toEqual(['bo']);
+    expect(s.dayActions()[0]?.recorded).toEqual([pid('bo')]);
     s.dusk().dawn();
     expect(s.dayActions()).toEqual([]);
   });
@@ -22,7 +23,7 @@ describe('Slayer', () => {
     s.act('slayer', 'shoot', []);
     expect(s.alive('cy')).toBe(true);
     expect(s.dayActions()[0]?.recorded).toBeNull();
-    expect(s.state.abilities[s.ability('slayer')]?.used).toBe(false);
+    expect(s.state.abilities.get(s.ability('slayer'))?.used).toBe(false);
   });
   it('a preview changes nothing', () => {
     const s = scene(cast).start().dawn();

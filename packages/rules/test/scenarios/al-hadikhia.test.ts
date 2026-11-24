@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { bluffCandidates } from '../../src/setup/rules';
 import { as, chosen, expected, open, row, titles } from './lib';
 import { scene, ST, type Scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = {
   ann: 'al_hadikhia',
@@ -44,7 +45,8 @@ describe('the Al-Hadikhia at night', () => {
     expect(spec?.fields).toHaveLength(3);
     for (const f of spec?.fields ?? []) expect(f.options).toEqual(s.ids);
     const key = spec?.key as string;
-    const submit = (values: string[]) => s.g.tryAs(as('ann'), { type: 'submit_night', actions: { [key]: { values } } });
+    const submit = (values: string[]) =>
+      s.g.tryAs(as('ann'), { type: 'submit_night', actions: { [key]: { values: values.map(as) } } });
     expect(submit(['cy', 'cy', 'ed']).ok).toBe(false);
     expect(submit(['ann', 'gus', 'ed']).ok).toBe(true);
   });
@@ -59,7 +61,7 @@ describe('the Al-Hadikhia at night', () => {
 
   it('asks each chosen player in order, Live or Die, and the row keeps the three names', () => {
     const s = pick(night());
-    expect(s.res.questions.map((q) => q.playerId)).toEqual(THREE);
+    expect(s.res.questions.map((q) => q.playerId)).toEqual(THREE.map(as));
     expect(s.res.questions[0]?.spec.fields).toEqual([
       { kind: 'option', label: 'Your choice', options: ['live', 'die'], labels: { live: 'Live', die: 'Die' } },
     ]);
@@ -91,7 +93,7 @@ describe('the Al-Hadikhia at night', () => {
   it('die: they die as a Demon attack', () => {
     const s = pick(night());
     s.answer('cy', ['die']).answer('di', ['live']).answer('ed', ['live']);
-    expect(s.res.deaths).toEqual(['cy']);
+    expect(s.res.deaths).toEqual([pid('cy')]);
     s.dawn();
     expect(s.g.player(as('cy')).life.alive).toBe(false);
     expect(JSON.stringify(s.g.player(as('cy')).life)).toContain('demon_attack');
@@ -100,7 +102,7 @@ describe('the Al-Hadikhia at night', () => {
   it('live revives a dead Empath, who gets information that night and is told', () => {
     const s = pick(night({}, (x) => x.execute('cy')));
     s.answer('cy', ['live']).answer('di', ['die']).answer('ed', ['live']);
-    expect(s.res.revived).toEqual(['cy']);
+    expect(s.res.revived).toEqual([pid('cy')]);
     expect(s.truth('cy').length).toBe(1);
     s.dawn();
     expect(s.alive('cy')).toBe(true);
@@ -110,9 +112,9 @@ describe('the Al-Hadikhia at night', () => {
   it('live revives a dead Fortune Teller: no question tonight, and they act the next night', () => {
     const s = pick(night({ cy: 'fortune_teller' }, (x) => x.execute('cy')));
     s.answer('cy', ['live']).answer('di', ['die']).answer('ed', ['live']);
-    expect(s.res.revived).toEqual(['cy']);
-    expect(s.res.questions.map((q) => q.playerId)).toEqual(THREE);
-    expect(s.res.results.some((r) => r.playerId === 'cy')).toBe(false);
+    expect(s.res.revived).toEqual([pid('cy')]);
+    expect(s.res.questions.map((q) => q.playerId)).toEqual(THREE.map(as));
+    expect(s.res.results.some((r) => r.playerId === pid('cy'))).toBe(false);
     s.dawn().dusk();
     expect(s.specs('cy').map((x) => x.roleId)).toContain('fortune_teller');
   });
@@ -120,14 +122,14 @@ describe('the Al-Hadikhia at night', () => {
   it('a Ravenkeeper revived by live and killed again is asked nothing', () => {
     const s = pick(night({ cy: 'ravenkeeper' }, (x) => x.execute('cy')));
     for (const id of THREE) s.answer(id, ['live']);
-    expect(s.res.deaths).toContain('cy');
-    expect(s.res.questions.map((q) => q.playerId)).toEqual(THREE);
+    expect(s.res.deaths).toContain(pid('cy'));
+    expect(s.res.questions.map((q) => q.playerId)).toEqual(THREE.map(as));
   });
 
   it('all three alive: all three die, a revived player too, who is not told they are alive', () => {
     const s = pick(night({}, (x) => x.execute('cy')));
     for (const id of THREE) s.answer(id, ['live']);
-    expect(s.res.deaths).toEqual(THREE);
+    expect(s.res.deaths).toEqual(THREE.map(as));
     expect(ah(s)?.outcome).toContain('all three are alive: all three die');
     s.dawn();
     expect(s.dead(...THREE)).toBe(true);
@@ -137,7 +139,7 @@ describe('the Al-Hadikhia at night', () => {
   it('a Tea Lady-protected "die" counts as alive: the others die, and she still protects them', () => {
     const s = pick(night({ di: 'tea_lady', ed: 't1' }), ['cy', 'fi', 'gus']);
     s.answer('cy', ['die']).answer('fi', ['live']).answer('gus', ['live']);
-    expect(s.res.deaths).toEqual(['fi', 'gus']);
+    expect(s.res.deaths).toEqual([pid('fi'), pid('gus')]);
     expect(ah(s)?.outcome).toContain('all three are alive: all three die');
     s.dawn();
     expect(s.alive('cy')).toBe(true);
@@ -178,9 +180,9 @@ describe('the Al-Hadikhia at night', () => {
     const s = pick(night({}, (x) => x.execute('cy')));
     expect(s.g.view(as('cy')).me.questions).toHaveLength(1);
     s.answer('cy', ['die']);
-    const q = s.res.questions.find((x) => x.playerId === 'di');
+    const q = s.res.questions.find((x) => x.playerId === pid('di'));
     s.g.st({ type: 'answer_question_for', key: q?.key as string, choice: { values: ['live'] } });
-    expect(open(s).map((x) => x.playerId)).toEqual(['ed']);
+    expect(open(s).map((x) => x.playerId)).toEqual([pid('ed')]);
   });
 
   it('Live/Die reaches only the asked player, and nobody else can answer or see an answer', () => {
@@ -255,13 +257,13 @@ describe('Jinx (Al-Hadikhia & Mastermind)', () => {
 
   it('the dead Al-Hadikhia wakes with a picker of good players only, and is waited for', () => {
     const s = executed();
-    expect(expected(s)).toContain('ann');
+    expect(expected(s)).toContain(pid('ann'));
     const [spec] = s.specs('ann');
     expect(spec?.prompt).toMatch(/^Jinx \(Al-Hadikhia & Mastermind\): /);
     expect(spec?.allowDecline).toBeFalsy();
     expect(spec?.fields).toHaveLength(3);
-    for (const f of spec?.fields ?? []) expect(f.options).toEqual(['di', 'ed', 'fi', 'gus']);
-    const actions = { [spec?.key as string]: { values: ['cy', 'di', 'ed'] } };
+    for (const f of spec?.fields ?? []) expect(f.options).toEqual([pid('di'), pid('ed'), pid('fi'), pid('gus')]);
+    const actions = { [spec?.key as string]: { values: ['cy', 'di', 'ed'].map(as) } };
     expect(s.g.tryAs(as('ann'), { type: 'submit_night', actions }).ok).toBe(false);
   });
 
@@ -301,14 +303,14 @@ describe('Jinx (Al-Hadikhia & Mastermind)', () => {
     const s = scene({ ...mm, cy: 'scarlet_woman' }).start();
     s.dawn().execute('ann').dusk();
     expect(s.specs('ann')).toEqual([]);
-    expect(expected(s)).not.toContain('ann');
+    expect(expected(s)).not.toContain(pid('ann'));
     const [spec] = s.specs('cy');
     expect(spec).toMatchObject({ roleId: 'al_hadikhia', allowDecline: true, declineLabel: 'No one' });
     expect(spec?.prompt).not.toMatch(/^Jinx/);
     expect(spec?.fields[0]?.options).toEqual(s.ids);
     pick(s, GOOD, 'cy');
     s.answer('di', ['die']);
-    expect(s.res.deaths).toEqual(['di']);
+    expect(s.res.deaths).toEqual([pid('di')]);
     expect(ah(s, 'cy')?.outcome).not.toContain('Jinx');
   });
 

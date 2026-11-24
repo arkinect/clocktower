@@ -29,6 +29,7 @@ type Pick = string[] | Record<string, string[]>;
 export class Scene {
   g: TestGame;
   readonly ids: PlayerId[];
+  private readonly names: string[];
 
   /** The names are the seats, in order. Use the short names t1-t9, o1-o3, m1-m3 and d1-d2 for plain characters. */
   constructor(chars: Record<string, string>, o: SceneOptions = {}) {
@@ -36,18 +37,25 @@ export class Scene {
     const cast = Object.values(chars).map(toRole);
     const script = [...new Set([...defaultScript(), ...PLAIN_SCRIPT, ...cast, ...(o.extra ?? []).map(toRole)])];
     this.g = seated(names, script);
+    this.names = names;
     this.ids = names.map(pid);
     names.forEach((n, i) => this.g.st({ type: 'assign_character', playerId: pid(n), roleId: cast[i] as RoleId }));
     for (const [n, r] of Object.entries(o.believed ?? {})) {
-      this.g.st({ type: 'set_believed', playerId: n as PlayerId, roleId: toRole(r) });
+      this.g.st({ type: 'set_believed', playerId: pid(n), roleId: toRole(r) });
     }
     for (const [role, fields] of Object.entries(o.fields ?? {})) {
       for (const [field, value] of Object.entries(fields)) {
-        this.g.st({ type: 'set_setup_field', abilityId: this.ability(role), field, value });
+        this.g.st({ type: 'set_setup_field', abilityId: this.ability(role), field, value: this.value(value) });
       }
     }
     if (o.evilInfoPolicy) this.g.st({ type: 'set_settings', evilInfoPolicy: o.evilInfoPolicy });
   }
+
+  /** A value as the engine knows it: a player's name becomes their id, and a short role name its role. */
+  value = (v: string): string => {
+    if (SPECIAL.has(v)) return SHORT[v] as string;
+    return this.names.includes(v) ? pid(v) : v;
+  };
 
   get state() {
     return this.g.state;
@@ -55,8 +63,8 @@ export class Scene {
 
   /** The id of a role's first ability instance, optionally on one holder. */
   ability(role: string, holder?: string): AbilityId {
-    const a = Object.values(this.state.abilities).find(
-      (x) => x.roleId === toRole(role) && (!holder || (x.holder.kind === 'player' && x.holder.id === holder)),
+    const a = [...this.state.abilities.values()].find(
+      (x) => x.roleId === toRole(role) && (!holder || (x.holder.kind === 'player' && x.holder.id === pid(holder))),
     );
     if (!a) throw new Error(`No ability ${role}${holder ? ` on ${holder}` : ''}`);
     return a.id;
@@ -81,7 +89,7 @@ export class Scene {
    */
   submit(picks: Record<string, Pick>) {
     for (const [id, pick] of Object.entries(picks)) {
-      const specs = this.g.view(id as PlayerId).me.actions;
+      const specs = this.g.view(pid(id)).me.actions;
       const actions: Record<string, Choice> = {};
       const choose = (asked: (typeof specs)[number], list: string[]): Choice => {
         if (!list.length) return { decline: true, values: [] };
@@ -90,7 +98,7 @@ export class Scene {
         const values = named ? list.slice(1) : list;
         const spec = inMode(asked, mode);
         return {
-          values: (spec.maxRows ? values : spec.fields.map((_, i) => values[i] as string)).map(toRoleIfNeeded),
+          values: (spec.maxRows ? values : spec.fields.map((_, i) => values[i] as string)).map(this.value),
           ...(mode ? { mode } : {}),
         };
       };
@@ -105,13 +113,13 @@ export class Scene {
           actions[spec.key] = choose(spec, values);
         }
       }
-      this.g.st({ type: 'submit_for', playerId: id as PlayerId, actions });
+      this.g.st({ type: 'submit_for', playerId: pid(id), actions });
     }
     return this;
   }
 
   specs(id: string) {
-    return this.g.view(id as PlayerId).me.actions;
+    return this.g.view(pid(id)).me.actions;
   }
 
   get res() {
@@ -127,12 +135,14 @@ export class Scene {
   decide(kind: string, option: string, subject?: string) {
     this.review();
     const d = this.decision(kind, subject);
-    this.g.st({ type: 'decide', key: d.key, option });
+    this.g.st({ type: 'decide', key: d.key, option: this.value(option) });
     return this;
   }
 
   decision(kind: string, subject?: string) {
-    const d = this.res.decisions.find((x) => x.key.kind === kind && (!subject || x.key.subject === subject));
+    const d = this.res.decisions.find(
+      (x) => x.key.kind === kind && (!subject || x.key.subject === this.value(subject)),
+    );
     if (!d) throw new Error(`No decision ${kind}. Have: ${this.res.decisions.map((x) => x.key.kind).join(', ')}`);
     return d;
   }
@@ -144,27 +154,27 @@ export class Scene {
   /** A follow-up question, answered by the player it was put to. */
   answer(id: string, values: string[]) {
     this.review();
-    const q = this.res.questions.find((x) => x.playerId === id && !x.answered);
+    const q = this.res.questions.find((x) => x.playerId === pid(id) && !x.answered);
     if (!q) throw new Error(`No open question for ${id}`);
-    this.g.as(id as PlayerId, {
+    this.g.as(pid(id), {
       type: 'answer_question',
       key: q.key,
-      choice: values.length ? { values } : { decline: true, values: [] },
+      choice: values.length ? { values: values.map(this.value) } : { decline: true, values: [] },
     });
     return this;
   }
 
   /** The finished results for a player tonight. */
   truth(id: string): string[] {
-    return this.res.results.filter((r) => r.playerId === id).flatMap((r) => r.truth);
+    return this.res.results.filter((r) => r.playerId === pid(id)).flatMap((r) => r.truth);
   }
 
   final(id: string): string[] {
-    return this.res.results.filter((r) => r.playerId === id).flatMap((r) => r.final);
+    return this.res.results.filter((r) => r.playerId === pid(id)).flatMap((r) => r.final);
   }
 
   row(id: string) {
-    const row = this.res.results.find((r) => r.playerId === id);
+    const row = this.res.results.find((r) => r.playerId === pid(id));
     if (!row) throw new Error(`No result for ${id}`);
     return row;
   }
@@ -189,18 +199,18 @@ export class Scene {
 
   /** Chooses today's execution, which happens at dusk. */
   execute(id: string | null, died = true) {
-    this.g.st({ type: 'record_execution', playerId: id as PlayerId | null, died });
+    this.g.st({ type: 'record_execution', playerId: id === null ? null : pid(id), died });
     return this;
   }
 
   /** The Storyteller marks a player dead, now. */
   kill(id: string) {
-    this.g.st({ type: 'mark_alive', playerId: id as PlayerId, alive: false });
+    this.g.st({ type: 'mark_alive', playerId: pid(id), alive: false });
     return this;
   }
 
   nominate(by: string, of: string) {
-    this.g.st({ type: 'record_nomination', nominator: by as PlayerId, nominee: of as PlayerId });
+    this.g.st({ type: 'record_nomination', nominator: pid(by), nominee: pid(of) });
     return this;
   }
 
@@ -215,7 +225,7 @@ export class Scene {
       type: 'day_action',
       abilityId: this.ability(role, o.holder),
       action,
-      values: values.map(toRoleIfNeeded),
+      values: values.map(this.value),
       mode: o.mode ?? 'accept',
     });
     return this.g.data as { summary: string; effective: boolean };
@@ -228,12 +238,12 @@ export class Scene {
   prompt(option: string) {
     const q = this.state.prompts[0];
     if (!q) throw new Error('No prompt');
-    this.g.st({ type: 'resolve_prompt', id: q.id, option });
+    this.g.st({ type: 'resolve_prompt', id: q.id, option: this.value(option) });
     return this;
   }
 
   alive(id: string) {
-    return this.g.player(id as PlayerId).life.alive;
+    return this.g.player(pid(id)).life.alive;
   }
 
   dead(...ids: string[]) {
@@ -241,20 +251,20 @@ export class Scene {
   }
 
   character(id: string) {
-    return this.g.player(id as PlayerId).character;
+    return this.g.player(pid(id)).character;
   }
 
   alignment(id: string) {
-    return this.g.player(id as PlayerId).alignment;
+    return this.g.player(pid(id)).alignment;
   }
 
   impaired(id: string) {
-    return computeImpairment(this.state, phaseMoment(this.state))[id]?.impaired ?? false;
+    return computeImpairment(this.state, phaseMoment(this.state))[pid(id)]?.impaired ?? false;
   }
 
   /** Every line this player has been sent. */
   inbox(id: string): string[] {
-    return this.g.view(id as PlayerId).me.messages.flatMap((m) => [m.title, ...m.lines]);
+    return this.g.view(pid(id)).me.messages.flatMap((m) => [m.title, ...m.lines]);
   }
 
   winners() {
@@ -263,7 +273,6 @@ export class Scene {
 }
 
 const SPECIAL = new Set(Object.keys(SHORT));
-const toRoleIfNeeded = (v: string) => (SPECIAL.has(v) ? (SHORT[v] as string) : v);
 
 export const scene = (chars: Record<string, string>, o?: SceneOptions) => new Scene(chars, o);
 export { ST, toRole };

@@ -25,7 +25,7 @@ const catalog = vi.hoisted(() => [
 vi.mock('../src/app/store', () => ({
   useCommand: () => ({ run, pending: false }),
   useGame: () => ({ catalog, jinxes: [] }),
-  useNames: () => ({ players: { a: 'Ann', b: 'Bo' }, roles: {} }),
+  useNames: () => ({ players: { aaaaaaaaaaaaaaaa: 'Ann', bbbbbbbbbbbbbbbb: 'Bo' }, roles: {} }),
 }));
 
 // The idle games are not under test: the night screen only needs something to put in their place.
@@ -46,7 +46,7 @@ afterEach(() => {
 
 const ability = (over: Record<string, unknown>) =>
   AbilityView.parse({
-    id: 'x',
+    id: 'a90',
     roleId: 'slayer',
     name: 'Slayer',
     shownAs: null,
@@ -66,7 +66,7 @@ const ability = (over: Record<string, unknown>) =>
 
 const condition = (over: Record<string, unknown>) =>
   ConditionView.parse({
-    id: 'c',
+    id: 'c1',
     type: 'poisoned',
     name: null,
     label: 'poisoned',
@@ -77,7 +77,7 @@ const condition = (over: Record<string, unknown>) =>
 
 const player = (over: Record<string, unknown>) =>
   GrimoirePlayer.parse({
-    id: 'a',
+    id: 'aaaaaaaaaaaaaaaa',
     name: 'Ann',
     seat: 0,
     alive: true,
@@ -149,7 +149,7 @@ describe('impairment wording', () => {
     const p = player({
       impaired: true,
       causes: ['poisoned:Poisoner', 'drunk:storyteller', 'poisoned:No Dashii'],
-      conditions: [condition({}), condition({ id: 'd', type: 'drunk', sourceLabel: 'Storyteller' })],
+      conditions: [condition({}), condition({ id: 'c2', type: 'drunk', sourceLabel: 'Storyteller' })],
     });
     expect(causesWithoutRow(p)).toEqual(['poisoned:No Dashii']);
   });
@@ -188,7 +188,7 @@ describe('day actions', () => {
     roleId: 'cannibal',
     title: 'Who the Cannibal becomes',
     prompt: 'Choose',
-    fields: [{ kind: 'player', label: 'Player', options: ['a', 'b'] }],
+    fields: [{ kind: 'player', label: 'Player', options: ['aaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbb'] }],
     distinct: false,
     allowDecline: false,
     abilityId: 'a1',
@@ -202,14 +202,14 @@ describe('day actions', () => {
     render(<DayAction view={console_({}, [player({})])} spec={spec} />);
     const accept = screen.getByRole('button', { name: 'Accept' }) as HTMLButtonElement;
     expect(accept.disabled).toBe(true);
-    await userEvent.selectOptions(screen.getByLabelText('Player'), 'b');
+    await userEvent.selectOptions(screen.getByLabelText('Player'), 'bbbbbbbbbbbbbbbb');
     expect(accept.disabled).toBe(false);
     await userEvent.click(accept);
     expect(run).toHaveBeenCalledWith({
       type: 'day_action',
       abilityId: 'a1',
       action: 'choose',
-      values: ['b'],
+      values: ['bbbbbbbbbbbbbbbb'],
       mode: 'accept',
     });
   });
@@ -403,21 +403,21 @@ describe('setup assignment', () => {
 
   it("puts a field tied to the player (Lil' Monsta's Minion) in their row", async () => {
     const field = SetupFieldSpec.parse({
-      abilityId: 'lm',
+      abilityId: 'a5',
       field: 'minion',
       title: "The Minion the Lil' Monsta player becomes",
       kind: 'role',
       options: [{ id: 'empath', label: 'Empath' }],
       value: null,
       suggestible: false,
-      row: { playerId: 'a', label: 'plays as' },
+      row: { playerId: 'aaaaaaaaaaaaaaaa', label: 'plays as' },
     });
     const v = { ...setupView, setup: { ...setupView.setup, fields: [field] } } as StorytellerView;
     render(<AssignRow view={v} player={player({ character: 'empath' })} />);
     await userEvent.selectOptions(screen.getByLabelText('Ann plays as'), 'empath');
-    expect(run).toHaveBeenCalledWith({ type: 'set_setup_field', abilityId: 'lm', field: 'minion', value: 'empath' });
+    expect(run).toHaveBeenCalledWith({ type: 'set_setup_field', abilityId: 'a5', field: 'minion', value: 'empath' });
     cleanup();
-    render(<AssignRow view={v} player={player({ id: 'b', name: 'Bo', character: 'empath' })} />);
+    render(<AssignRow view={v} player={player({ id: 'bbbbbbbbbbbbbbbb', name: 'Bo', character: 'empath' })} />);
     expect(screen.queryByLabelText('Bo plays as')).toBeNull();
   });
 });
@@ -466,7 +466,7 @@ describe('the Day tab', () => {
       action: 'shoot',
       preview: true,
       order: 30,
-      fields: [{ kind: 'player', label: 'Target', options: ['a', 'b'] }],
+      fields: [{ kind: 'player', label: 'Target', options: ['aaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbb'] }],
     });
     render(<Day view={dayView({ dayActions: [flowergirl, shot] })} />);
     const events = within(section('Day events')).getAllByRole('article');
@@ -502,11 +502,11 @@ describe('the Day tab', () => {
       blocksNight: true,
       clearable: true,
       emptyLabel: 'Not chosen yet',
-      fields: [{ kind: 'player', label: 'Target', options: ['a', 'b'] }],
+      fields: [{ kind: 'player', label: 'Target', options: ['aaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbb'] }],
     });
     const { rerender } = render(<Day view={dayView({ dayActions: [moonchild] })} />);
     expect(screen.queryByText(/Needed tonight|Review/)).toBeNull();
-    rerender(<Day view={dayView({ dayActions: [{ ...moonchild, recorded: ['b'] }] })} />);
+    rerender(<Day view={dayView({ dayActions: [{ ...moonchild, recorded: ['bbbbbbbbbbbbbbbb'] }] })} />);
     await userEvent.selectOptions(screen.getByLabelText('Moonchild (Ann)'), '');
     expect(run).toHaveBeenCalledWith({
       type: 'day_action',
@@ -533,8 +533,8 @@ describe('the Day tab', () => {
       action: 'apply_curse',
       preview: true,
       control: 'toggle',
-      recorded: ['b'],
-      fields: [{ kind: 'player', label: 'Cursed', options: ['a', 'b'] }],
+      recorded: ['bbbbbbbbbbbbbbbb'],
+      fields: [{ kind: 'player', label: 'Cursed', options: ['aaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbb'] }],
     });
     render(<Day view={dayView({ dayActions: [gossip, witch] })} />);
     expect(screen.getByRole('button', { name: 'No' }).getAttribute('aria-pressed')).toBe('true');
@@ -554,7 +554,7 @@ describe('the Day tab', () => {
       type: 'day_action',
       abilityId: 'a1',
       action: 'apply_curse',
-      values: ['a'],
+      values: ['aaaaaaaaaaaaaaaa'],
       mode: 'accept',
     });
     expect(screen.queryByRole('button', { name: 'Use' })).toBeNull();
@@ -567,15 +567,15 @@ describe('the Day tab', () => {
       action: 'guesses',
       control: 'rows',
       maxRows: 5,
-      recorded: ['a', 'empath'],
+      recorded: ['aaaaaaaaaaaaaaaa', 'empath'],
       fields: [
-        { kind: 'player', label: 'Player', options: ['a', 'b'] },
+        { kind: 'player', label: 'Player', options: ['aaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbb'] },
         { kind: 'role', label: 'Character', options: ['empath', 'beggar'] },
       ],
     });
     render(<Day view={dayView({ dayActions: [guesser] })} />);
-    expect((screen.getByLabelText('Player 1') as HTMLSelectElement).value).toBe('a');
-    await userEvent.selectOptions(screen.getByLabelText('Player 2'), 'b');
+    expect((screen.getByLabelText('Player 1') as HTMLSelectElement).value).toBe('aaaaaaaaaaaaaaaa');
+    await userEvent.selectOptions(screen.getByLabelText('Player 2'), 'bbbbbbbbbbbbbbbb');
     expect(run).not.toHaveBeenCalled();
     await userEvent.selectOptions(screen.getByLabelText('Character 2'), 'beggar');
     expect(run).not.toHaveBeenCalled();
@@ -584,7 +584,7 @@ describe('the Day tab', () => {
       type: 'day_action',
       abilityId: 'a1',
       action: 'guesses',
-      values: ['a', 'empath', 'b', 'beggar'],
+      values: ['aaaaaaaaaaaaaaaa', 'empath', 'bbbbbbbbbbbbbbbb', 'beggar'],
       mode: 'accept',
     });
     await userEvent.click(screen.getByRole('button', { name: 'Remove' }));
@@ -620,7 +620,7 @@ describe('the Day tab', () => {
       title: 'Slayer (Ann)',
       action: 'shoot',
       preview: true,
-      fields: [{ kind: 'player', label: 'Target', options: ['a', 'b'] }],
+      fields: [{ kind: 'player', label: 'Target', options: ['aaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbb'] }],
     });
     run.mockResolvedValueOnce({ ok: true, data: { summary: 'Bo is not the Demon: nothing happens.' } } as never);
     render(<Day view={dayView({ dayActions: [shot] })} />);
@@ -629,12 +629,12 @@ describe('the Day tab', () => {
     expect(select.options[0]?.text).toBe('No one');
     const use = screen.getByRole('button', { name: 'Use' }) as HTMLButtonElement;
     expect(use.disabled).toBe(true);
-    await userEvent.selectOptions(select, 'b');
+    await userEvent.selectOptions(select, 'bbbbbbbbbbbbbbbb');
     expect(run).toHaveBeenLastCalledWith({
       type: 'day_action',
       abilityId: 'a1',
       action: 'shoot',
-      values: ['b'],
+      values: ['bbbbbbbbbbbbbbbb'],
       mode: 'preview',
     });
     expect(await screen.findByText('Bo is not the Demon: nothing happens.')).toBeTruthy();
@@ -643,7 +643,7 @@ describe('the Day tab', () => {
       type: 'day_action',
       abilityId: 'a1',
       action: 'shoot',
-      values: ['b'],
+      values: ['bbbbbbbbbbbbbbbb'],
       mode: 'accept',
     });
   });
@@ -654,12 +654,12 @@ describe('the Day tab', () => {
       action: 'shoot',
       preview: true,
       clearable: true,
-      recorded: ['b'],
-      fields: [{ kind: 'player', label: 'Target', options: ['a', 'b'] }],
+      recorded: ['bbbbbbbbbbbbbbbb'],
+      fields: [{ kind: 'player', label: 'Target', options: ['aaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbb'] }],
     });
     render(<Day view={dayView({ dayActions: [shot] })} />);
     const select = screen.getByLabelText('Slayer (Ann)') as HTMLSelectElement;
-    expect(select.value).toBe('b');
+    expect(select.value).toBe('bbbbbbbbbbbbbbbb');
     expect(select.disabled).toBe(true);
     const use = screen.getByRole('button', { name: 'Use' });
     expect(use.getAttribute('aria-pressed')).toBe('true');
@@ -676,12 +676,12 @@ describe('the Day tab', () => {
   it('choosing from the list records the execution, which happens at Start Night', async () => {
     const { rerender } = render(<Day view={dayView()} />);
     expect(screen.queryByRole('button', { name: 'Execute' })).toBeNull();
-    await userEvent.selectOptions(screen.getByLabelText('Executed'), 'a');
-    expect(run).toHaveBeenCalledWith({ type: 'record_execution', playerId: 'a', died: true });
+    await userEvent.selectOptions(screen.getByLabelText('Executed'), 'aaaaaaaaaaaaaaaa');
+    expect(run).toHaveBeenCalledWith({ type: 'record_execution', playerId: 'aaaaaaaaaaaaaaaa', died: true });
     const chosen = (playerId: string | null) =>
       ({ at: 'Day 2', kind: 'execution', text: '', playerId }) as StorytellerView['dayEvents'][number];
-    rerender(<Day view={dayView({ dayEvents: [chosen('a')] })} />);
-    expect((screen.getByLabelText('Executed') as HTMLSelectElement).value).toBe('a');
+    rerender(<Day view={dayView({ dayEvents: [chosen('aaaaaaaaaaaaaaaa')] })} />);
+    expect((screen.getByLabelText('Executed') as HTMLSelectElement).value).toBe('aaaaaaaaaaaaaaaa');
     expect(screen.getByText('To be executed')).toBeTruthy();
     await userEvent.selectOptions(screen.getByLabelText('Executed'), '');
     expect(run).toHaveBeenLastCalledWith({ type: 'record_execution', playerId: null, died: true });
@@ -693,9 +693,9 @@ describe('the Day tab', () => {
     render(
       <Day
         view={dayView({}, [
-          player({ id: 'a', alive: true }),
-          player({ id: 'b', name: 'Bo', seat: 1, alive: false }),
-          player({ id: 'c', name: 'Cy', seat: 2, alive: false, ghostVoteUsed: true }),
+          player({ id: 'aaaaaaaaaaaaaaaa', alive: true }),
+          player({ id: 'bbbbbbbbbbbbbbbb', name: 'Bo', seat: 1, alive: false }),
+          player({ id: 'cccccccccccccccc', name: 'Cy', seat: 2, alive: false, ghostVoteUsed: true }),
         ])}
       />,
     );
@@ -707,9 +707,9 @@ describe('the Day tab', () => {
   it('lists day reminders of working abilities under Execution', () => {
     const p = player({
       abilities: [
-        ability({ id: 'b', name: 'Virgin', oncePerGame: false, reminder: 'First nomination.', dayReminder: true }),
-        ability({ id: 'c', name: 'Mayor', reminder: 'Three alive.', dayReminder: true, active: false }),
-        ability({ id: 'd', name: 'Empath', reminder: 'Night only.' }),
+        ability({ id: 'a91', name: 'Virgin', oncePerGame: false, reminder: 'First nomination.', dayReminder: true }),
+        ability({ id: 'a92', name: 'Mayor', reminder: 'Three alive.', dayReminder: true, active: false }),
+        ability({ id: 'a93', name: 'Empath', reminder: 'Night only.' }),
       ],
     });
     render(<Day view={dayView({}, [p])} />);
@@ -749,7 +749,7 @@ describe('the Review tab', () => {
     });
   const result = (over: Record<string, unknown> = {}) => ({
     key: 'r1',
-    playerId: 'a',
+    playerId: 'aaaaaaaaaaaaaaaa',
     roleId: 'butler',
     title: 'Butler',
     truth: ['Your master is Bo.'],
@@ -817,11 +817,11 @@ describe('the Review tab', () => {
       roleId: 'imp',
       title: 'Imp',
       prompt: 'Choose a player: they die.',
-      fields: [{ kind: 'player', label: 'Player', options: ['a', 'b'] }],
+      fields: [{ kind: 'player', label: 'Player', options: ['aaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbb'] }],
       distinct: true,
       allowDecline: false,
     };
-    const sober = result({ confirmation: false, impaired: false, causes: [], playerId: 'b' });
+    const sober = result({ confirmation: false, impaired: false, causes: [], playerId: 'bbbbbbbbbbbbbbbb' });
     // Each test has its own game code: open sections are remembered by game and night.
     const withPlayers = (code: string, results: unknown[] = [], questions: unknown[] = []) => {
       const base = reviewView([], results);
@@ -829,19 +829,19 @@ describe('the Review tab', () => {
         ...base,
         code,
         review: { ...base.review, questions },
-        players: [player({}), player({ id: 'b', name: 'Bo', seat: 1, alive: false })],
+        players: [player({}), player({ id: 'bbbbbbbbbbbbbbbb', name: 'Bo', seat: 1, alive: false })],
         board: [
           {
-            playerId: 'a',
+            playerId: 'aaaaaaaaaaaaaaaa',
             wakes: [],
             specs: [spec],
             expected: true,
             submitted: true,
             byStoryteller: false,
-            submission: { a1: { values: ['b'] } },
+            submission: { a1: { values: ['bbbbbbbbbbbbbbbb'] } },
           },
           {
-            playerId: 'b',
+            playerId: 'bbbbbbbbbbbbbbbb',
             wakes: [],
             specs: [],
             expected: false,
@@ -861,7 +861,7 @@ describe('the Review tab', () => {
           .getAllByRole('option')
           .map((o) => o.textContent);
       expect(options()).toEqual(['Add a player…', 'Ann', 'Bo (dead)']);
-      await add('a');
+      await add('aaaaaaaaaaaaaaaa');
       expect(options()).toEqual(['Add a player…', 'Bo (dead)']);
       await userEvent.click(screen.getByRole('button', { name: 'Cancel changes to Ann' }));
       expect(options()).toEqual(['Add a player…', 'Ann', 'Bo (dead)']);
@@ -870,14 +870,18 @@ describe('the Review tab', () => {
 
     it('Cancel puts back the choice and the answer the card was added with, then removes the card', async () => {
       const { rerender } = render(<Review view={withPlayers('G6', [sober])} />);
-      await add('a');
-      await add('b');
+      await add('aaaaaaaaaaaaaaaa');
+      await add('bbbbbbbbbbbbbbbb');
       // The game as it is after the Storyteller changed Ann's choice and wrote Bo an answer.
       const changed = withPlayers('G6', [{ ...sober, overridden: true, final: ['Written.'] }]);
-      (changed.board[0] as { submission: unknown }).submission = { a1: { values: ['a'] } };
+      (changed.board[0] as { submission: unknown }).submission = { a1: { values: ['aaaaaaaaaaaaaaaa'] } };
       rerender(<Review view={changed} />);
       await userEvent.click(screen.getByRole('button', { name: 'Cancel changes to Ann' }));
-      expect(run).toHaveBeenLastCalledWith({ type: 'submit_for', playerId: 'a', actions: { a1: { values: ['b'] } } });
+      expect(run).toHaveBeenLastCalledWith({
+        type: 'submit_for',
+        playerId: 'aaaaaaaaaaaaaaaa',
+        actions: { a1: { values: ['bbbbbbbbbbbbbbbb'] } },
+      });
       await userEvent.click(screen.getByRole('button', { name: 'Cancel changes to Bo' }));
       expect(run).toHaveBeenLastCalledWith({ type: 'override_result', resultKey: 'r1', lines: null });
       expect(run).toHaveBeenCalledTimes(2);
@@ -886,32 +890,46 @@ describe('the Review tab', () => {
 
     it("changes a player's night choice, once it differs from what they submitted", async () => {
       render(<Review view={withPlayers('G2')} />);
-      await add('a');
+      await add('aaaaaaaaaaaaaaaa');
       const change = screen.getByRole('button', { name: 'Change their choice' }) as HTMLButtonElement;
-      expect((screen.getByLabelText('Player') as HTMLSelectElement).value).toBe('b');
+      expect((screen.getByLabelText('Player') as HTMLSelectElement).value).toBe('bbbbbbbbbbbbbbbb');
       expect(change.disabled).toBe(true);
-      await userEvent.selectOptions(screen.getByLabelText('Player'), 'a');
+      await userEvent.selectOptions(screen.getByLabelText('Player'), 'aaaaaaaaaaaaaaaa');
       await userEvent.click(change);
-      expect(run).toHaveBeenCalledWith({ type: 'submit_for', playerId: 'a', actions: { a1: { values: ['a'] } } });
+      expect(run).toHaveBeenCalledWith({
+        type: 'submit_for',
+        playerId: 'aaaaaaaaaaaaaaaa',
+        actions: { a1: { values: ['aaaaaaaaaaaaaaaa'] } },
+      });
     });
 
     it("shows a sober player's result only in their section, with its answer to choose", async () => {
       render(<Review view={withPlayers('G3', [sober])} />);
       expect(screen.queryByRole('combobox', { name: 'Answer for Butler' })).toBeNull();
-      await add('b');
+      await add('bbbbbbbbbbbbbbbb');
       expect(screen.getByRole('combobox', { name: 'Answer for Butler' })).toBeTruthy();
       expect(screen.queryByRole('heading', { name: 'What each player learns' })).toBeNull();
     });
 
     it('lets an answered question be answered again', async () => {
-      const q = { key: 'a9:b', playerId: 'b', roleId: 'ravenkeeper', spec: { ...spec, key: 'a9:b' }, answered: true };
-      render(<Review view={withPlayers('G4', [], [{ ...q, answer: { values: ['a'] } }])} />);
+      const q = {
+        key: 'a9:b',
+        playerId: 'bbbbbbbbbbbbbbbb',
+        roleId: 'ravenkeeper',
+        spec: { ...spec, key: 'a9:b' },
+        answered: true,
+      };
+      render(<Review view={withPlayers('G4', [], [{ ...q, answer: { values: ['aaaaaaaaaaaaaaaa'] } }])} />);
       expect(screen.queryByRole('button', { name: 'Change the answer' })).toBeNull();
-      await add('b');
+      await add('bbbbbbbbbbbbbbbb');
       expect(screen.queryByRole('heading', { name: 'Questions' })).toBeNull();
-      await userEvent.selectOptions(screen.getByLabelText('Player'), 'b');
+      await userEvent.selectOptions(screen.getByLabelText('Player'), 'bbbbbbbbbbbbbbbb');
       await userEvent.click(screen.getByRole('button', { name: 'Change the answer' }));
-      expect(run).toHaveBeenCalledWith({ type: 'answer_question_for', key: 'a9:b', choice: { values: ['b'] } });
+      expect(run).toHaveBeenCalledWith({
+        type: 'answer_question_for',
+        key: 'a9:b',
+        choice: { values: ['bbbbbbbbbbbbbbbb'] },
+      });
     });
 
     it("has the day's fact for a holder of the role, recorded again from the card and put back by Cancel", async () => {
@@ -935,7 +953,7 @@ describe('the Review tab', () => {
       const withFact = (recorded: string) => {
         const v = withPlayers('G7');
         const holder = player({
-          id: 'b',
+          id: 'bbbbbbbbbbbbbbbb',
           name: 'Bo',
           seat: 1,
           abilities: [ability({ id: 'a5', roleId: 'flowergirl' })],
@@ -948,9 +966,9 @@ describe('the Review tab', () => {
       };
       const { rerender } = render(<Review view={withFact('no')} />);
       expect(screen.queryByText('Did a Demon vote today?')).toBeNull();
-      await add('a');
+      await add('aaaaaaaaaaaaaaaa');
       expect(screen.queryByText('Did a Demon vote today?')).toBeNull();
-      await add('b');
+      await add('bbbbbbbbbbbbbbbb');
       await userEvent.click(screen.getByRole('button', { name: 'Yes' }));
       expect(run).toHaveBeenLastCalledWith({
         type: 'record_fact',
@@ -970,22 +988,28 @@ describe('the Review tab', () => {
 
     it('keeps the cards in the browser, so a reload brings them back with what Cancel puts back', async () => {
       render(<Review view={withPlayers('G8')} />);
-      await add('a');
+      await add('aaaaaaaaaaaaaaaa');
       const saved = localStorage.getItem('ct.review.cards:G8:2') as string;
-      expect(JSON.parse(saved)[0][1].submission).toEqual({ a1: { values: ['b'] } });
+      expect(JSON.parse(saved)[0][1].submission).toEqual({ a1: { values: ['bbbbbbbbbbbbbbbb'] } });
       cleanup();
       // A page that has just loaded, in the same game after Ann's choice was changed: G9 has no card in memory.
       localStorage.setItem('ct.review.cards:G9:2', saved);
       const changed = withPlayers('G9');
-      (changed.board[0] as { submission: unknown }).submission = { a1: { values: ['a'] } };
+      (changed.board[0] as { submission: unknown }).submission = { a1: { values: ['aaaaaaaaaaaaaaaa'] } };
       render(<Review view={changed} />);
       await userEvent.click(screen.getByRole('button', { name: 'Cancel changes to Ann' }));
-      expect(run).toHaveBeenLastCalledWith({ type: 'submit_for', playerId: 'a', actions: { a1: { values: ['b'] } } });
+      expect(run).toHaveBeenLastCalledWith({
+        type: 'submit_for',
+        playerId: 'aaaaaaaaaaaaaaaa',
+        actions: { a1: { values: ['bbbbbbbbbbbbbbbb'] } },
+      });
       expect(localStorage.getItem('ct.review.cards:G9:2')).toBeNull();
     });
 
     it('drops a saved card from another game that had the same code', () => {
-      const other = JSON.stringify([['a', { submission: null, answers: {}, overrides: {}, facts: {} }, 'a1,a2']]);
+      const other = JSON.stringify([
+        ['aaaaaaaaaaaaaaaa', { submission: null, answers: {}, overrides: {}, facts: {} }, 'a1,a2'],
+      ]);
       localStorage.setItem('ct.review.cards:G10:2', other);
       render(<Review view={withPlayers('G10')} />);
       expect(screen.queryByRole('button', { name: /Cancel changes/ })).toBeNull();
@@ -993,7 +1017,7 @@ describe('the Review tab', () => {
 
     it('says so when a player has nothing to change', async () => {
       render(<Review view={withPlayers('G5')} />);
-      await add('b');
+      await add('bbbbbbbbbbbbbbbb');
       expect(
         screen.getByText('Bo has nothing to change tonight: no choice, no information and no fact from the day.'),
       ).toBeTruthy();
@@ -1002,7 +1026,7 @@ describe('the Review tab', () => {
 });
 
 describe('setup: character type counts', () => {
-  const seven = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((id, seat) => player({ id, name: id.toUpperCase(), seat }));
+  const seven = [...'ABCDEFG'].map((name, seat) => player({ id: 'abcdef1'.charAt(seat).repeat(16), name, seat }));
   const countsView = (target: number[], source: 'default' | 'override' = 'default') =>
     ({ players: seven, setup: { counts: { target, actual: [0, 0, 0, 0], source } } }) as unknown as StorytellerView;
   const field = (name: RegExp) => screen.getByLabelText(name) as HTMLInputElement;
@@ -1037,7 +1061,10 @@ describe('setup: character type counts', () => {
   it('drops a held edit when the number of seated players changes', () => {
     const { rerender } = render(<TypeCounts view={countsView([5, 0, 1, 1])} />);
     fireEvent.change(field(/^Townsfolk/), { target: { value: '4' } });
-    const eight = { ...countsView([5, 1, 1, 1]), players: [...seven, player({ id: 'h', name: 'H', seat: 7 })] };
+    const eight = {
+      ...countsView([5, 1, 1, 1]),
+      players: [...seven, player({ id: '0'.repeat(16), name: 'H', seat: 7 })],
+    };
     rerender(<TypeCounts view={eight as StorytellerView} />);
     expect(field(/^Townsfolk/).value).toBe('5');
     expect(field(/^Townsfolk/).getAttribute('aria-invalid')).toBeNull();
@@ -1119,7 +1146,7 @@ describe('the night on a phone', () => {
     roleId: null,
     title: 'Poisoner',
     prompt: 'Choose a player.',
-    fields: [{ kind: 'player', label: 'Player', options: ['a', 'b'] }],
+    fields: [{ kind: 'player', label: 'Player', options: ['aaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbb'] }],
     distinct: false,
     allowDecline: false,
   };
@@ -1128,14 +1155,14 @@ describe('the night on a phone', () => {
       deadAtDawn: [],
       serverNow: 0,
       phase: { kind: 'night', n, stage: 'collecting', deadline: null, winner: null, endedReason: null },
-      me: { id: 'a', actions: [spec], questions: [], submitted: submission !== null, submission },
+      me: { id: 'aaaaaaaaaaaaaaaa', actions: [spec], questions: [], submitted: submission !== null, submission },
     }) as unknown as PlayerView;
   const chosen = () => (screen.getByLabelText('Player') as HTMLSelectElement).value;
 
   it('Change opens on what was submitted, on a phone that has just reloaded too', async () => {
-    render(<Night view={nightView(1, { k: { values: ['b'] } })} />);
+    render(<Night view={nightView(1, { k: { values: ['bbbbbbbbbbbbbbbb'] } })} />);
     await userEvent.click(screen.getByRole('button', { name: 'Change' }));
-    expect(chosen()).toBe('b');
+    expect(chosen()).toBe('bbbbbbbbbbbbbbbb');
   });
 
   it('a player with nothing to change has no bar under the games', () => {
@@ -1145,7 +1172,7 @@ describe('the night on a phone', () => {
   });
 
   it('a new night starts with nothing chosen', async () => {
-    const { rerender } = render(<Night view={nightView(1, { k: { values: ['b'] } })} />);
+    const { rerender } = render(<Night view={nightView(1, { k: { values: ['bbbbbbbbbbbbbbbb'] } })} />);
     rerender(<Night view={nightView(2, null)} />);
     await userEvent.click(screen.getByRole('button', { name: 'Night action' }));
     expect(chosen()).toBe('');

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'witch_king', bo: 't1', cy: 't2', di: 'm1', ed: 't3', fi: 't4' };
 const row = (s: ReturnType<typeof scene>) => s.dayActions().find((d) => d.roleId === 'witch_king');
@@ -38,7 +39,7 @@ describe('Witch King', () => {
       .submit({ ann: ['cy'] })
       .dawn();
     expect(s.alive('cy')).toBe(true);
-    expect(row(s)?.fields[0]?.options).toEqual(['cy']);
+    expect(row(s)?.fields[0]?.options).toEqual([pid('cy')]);
   });
   it('a poisoned Witch King kills no one, and a protected player survives the kill', () => {
     const poisoned = scene({ ...cast, di: 'poisoner' })
@@ -58,7 +59,10 @@ describe('Witch King', () => {
     const s = scene(cast).start().dawn().dusk();
     const key = s.specs('ann')[0]?.key as string;
     const tryIt = (choice: { values: string[]; mode?: string }) =>
-      s.g.tryAs('ann' as never, { type: 'submit_night', actions: { [key]: choice } });
+      s.g.tryAs(pid('ann') as never, {
+        type: 'submit_night',
+        actions: { [key]: { ...choice, values: choice.values.map(s.value) } },
+      });
     expect(tryIt({ mode: 'kill', values: ['bo', 'cy'] }).ok).toBe(false);
     expect(tryIt({ mode: 'curse', values: ['bo', 'cy', 'ed'] }).ok).toBe(false);
     expect(tryIt({ mode: 'both', values: ['bo'] }).ok).toBe(false);
@@ -68,14 +72,14 @@ describe('Witch King', () => {
   it('curses 2 players: each dies when nominated, and the other stays cursed', () => {
     const s = cursed(['bo', 'cy']);
     expect(row(s)).toMatchObject({ control: 'toggle', preview: true, recorded: null });
-    expect(row(s)?.fields[0]?.options).toEqual(['bo', 'cy']);
+    expect(row(s)?.fields[0]?.options).toEqual([pid('bo'), pid('cy')]);
     expect(s.act('witch_king', 'apply_curse', ['bo']).effective).toBe(true);
     expect(s.dead('bo')).toBe(true);
     expect(s.alive('cy')).toBe(true);
-    expect(row(s)?.recorded).toEqual(['bo']);
+    expect(row(s)?.recorded).toEqual([pid('bo')]);
     expect(s.act('witch_king', 'apply_curse', ['cy']).effective).toBe(true);
     expect(s.dead('bo', 'cy')).toBe(true);
-    expect(row(s)?.recorded).toEqual(['bo', 'cy']);
+    expect(row(s)?.recorded).toEqual([pid('bo'), pid('cy')]);
   });
   it('the curse kills as the Demon', () => {
     const s = cursed(['bo']);
@@ -92,7 +96,7 @@ describe('Witch King', () => {
   });
   it('may curse just one player', () => {
     const s = cursed(['ed']);
-    expect(row(s)?.fields[0]?.options).toEqual(['ed']);
+    expect(row(s)?.fields[0]?.options).toEqual([pid('ed')]);
   });
   it('may curse no one: no switch on the Day tab', () => {
     const s = cursed([]);
@@ -109,11 +113,11 @@ describe('Witch King', () => {
   });
   it('shows switches only for the living, and for a curse that has gone off', () => {
     const s = cursed(['bo', 'cy']);
-    s.g.st({ type: 'mark_alive', playerId: 'cy' as never, alive: false });
-    expect(row(s)?.fields[0]?.options).toEqual(['bo']);
+    s.g.st({ type: 'mark_alive', playerId: pid('cy') as never, alive: false });
+    expect(row(s)?.fields[0]?.options).toEqual([pid('bo')]);
     s.act('witch_king', 'apply_curse', ['bo']);
     expect(s.dead('bo', 'cy')).toBe(true);
-    expect(row(s)).toMatchObject({ recorded: ['bo'], fields: [{ options: ['bo'] }] });
+    expect(row(s)).toMatchObject({ recorded: [pid('bo')], fields: [{ options: [pid('bo')] }] });
   });
   it('a preview changes nothing, and the Storyteller can force a survival', () => {
     const s = cursed(['bo']);
@@ -179,8 +183,8 @@ describe('Witch King', () => {
       .submit({ ann: ['cy'], di: ['ed'] })
       .dawn();
     const witch = () => s.dayActions().find((d) => d.roleId === 'witch');
-    expect(witch()?.fields[0]?.options).toEqual(['ed']);
-    expect(row(s)?.fields[0]?.options).toEqual(['cy']);
+    expect(witch()?.fields[0]?.options).toEqual([pid('ed')]);
+    expect(row(s)?.fields[0]?.options).toEqual([pid('cy')]);
     s.act('witch_king', 'apply_curse', ['cy']);
     expect(s.alive('cy')).toBe(false);
     expect(witch()).toMatchObject({ recorded: null });

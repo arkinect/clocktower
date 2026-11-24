@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'professor', bo: 'empath', cy: 'imp', di: 'm1', ed: 'recluse' };
 describe('Professor', () => {
@@ -24,6 +25,6 @@ describe('Professor', () => {
   it('picks only from the dead', () => {
     const s = scene(cast).start().dawn();
     s.execute('bo').dusk();
-    expect(s.specs('ann')[0]?.fields[0]?.options).toEqual(['bo']);
+    expect(s.specs('ann')[0]?.fields[0]?.options).toEqual([pid('bo')]);
   });
 });

@@ -18,7 +18,7 @@ const impairs = (c: Condition) => c.type === 'drunk' || c.type === 'poisoned';
 
 function sourceInfo(w: GameState, c: Condition): { player: PlayerId | null; label: string } {
   if (c.source.kind === 'storyteller') return { player: null, label: 'storyteller' };
-  const a = w.abilities[c.source.id];
+  const a = w.abilities.get(c.source.id);
   const player = a?.holder.kind === 'player' ? a.holder.id : null;
   return { player, label: findRole(a?.roleId ?? '')?.name ?? 'unknown' };
 }

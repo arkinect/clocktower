@@ -9,7 +9,7 @@ export function nightStory(s: GameState, res: Resolution, n: number): StoryRow[]
   return s.seats
     .filter((x) => x.left === null)
     .map(({ playerId: pid }) => {
-      const p = s.players[pid]!;
+      const p = s.players.get(pid)!;
       const rows = res.actors.filter((r) => r.playerId === pid);
       const causes = new Set(rows.flatMap((r) => r.causes));
       for (const c of end[pid]?.causes ?? []) causes.add(c);
@@ -17,10 +17,10 @@ export function nightStory(s: GameState, res: Resolution, n: number): StoryRow[]
         playerId: pid,
         name: p.name,
         character: p.character,
-        believed: s.setup.bag[pid] ?? null,
+        believed: s.setup.bag.get(pid) ?? null,
         alignment: p.alignment,
         aliveAtStart: p.life.alive,
-        aliveAtEnd: !!res.after.players[pid]?.life.alive,
+        aliveAtEnd: !!res.after.players.get(pid)?.life.alive,
         impaired: causes.size > 0,
         causes: [...causes],
         actions: rows.map((r) => ({ slot: r.slot, input: r.input, outcome: r.outcome })),

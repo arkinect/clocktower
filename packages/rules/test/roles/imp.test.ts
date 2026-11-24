@@ -1,7 +1,8 @@
-import type { PlayerId, RoleId } from '@ct/protocol';
+import type { RoleId } from '@ct/protocol';
 import { describe, expect, it } from 'vitest';
 import { TRAVELLER } from '../helpers/plain';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'imp', bo: 'm1', cy: 't1', di: 't2', ed: 'scarlet_woman', fi: 't3' };
 describe('Imp', () => {
@@ -20,10 +21,10 @@ describe('Imp', () => {
       .submit({ ann: ['ann'] })
       .review();
     expect(s.hasDecision('starpass')).toBe(false);
-    expect(s.res.actors.find((a) => a.playerId === 'ann')?.outcome).toContain('ed becomes the Imp');
-    expect(s.res.notices.filter((n) => n.title === 'You are now the Imp').map((n) => n.playerId)).toEqual(['ed']);
+    expect(s.res.actors.find((a) => a.playerId === pid('ann'))?.outcome).toContain('ed becomes the Imp');
+    expect(s.res.notices.filter((n) => n.title === 'You are now the Imp').map((n) => n.playerId)).toEqual([pid('ed')]);
     // The new Imp does not act that night.
-    expect(s.res.deaths).toEqual(['ann']);
+    expect(s.res.deaths).toEqual([pid('ann')]);
     s.dawn();
     expect(s.character('ed')).toBe('imp');
     expect(s.alive('ann')).toBe(false);
@@ -35,7 +36,7 @@ describe('Imp', () => {
       .nextNight()
       .submit({ ann: ['ann'], bo: ['ed'] })
       .review();
-    expect(s.decision('starpass').options.map((o) => o.id)).toEqual(['bo', 'ed']);
+    expect(s.decision('starpass').options.map((o) => o.id)).toEqual([pid('bo'), pid('ed')]);
     s.decide('starpass', 'bo').dawn();
     expect(s.character('bo')).toBe('imp');
     expect(s.character('ed')).toBe('scarlet_woman');
@@ -46,7 +47,7 @@ describe('Imp', () => {
       .nextNight()
       .submit({ ann: ['ann'] })
       .review();
-    expect(s.decision('starpass')).toMatchObject({ default: 'ed' });
+    expect(s.decision('starpass')).toMatchObject({ default: pid('ed') });
     s.decide('starpass', 'bo').dawn();
     expect(s.character('bo')).toBe('imp');
   });
@@ -82,7 +83,7 @@ describe('Imp', () => {
         .dawn();
     it('the dead Imp stays an evil Imp and a Demon, and no longer wakes', () => {
       const s = passed();
-      expect(s.g.grimoire().players.find((p) => p.id === 'ann')).toMatchObject({
+      expect(s.g.grimoire().players.find((p) => p.id === pid('ann'))).toMatchObject({
         alive: false,
         character: 'imp',
         isDemon: true,
@@ -101,14 +102,14 @@ describe('Imp', () => {
     it('the Storyteller can give the Imp to someone else by hand, though not twice among the living', () => {
       const s = passed();
       const give = (id: string, role: string) =>
-        s.g.tryAs('st' as PlayerId, { type: 'assign_character', playerId: id as PlayerId, roleId: role as RoleId }).ok;
+        s.g.tryAs(pid('st'), { type: 'assign_character', playerId: pid(id), roleId: role as RoleId }).ok;
       expect(give('bo', 'imp')).toBe(false);
       expect(give('ed', 'scarlet_woman')).toBe(true);
       expect(give('bo', 'imp')).toBe(true);
       expect(s.character('bo')).toBe('imp');
     });
     it('an evil Traveller who joins is told only the living Imp', () => {
-      const vi = 'vi' as PlayerId;
+      const vi = pid('vi');
       const told = (s: ReturnType<typeof scene>) => {
         s.g.as(null, { type: 'join', id: vi, name: 'vi', rolePreference: 'none', wantsStoryteller: false });
         s.g.st({ type: 'add_traveller', playerId: vi, roleId: TRAVELLER[0] as RoleId, alignment: 'evil' });

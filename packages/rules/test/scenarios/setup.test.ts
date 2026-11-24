@@ -11,7 +11,7 @@ import {
   targetCounts,
 } from '../../src/setup/rules';
 import { as, chosen } from './lib';
-import { seated, ST } from '../helpers/game';
+import { pid, seated, ST } from '../helpers/game';
 import { scene, type Scene } from '../scenario';
 
 const twelve = 'Ann Bo Cy Di Ed Flo Gus Hal Ivy Jo Kim Lee'.split(' ');
@@ -261,11 +261,11 @@ describe('the Organ Grinder', () => {
       .start()
       .submit({ ann: ['sober'] })
       .review();
-    expect(s.res.actors.find((a) => a.playerId === 'ann')?.outcome).toBe('stays sober');
+    expect(s.res.actors.find((a) => a.playerId === pid('ann'))?.outcome).toBe('stays sober');
     s.dawn();
     expect(eyes(s)).toBe(true);
     s.dusk().review();
-    expect(s.res.actors.find((a) => a.playerId === 'ann')?.outcome).toBe('no choice: stays sober');
+    expect(s.res.actors.find((a) => a.playerId === pid('ann'))?.outcome).toBe('no choice: stays sober');
     s.dawn();
     expect(eyes(s)).toBe(true);
   });

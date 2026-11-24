@@ -30,7 +30,7 @@ describe('command shapes', () => {
 
   it('refuses a missing field, a wrong type, an unknown command and a non-object', () => {
     for (const bad of [
-      { type: 'rename_player', playerId: 'ann' },
+      { type: 'rename_player', playerId: pid('ann') },
       { type: 'submit_night', actions: { imp: { values: [1] } } },
       { type: 'set_type_counts', counts: [1, 2, 3] },
       { type: 'no_such_command' },
@@ -50,10 +50,10 @@ describe('command shapes', () => {
     for (const ok of [
       { type: 'end_game' },
       { type: 'begin_first_night', force: true },
-      { type: 'assign_character', playerId: 'ann', roleId: null },
+      { type: 'assign_character', playerId: pid('ann'), roleId: null },
       { type: 'set_type_counts', counts: null },
-      { type: 'submit_night', actions: { imp: { values: ['bo'] }, poisoner: { decline: true, values: [] } } },
-      { type: 'day_action', abilityId: 'a1', action: 'shoot', values: ['bo'], mode: 'preview' },
+      { type: 'submit_night', actions: { imp: { values: [pid('bo')] }, poisoner: { decline: true, values: [] } } },
+      { type: 'day_action', abilityId: 'a1', action: 'shoot', values: [pid('bo')], mode: 'preview' },
     ]) {
       expect(Command.safeParse(ok).success, JSON.stringify(ok)).toBe(true);
     }

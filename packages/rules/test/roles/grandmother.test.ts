@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'grandmother', bo: 'empath', cy: 'imp', di: 't2', ed: 't3' };
 describe('Grandmother', () => {
@@ -15,7 +16,7 @@ describe('Grandmother', () => {
       .submit({ cy: ['bo'] })
       .dawn();
     expect(s.alive('ann')).toBe(false);
-    expect(s.g.player('ann' as never).life.cause).toBe('grandchild_link');
+    expect(s.g.player(pid('ann') as never).life.cause).toBe('grandchild_link');
   });
   it('not when the grandchild is executed', () => {
     const s = scene(cast).start().decide('grandmother_grandchild', 'bo').dawn();

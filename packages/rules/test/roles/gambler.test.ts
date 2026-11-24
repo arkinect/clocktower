@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'gambler', bo: 'empath', cy: 'd1', di: 't2', ed: 't3' };
 describe('Gambler', () => {
@@ -18,7 +19,7 @@ describe('Gambler', () => {
       .submit({ ann: ['bo', 'oracle'] })
       .dawn();
     expect(s.alive('ann')).toBe(false);
-    expect(s.g.player('ann' as never).life.cause).toBe('self_gamble');
+    expect(s.g.player(pid('ann') as never).life.cause).toBe('self_gamble');
   });
   it('a poisoned Gambler survives a wrong guess', () => {
     const s = scene({ ...cast, bo: 'poisoner' })

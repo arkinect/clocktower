@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { as, open } from './lib';
 import { ST } from '../scenario';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 // The Review tab shows only drunk or poisoned players' results. Everyone else's follows from the night as decided
 // there, and nothing reaches a player until dawn is published.
@@ -62,18 +63,18 @@ describe('Review and dawn', () => {
       s.g.tryAs(ST, {
         type: 'submit_for',
         playerId: as('ann'),
-        actions: { [s.ability('imp')]: { values: [target] } },
+        actions: { [s.ability('imp')]: { values: [s.value(target)] } },
       });
 
     it('what followed from the old choice goes, and what follows the new one comes', () => {
       const s = night();
-      expect(s.res.deaths).toEqual(['bo']);
-      expect(open(s).map((q) => q.playerId)).toEqual(['bo']);
+      expect(s.res.deaths).toEqual([pid('bo')]);
+      expect(open(s).map((q) => q.playerId)).toEqual([pid('bo')]);
       expect(kill(s, 'di').ok).toBe(true);
-      expect(s.res.deaths).toEqual(['di']);
+      expect(s.res.deaths).toEqual([pid('di')]);
       expect(s.res.questions).toEqual([]);
       expect(kill(s, 'bo').ok).toBe(true);
-      expect(open(s).map((q) => q.playerId)).toEqual(['bo']);
+      expect(open(s).map((q) => q.playerId)).toEqual([pid('bo')]);
     });
 
     it('the changed choice is what dawn publishes', () => {
@@ -87,14 +88,14 @@ describe('Review and dawn', () => {
     it('a choice the picker never offered is still refused', () => {
       const s = night();
       expect(kill(s, 'nobody').ok).toBe(false);
-      expect(s.res.deaths).toEqual(['bo']);
+      expect(s.res.deaths).toEqual([pid('bo')]);
     });
   });
 
   // A fact is what the engine holds true, apart from what a player is told. The Review tab records it again.
   describe('changing a day fact in review', () => {
     const fact = (s: ReturnType<typeof scene>, role: string, action: string, values: string[]) =>
-      s.g.tryAs(ST, { type: 'record_fact', abilityId: s.ability(role), action, values });
+      s.g.tryAs(ST, { type: 'record_fact', abilityId: s.ability(role), action, values: values.map(s.value) });
     const facts = (s: ReturnType<typeof scene>) => s.g.grimoire().review?.facts ?? [];
 
     it('the Flowergirl: the truth changes, and a written answer is marked as written against the old one', () => {
@@ -135,9 +136,9 @@ describe('Review and dawn', () => {
         .nextNight()
         .review();
       fact(s, 'mezepheles', 'sayer', ['bo']);
-      expect(s.res.after.players['bo']?.alignment).toBe('evil');
+      expect(s.res.after.players.get(pid('bo'))?.alignment).toBe('evil');
       fact(s, 'mezepheles', 'sayer', []);
-      expect(s.res.after.players['bo']?.alignment).toBe('good');
+      expect(s.res.after.players.get(pid('bo'))?.alignment).toBe('good');
     });
 
     it('the Juggler: the guesses are their own night choice, which Review can change, and the count follows', () => {
@@ -149,7 +150,11 @@ describe('Review and dawn', () => {
       expect(s.truth('ann').join(' ')).toMatch(/\b0\b/);
       expect(facts(s).filter((f) => f.roleId === 'juggler')).toEqual([]);
       const guesses = (values: string[]) =>
-        s.g.tryAs(ST, { type: 'submit_for', playerId: as('ann'), actions: { [s.ability('juggler')]: { values } } });
+        s.g.tryAs(ST, {
+          type: 'submit_for',
+          playerId: as('ann'),
+          actions: { [s.ability('juggler')]: { values: values.map(s.value) } },
+        });
       expect(guesses(['bo', 'imp', 'di', 'empath']).ok).toBe(true);
       expect(s.truth('ann').join(' ')).toMatch(/\b2\b/);
     });
@@ -163,7 +168,7 @@ describe('Review and dawn', () => {
       s.dusk().review();
       expect(s.res.deaths).toEqual([]);
       expect(fact(s, 'moonchild', 'target', ['di']).ok).toBe(true);
-      expect(s.res.deaths).toEqual(['di']);
+      expect(s.res.deaths).toEqual([pid('di')]);
       fact(s, 'moonchild', 'target', ['none']);
       expect(s.res.deaths).toEqual([]);
     });

@@ -13,7 +13,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import type { Sessions } from '../auth/sessions';
 import { readCookie } from '../auth/sessions';
 import type { Config } from '../config';
-import type { Client, Games } from '../games/manager';
+import type { Audit, Client, Games } from '../games/manager';
 import { TokenBucket, clientIp } from '../limits/limits';
 
 interface Live extends Client {
@@ -57,28 +57,42 @@ export class Hub {
     private readonly sessions: Sessions,
     private readonly catalog: RoleCard[],
     private readonly jinxes: Jinx[],
+    private readonly audit: Audit,
   ) {
     this.wss = new WebSocketServer({
       noServer: true,
       maxPayload: config.limits.socketMaxPayload,
       perMessageDeflate: false,
     });
-    server.on('upgrade', (req, socket, head) => this.upgrade(req, socket, head));
+    server.on('upgrade', (req, socket, head) => {
+      // An error thrown in a socket callback would end the process.
+      try {
+        this.upgrade(req, socket, head);
+      } catch (e) {
+        this.audit.failed(null, 'upgrade', e);
+        socket.destroy();
+      }
+    });
     this.timer = setInterval(() => this.heartbeat(), config.limits.heartbeatMs);
     this.timer.unref();
   }
 
   private upgrade(req: IncomingMessage, socket: Duplex, head: Buffer) {
     socket.on('error', () => socket.destroy());
-    const url = new URL(req.url ?? '/', 'http://x');
-    if (url.pathname !== '/ws') return refuse(socket, '404 Not Found');
+    let path: string;
+    try {
+      path = new URL(req.url ?? '/', 'http://x').pathname;
+    } catch {
+      return refuse(socket, '400 Bad Request');
+    }
+    if (path !== '/ws') return refuse(socket, '404 Not Found');
     if (!originAllowed(req.headers.origin, req.headers.host, this.config.allowedOrigins)) {
       return refuse(socket, '403 Forbidden');
     }
     const session = this.sessions.find(readCookie(req.headers.cookie));
     if (!session) return refuse(socket, '401 Unauthorized');
     const game = this.games.get(session.code);
-    if (!game || !game.state.players[session.playerId as PlayerId]) return refuse(socket, '401 Unauthorized');
+    if (!game || !game.state.players.has(session.playerId as PlayerId)) return refuse(socket, '401 Unauthorized');
     const ip = clientIp(req.socket.remoteAddress, req.headers['x-forwarded-for'], this.config.trustedProxies);
     const { socketsPerSession, socketsPerIp } = this.config.limits;
     if ((this.bySession.get(session.hash) ?? 0) >= socketsPerSession) return refuse(socket, '429 Too Many Requests');
@@ -87,7 +101,12 @@ export class Hub {
     this.wss.handleUpgrade(req, socket, head, (ws) => {
       this.bump(this.bySession, session.hash, 1);
       this.bump(this.byIp, ip, 1);
-      this.accept(ws, session.code, session.playerId, session.hash, ip);
+      try {
+        this.accept(ws, session.code, session.playerId, session.hash, ip);
+      } catch (e) {
+        this.audit.failed(session.playerId, 'connect', e);
+        ws.terminate();
+      }
     });
   }
 
@@ -128,7 +147,11 @@ export class Hub {
       this.live.delete(c);
       this.bump(this.bySession, sessionHash, -1);
       this.bump(this.byIp, ip, -1);
-      this.games.get(code)?.remove(c);
+      try {
+        this.games.get(code)?.remove(c);
+      } catch (e) {
+        this.audit.failed(playerId, 'disconnect', e);
+      }
     });
     send({
       v: PROTOCOL_VERSION,
@@ -141,7 +164,21 @@ export class Hub {
     game?.sendView(c);
   }
 
+  /** Never rejects: nothing waits on it, and an unhandled rejection would end the process. */
   private async message(c: Live, raw: string, isBinary: boolean) {
+    const asked: { requestId?: string } = {};
+    try {
+      await this.handle(c, raw, isBinary, asked);
+    } catch (e) {
+      this.audit.failed(c.playerId, 'message', e);
+      const { requestId } = asked;
+      if (requestId === undefined) return;
+      c.send({ v: PROTOCOL_VERSION, type: 'ack', requestId, ok: false, error: 'Something went wrong.' });
+    }
+  }
+
+  /** Notes in `asked` the request to answer, once it is known, for when this throws. */
+  private async handle(c: Live, raw: string, isBinary: boolean, asked: { requestId?: string }) {
     c.misses = 0;
     if (isBinary || !c.bucket.take(Date.now())) return;
     let json: unknown;
@@ -172,6 +209,7 @@ export class Hub {
       if (m.buildId !== this.config.buildId) c.send({ v: PROTOCOL_VERSION, type: 'reload' });
       return;
     }
+    if (m.type === 'command') asked.requestId = m.requestId;
     const game = this.games.get(c.code);
     if (!game) return;
     if (m.type === 'cards') {

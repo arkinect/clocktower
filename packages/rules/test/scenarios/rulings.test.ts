@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { as, shootAs } from './lib';
 import { scene, ST, type Scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 describe('a Gossip killed before their slot kills nobody', () => {
   const statement = () => {
@@ -23,7 +24,7 @@ describe('a Gossip killed before their slot kills nobody', () => {
     const s = statement()
       .submit({ bo: ['ann'] })
       .review();
-    expect(s.res.deaths).toEqual(['ann']);
+    expect(s.res.deaths).toEqual([pid('ann')]);
     expect(s.hasDecision('gossip_victim')).toBe(false);
   });
 
@@ -31,7 +32,7 @@ describe('a Gossip killed before their slot kills nobody', () => {
     const s = statement()
       .submit({ bo: ['di'] })
       .decide('gossip_victim', 'ed');
-    expect(s.res.deaths).toEqual(['di', 'ed']);
+    expect(s.res.deaths).toEqual([pid('di'), pid('ed')]);
   });
 });
 
@@ -113,7 +114,7 @@ describe('the Mathematician', () => {
         s.g.st({ type: 'decide', key: d.key, option: lie?.id as string });
       }
       expect(count(s)).toBe(2);
-      expect(s.res.malfunctions.map((m) => m.playerId).sort()).toEqual(['bo', 'di']);
+      expect(s.res.malfunctions.map((m) => m.playerId).sort()).toEqual([pid('bo'), pid('di')]);
     });
 
     it('the Godfather hidden Recluse counts the Godfather on night 0', () => {
@@ -122,7 +123,7 @@ describe('the Mathematician', () => {
         .start()
         .decide('godfather_recluse', 'hide');
       expect(count(s)).toBe(1);
-      expect(s.res.malfunctions.map((m) => m.playerId)).toEqual(['bo']);
+      expect(s.res.malfunctions.map((m) => m.playerId)).toEqual([pid('bo')]);
     });
   });
 
@@ -139,7 +140,9 @@ describe('the Mathematician', () => {
     it('false information is counted, unless the truth is sent', () => {
       const s = believing('empath').review();
       expect(count(s)).toBe(1);
-      expect(s.res.malfunctions).toMatchObject([{ playerId: 'cy', detail: `${name}'s ability yielded false info` }]);
+      expect(s.res.malfunctions).toMatchObject([
+        { playerId: pid('cy'), detail: `${name}'s ability yielded false info` },
+      ]);
       const line = s.row('cy');
       s.g.st({ type: 'override_result', resultKey: line.key, lines: line.truth });
       expect(count(s)).toBe(0);
@@ -150,7 +153,7 @@ describe('the Mathematician', () => {
         .submit({ cy: ['ed'] })
         .review();
       expect(count(s)).toBe(1);
-      expect(s.res.malfunctions).toMatchObject([{ playerId: 'cy', detail: `${name}'s ability failed` }]);
+      expect(s.res.malfunctions).toMatchObject([{ playerId: pid('cy'), detail: `${name}'s ability failed` }]);
       s.g.st({ type: 'adjust_malfunctions', add: [], remove: [as('cy')] });
       expect(count(s)).toBe(0);
     });
@@ -181,9 +184,9 @@ describe('alive-only pickers', () => {
       s.g.st({ type: 'mark_alive', playerId: as('di'), alive: false });
       s.dusk();
       const spec = s.specs('ann').find((x) => x.roleId === role);
-      expect(spec?.fields[0]?.options).not.toContain('di');
-      expect(spec?.fields[0]?.options).toContain('fi');
-      const actions = { [spec?.key as string]: { values: ['di'] } };
+      expect(spec?.fields[0]?.options).not.toContain(pid('di'));
+      expect(spec?.fields[0]?.options).toContain(pid('fi'));
+      const actions = { [spec?.key as string]: { values: [as('di')] } };
       expect(s.g.tryAs(as('ann'), { type: 'submit_night', actions }).ok).toBe(false);
       expect(s.g.tryAs(ST, { type: 'submit_for', playerId: as('ann'), actions }).ok).toBe(false);
     },
@@ -191,7 +194,7 @@ describe('alive-only pickers', () => {
 
   it('the Sailor may still choose themselves', () => {
     const s = scene({ ann: 'sailor', bo: 'imp', cy: 'poisoner', di: 'empath', ed: 'butler' }).start();
-    expect(s.specs('ann')[0]?.fields[0]?.options).toContain('ann');
+    expect(s.specs('ann')[0]?.fields[0]?.options).toContain(pid('ann'));
   });
 
   it('night pickers for the Demon and Poisoner include dead players, and a dead target is no death', () => {
@@ -199,8 +202,8 @@ describe('alive-only pickers', () => {
     const s = scene(chars).start().dawn();
     s.g.st({ type: 'mark_alive', playerId: as('cy'), alive: false });
     s.dusk();
-    expect(s.specs('ann')[0]?.fields[0]?.options).toContain('cy');
-    expect(s.specs('bo')[0]?.fields[0]?.options).toContain('cy');
+    expect(s.specs('ann')[0]?.fields[0]?.options).toContain(pid('cy'));
+    expect(s.specs('bo')[0]?.fields[0]?.options).toContain(pid('cy'));
     s.submit({ ann: ['cy'], bo: ['cy'] }).review();
     expect(s.res.deaths).toEqual([]);
     expect(s.res.log.join('\n')).toMatch(/already dead/);
@@ -213,7 +216,7 @@ describe('the Gambler choosing themselves', () => {
 
   it('is offered, and guessing their own role right does nothing', () => {
     const s = night('gambler');
-    expect(s.specs('ann')[0]?.fields[0]?.options).toContain('ann');
+    expect(s.specs('ann')[0]?.fields[0]?.options).toContain(pid('ann'));
     s.submit({ ann: ['ann', 'gambler'] }).review();
     expect(s.res.deaths).toEqual([]);
   });
@@ -223,7 +226,7 @@ describe('the Gambler choosing themselves', () => {
       .submit({ ann: ['ann', 'gambler'] })
       .review();
     expect(s.res.deaths).toEqual([]);
-    expect(s.res.actors.find((a) => a.playerId === 'ann')?.outcome).toContain('impaired: does not die');
+    expect(s.res.actors.find((a) => a.playerId === pid('ann'))?.outcome).toContain('impaired: does not die');
   });
 });
 
@@ -237,7 +240,7 @@ describe('a starpass must pick a living Minion', () => {
       .submit({ ann: ['ann'] })
       .review();
     const d = s.decision('starpass');
-    expect(d.options.map((o) => o.id).sort()).toEqual(['bo', 'cy']);
+    expect(d.options.map((o) => o.id).sort()).toEqual([pid('bo'), pid('cy')]);
     s.dawn();
     expect(s.character(d.default as string)).toBe('imp');
   });
@@ -249,9 +252,9 @@ describe('a starpass must pick a living Minion', () => {
       .submit({ ann: ['ann'] })
       .review();
     expect(s.hasDecision('starpass')).toBe(false);
-    expect(s.res.actors.find((a) => a.playerId === 'ann')?.outcome).toContain('starpass: no living Minion');
+    expect(s.res.actors.find((a) => a.playerId === pid('ann'))?.outcome).toContain('starpass: no living Minion');
     s.dawn();
-    expect(Object.values(s.state.players).filter((p) => p.character === 'imp')).toHaveLength(1);
+    expect([...s.state.players.values()].filter((p) => p.character === 'imp')).toHaveLength(1);
   });
 });
 
@@ -267,7 +270,7 @@ describe('what players see and when', () => {
       .review();
     expect(s.g.view(as('cy')).deadAtDawn).toEqual([]);
     s.dawn();
-    expect([...s.g.view(as('cy')).deadAtDawn].sort()).toEqual(['di', 'fi']);
+    expect([...s.g.view(as('cy')).deadAtDawn].sort()).toEqual([pid('di'), pid('fi')]);
   });
 
   it('each Minion learns the other Minions on night 0, not the Demon or the Marionette', () => {
@@ -316,8 +319,8 @@ describe('what players see and when', () => {
       .execute('di')
       .dusk();
     const story = JSON.stringify(s.g.grimoire().story);
-    expect(story).toContain('cy');
-    expect(story).toContain('di');
+    expect(story).toContain(pid('cy'));
+    expect(story).toContain(pid('di'));
     expect(JSON.stringify(s.g.view(as('cy')))).not.toMatch(/"story"/);
   });
 
@@ -331,7 +334,7 @@ describe('what players see and when', () => {
     expect(s.state.storytellerId).toBe(before.storytellerId);
     expect(s.state.script).toEqual(before.script);
     expect(s.state.seats).toEqual(before.seats);
-    for (const p of Object.values(s.state.players)) {
+    for (const p of [...s.state.players.values()]) {
       expect(p).toMatchObject({ character: null, hasSeenRole: false, life: { alive: true, ghostVoteUsed: false } });
     }
     expect(s.state.conditions).toEqual([]);

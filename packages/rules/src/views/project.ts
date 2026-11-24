@@ -64,7 +64,7 @@ export function catalog(s: GameState): RoleCard[] {
 export const allCards = (): RoleCard[] => allRoles().map(roleCard);
 
 export function playerView(s: GameState, id: PlayerId, now: number): PlayerView {
-  const me = s.players[id];
+  const me = s.players.get(id);
   if (!me) throw new Error(`No player ${id}`);
   const moment = phaseMoment(s);
   const r = new Reader(s, moment);
@@ -78,7 +78,7 @@ export function playerView(s: GameState, id: PlayerId, now: number): PlayerView 
           .questions.filter((q) => q.playerId === id && !q.answered)
           .map((q) => q.phone)
       : [];
-  const sub = p.kind === 'night' ? (p.submissions[id] ?? null) : null;
+  const sub = p.kind === 'night' ? (p.submissions.get(id) ?? null) : null;
   const hidden = r.instances.some((a) => roleDef(a.roleId).ability.hidesCharacter?.(new HookCtx(r, a), id));
   const shown = started && !hidden ? me.self.character : null;
   const grants = started
@@ -101,10 +101,10 @@ export function playerView(s: GameState, id: PlayerId, now: number): PlayerView 
       submission: sub?.actions ?? null,
       actions: collecting && seated ? actionSpecs(s, id) : [],
       questions,
-      messages: started ? (s.inbox[id] ?? []) : [],
+      messages: started ? (s.inbox.get(id) ?? []) : [],
       grants,
     },
-    players: Object.values(s.players).map((x) => {
+    players: [...s.players.values()].map((x) => {
       const seat = s.seatingPublished ? s.publishedSeating.indexOf(x.id) : -1;
       const traveller = started && r.typeOf(x.id) === 'traveller';
       return {
@@ -146,7 +146,7 @@ function abilityView(r: Reader, a: Instance): AbilityView {
 }
 
 function conditionView(r: Reader, c: Condition): ConditionView {
-  const src = c.source.kind === 'ability' ? r.w.abilities[c.source.id] : null;
+  const src = c.source.kind === 'ability' ? r.w.abilities.get(c.source.id) : null;
   const srcName = src ? (findRole(src.roleId)?.name ?? 'Unknown') : 'Storyteller';
   return {
     id: c.id,
@@ -269,10 +269,10 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
   const seatedIds = r.seated;
   const roster = [
     ...seatedIds,
-    ...(Object.keys(s.players) as PlayerId[]).filter((x) => !seatedIds.includes(x) && x !== s.storytellerId),
+    ...[...s.players.keys()].filter((x) => !seatedIds.includes(x) && x !== s.storytellerId),
   ];
   const players = roster.map((pid, seat) => {
-    const x = s.players[pid]!;
+    const x = s.players.get(pid)!;
     const i = imp[pid];
     return {
       id: pid,
@@ -305,7 +305,7 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
   const board =
     p.kind === 'night'
       ? seatedIds.map((pid) => {
-          const sub = p.submissions[pid];
+          const sub = p.submissions.get(pid);
           return {
             playerId: pid,
             wakes: wakingAbilities(s, pid).map((a) => ({ roleId: a.roleId, title: roleDef(a.roleId).name })),

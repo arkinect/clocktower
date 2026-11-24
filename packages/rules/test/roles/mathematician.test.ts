@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'mathematician', bo: 'empath', cy: 'imp', di: 'poisoner', ed: 't2' };
 describe('Mathematician', () => {
@@ -25,7 +26,7 @@ describe('Mathematician', () => {
       .start()
       .nextNight();
     s.g.st({ type: 'close_collecting', force: true });
-    expect(s.res.results.find((r) => r.playerId === 'ann')).toBeTruthy();
+    expect(s.res.results.find((r) => r.playerId === pid('ann'))).toBeTruthy();
   });
   it('offers every plausible count', () => {
     const s = scene(cast)

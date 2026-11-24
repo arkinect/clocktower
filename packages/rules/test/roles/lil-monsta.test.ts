@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { ST } from '../helpers/game';
+import { pid, ST } from '../helpers/game';
 import { scene, type Scene } from '../scenario';
 
 const cast = { ann: 'lil_monsta', bo: 'm1', cy: 't1', di: 't2', ed: 't3', fi: 't4', gu: 't5' };
 const opts = { fields: { lil_monsta: { minion: 'baron' } } };
 const part = (s: Scene, p: 'token' | 'keeper') =>
-  Object.values(s.state.abilities).find(
+  [...s.state.abilities.values()].find(
     (a) =>
       a.roleId === ('lil_monsta' as never) &&
       a.origin.kind !== 'character' &&
@@ -13,7 +13,7 @@ const part = (s: Scene, p: 'token' | 'keeper') =>
       (a.state as { part: string }).part === p,
   );
 const babysitter = (s: Scene) => part(s, 'token')?.holder;
-const isDemon = (s: Scene, id: string) => s.g.grimoire().players.find((p) => p.id === id)?.isDemon;
+const isDemon = (s: Scene, id: string) => s.g.grimoire().players.find((p) => p.id === pid(id))?.isDemon;
 
 describe("Lil' Monsta", () => {
   it('needs a Minion chosen at setup', () => {
@@ -51,7 +51,7 @@ describe("Lil' Monsta", () => {
     expect(s.character('ann')).toBe('baron');
     expect(s.inbox('ann')).toContain("You hold Lil' Monsta's token. You are the Demon.");
     expect(isDemon(s, 'ann')).toBe(true);
-    expect(part(s, 'keeper')?.holder).toEqual({ kind: 'player', id: 'ann' });
+    expect(part(s, 'keeper')?.holder).toEqual({ kind: 'player', id: pid('ann') });
   });
   it('the keeper chooses any living player to babysit; the Storyteller chooses who dies', () => {
     const s = scene(cast, opts).start().nextNight();
@@ -60,7 +60,7 @@ describe("Lil' Monsta", () => {
       .decide('lil_monsta', 'di')
       .dawn();
     expect(s.alive('di')).toBe(false);
-    expect(babysitter(s)).toEqual({ kind: 'player', id: 'cy' });
+    expect(babysitter(s)).toEqual({ kind: 'player', id: pid('cy') });
     expect(isDemon(s, 'cy')).toBe(true);
     expect(isDemon(s, 'ann')).toBe(false);
   });
@@ -81,7 +81,7 @@ describe("Lil' Monsta", () => {
     s.submit({ ann: ['ann'] })
       .decide('lil_monsta', 'none')
       .dawn();
-    expect(babysitter(s)).toEqual({ kind: 'player', id: 'ann' });
+    expect(babysitter(s)).toEqual({ kind: 'player', id: pid('ann') });
     // Nothing more: a good player is never told where the token went.
     expect(s.inbox('cy').filter((x) => /babysit/.test(x))).toHaveLength(1);
   });
@@ -119,18 +119,18 @@ describe("Lil' Monsta", () => {
     s.dusk()
       .submit({ ann: ['bo'] })
       .dawn();
-    const notice = (id: string) => s.g.view(id as never).me.messages.findLast((m) => m.title === "Lil' Monsta");
+    const notice = (id: string) => s.g.view(pid(id)).me.messages.findLast((m) => m.title === "Lil' Monsta");
     expect(notice('bo')?.lines).toEqual(TOLD);
     expect(notice('bo')?.lines).toEqual(notice('cy')?.lines);
-    expect(s.g.view('bo' as never).me.role?.name).toBe('Empath');
+    expect(s.g.view(pid('bo') as never).me.role?.name).toBe('Empath');
   });
   it('the victim list leaves out the babysitter and offers nobody', () => {
     const s = scene(cast, opts).start().nextNight();
     s.submit({ ann: ['bo'] }).review();
     const ids = s.decision('lil_monsta').options.map((o) => o.id);
     expect(ids).toContain('none');
-    expect(ids).not.toContain('bo');
-    expect(ids).toContain('ann');
+    expect(ids).not.toContain(pid('bo'));
+    expect(ids).toContain(pid('ann'));
   });
   it('nobody may die', () => {
     const s = scene(cast, opts).start().nextNight();
@@ -166,7 +166,7 @@ describe("Lil' Monsta", () => {
     expect(s.res.actors.find((a) => a.roleId === 'lil_monsta')).toMatchObject({ impaired: false, causes: [] });
     s.dawn();
     expect(s.impaired('ann')).toBe(true);
-    expect(babysitter(s)).toEqual({ kind: 'player', id: 'cy' });
+    expect(babysitter(s)).toEqual({ kind: 'player', id: pid('cy') });
     expect(s.alive('di')).toBe(false);
   });
   it('a poisoned babysitter is no malfunction, unless their own ability goes wrong', () => {
@@ -199,7 +199,7 @@ describe("Lil' Monsta", () => {
     s.submit({ ann: ['cy'] })
       .decide('lil_monsta', 'di')
       .dawn();
-    expect(babysitter(s)).toEqual({ kind: 'player', id: 'cy' });
+    expect(babysitter(s)).toEqual({ kind: 'player', id: pid('cy') });
     expect(s.alive('di')).toBe(false);
   });
   it('a babysitter can still be turned evil by the Mezepheles', () => {

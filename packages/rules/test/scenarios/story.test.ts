@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import type { StoryDay, StoryNight } from '@ct/protocol';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'imp', bo: 'poisoner', cy: 'empath', di: 't1', ed: 't2' };
 
@@ -34,13 +35,13 @@ describe('the story', () => {
     const s = played();
     const rows = night(s, 1)?.rows ?? [];
     expect(rows.map((r) => r.seat)).toEqual([0, 1, 2, 3, 4]);
-    const empath = rows.find((r) => r.playerId === 'cy');
+    const empath = rows.find((r) => r.playerId === pid('cy'));
     expect(empath).toMatchObject({ character: 'empath', aliveAtStart: true, aliveAtEnd: true });
     expect(empath?.causes).toContain('poisoned:Poisoner');
     expect(empath?.received[0]?.truth).not.toBeNull();
-    expect(rows.find((r) => r.playerId === 'di')).toMatchObject({ aliveAtStart: false, aliveAtEnd: false });
-    expect(rows.find((r) => r.playerId === 'ed')).toMatchObject({ aliveAtStart: true, aliveAtEnd: false });
-    expect(night(s, 1)?.deaths).toEqual(['ed']);
+    expect(rows.find((r) => r.playerId === pid('di'))).toMatchObject({ aliveAtStart: false, aliveAtEnd: false });
+    expect(rows.find((r) => r.playerId === pid('ed'))).toMatchObject({ aliveAtStart: true, aliveAtEnd: false });
+    expect(night(s, 1)?.deaths).toEqual([pid('ed')]);
   });
 
   it('the review shows tonight exactly as the story will once dawn is published', () => {
@@ -52,7 +53,7 @@ describe('the story', () => {
       .dusk();
     s.submit({ ann: ['ed'], bo: ['cy'] }).review();
     const live = s.g.grimoire().review?.story;
-    expect(live).toMatchObject({ kind: 'night', n: 1, deaths: ['ed'] });
+    expect(live).toMatchObject({ kind: 'night', n: 1, deaths: [pid('ed')] });
     s.dawn();
     expect(live).toEqual(night(s, 1));
   });
@@ -62,8 +63,8 @@ describe('the story', () => {
     s.g.st({ type: 'set_notes', text: 'Loud day' });
     s.dusk();
     expect(day(s, 1)).toMatchObject({
-      execution: { playerId: 'di', died: true },
-      deaths: [{ playerId: 'di', cause: 'execution' }],
+      execution: { playerId: pid('di'), died: true },
+      deaths: [{ playerId: pid('di'), cause: 'execution' }],
       notes: 'Loud day',
     });
   });

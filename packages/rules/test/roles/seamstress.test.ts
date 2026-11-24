@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'seamstress', bo: 't1', cy: 'd1', di: 't2', ed: 'm1' };
 describe('Seamstress', () => {
@@ -13,7 +14,7 @@ describe('Seamstress', () => {
   });
   it('can wait and cannot pick themselves', () => {
     const s = scene(cast).start();
-    expect(s.specs('ann')[0]?.fields[0]?.options).not.toContain('ann');
+    expect(s.specs('ann')[0]?.fields[0]?.options).not.toContain(pid('ann'));
     s.submit({ ann: [] }).nextNight();
     expect(s.specs('ann')).toHaveLength(1);
   });

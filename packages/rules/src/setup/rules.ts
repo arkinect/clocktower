@@ -37,7 +37,7 @@ function query(s: GameState, playerCount: number, roles: readonly RoleId[]): Set
     roles,
     playerCount,
     field(role, field) {
-      const a = Object.values(s.abilities).find(
+      const a = [...s.abilities.values()].find(
         (x) => x.roleId === role && x.activeUntil !== 'removed' && x.origin.kind === 'character',
       );
       const state = a?.state as { setup?: Record<string, string | null> } | undefined;
@@ -152,7 +152,7 @@ export function believedOptions(s: GameState, player: PlayerId): RoleId[] {
   const c = r.character(player);
   const rule = c ? roleDef(c).believes : undefined;
   if (!rule) return [];
-  const others = r.seated.filter((id) => id !== player).map((id) => s.setup.bag[id]);
+  const others = r.seated.filter((id) => id !== player).map((id) => s.setup.bag.get(id));
   return r.script.filter((x) => rule.allowed(roleDef(x)) && !r.inPlay.includes(x) && !others.includes(x));
 }
 
@@ -160,7 +160,7 @@ export function setupChecklist(s: GameState): CheckItem[] {
   const r = reader(s);
   const ids = r.seated;
   const unassigned = ids.filter((id) => !r.character(id));
-  const unseated = Object.values(s.players).filter((p) => p.id !== s.storytellerId && !ids.includes(p.id));
+  const unseated = [...s.players.values()].filter((p) => p.id !== s.storytellerId && !ids.includes(p.id));
   const items: CheckItem[] = [
     {
       id: 'seated',
@@ -206,7 +206,7 @@ export function setupChecklist(s: GameState): CheckItem[] {
     const c = r.character(id);
     const rule = c ? roleDef(c).believes : undefined;
     if (!rule) continue;
-    const b = s.setup.bag[id];
+    const b = s.setup.bag.get(id);
     items.push({
       id: `believes:${id}`,
       label: `Choose ${rule.label} (${r.name(id)})`,

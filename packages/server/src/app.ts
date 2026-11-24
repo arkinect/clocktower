@@ -8,7 +8,7 @@ import Fastify, { LogController } from 'fastify';
 import { allCards, allJinxes } from '@ct/rules';
 import { Sessions } from './auth/sessions';
 import type { Config } from './config';
-import { Games } from './games/manager';
+import { Games, type Audit } from './games/manager';
 import { registerRoutes } from './http/routes';
 import { Store } from './store/store';
 import { Hub } from './ws/hub';
@@ -32,16 +32,17 @@ export async function buildApp(config: Config, logStream?: Writable): Promise<Bu
 
   const store = new Store(config.dataDir);
   const sessions = new Sessions(store);
+  const audit: Audit = {
+    command: (player, command) => app.log.info({ player, command }),
+    failed: (player, command, e) =>
+      app.log.error({ player, command, error: e instanceof Error ? e.message : 'unknown' }),
+  };
   const games = new Games(
     store,
     config.limits,
     (code, id) => sessions.drop(code, id),
     (code) => sessions.dropGame(code),
-    {
-      command: (player, command) => app.log.info({ player, command }),
-      failed: (player, command, e) =>
-        app.log.error({ player, command, error: e instanceof Error ? e.message : 'unknown' }),
-    },
+    audit,
     config.defaultGame,
   );
   games.restore();
@@ -94,7 +95,7 @@ export async function buildApp(config: Config, logStream?: Writable): Promise<Bu
 
   await app.ready();
   const jinxes = allJinxes().map(({ a, b, text }) => ({ a, b, text }));
-  const hub = new Hub(app.server as Server, config, games, sessions, allCards(), jinxes);
+  const hub = new Hub(app.server as Server, config, games, sessions, allCards(), jinxes, audit);
 
   return {
     async listen(port = config.port) {

@@ -38,7 +38,7 @@ const appearsDead = (run: Run, id: PlayerId) =>
  * events) is dropped. The "dawn carries over" test in test/invariants/real-roles.test.ts fails when a role does.
  */
 function publish(s: GameState, res: Resolution, n: number, seed: number, now: number) {
-  const before = new Set(s.seats.map((x) => x.playerId).filter((id) => s.players[id]?.life.alive));
+  const before = new Set(s.seats.map((x) => x.playerId).filter((id) => s.players.get(id)?.life.alive));
   const rows = nightStory(s, res, n);
   const after = res.after;
   s.players = clone(after.players);
@@ -53,7 +53,7 @@ function publish(s: GameState, res: Resolution, n: number, seed: number, now: nu
       kind: 'death',
       at: { kind: 'night', n },
       playerId: pid,
-      cause: s.players[pid]?.life.cause ?? 'unknown',
+      cause: s.players.get(pid)?.life.cause ?? 'unknown',
     });
   }
   const day = { kind: 'day' as const, n: n + 1 };
@@ -68,10 +68,12 @@ function publish(s: GameState, res: Resolution, n: number, seed: number, now: nu
   }
   for (const x of res.notices) say(x.playerId, 'notice', x.title, x.lines);
   for (const pid of res.deaths) {
-    if (!s.players[pid]?.life.alive && before.has(pid)) say(pid, 'notice', 'You have died', ['You died in the night.']);
+    if (!s.players.get(pid)?.life.alive && before.has(pid))
+      say(pid, 'notice', 'You have died', ['You died in the night.']);
   }
   for (const pid of res.revived) {
-    if (s.players[pid]?.life.alive) say(pid, 'notice', 'You are alive again', ['You have been brought back to life.']);
+    if (s.players.get(pid)?.life.alive)
+      say(pid, 'notice', 'You are alive again', ['You have been brought back to life.']);
   }
   for (const a of run.reader.instances) roleDef(a.roleId).ability.onPublish?.(run.ctx(a));
   for (const pid of run.reader.seated) {
@@ -104,7 +106,7 @@ export const nightCommands = [
       need(p.stage !== 'review', 'Collecting is already closed.');
       if (!cmd.force) {
         need(p.stage === 'collecting', 'Collecting has not started.');
-        const pending = expectedActors(ctx.base).filter((id) => !p.submissions[id]);
+        const pending = expectedActors(ctx.base).filter((id) => !p.submissions.get(id));
         const timeUp = p.deadline !== null && ctx.now >= p.deadline;
         need(!pending.length || timeUp, `Waiting for ${pending.length} player(s). Wait for the countdown or force.`);
       }
@@ -119,7 +121,7 @@ export const nightCommands = [
     handle(ctx) {
       need(ctx.phase.stage === 'review', 'Not in review.');
       ctx.phase.stage = 'collecting';
-      ctx.phase.answers = {};
+      ctx.phase.answers = new Map();
     },
   }),
   defineCommand({
@@ -143,7 +145,7 @@ export const nightCommands = [
       // A player with nothing to do gets the same response as a real submission.
       const v = specs.length ? validateSubmission(ctx.base, me, cmd.actions) : { ok: true as const, actions: {} };
       need(v.ok, v.ok ? '' : v.error);
-      ctx.phase.submissions[me] = { actions: v.actions, at: ctx.now, byStoryteller: false };
+      ctx.phase.submissions.set(me, { actions: v.actions, at: ctx.now, byStoryteller: false });
     },
   }),
   defineCommand({
@@ -156,7 +158,7 @@ export const nightCommands = [
       need(ctx.r.isSeated(cmd.playerId), 'Not a seated player.');
       const v = validateSubmission(ctx.base, cmd.playerId, cmd.actions, true);
       need(v.ok, v.ok ? '' : v.error);
-      ctx.phase.submissions[cmd.playerId] = { actions: v.actions, at: ctx.now, byStoryteller: true };
+      ctx.phase.submissions.set(cmd.playerId, { actions: v.actions, at: ctx.now, byStoryteller: true });
       extendForFollowUps(ctx);
     },
   }),
@@ -170,7 +172,7 @@ export const nightCommands = [
       const actions = Object.fromEntries(
         actionSpecs(ctx.base, cmd.playerId).map((sp) => [sp.key, { decline: true, values: [] }]),
       );
-      ctx.phase.submissions[cmd.playerId] = { actions, at: ctx.now, byStoryteller: true };
+      ctx.phase.submissions.set(cmd.playerId, { actions, at: ctx.now, byStoryteller: true });
     },
   }),
   defineCommand({
@@ -179,7 +181,7 @@ export const nightCommands = [
     phases: ['night'],
     handle(ctx, cmd) {
       // In review too, to take back a choice the Storyteller entered there for a player who had made none.
-      delete ctx.phase.submissions[cmd.playerId];
+      ctx.phase.submissions.delete(cmd.playerId);
       extendForFollowUps(ctx);
     },
   }),
@@ -189,8 +191,8 @@ export const nightCommands = [
     phases: ['night'],
     handle(ctx, cmd) {
       const hash = hashDecision(ctx.phase.n, cmd.key);
-      if (cmd.option === null) delete ctx.phase.decisions[hash];
-      else ctx.phase.decisions[hash] = { key: cmd.key, option: cmd.option };
+      if (cmd.option === null) ctx.phase.decisions.delete(hash);
+      else ctx.phase.decisions.set(hash, { key: cmd.key, option: cmd.option });
       extendForFollowUps(ctx);
     },
   }),
@@ -204,7 +206,7 @@ export const nightCommands = [
       for (const d of resolveNight(ctx.base).decisions) {
         // A required decision is a fact the day didn't record: only the Storyteller can answer it.
         if (d.chosen === null && !d.required) {
-          ctx.phase.decisions[d.hash] = { key: d.key, option: d.default };
+          ctx.phase.decisions.set(d.hash, { key: d.key, option: d.default });
         }
       }
       extendForFollowUps(ctx);
@@ -217,12 +219,12 @@ export const nightCommands = [
     handle(ctx, cmd) {
       need(ctx.phase.stage === 'review', 'Not in review.');
       if (cmd.lines === null) {
-        delete ctx.phase.overrides[cmd.resultKey];
+        ctx.phase.overrides.delete(cmd.resultKey);
         return;
       }
       const row = resolveNight(ctx.base).results.find((r) => r.key === cmd.resultKey);
       need(row, 'No such result.');
-      ctx.phase.overrides[cmd.resultKey] = { lines: cmd.lines, writtenAgainst: row.truth };
+      ctx.phase.overrides.set(cmd.resultKey, { lines: cmd.lines, writtenAgainst: row.truth });
     },
   }),
   defineCommand({
@@ -235,7 +237,7 @@ export const nightCommands = [
       // The role's own day hook, run as the day that has just ended: the record changes and the night resolves again
       // from it. Only a fact tonight reads, so nothing that happens at once (a shot, a kill) can be redone from here.
       const run = ctx.run({ moment: { kind: 'day', n: ctx.phase.n } });
-      const a = ctx.s.abilities[cmd.abilityId];
+      const a = ctx.s.abilities.get(cmd.abilityId);
       need(a && run.reader.isActive(a), 'That ability is not in play.');
       const hook = roleDef(a.roleId).ability.applyDayAction;
       const spec = dayActionsOf(run, a).find((d) => d.action === cmd.action && d.neededTonight);
@@ -269,7 +271,7 @@ export const nightCommands = [
       need(q && q.playerId === ctx.actor, 'You cannot do that now.');
       const error = validateChoice(q.spec, cmd.choice);
       need(!error, error ?? '');
-      ctx.phase.answers[q.key] = { choice: cmd.choice, byStoryteller: false, at: ctx.now };
+      ctx.phase.answers.set(q.key, { choice: cmd.choice, byStoryteller: false, at: ctx.now });
     },
   }),
   defineCommand({
@@ -282,7 +284,7 @@ export const nightCommands = [
       need(q, 'No such question.');
       const error = validateChoice(q.spec, cmd.choice);
       need(!error, error ?? '');
-      ctx.phase.answers[q.key] = { choice: cmd.choice, byStoryteller: true, at: ctx.now };
+      ctx.phase.answers.set(q.key, { choice: cmd.choice, byStoryteller: true, at: ctx.now });
     },
   }),
   defineCommand({

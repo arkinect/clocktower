@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'ravenkeeper', bo: 'empath', cy: 'imp', di: 't2', ed: 't3' };
 describe('Ravenkeeper', () => {
@@ -9,7 +10,7 @@ describe('Ravenkeeper', () => {
       .nextNight()
       .submit({ cy: ['ann'] })
       .review();
-    expect(s.res.questions.map((q) => q.playerId)).toEqual(['ann']);
+    expect(s.res.questions.map((q) => q.playerId)).toEqual([pid('ann')]);
     s.answer('ann', ['bo']);
     expect(s.truth('ann')).toEqual(['bo is the Empath.']);
   });

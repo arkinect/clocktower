@@ -2,8 +2,9 @@
 import { describe, expect, it } from 'vitest';
 import { as, chosen, row, titles } from './lib';
 import { scene, ST, type Scene } from '../scenario';
+import { pid } from '../helpers/game';
 
-const result = (s: Scene, id: string) => s.res.results.find((r) => r.playerId === id);
+const result = (s: Scene, id: string) => s.res.results.find((r) => r.playerId === pid(id));
 
 describe('information', () => {
   it('poison makes false information, and the player cannot tell', () => {
@@ -52,9 +53,9 @@ describe('information', () => {
     const chars = { ann: 'seamstress', bo: 'empath', cy: 'imp', di: 'butler', ed: 'poisoner' };
     const s = scene(chars).start();
     const key = s.specs('ann')[0]?.key as string;
-    expect(s.g.tryAs(as('ann'), { type: 'submit_night', actions: { [key]: { values: ['ann', 'cy'] } } }).ok).toBe(
-      false,
-    );
+    expect(
+      s.g.tryAs(as('ann'), { type: 'submit_night', actions: { [key]: { values: [pid('ann'), pid('cy')] } } }).ok,
+    ).toBe(false);
     s.submit({ ann: ['bo', 'cy'] });
     expect(s.truth('ann')[0]).toMatch(/different/);
     s.nextNight();
@@ -150,7 +151,7 @@ describe('information', () => {
     t.g.st({ type: 'mark_alive', playerId: as('cy'), alive: false });
     t.g.st({ type: 'mark_alive', playerId: as('ed'), alive: false });
     t.dusk().submit({ di: ['ed'] });
-    expect(t.res.revived).toEqual(['ed']);
+    expect(t.res.revived).toEqual([pid('ed')]);
     expect(t.truth('ann')[0]).toMatch(/^1 /);
     expect(t.truth('di')[0]).toMatch(/You chose/);
     expect(t.truth('ed').length).toBe(1);
@@ -172,7 +173,7 @@ describe('kills and protection', () => {
       .nextNight()
       .submit({ ann: ['di'], bo: ['ann'], cy: ['ann'] })
       .decide('sailor', 'di');
-    expect(t.res.deaths).toEqual(['ann']);
+    expect(t.res.deaths).toEqual([pid('ann')]);
   });
 
   it('the Innkeeper protects from the Imp but not the Assassin', () => {
@@ -189,7 +190,7 @@ describe('kills and protection', () => {
       .nextNight()
       .submit({ ann: ['di', 'ed'], bo: ['fi'], cy: ['di'] })
       .review();
-    expect(t.res.deaths).toContain('di');
+    expect(t.res.deaths).toContain(pid('di'));
   });
 
   it('a Mayor: a random bounce is recommended, and may land on a protected player', () => {
@@ -207,7 +208,7 @@ describe('kills and protection', () => {
       s.decide('mayor', 'di');
       expect(s.res.deaths).toEqual([]);
       s.decide('mayor', 'die');
-      expect(s.res.deaths).toEqual(['ann']);
+      expect(s.res.deaths).toEqual([pid('ann')]);
     }
     expect(found).toBe(true);
   });
@@ -254,9 +255,9 @@ describe('kills and protection', () => {
     const send = (actions: Record<string, { values: string[]; decline?: boolean }>) =>
       s.g.tryAs(as('ann'), { type: 'submit_night', actions }).ok;
     expect(send({ [key]: { decline: true, values: [] } })).toBe(false);
-    expect(send({ [key]: { values: ['bo', 'cy'] } })).toBe(false);
+    expect(send({ [key]: { values: ['bo', 'cy'].map(as) } })).toBe(false);
     s.submit({ ann: ['bo', 'cy', 'hal'] }).review();
-    expect([...s.res.deaths].sort()).toEqual(['bo', 'cy', 'hal']);
+    expect([...s.res.deaths].sort()).toEqual([pid('bo'), pid('cy'), pid('hal')]);
   });
 
   it('a starpass goes to the Scarlet Woman unless she is poisoned: then the Storyteller picks, and the new Imp is told', () => {
@@ -274,7 +275,7 @@ describe('kills and protection', () => {
       .nextNight()
       .submit({ ann: ['ann'], cy: ['bo'] })
       .review();
-    expect(s.decision('starpass').default).toBe('bo');
+    expect(s.decision('starpass').default).toBe(pid('bo'));
     s.decide('starpass', 'cy').dawn();
     expect(s.character('cy')).toBe('imp');
     expect(s.character('bo')).toBe('scarlet_woman');
@@ -303,9 +304,9 @@ describe('kills and protection', () => {
       .nextNight();
     s.submit({ ann: ['gus', 'di'] }).review();
     const d = s.decision('shabaloth');
-    expect(d.options.map((o) => o.id).sort()).toEqual(['bo', 'cy', 'hal', 'ivy', 'none']);
+    expect(d.options.map((o) => o.id).sort()).toEqual([pid('bo'), pid('cy'), pid('hal'), pid('ivy'), 'none']);
     s.decide('shabaloth', 'cy');
-    expect(s.res.revived).toEqual(['cy']);
+    expect(s.res.revived).toEqual([pid('cy')]);
     s.dawn();
     expect(s.alive('cy')).toBe(true);
   });
@@ -328,13 +329,13 @@ describe('kills and protection', () => {
         .submit({ bo: ['cy', 'di'] })
         .nextNight();
     const s = start();
-    expect([...(s.specs('ann')[0]?.fields[0]?.options ?? [])].sort()).toEqual(['cy', 'di']);
+    expect([...(s.specs('ann')[0]?.fields[0]?.options ?? [])].sort()).toEqual([pid('cy'), pid('di')]);
     s.submit({ ann: ['di'], bo: ['ed', 'hal'] }).decide('shabaloth', 'none');
     expect(s.res.revived).toEqual([]);
     const t = start()
       .submit({ ann: ['cy'], bo: ['ed', 'hal'] })
       .decide('shabaloth', 'none');
-    expect(t.res.revived).toEqual(['cy']);
+    expect(t.res.revived).toEqual([pid('cy')]);
     t.dawn();
     expect(t.g.player(as('cy')).life).toMatchObject({ alive: true, diedAt: null, ghostVoteUsed: false });
     expect(t.decision).toBeDefined();
@@ -388,7 +389,7 @@ describe('kills and protection', () => {
     s.dusk()
       .submit({ ann: ['cy'], di: ['ann'] })
       .review();
-    expect(s.res.deaths).toEqual(['bo']);
+    expect(s.res.deaths).toEqual([pid('bo')]);
     s.dawn();
     expect(s.impaired('cy')).toBe(false);
   });
@@ -414,8 +415,8 @@ describe('kills and protection', () => {
     s.dusk()
       .submit({ ann: ['cy'] })
       .review();
-    expect(s.decision('vigormortis').options.map((o) => o.id)).toEqual(['bo', 'ed']);
-    expect(s.res.deaths).toEqual(['cy']);
+    expect(s.decision('vigormortis').options.map((o) => o.id)).toEqual([pid('bo'), pid('ed')]);
+    expect(s.res.deaths).toEqual([pid('cy')]);
     s.nextNight();
     expect(s.specs('cy')[0]?.roleId).toBe('poisoner');
   });
@@ -455,14 +456,14 @@ describe('kills and protection', () => {
       .submit({ bo: ['di'] })
       .review();
     expect(s.hasDecision('grandmother_link')).toBe(false);
-    expect([...s.res.deaths].sort()).toEqual(['ann', 'di']);
+    expect([...s.res.deaths].sort()).toEqual([pid('ann'), pid('di')]);
     const t = scene(chars)
       .start()
       .decide('grandmother_grandchild', 'di')
       .nextNight()
       .submit({ cy: ['di'] })
       .review();
-    expect(t.res.deaths).toEqual(['di']);
+    expect(t.res.deaths).toEqual([pid('di')]);
   });
 
   it('a poisoned Grandmother on night 0 gets false information and no link', () => {
@@ -473,7 +474,7 @@ describe('kills and protection', () => {
       .nextNight()
       .submit({ bo: ['di'] })
       .review();
-    expect(s.res.deaths).toEqual(['di']);
+    expect(s.res.deaths).toEqual([pid('di')]);
   });
 
   it('the Gossip: a false statement or none does nothing; a poisoned Gossip kills nobody; a Sailor survives', () => {
@@ -547,9 +548,15 @@ describe('kills and protection', () => {
     s.g.st({ type: 'add_condition', target: as('ann'), condition: 'poisoned' });
     s.act('slayer', 'shoot', ['bo']);
     expect(s.alive('bo')).toBe(true);
-    expect(s.state.abilities[s.ability('slayer')]?.used).toBe(true);
+    expect(s.state.abilities.get(s.ability('slayer'))?.used).toBe(true);
     const abilityId = s.ability('slayer');
-    const again = { type: 'day_action' as const, abilityId, action: 'shoot', values: ['bo'], mode: 'preview' as const };
+    const again = {
+      type: 'day_action' as const,
+      abilityId,
+      action: 'shoot',
+      values: [as('bo')],
+      mode: 'preview' as const,
+    };
     expect(s.g.tryAs(ST, again).ok).toBe(false);
   });
 
@@ -562,7 +569,7 @@ describe('kills and protection', () => {
       .review();
     expect(s.res.deaths).toEqual([]);
     s.dawn();
-    expect(s.state.abilities[s.ability('assassin')]?.used).toBe(true);
+    expect(s.state.abilities.get(s.ability('assassin'))?.used).toBe(true);
   });
 });
 
@@ -601,8 +608,8 @@ describe('characters at the table', () => {
     const s = scene(chars).start();
     const key = s.specs('ann')[0]?.key as string;
     s.g.as(as('cy'), { type: 'submit_night', actions: {} });
-    expect(s.night.submissions['cy' as never]?.actions).toEqual({});
-    expect(s.g.tryAs(as('ann'), { type: 'submit_night', actions: { [key]: { values: ['ann'] } } }).ok).toBe(false);
+    expect(s.night.submissions.get(pid('cy') as never)?.actions).toEqual({});
+    expect(s.g.tryAs(as('ann'), { type: 'submit_night', actions: { [key]: { values: [pid('ann')] } } }).ok).toBe(false);
     s.submit({ ann: ['di'] });
     expect(s.truth('ann')[0]).toMatch(/master/);
   });
@@ -643,7 +650,7 @@ describe('characters at the table', () => {
       .start()
       .submit({ cy: ['bo'] });
     expect(s.g.view(as('cy')).me.submitted).toBe(true);
-    expect(Object.values(s.g.view(as('cy')).me.submission ?? {})).toEqual([{ values: ['bo'] }]);
+    expect(Object.values(s.g.view(as('cy')).me.submission ?? {})).toEqual([{ values: [pid('bo')] }]);
   });
 
   it("the Lil' Monsta: the holder learns the Demon lines, keeps the Minion, and a Fortune Teller reads the new holder", () => {
@@ -666,7 +673,7 @@ describe('characters at the table', () => {
     expect(s.character('ann')).toBe('baron');
     expect(s.specs('ann').map((x) => x.roleId)).toContain('lil_monsta');
     s.submit({ ann: { lil_monsta: ['bo'] }, di: ['bo', 'gus'] }).decide('lil_monsta', 'ed');
-    expect(s.res.deaths).toContain('ed');
+    expect(s.res.deaths).toContain(pid('ed'));
     expect(row(s, 'ann')).toBeDefined();
     expect(result(s, 'di')?.truth[0]).toMatch(/Yes/);
   });

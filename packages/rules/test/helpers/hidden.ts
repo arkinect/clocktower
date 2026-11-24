@@ -21,21 +21,21 @@ function hiddenKeys(value: unknown, path = 'view'): string[] {
  */
 export function assertHidden(g: TestGame) {
   const s = g.state;
-  for (const id of Object.keys(s.players) as PlayerId[]) {
+  for (const id of [...s.players.keys()] as PlayerId[]) {
     if (id === s.storytellerId) continue;
     const view = playerView(s, id, g.now);
     expect(hiddenKeys(view)).toEqual([]);
     const blanked: GameStateT = {
       ...s,
-      players: Object.fromEntries(
-        Object.entries(s.players).map(([k, p]) => [
+      players: new Map(
+        [...s.players.entries()].map(([k, p]) => [
           k,
           k === id || p.character === null || isPublic(p.character)
             ? p
             : { ...p, character: null, alignment: 'good', self: { character: null, alignment: 'good' } },
         ]),
       ),
-      inbox: { [id]: s.inbox[id] ?? [] },
+      inbox: new Map([[id, s.inbox.get(id) ?? []]]),
     };
     if (s.phase.kind === 'night' && s.phase.stage === 'collecting') continue; // pickers read the real world
     if (s.phase.kind === 'night' && s.phase.stage === 'review') continue; // follow-up questions likewise

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'innkeeper', bo: 't1', cy: 'imp', di: 't2', ed: 't3' };
 describe('Innkeeper', () => {
@@ -32,6 +33,6 @@ describe('Innkeeper', () => {
     s.g.st({ type: 'reopen_collecting' });
     s.submit({ ann: ['bo', 'ed'] }).review();
     expect(s.decision('innkeeper').chosen).toBeNull();
-    expect(s.decision('innkeeper').options.map((o) => o.id)).toEqual(['bo', 'ed']);
+    expect(s.decision('innkeeper').options.map((o) => o.id)).toEqual([pid('bo'), pid('ed')]);
   });
 });

@@ -11,11 +11,12 @@ const SHAPES: Record<number, string> = {
   3: '9c34db79e1e4149d',
   4: '0695a7f97aae90e0',
   5: 'a8498de2359bc4f0',
+  6: '7ca22f143d47c5ea',
 };
 
 describe('the saved game shape', () => {
   it('changes only with a new ENGINE_VERSION', () => {
-    const shape = JSON.stringify(z.toJSONSchema(GameState, { unrepresentable: 'any' }));
+    const shape = JSON.stringify(z.toJSONSchema(GameState, { unrepresentable: 'any', io: 'input' }));
     const hash = createHash('sha256').update(shape).digest('hex').slice(0, 16);
     expect(hash, 'GameState changed: bump ENGINE_VERSION and add its hash here').toBe(SHAPES[ENGINE_VERSION]);
   });

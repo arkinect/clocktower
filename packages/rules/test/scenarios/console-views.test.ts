@@ -2,16 +2,17 @@
 import { describe, expect, it } from 'vitest';
 import { scene, type Scene } from '../scenario';
 import { as, chosen } from './lib';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'lil_monsta', bo: 'm1', cy: 't1', di: 't2', ed: 't3', fi: 't4', gu: 't5' };
 const fields = { fields: { lil_monsta: { minion: 'baron' } } };
 
-const player = (s: Scene, id: string) => s.g.grimoire().players.find((p) => p.id === id);
+const player = (s: Scene, id: string) => s.g.grimoire().players.find((p) => p.id === pid(id));
 const ability = (s: Scene, id: string, role: string) => player(s, id)?.abilities.find((a) => a.roleId === role);
 
 describe("moving Lil' Monsta's token by hand", () => {
   const held = (s: Scene) =>
-    Object.values(s.state.abilities).find((a) => a.roleId === ('lil_monsta' as never) && a.origin.kind !== 'character')
+    [...s.state.abilities.values()].find((a) => a.roleId === ('lil_monsta' as never) && a.origin.kind !== 'character')
       ?.holder;
   const move = (s: Scene, to: string) => {
     const spec = s.g.grimoire().dayActions.find((d) => d.action === 'move_token');
@@ -20,7 +21,7 @@ describe("moving Lil' Monsta's token by hand", () => {
       type: 'day_action',
       abilityId: spec.abilityId,
       action: spec.action,
-      values: [to],
+      values: [pid(to)],
       mode: 'accept',
     });
   };
@@ -36,7 +37,7 @@ describe("moving Lil' Monsta's token by hand", () => {
     const s = scene(cast, fields).start().dawn();
     expect(player(s, 'ann')?.isDemon).toBe(true);
     move(s, 'bo');
-    expect(held(s)).toEqual({ kind: 'player', id: 'bo' });
+    expect(held(s)).toEqual({ kind: 'player', id: pid('bo') });
     expect(player(s, 'bo')?.isDemon).toBe(true);
     expect(player(s, 'ann')?.isDemon).toBe(false);
   });

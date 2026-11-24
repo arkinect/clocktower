@@ -21,21 +21,22 @@ export class Reader {
   }
 
   player(id: PlayerId): Player {
-    const p = this.w.players[id];
+    const p = this.w.players.get(id);
     if (!p) throw new Error(`No player ${id}`);
     return p;
   }
 
   has(id: string): id is PlayerId {
-    return !!this.w.players[id];
+    return this.w.players.has(id as PlayerId);
   }
 
   isSeated = (id: PlayerId) => this.seated.includes(id);
-  isAlive = (id: PlayerId) => !!this.w.players[id]?.life.alive;
-  name = (id: string | null | undefined) => (id ? (this.w.players[id]?.name ?? '(nobody)') : '(nobody)');
+  isAlive = (id: PlayerId) => !!this.w.players.get(id)?.life.alive;
+  name = (id: string | null | undefined) =>
+    id ? (this.w.players.get(id as PlayerId)?.name ?? '(nobody)') : '(nobody)';
   roleName = (id: RoleId | string | null | undefined) => (id ? (findRole(id)?.name ?? id) : '(none)');
-  character = (id: PlayerId): RoleId | null => this.w.players[id]?.character ?? null;
-  alignmentOf = (id: PlayerId): Alignment => this.w.players[id]?.alignment ?? 'good';
+  character = (id: PlayerId): RoleId | null => this.w.players.get(id)?.character ?? null;
+  alignmentOf = (id: PlayerId): Alignment => this.w.players.get(id)?.alignment ?? 'good';
 
   typeOf = (id: PlayerId): CharacterType | null => {
     const r = this.character(id);
@@ -59,7 +60,7 @@ export class Reader {
 
   /** What the players were told they are, for checks of "this character is in play". */
   get believedInPlay(): RoleId[] {
-    return this.seated.map((id) => this.w.setup.bag[id]).filter((x): x is RoleId => !!x);
+    return this.seated.map((id) => this.w.setup.bag.get(id)).filter((x): x is RoleId => !!x);
   }
 
   /** The roles on the script, in sheet order. */
@@ -77,7 +78,7 @@ export class Reader {
     a.activeUntil !== 'removed' && momentOrder(a.activeFrom) <= momentOrder(this.moment);
 
   get instances(): Instance[] {
-    return Object.values(this.w.abilities).filter(this.isActive);
+    return [...this.w.abilities.values()].filter(this.isActive);
   }
 
   /** The player's active abilities, in the order they were gained. */
@@ -91,7 +92,9 @@ export class Reader {
 
   /** A player acting on their character's own ability or one they really gained, not one they only believe in. */
   isBelieved = (a: Instance): boolean =>
-    a.origin.kind === 'character' && a.holder.kind === 'player' && this.w.players[a.holder.id]?.character !== a.roleId;
+    a.origin.kind === 'character' &&
+    a.holder.kind === 'player' &&
+    this.w.players.get(a.holder.id)?.character !== a.roleId;
 
   /** Nearest alive player each way round, skipping dead seats and the player. */
   aliveNeighbours = (id: PlayerId): PlayerId[] => this.nearest(id, this.isAlive, true);
@@ -129,7 +132,7 @@ export class Reader {
   /** The latest value any holder of a role stored in a setup field, even one that has since gone. */
   setupValue(role: RoleId, field: string): string | null {
     let value: string | null = null;
-    for (const a of Object.values(this.w.abilities)) {
+    for (const a of [...this.w.abilities.values()]) {
       const s = a.state as { setup?: Record<string, string | null> } | undefined;
       if (a.roleId === role && s?.setup?.[field]) value = s.setup[field] ?? null;
     }

@@ -3,6 +3,7 @@ import { roleId, type PlayerId, type RoleId } from '@ct/protocol';
 import { describe, expect, it } from 'vitest';
 import { defineJinx, defineRole, note, registerJinx, registerRole, type RoleDef, type SetupRules } from '../../src';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 function fake<S>(def: Parameters<typeof defineRole<S>>[0]): RoleId {
   registerRole(defineRole<S>(def) as RoleDef);
@@ -179,7 +180,7 @@ const TRUTH = fake({
   name: 'Truth',
   type: 'fabled',
   abilityText: 'The player in seat a always hears the truth.',
-  ability: { guaranteesTruth: (_ctx, player) => player === 'a' },
+  ability: { guaranteesTruth: (_ctx, player) => player === pid('a') },
 });
 
 const REVERSER = fake({
@@ -197,7 +198,7 @@ const WEIGHT = fake({
   name: 'Weight',
   type: 'traveller',
   abilityText: 'The player in seat b votes as three.',
-  ability: { adjustVote: (_ctx, v) => (v.voters?.includes('b' as PlayerId) ? (v.count ?? 0) + 2 : null) },
+  ability: { adjustVote: (_ctx, v) => (v.voters?.includes(pid('b')) ? (v.count ?? 0) + 2 : null) },
 });
 const EVIL_VOID = fake({
   id: roleId('w-evil-void'),
@@ -217,7 +218,7 @@ const SWAPPER = fake({
   ability: {
     dayActions: () => [{ action: 'swap', label: 'Swap', prompt: 'Swap two players.', fields: [] }],
     applyDayAction(ctx) {
-      ctx.swapSeats('b' as PlayerId, 'd' as PlayerId);
+      ctx.swapSeats(pid('b'), pid('d'));
       return { summary: 'Swapped.', effective: true };
     },
   },
@@ -301,7 +302,7 @@ const MISLEADER = fake({
   abilityText: 'The player in seat b registers as evil.',
   ability: {
     registersOther: (ctx, subject) =>
-      subject === 'b'
+      subject === pid('b')
         ? { character: ctx.character(subject) as RoleId, type: 'minion', alignment: 'evil', alive: true }
         : null,
   },
@@ -313,7 +314,7 @@ const CHECKER = fake({
   abilityText: 'Each night, learn the alignment of the player in seat b and of the player in seat c.',
   night: { first: 900 },
   ability: {
-    resolve: (ctx) => ctx.tell([ctx.registers('b' as PlayerId).alignment, ctx.registers('c' as PlayerId).alignment]),
+    resolve: (ctx) => ctx.tell([ctx.registers(pid('b')).alignment, ctx.registers(pid('c')).alignment]),
   },
 });
 
@@ -336,7 +337,7 @@ describe('per-character pass: waking', () => {
     const s = scene({ a: o.role ?? STOPPER, b: KILLER, ...rest })
       .start()
       .nextNight();
-    if (o.drunk) s.g.st({ type: 'add_condition', target: 'a' as PlayerId, condition: 'drunk' });
+    if (o.drunk) s.g.st({ type: 'add_condition', target: pid('a'), condition: 'drunk' });
     return s;
   };
 
@@ -348,31 +349,31 @@ describe('per-character pass: waking', () => {
     s.submit({ b: ['c'] });
     s.review();
     expect(s.res.deaths).toEqual([]);
-    expect(s.res.actors.some((x) => x.playerId === 'b')).toBe(false);
+    expect(s.res.actors.some((x) => x.playerId === pid('b'))).toBe(false);
   });
 
   it('stopsWaking: the stopped player is still waited for, like anyone else', () => {
     const s = stopped().submit({ a: ['b'] });
-    for (const id of ['c', 'd', 'e'] as PlayerId[]) s.g.st({ type: 'submit_for', playerId: id, actions: {} });
-    expect(s.g.rejected('st' as PlayerId, { type: 'close_collecting', force: false })).toMatch(/Waiting for 1/);
+    for (const id of ['c', 'd', 'e'].map(pid)) s.g.st({ type: 'submit_for', playerId: id, actions: {} });
+    expect(s.g.rejected(pid('st'), { type: 'close_collecting', force: false })).toMatch(/Waiting for 1/);
   });
 
   it('stopsWaking leaves the ability alone when it chose someone else', () => {
     const s = stopped()
       .submit({ a: ['c'], b: ['d'] })
       .review();
-    expect(s.res.deaths).toEqual(['d']);
+    expect(s.res.deaths).toEqual([pid('d')]);
   });
 
   it('stopsWaking needs a working ability that acts earlier in the order', () => {
     const drunk = stopped({ drunk: true })
       .submit({ a: ['b'], b: ['d'] })
       .review();
-    expect(drunk.res.deaths).toEqual(['d']);
+    expect(drunk.res.deaths).toEqual([pid('d')]);
     const late = stopped({ role: TOO_LATE })
       .submit({ a: ['b'], b: ['d'] })
       .review();
-    expect(late.res.deaths).toEqual(['d']);
+    expect(late.res.deaths).toEqual([pid('d')]);
   });
 
   it('stopsWaking stops one ability: the holder still wakes for another', () => {
@@ -383,7 +384,7 @@ describe('per-character pass: waking', () => {
     expect(s.specs('b').map((x) => x.roleId)).toEqual([KILLER, COMPANION]);
     s.submit({ b: { [KILLER]: ['c'], [COMPANION]: ['d'] } }).review();
     expect(s.res.deaths).toEqual([]);
-    expect(s.res.actors.filter((x) => x.playerId === 'b').map((x) => x.roleId)).toEqual([COMPANION]);
+    expect(s.res.actors.filter((x) => x.playerId === pid('b')).map((x) => x.roleId)).toEqual([COMPANION]);
   });
 
   it('wokeTonight counts a wake for an ability, and not a stopped one', () => {
@@ -406,14 +407,14 @@ describe('per-character pass: waking', () => {
       .start()
       .submit({})
       .review();
-    expect(asleep.res.actors.some((x) => x.playerId === 'a')).toBe(false);
+    expect(asleep.res.actors.some((x) => x.playerId === pid('a'))).toBe(false);
     const woken = scene({ a: SLEEPER, b: WAKER, c: 'd1', d: 't2', e: 't3' }).start().submit({}).review();
     expect(woken.truth('a')).toEqual(['Awake']);
   });
 
   it('nightEnd sees what happened after its own slot', () => {
     const s = scene({ a: REGRETTER, b: 't1', c: LATE_DRUNK, d: 'd1', e: 't2' }).start().nextNight().review();
-    expect(s.res.deaths).toEqual(['a']);
+    expect(s.res.deaths).toEqual([pid('a')]);
   });
 
   it('wakesTwice acts a second time, asks again, and keeps the results apart', () => {
@@ -422,10 +423,10 @@ describe('per-character pass: waking', () => {
       .nextNight()
       .submit({ a: ['c'] })
       .review();
-    expect(s.truth('a')).toEqual(['You chose c']);
+    expect(s.truth('a')).toEqual([`You chose ${pid('c')}`]);
     expect(s.res.questions).toHaveLength(1);
     s.answer('a', ['d']);
-    expect(s.truth('a')).toEqual(['You chose c', 'You chose d']);
+    expect(s.truth('a')).toEqual([`You chose ${pid('c')}`, `You chose ${pid('d')}`]);
     expect(new Set(s.res.results.map((r) => r.key)).size).toBe(2);
   });
 });
@@ -442,7 +443,7 @@ describe('per-character pass: alignment and health', () => {
 
   it('shieldsFrom keeps a holder healthy, even while poisoned', () => {
     const s = scene({ a: HEALTHY, b: 't1', c: 'd1', d: 't2', e: 't3' }).start();
-    for (const target of ['a', 'b'] as PlayerId[]) s.g.st({ type: 'add_condition', target, condition: 'poisoned' });
+    for (const target of ['a', 'b'].map(pid)) s.g.st({ type: 'add_condition', target, condition: 'poisoned' });
     expect(s.impaired('a')).toBe(false);
     expect(s.impaired('b')).toBe(true);
   });
@@ -451,7 +452,7 @@ describe('per-character pass: alignment and health', () => {
     const s = scene({ a: DEMON_PROOF, b: POISON_DEMON, c: 't1', d: 't2', e: 't3' }).start();
     expect(s.impaired('a')).toBe(false);
     expect(s.impaired('c')).toBe(true);
-    s.g.st({ type: 'add_condition', target: 'a' as PlayerId, condition: 'drunk' });
+    s.g.st({ type: 'add_condition', target: pid('a'), condition: 'drunk' });
     expect(s.impaired('a')).toBe(true);
   });
 
@@ -468,18 +469,18 @@ describe('per-character pass: alignment and health', () => {
       .start()
       .submit({ a: ['d'] })
       .review();
-    expect(kept.final('a')).toEqual(['You chose d']);
+    expect(kept.final('a')).toEqual([`You chose ${pid('d')}`]);
     expect(kept.final('b')).toEqual(['A lie']);
   });
 
   it('whileSourceWorks: a granted ability fails while its giver does, and comes back', () => {
     const s = scene({ a: 'd1', b: LENDER, c: 't1', d: 't2', e: 't3' }, { extra: [LENT] }).start();
     expect(s.final('a')).toEqual(['The word']);
-    s.g.st({ type: 'add_condition', target: 'b' as PlayerId, condition: 'poisoned' });
+    s.g.st({ type: 'add_condition', target: pid('b'), condition: 'poisoned' });
     expect(s.final('a')).toEqual(['Another word']);
     s.nextNight();
     expect(s.final('a')).toEqual(['The word']);
-    s.g.st({ type: 'mark_alive', playerId: 'b' as PlayerId, alive: false });
+    s.g.st({ type: 'mark_alive', playerId: pid('b'), alive: false });
     expect(s.final('a')).toEqual(['Another word']);
   });
 
@@ -493,27 +494,27 @@ describe('per-character pass: the day', () => {
   it('adjustVote reweighs a recorded vote, and later hooks see the change', () => {
     const s = scene({ a: WEIGHT, b: 't1', c: EVIL_VOID, d: 't2', e: 't3' }).start().dawn();
     const vote = (voters: string[]) => {
-      s.g.st({ type: 'record_vote', nominee: 'd' as PlayerId, count: voters.length, voters: voters as PlayerId[] });
+      s.g.st({ type: 'record_vote', nominee: pid('d'), count: voters.length, voters: voters.map(pid) });
       const last = s.state.events.at(-1);
       return last?.kind === 'vote' ? last.count : null;
     };
     expect(vote(['a', 'd'])).toBe(2);
     expect(vote(['b', 'd'])).toBe(4);
-    s.g.st({ type: 'record_vote', nominee: 'd' as PlayerId, count: 3, voters: null });
+    s.g.st({ type: 'record_vote', nominee: pid('d'), count: 3, voters: null });
     const noNames = s.state.events.at(-1);
     expect(noNames?.kind === 'vote' && noNames.count).toBe(3);
   });
 
   it('adjustVote: a tally can fall to zero', () => {
     const s = scene({ a: 't1', b: 't2', c: EVIL_VOID, d: 'm1', e: 't3' }).start().dawn();
-    s.g.st({ type: 'record_vote', nominee: 'a' as PlayerId, count: 2, voters: ['c', 'd'] as PlayerId[] });
+    s.g.st({ type: 'record_vote', nominee: pid('a'), count: 2, voters: [pid('c'), pid('d')] as PlayerId[] });
     const last = s.state.events.at(-1);
     expect(last?.kind === 'vote' && last.count).toBe(0);
   });
 
   it('the Storyteller can be the nominator', () => {
     const s = scene({ a: 'virgin', b: 't1', c: 'd1', d: 't2', e: 't3' }).start().dawn();
-    s.g.st({ type: 'record_nomination', nominator: null, nominee: 'a' as PlayerId });
+    s.g.st({ type: 'record_nomination', nominator: null, nominee: pid('a') });
     expect(s.state.events.some((e) => e.kind === 'nomination' && e.nominator === null)).toBe(true);
     expect(s.state.prompts).toEqual([]);
   });
@@ -521,17 +522,17 @@ describe('per-character pass: the day', () => {
   it('swapSeats moves players, and neighbours follow', () => {
     const s = scene({ a: SWAPPER, b: 't1', c: 'd1', d: 't2', e: 't3' }).start().dawn();
     s.act(SWAPPER, 'swap', []);
-    expect(s.state.seats.map((x) => x.playerId)).toEqual(['a', 'd', 'c', 'b', 'e']);
-    expect(s.state.publishedSeating).toEqual(['a', 'd', 'c', 'b', 'e']);
+    expect(s.state.seats.map((x) => x.playerId)).toEqual([pid('a'), pid('d'), pid('c'), pid('b'), pid('e')]);
+    expect(s.state.publishedSeating).toEqual([pid('a'), pid('d'), pid('c'), pid('b'), pid('e')]);
   });
 
   it('onDusk runs before the night, and can end what a night gave', () => {
     const s = scene({ a: REGAIN, b: COUNTER, c: 'd1', d: 't1', e: 't2' }).start().dawn();
-    s.g.st({ type: 'mark_alive', playerId: 'b' as PlayerId, alive: false });
+    s.g.st({ type: 'mark_alive', playerId: pid('b'), alive: false });
     s.dusk()
       .submit({ a: ['b'] })
       .review();
-    const held = () => Object.values(s.state.abilities).find((x) => x.roleId === COUNTER);
+    const held = () => [...s.state.abilities.values()].find((x) => x.roleId === COUNTER);
     s.dawn();
     expect(held()?.survivesDeath).toBe(true);
     s.dusk();
@@ -542,20 +543,20 @@ describe('per-character pass: the day', () => {
     const s = scene({ a: 't1', b: 't2', c: 'd1', d: 't3', e: 't4' }, { extra: [GIVER] });
     s.g.st({ type: 'set_storyteller_characters', roleIds: [GIVER] });
     s.start().dawn();
-    s.g.st({ type: 'mark_alive', playerId: 'a' as PlayerId, alive: false });
-    s.g.as('a' as PlayerId, { type: 'use_ghost_vote' });
-    expect(s.state.players['a' as PlayerId]?.life.ghostVoteUsed).toBe(true);
+    s.g.st({ type: 'mark_alive', playerId: pid('a'), alive: false });
+    s.g.as(pid('a'), { type: 'use_ghost_vote' });
+    expect(s.state.players.get(pid('a'))?.life.ghostVoteUsed).toBe(true);
     s.dusk();
-    expect(s.state.players['a' as PlayerId]?.life.ghostVoteUsed).toBe(false);
+    expect(s.state.players.get(pid('a'))?.life.ghostVoteUsed).toBe(false);
   });
 
   it('changesWinner reverses every end, even from a dead holder, unless impaired', () => {
     const s = scene({ a: REVERSER, b: 't1', c: 'd1', d: 't2', e: 't3' }).start().dawn();
-    s.g.st({ type: 'mark_alive', playerId: 'a' as PlayerId, alive: false });
+    s.g.st({ type: 'mark_alive', playerId: pid('a'), alive: false });
     s.execute('c').dusk();
     expect(s.winners()).toEqual(['evil']);
     const drunk = scene({ a: REVERSER, b: 't1', c: 'd1', d: 't2', e: 't3' }).start().dawn();
-    drunk.g.st({ type: 'add_condition', target: 'a' as PlayerId, condition: 'drunk' });
+    drunk.g.st({ type: 'add_condition', target: pid('a'), condition: 'drunk' });
     // Drunk until dusk, and the execution happens at dusk: still drunk when the Demon dies.
     drunk.execute('c').dusk();
     expect(drunk.winners()).toEqual(['good']);
@@ -567,7 +568,7 @@ describe('per-character pass: setup and views', () => {
     const s = scene({ a: 't1', b: 't2', c: 'd1', d: MANY, e: POPE }, { extra: [] });
     const assign = (playerId: string, role: string) => ({
       type: 'assign_character' as const,
-      playerId: playerId as PlayerId,
+      playerId: pid(playerId),
       roleId: role as RoleId,
     });
     s.g.st(assign('a', MANY));
@@ -584,7 +585,7 @@ describe('per-character pass: setup and views', () => {
     s.g.st(assign('d', 't-demon-1'));
     expect(s.character('d')).toBe('t-demon-1');
     expect(blocked()).toEqual(['duplicate:t-demon-1']);
-    expect(s.g.rejected('st' as PlayerId, { type: 'begin_first_night' })).toMatch(/Only one player can be/);
+    expect(s.g.rejected(pid('st'), { type: 'begin_first_night' })).toMatch(/Only one player can be/);
     s.g.st(assign('d', MANY));
     expect(blocked()).toEqual([]);
   });
@@ -592,9 +593,9 @@ describe('per-character pass: setup and views', () => {
   it('duplicates: once the game is running a role cannot be doubled up', () => {
     const s = scene({ a: 't1', b: 't2', c: 'd1', d: 't3', e: 't4' }).start();
     expect(
-      s.g.rejected('st' as PlayerId, {
+      s.g.rejected(pid('st'), {
         type: 'assign_character',
-        playerId: 'd' as PlayerId,
+        playerId: pid('d'),
         roleId: 't-demon-1' as RoleId,
       }),
     ).toMatch(/already assigned/);
@@ -611,23 +612,23 @@ describe('per-character pass: setup and views', () => {
     const candidates = s.g.grimoire().setup.bluffCandidates;
     expect(candidates).toContain('t-town-5');
     expect(candidates).not.toContain(NO_BLUFF);
-    expect(s.g.rejected('st' as PlayerId, { type: 'set_bluffs', roleIds: [NO_BLUFF] })).toMatch(/Bluffs must be/);
+    expect(s.g.rejected(pid('st'), { type: 'set_bluffs', roleIds: [NO_BLUFF] })).toMatch(/Bluffs must be/);
   });
 
   it('hidesCharacter shows a player nothing until the hook lets it go', () => {
     const s = scene({ a: 't1', b: 't2', c: 'd1', d: 't3', e: 't4' }, { extra: [HIDER] });
     s.g.st({ type: 'set_storyteller_characters', roleIds: [HIDER] });
     s.start().dawn();
-    expect(s.g.view('a' as PlayerId).me.role).toBeNull();
-    s.g.st({ type: 'mark_alive', playerId: 'a' as PlayerId, alive: false });
-    expect(s.g.view('a' as PlayerId).me.role).not.toBeNull();
+    expect(s.g.view(pid('a')).me.role).toBeNull();
+    s.g.st({ type: 'mark_alive', playerId: pid('a'), alive: false });
+    expect(s.g.view(pid('a')).me.role).not.toBeNull();
   });
 
   it('appearsDead tells the table a living player died', () => {
     const s = scene({ a: UNDEAD, b: KILLER, c: 't1', d: 't2', e: 't3' }).start().nextNight();
     s.submit({ b: ['a'] }).dawn();
     expect(s.alive('a')).toBe(true);
-    expect(s.state.publicDead).toEqual(['a']);
+    expect(s.state.publicDead).toEqual([pid('a')]);
   });
 });
 

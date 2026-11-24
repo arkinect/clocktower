@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'cannibal', bo: 'empath', cy: 'imp', di: 'm1', ed: 't2', fi: 't3' };
 const eaten = (s: ReturnType<typeof scene>) =>
-  Object.values(s.state.abilities).filter(
+  [...s.state.abilities.values()].filter(
     (a) =>
       a.holder.kind === 'player' &&
-      a.holder.id === 'ann' &&
+      a.holder.id === pid('ann') &&
       a.origin.kind !== 'character' &&
       a.activeUntil !== 'removed',
   );

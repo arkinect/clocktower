@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'fool', bo: 't1', cy: 'imp', di: 't2', ed: 't3' };
 const foolUsed = (s: ReturnType<typeof scene>) =>
-  Object.values(s.state.abilities).find((a) => a.roleId === ('fool' as never))?.used;
+  [...s.state.abilities.values()].find((a) => a.roleId === ('fool' as never))?.used;
 
 describe('Fool', () => {
   it('survives the first death only', () => {
@@ -33,7 +34,7 @@ describe('Fool', () => {
     const s = scene(cast).start().dawn().execute('ann').dusk();
     expect(s.alive('ann')).toBe(true);
     expect(foolUsed(s)).toBe(true);
-    expect(s.state.events.findLast((e) => e.kind === 'execution')).toMatchObject({ playerId: 'ann', died: false });
+    expect(s.state.events.findLast((e) => e.kind === 'execution')).toMatchObject({ playerId: pid('ann'), died: false });
     s.dawn().execute('ann').dusk();
     expect(s.alive('ann')).toBe(false);
   });
