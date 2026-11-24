@@ -293,10 +293,49 @@ describe('Jinx (Al-Hadikhia & Mastermind)', () => {
     expect(s.res.deaths).toEqual([]);
   });
 
-  it('an impaired Mastermind gets a review note', () => {
-    const s = executed().submit({ cy: ['bo'] });
-    pick(s, GOOD);
-    expect(ah(s)?.outcome).toContain('Jinx (Al-Hadikhia & Mastermind): the Mastermind (bo) is drunk or poisoned');
+  it('3 good players not chosen: "good wins"', () => {
+    const s = executed().review();
+    expect(ah(s)?.outcome).toContain('Jinx (Al-Hadikhia & Mastermind): 3 good players were not chosen, good wins');
+    expect(s.res.questions).toEqual([]);
+    expect(s.res.gameEnd.find((g) => g.key === 'al_hadikhia_mastermind')?.winner).toBe('good');
+  });
+
+  it('fewer than 3 good players to choose: they may choose no one, and good wins', () => {
+    const s = scene(mm).start().dawn();
+    for (const id of ['di', 'ed']) s.g.st({ type: 'set_alignment', playerId: as(id), alignment: 'evil' });
+    s.execute('ann').dusk();
+    expect(s.specs('ann')[0]).toMatchObject({ allowDecline: true, declineLabel: 'No one' });
+    s.submit({ ann: [] }).review();
+    expect(s.res.gameEnd.find((g) => g.key === 'al_hadikhia_mastermind')?.winner).toBe('good');
+  });
+
+  it('a Mastermind impaired at the execution: no jinx that night, even if healthy by then, and good wins', () => {
+    const s = scene(mm)
+      .start()
+      .submit({ cy: ['bo'] })
+      .dawn();
+    s.execute('ann').dusk();
+    expect(s.impaired('bo')).toBe(false);
+    expect(s.specs('ann')).toEqual([]);
+    expect(expected(s)).not.toContain(pid('ann'));
+    expect(s.winners()).toEqual(['good']);
+    s.dawn();
+    expect(s.winners()).toEqual(['good']);
+  });
+
+  it('a Mastermind impaired or killed only that night: the jinx still applies', () => {
+    const poisoned = executed().submit({ cy: ['bo'] });
+    pick(poisoned, GOOD);
+    expect(row(poisoned, 'cy', 'poisoner')?.outcome).toContain('bo is poisoned');
+    for (const id of GOOD) poisoned.answer(id, ['live']);
+    expect(ah(poisoned)?.outcome).toContain('Jinx (Al-Hadikhia & Mastermind): evil wins');
+
+    const dead = executed();
+    dead.kill('bo');
+    pick(dead, GOOD);
+    for (const id of GOOD) dead.answer(id, ['live']);
+    expect(ah(dead)?.outcome).toContain('Jinx (Al-Hadikhia & Mastermind): evil wins');
+    expect(dead.res.deaths).toEqual([]);
   });
 
   it('a Scarlet Woman took over, so the dead Al-Hadikhia sleeps and the new Demon acts normally', () => {
