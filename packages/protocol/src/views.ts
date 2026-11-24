@@ -10,6 +10,8 @@ export const RoleCard = z.object({
   reminder: z.string().nullable(),
   firstNight: z.number().nullable(),
   otherNight: z.number().nullable(),
+  /** Made for this app: other Clocktower tools do not know its id. */
+  homebrew: z.boolean(),
 });
 export type RoleCard = z.infer<typeof RoleCard>;
 

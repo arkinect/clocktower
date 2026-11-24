@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { ScriptedPlayer } from './client';
+import { scriptFiles } from './script-files';
 
 const CAST: [string, string][] = [
   ['Ann', 'Balloonist'],
@@ -56,6 +57,7 @@ test('from the lobby to publishing night 2, with a changed decision, a written a
 
   // Setup, by hand.
   await expect(page).toHaveURL(/storyteller\/setup/);
+  await scriptFiles(page);
   await page.getByRole('button', { name: 'All roles' }).click();
   await expect(page.getByRole('heading', { name: /Script \(\d\d roles\)/ })).toBeVisible();
   await page.getByRole('button', { name: 'Randomise' }).click();

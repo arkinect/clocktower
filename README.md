@@ -22,6 +22,8 @@ who is drunk or poisoned and what everyone learns, and the Storyteller reviews e
 - **Storyteller console**: setup checklist (distribution, bluffs, Drunk/Marionette, red herring…), live
   submission board, a review screen where every result can be edited before it's sent, a day panel, a grimoire,
   a circle view of the table, a per-night story of the game and an event log.
+- **Script files**: the script and settings export to a file and import again. Scripts from the official script tool
+  import too; characters this app does not have are left out.
 - **Robust**: no accounts; players rejoin by tapping their name; all state is saved to SQLite on every change.
 - **Safe to expose**: an optional shared password, rate-limited, behind Caddy with automatic HTTPS.
 

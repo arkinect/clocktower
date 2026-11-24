@@ -112,6 +112,7 @@ const card = RoleCard.parse({
   reminder: null,
   firstNight: 1,
   otherNight: 1,
+  homebrew: false,
 });
 
 describe('phase and type names', () => {

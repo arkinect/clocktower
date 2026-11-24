@@ -120,6 +120,15 @@ export const Lines = ({ lines }: { lines: string[] }) => (
   </>
 );
 
+export function downloadJson(fileName: string, data: unknown) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 /** A bottom sheet asking for one value. It closes once the save works, and Enter saves. */
 export function InputSheet({
   title,

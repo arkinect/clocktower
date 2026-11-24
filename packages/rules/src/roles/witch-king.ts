@@ -10,6 +10,7 @@ export const witchKing = defineRole<CurseState>({
   id: roleId('witch_king'),
   name: 'Witch King',
   type: 'demon',
+  homebrew: true,
   abilityText:
     'Each night*, choose up to 2 players: if they are nominated tomorrow, they die. Or, choose 1 player: they die.',
   reminder: 'If a cursed player is nominated, apply the curse in the Day panel.',

@@ -319,6 +319,8 @@ export interface RoleDef<S = unknown> {
   type: CharacterType;
   alignment: Alignment;
   abilityText: string;
+  /** Made for this app, not an official character. */
+  homebrew?: boolean;
   reminder?: string;
   night?: { first?: number; other?: number; note?: string };
   flags: RoleFlags;
@@ -335,6 +337,7 @@ export interface RoleInput<S> {
   type: CharacterType;
   alignment?: Alignment;
   abilityText: string;
+  homebrew?: boolean;
   reminder?: string;
   night?: { first?: number; other?: number; note?: string };
   flags?: RoleFlags;
@@ -369,6 +372,7 @@ export function roleCard(def: RoleDef): RoleCard {
     reminder: def.reminder ?? null,
     firstNight: def.night?.first ?? null,
     otherNight: def.night?.other ?? null,
+    homebrew: def.homebrew ?? false,
   };
 }
 

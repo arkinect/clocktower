@@ -2,7 +2,7 @@
 
 1. Write `packages/rules/src/roles/<role>.ts`. The folder is flat: the character type is a field of the role, not a
    folder. Start from the character's wiki page and its jinxes. [mechanics.md](mechanics.md) lists the primitives each
-   official character needs.
+   official character needs. A character that is not official gets `homebrew: true`.
 2. Import it in `packages/rules/src/roles/index.ts` and add it to `SHEET`, at its place in sheet order. That registers
    the role and puts it on the default script.
 3. Add its icon as `packages/web/public/icons/<role_id>.png`, named by the role id (`al_hadikhia.png`). If it does not
