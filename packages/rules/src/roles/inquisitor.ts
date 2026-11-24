@@ -12,6 +12,7 @@ export const inquisitor = defineRole<State>({
   id: roleId('inquisitor'),
   name: 'Inquisitor',
   type: 'outsider',
+  homebrew: true,
   abilityText: 'You may nominate once per game. When you do, if the nominee is good, they die.',
   reminder: "Day ability. Use the Inquisitor's day action when they nominate.",
   flags: { oncePerGame: 'auto' },

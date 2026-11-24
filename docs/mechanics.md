@@ -310,7 +310,8 @@ All are fixed at setup and held by the Storyteller.
 
 ### Homebrew
 
-Characters made for this app, not official ones. They are on the default script like any other role.
+Characters made for this app, not official ones. They are on the default script like any other role, and marked
+`homebrew`, which is how an exported script spells them out in full for other Clocktower tools.
 
 | Character  | Type     | Built | Acts             | Needs                                                                                 |
 | ---------- | -------- | ----- | ---------------- | ------------------------------------------------------------------------------------- |

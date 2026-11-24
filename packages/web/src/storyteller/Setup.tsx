@@ -4,9 +4,10 @@ import { useCommand, useGame, useNames } from '../app/store';
 import { typeName } from '../player/parts';
 import { Button, Card, HoldButton, HoverTip, Info, Segments } from '../ui/ui';
 import { GROUPS, Section, useSeats, useTypeOf } from './common';
+import { ScriptTransfer } from './ScriptTransfer';
 import styles from './console.module.css';
+import { EVIL_INFO, SCRIPT_TYPES, SECONDS, SETTING_LABELS } from './scriptFile';
 
-const SCRIPT_TYPES = ['townsfolk', 'outsider', 'minion', 'demon', 'traveller'] as const;
 const TABLE_TYPES = ['fabled', 'loric'] as const;
 const COUNT_LABELS = ['Townsfolk', 'Outsiders', 'Minions', 'Demons'];
 /**
@@ -18,9 +19,6 @@ export const SHOW_COUNTS_HINT = false;
 /** What that line says: how far the held counts are from the table. */
 export const countsHint = (counts: readonly number[], players: number) =>
   `Adds up to ${counts.reduce((a, b) => a + b, 0)} of ${players}. Not saved yet.`;
-
-/** The countdown lengths the server accepts, in seconds. */
-const SECONDS = { min: 10, max: 3600 };
 
 /**
  * Reads a seconds field as it is left. A number outside the range is brought inside it and anything else goes back
@@ -443,7 +441,7 @@ export function Settings({ view }: { view: StorytellerView }) {
     <Section title="Settings">
       <div className={styles['field']}>
         <span>
-          Evil information
+          {SETTING_LABELS.evilInfoPolicy}
           <Info label="About the evil information rules">
             <b>House:</b> the Minions learn each other, but not the Demon. The Demon learns its Minions and reveals
             itself to them at the table.
@@ -458,22 +456,18 @@ export function Settings({ view }: { view: StorytellerView }) {
           </Info>
         </span>
         <Segments
-          label="Evil information"
-          options={[
-            { id: 'house', text: 'House' },
-            { id: 'official', text: 'Official' },
-            { id: 'teensyville', text: 'Teensyville' },
-          ]}
+          label={SETTING_LABELS.evilInfoPolicy}
+          options={EVIL_INFO}
           value={s.evilInfoPolicy}
           onChange={(evilInfoPolicy) => void run({ type: 'set_settings', evilInfoPolicy })}
         />
       </div>
       <label className={styles['inline']}>
-        <span>Night countdown in seconds</span>
+        <span>{SETTING_LABELS.countdownSeconds}</span>
         <input key={s.countdownSeconds} {...seconds('countdownSeconds')} />
       </label>
       <label className={styles['inline']}>
-        <span>Extra seconds for a follow-up question</span>
+        <span>{SETTING_LABELS.followUpExtensionSeconds}</span>
         <input key={s.followUpExtensionSeconds} {...seconds('followUpExtensionSeconds')} />
       </label>
       <label className={styles['check']}>
@@ -482,7 +476,7 @@ export function Settings({ view }: { view: StorytellerView }) {
           checked={s.announceDeaths}
           onChange={(e) => void run({ type: 'set_settings', announceDeaths: e.target.checked })}
         />
-        Announce deaths on phones
+        {SETTING_LABELS.announceDeaths}
       </label>
       <label className={styles['check']}>
         <input
@@ -490,7 +484,7 @@ export function Settings({ view }: { view: StorytellerView }) {
           checked={s.notifyOnRoleChange}
           onChange={(e) => void run({ type: 'set_settings', notifyOnRoleChange: e.target.checked })}
         />
-        Tell a player when their character changes
+        {SETTING_LABELS.notifyOnRoleChange}
       </label>
     </Section>
   );
@@ -528,7 +522,7 @@ export function RoleChecks({
 function Script({ view }: { view: StorytellerView }) {
   const { catalog } = useGame();
   const { run } = useCommand();
-  const inScript = catalog.filter((c) => (SCRIPT_TYPES as readonly string[]).includes(c.type));
+  const inScript = catalog.filter((c) => SCRIPT_TYPES.includes(c.type));
   const toggle = (id: RoleId, checked: boolean) =>
     void run({
       type: 'set_script',
@@ -544,6 +538,7 @@ function Script({ view }: { view: StorytellerView }) {
         <Button tiny onClick={() => void run({ type: 'set_script', roleIds: [] })}>
           Clear
         </Button>
+        <ScriptTransfer view={view} />
       </div>
       {SCRIPT_TYPES.map((t) => {
         const roles = inScript.filter((c) => c.type === t);

@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useState, type ReactNode } from 'reac
 import type { PlayerId, StoryDay, StoryNight, StorytellerView } from '@ct/protocol';
 import { useGame, useNames } from '../app/store';
 import { Button } from '../ui/ui';
-import { Section, causeLabel } from './common';
+import { Section, causeLabel, downloadJson } from './common';
 import styles from './console.module.css';
 
 const plain = (cause: string) => cause.replaceAll('_', ' ');
@@ -160,12 +160,7 @@ const clock = (at: number) => new Date(at).toLocaleTimeString();
 
 /** Downloads the command log, which is what a bug report needs to replay the game. */
 export function reportProblem(code: string, data: unknown) {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `clocktower-${code}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadJson(`clocktower-${code}.json`, data);
 }
 
 // The log is not in the view, on purpose: it grows through the night. It comes from the same export a bug report uses.
