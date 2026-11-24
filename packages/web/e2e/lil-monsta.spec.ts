@@ -119,10 +119,10 @@ test("Lil' Monsta: who babysits, and who is told", async ({ browser }) => {
   await st.do({ type: 'publish_dawn', force: true });
   await st.waitFor((v) => v.phase.kind === 'day');
 
-  // Day 2: the good babysitter is told nothing; the Scarlet Woman learns who babysits.
+  // Day 2: the good babysitter is told it is them; the Scarlet Woman learns who babysits.
   await expect(cy.getByText('Dawn, Day 2')).toBeVisible();
-  await expect(cy.getByText(/Demon/)).toHaveCount(0);
-  await cy.screenshot({ path: SHOT('3-good-babysitter-told-nothing'), fullPage: true });
+  await expect(cy.getByText(/You are babysitting Lil' Monsta/)).toBeVisible();
+  await cy.screenshot({ path: SHOT('3-good-babysitter-told'), fullPage: true });
   await expect(bo.getByText("Cy is babysitting Lil' Monsta.")).toBeVisible();
   await bo.screenshot({ path: SHOT('4-minion-learns-babysitter'), fullPage: true });
 
@@ -137,10 +137,10 @@ test("Lil' Monsta: who babysits, and who is told", async ({ browser }) => {
   await st.do({ type: 'publish_dawn', force: true });
   await st.waitFor((v) => v.phase.kind === 'day');
 
-  // Day 3: Bo, evil, is told who babysits: herself. Cy is never told the token left.
-  await expect(bo.getByText("Bo is babysitting Lil' Monsta.")).toBeVisible();
+  // Day 3: Bo, evil, is told they babysit. Cy is told nothing new.
+  await expect(bo.getByText(/You are babysitting Lil' Monsta/)).toBeVisible();
   await bo.screenshot({ path: SHOT('6-evil-babysitter-told'), fullPage: true });
-  await expect(cy.getByText(/Demon/)).toHaveCount(0);
+  await expect(cy.getByText(/Bo is babysitting/)).toHaveCount(0);
   await cy.screenshot({ path: SHOT('7-good-player-not-told-token-left'), fullPage: true });
 });
 

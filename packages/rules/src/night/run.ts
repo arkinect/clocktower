@@ -173,6 +173,7 @@ export class Run {
 
   impairmentOf(a: Instance): Impairment {
     if (a.holder.kind !== 'player') return { impaired: false, causes: [] };
+    if (roleDef(a.roleId).flags.neverImpaired) return { impaired: false, causes: [] };
     if (a.tiedToSource && a.origin.kind === 'granted' && !this.sourceWorks(a.origin.by)) {
       return { impaired: true, causes: [...this.impairment(a.holder.id).causes, 'source not working'] };
     }
@@ -335,6 +336,7 @@ export class Run {
       allowDecline,
       ...(draft.declineLabel || stuck ? { declineLabel: draft.declineLabel ?? NO_LEGAL_CHOICE } : {}),
       ...(draft.maxRows && draft.maxRows > 1 ? { maxRows: draft.maxRows } : {}),
+      ...(draft.modes ? { modes: draft.modes } : {}),
     };
   }
 
@@ -367,7 +369,8 @@ export class Run {
   describe(c: Choice | null): string {
     if (!c) return '(no input)';
     if (c.decline) return 'declined / no one';
-    return c.values.map((v) => (this.reader.has(v) ? this.reader.name(v) : this.reader.roleName(v))).join(', ');
+    const said = c.values.map((v) => (this.reader.has(v) ? this.reader.name(v) : this.reader.roleName(v))).join(', ');
+    return c.mode ? `${c.mode}: ${said}` : said;
   }
 
   // ---- conditions ----
@@ -803,7 +806,7 @@ export class Run {
       row.impaired = imp.impaired;
       row.causes = imp.causes;
       const declined = this.choiceOf(a)?.decline;
-      if (pid && imp.impaired && !declined && !def.flags.wakesOnNightDeath && !def.flags.quietImpairment) {
+      if (pid && imp.impaired && !declined && !def.flags.wakesOnNightDeath) {
         this.malfunctionIfExternal(pid, `${def.name} ability impaired`);
       }
       const ctx = this.ctx(a);

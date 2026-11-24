@@ -11,9 +11,59 @@ describe('Witch King', () => {
   it('does not wake on the first night', () => {
     expect(scene(cast).start().specs('ann')).toEqual([]);
   });
-  it('chooses up to 2 different players, or no one', () => {
+  it('curses up to 2 different players, or kills 1, or chooses no one', () => {
     const s = scene(cast).start().dawn().dusk();
-    expect(s.specs('ann')[0]).toMatchObject({ maxRows: 2, distinct: true, allowDecline: true });
+    expect(s.specs('ann')[0]).toMatchObject({
+      modes: [
+        { id: 'curse', label: 'Curse', maxRows: 2 },
+        { id: 'kill', label: 'Kill' },
+      ],
+      distinct: true,
+      allowDecline: true,
+    });
+  });
+  it('a kill is tonight, as the Demon, and curses no one', () => {
+    const s = cursed(['kill', 'bo']);
+    expect(s.alive('bo')).toBe(false);
+    expect(s.state.events.some((e) => e.kind === 'death' && e.cause === 'demon_attack')).toBe(true);
+    expect(row(s)).toBeUndefined();
+  });
+  it('a curse kills no one at night', () => {
+    const s = cursed(['bo', 'cy']);
+    expect(Object.keys(cast).every((id) => s.alive(id))).toBe(true);
+  });
+  it('may kill one night and curse the next', () => {
+    const s = cursed(['kill', 'bo']);
+    s.dusk()
+      .submit({ ann: ['cy'] })
+      .dawn();
+    expect(s.alive('cy')).toBe(true);
+    expect(row(s)?.fields[0]?.options).toEqual(['cy']);
+  });
+  it('a poisoned Witch King kills no one, and a protected player survives the kill', () => {
+    const poisoned = scene({ ...cast, di: 'poisoner' })
+      .start()
+      .submit({ di: ['bo'] })
+      .dawn()
+      .dusk()
+      .submit({ ann: ['kill', 'bo'], di: ['ann'] })
+      .dawn();
+    expect(poisoned.alive('bo')).toBe(true);
+    expect(cursed(['kill', 'bo'], { ...cast, bo: 'fool' }).alive('bo')).toBe(true);
+  });
+  it('a Witch King who kills themself dies, and good wins', () => {
+    expect(cursed(['kill', 'ann']).winners()).toContain('good');
+  });
+  it('a kill takes exactly 1 player, and the choice must say which it is', () => {
+    const s = scene(cast).start().dawn().dusk();
+    const key = s.specs('ann')[0]?.key as string;
+    const tryIt = (choice: { values: string[]; mode?: string }) =>
+      s.g.tryAs('ann' as never, { type: 'submit_night', actions: { [key]: choice } });
+    expect(tryIt({ mode: 'kill', values: ['bo', 'cy'] }).ok).toBe(false);
+    expect(tryIt({ mode: 'curse', values: ['bo', 'cy', 'ed'] }).ok).toBe(false);
+    expect(tryIt({ mode: 'both', values: ['bo'] }).ok).toBe(false);
+    expect(tryIt({ values: ['bo'] }).ok).toBe(false);
+    expect(tryIt({ mode: 'kill', values: ['bo'] }).ok).toBe(true);
   });
   it('curses 2 players: each dies when nominated, and the other stays cursed', () => {
     const s = cursed(['bo', 'cy']);

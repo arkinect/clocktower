@@ -11,7 +11,8 @@ instance caused (`roles/vigormortis.ts`). Test: `roles/vigormortis.test.ts`, "ru
 ## Lil' Monsta's extra Minion
 
 The text says [+1 Minion]. The type counts stay as they are, because the player in the Demon slot becomes a Minion at
-the first dawn and holds the token. That already is the extra Minion.
+the first dawn and holds the token. That already is the extra Minion. They cannot become the Marionette, as they are
+told what they became.
 
 ## Who babysits Lil' Monsta, and who dies
 
@@ -20,13 +21,22 @@ choose any living player to babysit the token, themselves included, and can take
 is the Demon but chooses nothing, and holding the token never changes their alignment (a Mezepheles still can).
 Choosing the babysitter is not an ability, so nothing impairs it.
 
-Each night every evil player but the keeper is told "<name> is babysitting Lil' Monsta", the babysitter included.
-That one line is all anyone is told: nobody is told they are the Demon or that they no longer are, and a good
-babysitter is told nothing.
+Each night the babysitter is told "You are babysitting Lil' Monsta. Whoever babysits it is the Demon", good or evil, as
+the official rules hand them the token. Every other evil player but the keeper is told "<name> is babysitting Lil'
+Monsta". Nobody is told they no longer babysit, but a babysitter who is not told again knows the token has moved. A
+Marionette thinks they are good, so they are not told who babysits. One who babysits is told in the same words as a good
+player, so it gives nothing away.
 
 The Storyteller chooses who dies, as the character text leaves it to them, from a dropdown: any living player but the
-babysitter, or nobody. It starts on a random suggestion, nobody included. A drunk or poisoned babysitter kills nobody. A Scarlet Woman
-who takes the token over keeps it (the jinx), and the keeper no longer wakes. Test: `roles/lil-monsta.test.ts`.
+babysitter, or nobody. It starts on a random suggestion, nobody included. Lil' Monsta is not a player, so it can't be
+drunk or poisoned: it kills whatever state the babysitter is in, a Marionette included, and only the babysitter's own
+ability fails. A dead babysitter kills nobody. A Scarlet Woman who takes the token over keeps it (the jinx), and the
+keeper no longer wakes. Test: `roles/lil-monsta.test.ts`.
+
+## The Witch King curses or kills
+
+Each night they do one or the other: curse up to 2 players, kill 1 player, or neither. A kill is an ordinary Demon
+kill, that night. Test: `roles/witch-king.test.ts`.
 
 ## Decisions are keyed by what they decide
 

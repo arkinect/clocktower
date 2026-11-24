@@ -100,7 +100,7 @@ export class ScriptedPlayer extends Scripted<PlayerView> {
   /** Submits tonight's action, taking the first option `prefer` allows for each field. */
   async submit(prefer: (option: string) => boolean = () => true) {
     const view = await this.waitFor((v) => v.phase.stage === 'collecting');
-    const actions: Record<string, { values: string[] }> = {};
+    const actions: Record<string, { values: string[]; mode?: string }> = {};
     for (const spec of view.me.actions) {
       const used: string[] = [];
       const values = spec.fields.map((f) => {
@@ -109,7 +109,7 @@ export class ScriptedPlayer extends Scripted<PlayerView> {
         used.push(v);
         return v;
       });
-      actions[spec.key] = { values };
+      actions[spec.key] = { values, ...(spec.modes?.[0] ? { mode: spec.modes[0].id } : {}) };
     }
     await this.do({ type: 'submit_night', actions });
   }

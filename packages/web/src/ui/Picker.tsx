@@ -1,6 +1,6 @@
 // The one place the client knows about ability input, and it knows only the three field kinds. A new role never
 // changes it. The server sends every option, and checks every answer.
-import type { ActionField, ActionSpec, Choice } from '@ct/protocol';
+import { inMode, type ActionField, type ActionSpec, type Choice } from '@ct/protocol';
 import { Button, Segments } from './ui';
 import styles from './Picker.module.css';
 
@@ -19,10 +19,12 @@ export function optionText(f: ActionField, o: string, names: Names, dead?: Reado
 const playerValues = (spec: ActionSpec, values: string[]) =>
   values.filter((v, i) => v && spec.fields[i % spec.fields.length]?.kind === 'player');
 
-export function choiceComplete(spec: ActionSpec, c: Choice | undefined): boolean {
+export function choiceComplete(asked: ActionSpec, c: Choice | undefined): boolean {
   if (!c) return false;
-  if (c.decline) return spec.allowDecline;
+  if (c.decline) return asked.allowDecline;
   if (c.values.some((v) => !v)) return false;
+  if (asked.modes && !asked.modes.some((m) => m.id === c.mode)) return false;
+  const spec = inMode(asked, c.mode);
   if (spec.maxRows) {
     const width = spec.fields.length;
     const rows = c.values.length / width;
@@ -139,9 +141,18 @@ export function Picker({
 }) {
   return (
     <div>
-      {specs.map((spec) => {
-        const cur = value[spec.key] ?? { values: [] };
-        const set = (c: Choice) => onChange({ ...value, [spec.key]: c });
+      {specs.map((asked) => {
+        const cur = value[asked.key] ?? { values: [] };
+        // The first mode until another is picked.
+        const mode = cur.mode ?? asked.modes?.[0]?.id;
+        const spec = inMode(asked, mode);
+        const set = (c: Choice) =>
+          onChange({ ...value, [spec.key]: c.decline || !mode ? c : { ...c, mode: c.mode ?? mode } });
+        // Whole rows that fit the new mode stay.
+        const setMode = (to: string) => {
+          const room = (inMode(asked, to).maxRows ?? 1) * spec.fields.length;
+          set({ mode: to, values: cur.decline ? [] : cur.values.slice(0, room) });
+        };
         const pick = (i: number, v: string) => {
           const values = Array.from({ length: spec.fields.length }, (_, j) =>
             cur.decline ? '' : (cur.values[j] ?? ''),
@@ -153,6 +164,16 @@ export function Picker({
           // A bare picker (the Cannibal's meal) has no prompt: it goes by its title instead.
           <fieldset key={spec.key} className={styles['spec']} {...(spec.prompt ? {} : { 'aria-label': spec.title })}>
             {spec.prompt && <legend>{spec.prompt}</legend>}
+            {asked.modes && (
+              <div className={styles['field']}>
+                <Segments
+                  label={spec.title}
+                  options={asked.modes.map((m) => ({ id: m.id, text: m.label }))}
+                  value={cur.decline ? null : (mode ?? null)}
+                  onChange={setMode}
+                />
+              </div>
+            )}
             {spec.maxRows ? (
               <Rows
                 spec={spec}

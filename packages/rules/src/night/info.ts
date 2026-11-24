@@ -83,5 +83,6 @@ export function bareSpec(spec: ActionSpec): ActionSpec {
     prompt: '',
     fields: spec.fields.map((f, i) => ({ kind: f.kind, label: plainLabel(spec.fields, i), options: f.options })),
     ...(stuck && declineLabel ? { declineLabel: NO_LEGAL_CHOICE } : {}),
+    ...(spec.modes ? { modes: spec.modes.map((m, i) => ({ ...m, label: `${KIND_LABEL.option} ${i + 1}` })) } : {}),
   };
 }

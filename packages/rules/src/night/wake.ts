@@ -1,6 +1,6 @@
 // Who wakes tonight, what they may submit, and server-side validation of it. Also Night resolution's memo.
 import { clone } from '../util/clone';
-import type { ActionSpec, Actions, Choice, PlayerId } from '@ct/protocol';
+import { inMode, type ActionSpec, type Actions, type Choice, type PlayerId } from '@ct/protocol';
 import { nightSheet } from '../abilities/registry';
 import type { Instance } from '../abilities/define';
 import type { GameState, NightPhase } from '../model/state';
@@ -56,9 +56,13 @@ export function expectedActors(state: GameState): PlayerId[] {
   return queryRun(state, phase).reader.seated.filter((id) => actionSpecs(state, id).length > 0);
 }
 
-export function validateChoice(spec: ActionSpec, choice: Choice | undefined): string | null {
-  if (!choice) return `${spec.title}: make a choice before submitting.`;
-  if (choice.decline) return spec.allowDecline ? null : `${spec.title}: you must choose.`;
+export function validateChoice(asked: ActionSpec, choice: Choice | undefined): string | null {
+  if (!choice) return `${asked.title}: make a choice before submitting.`;
+  if (choice.decline) return asked.allowDecline ? null : `${asked.title}: you must choose.`;
+  if (asked.modes && !asked.modes.some((m) => m.id === choice.mode)) {
+    return `${asked.title}: choose ${asked.modes.map((m) => m.label).join(' or ')}.`;
+  }
+  const spec = inMode(asked, choice.mode);
   const width = spec.fields.length;
   if (spec.maxRows) {
     if (!choice.values.length) return `${spec.title}: fill in at least one row.`;
@@ -90,7 +94,10 @@ export function validateSubmission(state: GameState, pid: PlayerId, actions: Act
     if (!choice && partialOk) continue;
     const error = validateChoice(spec, choice);
     if (error) return { ok: false, error };
-    clean[spec.key] = choice?.decline ? { decline: true, values: [] } : { values: (choice as Choice).values.slice() };
+    const { mode, values } = choice as Choice;
+    clean[spec.key] = choice?.decline
+      ? { decline: true, values: [] }
+      : { values: values.slice(), ...(spec.modes && mode ? { mode } : {}) };
   }
   return { ok: true, actions: clean };
 }

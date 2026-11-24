@@ -1,5 +1,6 @@
 import { roleId, type PlayerId, type RoleId } from '@ct/protocol';
 import { defineRole, type Instance } from '../abilities/define';
+import type { Reader } from '../derive/reader';
 import type { AbilityCtx } from '../night/context';
 
 const LIL_MONSTA = roleId('lil_monsta');
@@ -13,6 +14,13 @@ interface State {
   /** A Scarlet Woman who took the token over keeps it for the rest of the game (the jinx). */
   heir?: PlayerId | null;
 }
+
+/**
+ * The Minions the player may become: not in play, and not one who thinks they are someone else (the Marionette), as
+ * this player is told what they are.
+ */
+const minions = (r: Reader): RoleId[] =>
+  r.scriptOfType('minion').filter((x) => !r.inPlay.includes(x) && !r.role(x).believes);
 
 const partOf = (a: Instance): State['part'] | 'character' =>
   a.origin.kind === 'character' ? 'character' : ((a.state as State | undefined)?.part ?? 'token');
@@ -36,10 +44,22 @@ function keeperWakes(ctx: AbilityCtx<State>): boolean {
   return ctx.n >= 1 && !!holderOf(findPart(ctx, 'keeper')) && !lockedToHeir(findPart(ctx, 'token'));
 }
 
-/** The evil team learns who babysits, the keeper aside (they chose). A good babysitter is never told. */
+/**
+ * The babysitter is told, as they are handed the token: in the same words whether good or evil, so it says nothing of
+ * which they are. The rest of the evil team learns who it is, except the keeper, who chose, and an evil player who thinks
+ * they are good (the Marionette), as hearing it would tell them they are not.
+ */
 function tellWhoBabysits(ctx: AbilityCtx<State>, sitter: PlayerId) {
   for (const p of ctx.seated) {
-    if (p === ctx.holder || ctx.alignmentOf(p) !== 'evil') continue;
+    if (p === ctx.holder) continue;
+    if (p === sitter) {
+      ctx.notify(p, "Lil' Monsta", [
+        "You are babysitting Lil' Monsta. Whoever babysits it is the Demon.",
+        'Babysitting does not change your alignment.',
+      ]);
+      continue;
+    }
+    if (ctx.alignmentOf(p) !== 'evil' || ctx.player(p).self.alignment !== 'evil') continue;
     ctx.notify(p, "Lil' Monsta", [`${ctx.name(sitter)} is babysitting Lil' Monsta.`]);
   }
 }
@@ -49,11 +69,6 @@ function strike(ctx: AbilityCtx<State>) {
   const sitter = ctx.holder;
   if (!ctx.isAlive(sitter)) {
     ctx.outcome(`${ctx.name(sitter)} is dead: nobody dies`);
-    return;
-  }
-  if (ctx.impaired) {
-    ctx.malfunctionIfExternal("Lil' Monsta ability impaired", sitter);
-    ctx.outcome('impaired: no kill');
     return;
   }
   const pool = ctx.alive.filter((x) => x !== sitter);
@@ -79,7 +94,8 @@ export const lilMonsta = defineRole<State>({
   abilityText:
     'Each night, Minions choose who babysits Lil\' Monsta\'s token & "is the Demon". A player dies each night*. [+1 Minion]',
   night: { other: 180, note: 'The keeper chooses the babysitter; you choose who dies' },
-  flags: { holderIsDemon: isToken, quietImpairment: true, noBluffs: true },
+  // Not a player, so it can't be drunk or poisoned, whoever babysits.
+  flags: { holderIsDemon: isToken, neverImpaired: true, noBluffs: true },
   initialState: () => ({ part: 'token', heir: null }),
   setupFields: [
     {
@@ -87,11 +103,7 @@ export const lilMonsta = defineRole<State>({
       title: "The Minion the Lil' Monsta player becomes",
       kind: 'role',
       rowLabel: 'plays as',
-      options: (r) =>
-        r
-          .scriptOfType('minion')
-          .filter((x) => !r.inPlay.includes(x))
-          .map((id) => ({ id, label: r.roleName(id) })),
+      options: (r) => minions(r).map((id) => ({ id, label: r.roleName(id) })),
     },
   ],
   ability: {
@@ -101,7 +113,7 @@ export const lilMonsta = defineRole<State>({
         {
           id: 'lil_monsta',
           label: "Choose the Minion role the Lil' Monsta player becomes",
-          done: !!m && ctx.role(m).type === 'minion' && !ctx.inPlay.includes(m),
+          done: !!m && minions(ctx).includes(m),
           blocking: true,
         },
       ];

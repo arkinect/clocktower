@@ -12,7 +12,7 @@ export function seatedIds(s: GameStateT): PlayerId[] {
 
 /** Night submissions for a player: random legal choices, sometimes a decline. */
 export function randomActions(s: GameStateT, id: PlayerId, rng: Rng) {
-  const actions: Record<string, { values: string[]; decline?: boolean }> = {};
+  const actions: Record<string, { values: string[]; decline?: boolean; mode?: string }> = {};
   for (const spec of actionSpecs(s, id)) {
     const stuck = spec.fields.some((f) => f.options.length === 0);
     if (spec.allowDecline && (stuck || rng.next() < 0.1)) {
@@ -26,7 +26,7 @@ export function randomActions(s: GameStateT, id: PlayerId, rng: Rng) {
       used.push(v);
       return v;
     });
-    actions[spec.key] = { values };
+    actions[spec.key] = { values, ...(spec.modes ? { mode: rng.pick(spec.modes).id } : {}) };
   }
   return actions;
 }
