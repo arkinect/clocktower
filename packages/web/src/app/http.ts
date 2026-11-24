@@ -1,5 +1,5 @@
 // The few calls made before a socket exists. The session is an HttpOnly cookie this code never sees.
-import type { ConfigResponse, JoinRequest, RejoinRequest } from '@ct/protocol';
+import type { ConfigResponse, JoinRequest, PlayerId, RejoinRequest } from '@ct/protocol';
 
 export interface HttpResult<T> {
   ok: boolean;
@@ -29,7 +29,7 @@ const post = <T>(url: string, body: unknown) =>
   call<T>(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
 export interface NameRow {
-  id: string;
+  id: PlayerId;
   name: string;
   isStoryteller: boolean;
 }

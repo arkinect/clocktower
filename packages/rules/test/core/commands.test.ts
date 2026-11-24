@@ -1,6 +1,6 @@
 // Commands the larger tests pass by: each is driven here through dispatch, as the server would.
 import { describe, expect, it } from 'vitest';
-import type { PlayerId, RoleId } from '@ct/protocol';
+import type { RoleId } from '@ct/protocol';
 import { begin, cast, pid, seated, ST, TestGame } from '../helpers/game';
 import { DEMON, MINION, TOWN, TRAVELLER } from '../helpers/plain';
 import { scene } from '../scenario';
@@ -8,15 +8,21 @@ import { scene } from '../scenario';
 const FIVE = { Ann: TOWN[0]!, Bo: TOWN[1]!, Cy: TOWN[2]!, Di: MINION[0]!, Ed: DEMON[0]! };
 
 const join = (g: TestGame, name: string, wantsStoryteller = false) =>
-  g.as(null, { type: 'join', id: pid(name), name, rolePreference: 'none', wantsStoryteller });
+  g.as(null, {
+    type: 'join',
+    id: name === 'Storyteller' ? ST : pid(name),
+    name,
+    rolePreference: 'none',
+    wantsStoryteller,
+  });
 const seats = (g: TestGame) => g.state.seats.filter((x) => x.left === null).map((x) => x.playerId);
 
 describe('joining and seats', () => {
   it('a player who joins during setup takes the next seat', () => {
     const g = seated(Object.keys(FIVE));
     join(g, 'Flo');
-    expect(seats(g)).toEqual(['ann', 'bo', 'cy', 'di', 'ed', 'flo']);
-    expect(g.grimoire().players.find((p) => p.id === 'flo')?.seat).toBe(5);
+    expect(seats(g)).toEqual([pid('ann'), pid('bo'), pid('cy'), pid('di'), pid('ed'), pid('flo')]);
+    expect(g.grimoire().players.find((p) => p.id === pid('flo'))?.seat).toBe(5);
     expect(g.grimoire().setup.checklist.filter((c) => /unseated/.test(c.label))).toEqual([]);
   });
 
@@ -25,8 +31,8 @@ describe('joining and seats', () => {
     join(g, 'Storyteller', true);
     join(g, 'Ann');
     expect(seats(g)).toEqual([]);
-    g.as(pid('Storyteller'), { type: 'open_setup' });
-    expect(seats(g)).toEqual(['ann']);
+    g.as(ST, { type: 'open_setup' });
+    expect(seats(g)).toEqual([pid('ann')]);
   });
 
   it('once the game is running a joiner only watches', () => {
@@ -43,7 +49,7 @@ describe('claim_storyteller', () => {
     join(g, 'Bo');
     expect(g.state.storytellerId).toBeNull();
     g.as(pid('Ann'), { type: 'claim_storyteller' });
-    expect(g.state.storytellerId).toBe('ann');
+    expect(g.state.storytellerId).toBe(pid('ann'));
     expect(g.rejected(pid('Bo'), { type: 'claim_storyteller' })).toMatch(/already a Storyteller/);
   });
 });
@@ -103,7 +109,9 @@ describe('a type-count override', () => {
 
 describe('set_setup_field', () => {
   const word = (s: ReturnType<typeof scene>) =>
-    (s.state.abilities[s.ability('mezepheles')]?.state as { setup?: Record<string, string | null> }).setup?.['word'];
+    (s.state.abilities.get(s.ability('mezepheles'))?.state as { setup?: Record<string, string | null> }).setup?.[
+      'word'
+    ];
 
   it('stores a typed value as it was checked: trimmed', () => {
     const s = scene({ a: 'mezepheles', b: 't1', c: 'd1', d: 't2', e: 't3' });
@@ -153,21 +161,19 @@ describe('remove_traveller', () => {
     const s = scene({ a: 't1', b: 't2', c: 'd1', d: 'm1', e: 't3' }, { extra: [traveller] })
       .start()
       .dawn();
-    const vi = 'vi' as PlayerId;
+    const vi = pid('vi');
     s.g.as(null, { type: 'join', id: vi, name: 'Vi', rolePreference: 'none', wantsStoryteller: false });
     s.g.st({ type: 'add_traveller', playerId: vi, roleId: traveller, alignment: 'good' });
     expect(seats(s.g)).toContain(vi);
     const held = () =>
-      Object.values(s.state.abilities).filter(
+      [...s.state.abilities.values()].filter(
         (x) => x.holder.kind === 'player' && x.holder.id === vi && x.activeUntil !== 'removed',
       );
     expect(held()).toHaveLength(1);
     s.g.st({ type: 'remove_traveller', playerId: vi });
     expect(seats(s.g)).not.toContain(vi);
-    expect(s.state.players[vi]?.removal).toMatchObject({ kind: 'left' });
+    expect(s.state.players.get(vi)?.removal).toMatchObject({ kind: 'left' });
     expect(held()).toEqual([]);
-    expect(s.g.rejected(ST, { type: 'remove_traveller', playerId: 'a' as PlayerId })).toBe(
-      'Only a Traveller can leave.',
-    );
+    expect(s.g.rejected(ST, { type: 'remove_traveller', playerId: pid('a') })).toBe('Only a Traveller can leave.');
   });
 });

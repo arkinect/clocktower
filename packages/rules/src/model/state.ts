@@ -16,9 +16,14 @@ import {
 import { z } from 'zod';
 
 /** Bumped by hand when the state schema changes. */
-export const ENGINE_VERSION = 5;
+export const ENGINE_VERSION = 6;
 
-const ids = <T extends z.ZodType>(value: T) => z.record(z.string(), value);
+/** A table by id: a Map in memory, so a lookup finds only what was put there, and a plain object when saved. */
+const ids = <K extends z.ZodType<string, string>, V extends z.ZodType>(key: K, value: V) =>
+  z.codec(z.record(key, value), z.map(key, value), {
+    decode: (saved) => new Map(Object.entries(saved)) as never,
+    encode: (table) => Object.fromEntries(table as Iterable<[string, unknown]>) as never,
+  });
 
 export const Moment = z.object({ kind: z.enum(['night', 'day']), n: z.number() });
 export type Moment = z.infer<typeof Moment>;
@@ -149,10 +154,10 @@ export const Phase = z.discriminatedUnion('kind', [
     /** Advisory only: nothing closes on a timer. */
     deadline: z.number().nullable(),
     seed: z.number(),
-    submissions: ids(Submission),
-    decisions: ids(z.object({ key: DecisionKey, option: z.string() })),
-    overrides: ids(z.object({ lines: z.array(z.string()), writtenAgainst: z.array(z.string()) })),
-    answers: ids(Answer),
+    submissions: ids(PlayerId, Submission),
+    decisions: ids(z.string(), z.object({ key: DecisionKey, option: z.string() })),
+    overrides: ids(z.string(), z.object({ lines: z.array(z.string()), writtenAgainst: z.array(z.string()) })),
+    answers: ids(z.string(), Answer),
     malfunctionAdjust: z.object({ add: z.array(PlayerId), remove: z.array(PlayerId) }),
     /** The deadline has had its one extension for follow-up questions. */
     followUpsExtended: z.boolean(),
@@ -236,7 +241,7 @@ export const GameState = z.object({
   seq: z.number(),
   idSeq: z.number(),
   phase: Phase,
-  players: ids(Player),
+  players: ids(PlayerId, Player),
   storytellerId: PlayerId.nullable(),
   seats: z.array(Seat),
   seatingPublished: z.boolean(),
@@ -244,16 +249,16 @@ export const GameState = z.object({
   script: z.array(RoleId),
   /** Fabled and Loric in play; Loric are fixed at setup. */
   storytellerCharacters: z.array(RoleId),
-  abilities: ids(AbilityInstance),
+  abilities: ids(AbilityId, AbilityInstance),
   conditions: z.array(Condition),
   setup: z.object({
     bluffs: z.array(RoleId),
     /** The token a player drew, when it differs from their character. */
-    bag: ids(RoleId),
+    bag: ids(PlayerId, RoleId),
     rules: z.object({ countsOverride: z.array(z.number()).nullable() }),
   }),
   events: z.array(GameEvent),
-  inbox: ids(z.array(Message)),
+  inbox: ids(PlayerId, z.array(Message)),
   /** Delivered when the next night starts. */
   pendingNotices: z.array(PendingNotice),
   prompts: z.array(Prompt),
@@ -262,7 +267,24 @@ export const GameState = z.object({
   publicDead: z.array(PlayerId),
   settings: Settings,
 });
-export type GameState = Omit<z.infer<typeof GameState>, 'abilities'> & { abilities: Record<string, AbilityInstance> };
+export type GameState = Omit<z.infer<typeof GameState>, 'abilities'> & {
+  abilities: Map<AbilityId, AbilityInstance>;
+};
+
+/** The state as saved text. The only way to write one: plain `JSON.stringify` would drop every table. */
+export const saveState = (state: GameState): string => JSON.stringify(z.encode(GameState, state));
+
+/** Reads back what `saveState` wrote, or says why it cannot. */
+export function loadState(saved: string): { state: GameState; reason?: never } | { state: null; reason: string } {
+  let json: unknown;
+  try {
+    json = JSON.parse(saved);
+  } catch {
+    return { state: null, reason: 'unreadable snapshot' };
+  }
+  const r = GameState.safeParse(json);
+  return r.success ? { state: r.data } : { state: null, reason: 'snapshot failed the schema' };
+}
 
 export const SETUP_MOMENT: Moment = { kind: 'night', n: -1 };
 

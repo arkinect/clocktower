@@ -3,8 +3,15 @@ import type { Command, PlayerId, RoleId } from '@ct/protocol';
 import { createGame, dispatch, playerView, storytellerView, type GameStateT, type LogEntry } from '../../src';
 import { PLAIN_SCRIPT } from './plain';
 
-export const ST = 'st' as PlayerId;
-export const pid = (name: string) => name.toLowerCase() as PlayerId;
+/** A player's id: their name in hex, padded to the length of a real one. An id stays as it is. */
+export function pid(name: string): PlayerId {
+  if (/^[0-9a-f]{16}$/.test(name)) return name as PlayerId;
+  if (!/^[a-z0-9]{1,8}$/i.test(name)) throw new Error(`No test id for ${name}`);
+  return Buffer.from(name.toLowerCase()).toString('hex').padEnd(16, '0') as PlayerId;
+}
+/** The name an id stands for, in lower case. */
+export const nameOf = (id: string) => Buffer.from(id.replace(/(00)+$/, ''), 'hex').toString();
+export const ST = pid('st');
 
 export class TestGame {
   state: GameStateT;
@@ -46,7 +53,7 @@ export class TestGame {
   rejected(actor: PlayerId | null, command: Command): string {
     const res = this.tryAs(actor, command);
     if (res.ok) throw new Error(`${command.type} should have been rejected`);
-    if (res.internal) throw new Error(res.error);
+    if (res.internal) throw res.cause;
     return res.error;
   }
 
@@ -59,7 +66,7 @@ export class TestGame {
   }
 
   player(id: PlayerId) {
-    const p = this.state.players[id];
+    const p = this.state.players.get(id);
     if (!p) throw new Error(`No player ${id}`);
     return p;
   }

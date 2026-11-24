@@ -1,6 +1,6 @@
 // dispatch(state, actor, command, { now, seed }): validate the schema, check actor and phase, run the handler on an
 // immer draft. Replaying the entries it returns reproduces the state byte for byte.
-import { produce } from 'immer';
+import { enableMapSet, produce } from 'immer';
 import { Command, type PlayerId } from '@ct/protocol';
 import { buildCtx, Rejected, type CommandDef } from './phases/define';
 import { lobbyCommands } from './phases/lobby';
@@ -11,6 +11,9 @@ import { createGame } from './model/create';
 import type { GameState } from './model/state';
 import { carryResolution } from './night/wake';
 import { dropStaleCounts } from './setup/rules';
+
+// The state's tables are Maps, which immer drafts and freezes only once asked to.
+enableMapSet();
 
 const registry = new Map<string, CommandDef>(
   [...lobbyCommands, ...setupCommands, ...nightCommands, ...dayCommands].map((c) => [c.type, c]),
@@ -28,7 +31,9 @@ export interface LogEntry extends Inputs {
 
 export type DispatchResult =
   | { ok: true; state: GameState; entry: LogEntry; data: unknown; resolutionChanged: boolean }
-  | { ok: false; error: string; internal?: true };
+  | { ok: false; error: string; internal?: never }
+  /** A bug, not a refusal. `error` is for the sender; `cause` is for the log. */
+  | { ok: false; error: string; internal: true; cause: unknown };
 
 export function dispatch(state: GameState, actor: PlayerId | null, input: unknown, inputs: Inputs): DispatchResult {
   const parsed = Command.safeParse(input);
@@ -40,7 +45,7 @@ export function dispatch(state: GameState, actor: PlayerId | null, input: unknow
   if (def.by === 'system') {
     if (actor !== null) return { ok: false, error: 'You cannot do that.' };
   } else {
-    if (actor === null || !state.players[actor]) return { ok: false, error: 'Unknown player.' };
+    if (actor === null || !state.players.has(actor)) return { ok: false, error: 'Unknown player.' };
     if (def.by === 'storyteller' && state.storytellerId !== actor) {
       return { ok: false, error: 'Only the Storyteller can do that.' };
     }
@@ -66,7 +71,7 @@ export function dispatch(state: GameState, actor: PlayerId | null, input: unknow
     };
   } catch (e) {
     if (e instanceof Rejected) return { ok: false, error: e.message };
-    return { ok: false, error: `Internal error: ${(e as Error).message}`, internal: true };
+    return { ok: false, error: 'Something went wrong.', internal: true, cause: e };
   }
 }
 

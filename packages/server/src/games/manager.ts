@@ -1,7 +1,7 @@
 // Live games in memory. Each game runs one command at a time from a bounded queue, persists it, then broadcasts.
 import { createHash, randomInt, randomUUID } from 'node:crypto';
 import type { Command, PlayerId, ServerMessage, View } from '@ct/protocol';
-import { ENGINE_VERSION, GameState, createGame, dispatch, project, type GameStateT } from '@ct/rules';
+import { ENGINE_VERSION, createGame, dispatch, loadState, project, saveState, type GameStateT } from '@ct/rules';
 import { Tables } from '../cards/tables';
 import type { Limits } from '../config';
 import type { GameRow, Store } from '../store/store';
@@ -14,7 +14,10 @@ export interface Client {
   lastView: string | null;
 }
 
-/** Logs carry the player id and the command type, nothing else. */
+/** Views already built from the state being shown, by player. */
+type Views = Map<string, View>;
+
+/** Logs carry the player id, the command type (or the part of the server that failed) and the error, nothing else. */
 export interface Audit {
   command(actor: string | null, type: string): void;
   failed(actor: string | null, type: string, error: unknown): void;
@@ -51,10 +54,11 @@ export class LiveGame {
   private sinceFresh: number;
   /** The idle card tables. They live and die with the process: nothing about them is stored. */
   readonly cards = new Tables({
-    eligible: (playerId) => this.idleAtNight(playerId),
+    eligible: (playerId) => this.attempt(playerId, 'cards', () => this.idleAtNight(playerId)) ?? false,
     send: (playerId, table) => {
       for (const c of this.clients) if (c.playerId === playerId) c.send({ v: 1, type: 'cards', table });
     },
+    failed: (e) => this.audit.failed(null, 'cards', e),
   });
 
   constructor(
@@ -110,25 +114,44 @@ export class LiveGame {
     setImmediate(() => this.drain());
   }
 
+  /** Runs something whose failure must stay where it is. The error is logged, and the result undefined. */
+  private attempt<T>(actor: string | null, what: string, run: () => T): T | undefined {
+    try {
+      return run();
+    } catch (e) {
+      this.audit.failed(actor, what, e);
+      return undefined;
+    }
+  }
+
+  /** The new state is kept only once every view of it has been built and it has been saved. */
   private run(job: Job): Outcome {
     const now = Date.now();
     const res = dispatch(this.state, job.actor, job.command, { now, seed: randomInt(2 ** 31) });
     this.audit.command(job.actor, job.command.type);
-    if (!res.ok) return { ok: false, error: res.error };
+    if (!res.ok) {
+      if (res.internal) this.audit.failed(job.actor, job.command.type, res.cause);
+      return { ok: false, error: res.error };
+    }
+    // Every player's view, connected or not: one that cannot be built would fail whenever its player next connects.
+    const presence = this.presence();
+    const views: Views = new Map(
+      [...res.state.players.keys()].map((id) => [id, project(res.state, id, { now, presence })]),
+    );
+    this.store.save(this.code, ENGINE_VERSION, saveState(res.state), this.logLength + 1, res.entry);
     const before = this.state;
     this.state = res.state;
     this.logLength += 1;
     this.sinceFresh = STARTS_OVER.includes(job.command.type) ? 0 : this.sinceFresh + 1;
     this.lastActivity = now;
-    this.store.save(this.code, ENGINE_VERSION, JSON.stringify(res.state), this.logLength, res.entry);
-    this.afterChange(before);
+    this.afterChange(before, views);
     return { ok: true, data: res.data };
   }
 
-  private afterChange(before: GameStateT) {
-    for (const id of Object.keys(before.players)) {
-      if (this.state.players[id as PlayerId]) continue;
-      this.onRemoved(this.code, id);
+  private afterChange(before: GameStateT, views: Views) {
+    for (const id of [...before.players.keys()]) {
+      if (this.state.players.has(id)) continue;
+      this.attempt(id, 'removed', () => this.onRemoved(this.code, id));
       for (const c of [...this.clients]) {
         if (c.playerId === id) {
           c.send({ v: 1, type: 'removed' });
@@ -137,10 +160,12 @@ export class LiveGame {
         }
       }
     }
-    this.broadcast();
+    this.broadcast(views);
     const { kind } = this.state.phase;
-    if (kind === 'night' || kind === 'day') this.cards.sync();
-    else this.cards.reset();
+    this.attempt(null, 'cards', () => {
+      if (kind === 'night' || kind === 'day') this.cards.sync();
+      else this.cards.reset();
+    });
   }
 
   /** The same test the phone uses to unlock its night games, and nothing waiting to be answered. */
@@ -158,12 +183,20 @@ export class LiveGame {
 
   viewFor(playerId: string): View | null {
     const id = playerId as PlayerId;
-    if (!this.state.players[id]) return null;
+    if (!this.state.players.has(id)) return null;
     return project(this.state, id, { now: Date.now(), presence: this.presence() });
   }
 
-  sendView(c: Client) {
-    const view = this.viewFor(c.playerId);
+  /** A view that cannot be built or sent closes that socket, and no other. */
+  sendView(c: Client, views?: Views) {
+    const sent = this.attempt(c.playerId, 'view', () => {
+      this.pushView(c, views ? views.get(c.playerId) : this.viewFor(c.playerId));
+      return true;
+    });
+    if (!sent) c.close();
+  }
+
+  private pushView(c: Client, view: View | null | undefined) {
     if (!view) return;
     const hash = viewHash(view);
     if (hash === c.lastView) return;
@@ -171,8 +204,8 @@ export class LiveGame {
     c.send({ v: 1, type: 'view', view });
   }
 
-  broadcast() {
-    for (const c of this.clients) this.sendView(c);
+  broadcast(views?: Views) {
+    for (const c of this.clients) this.sendView(c, views);
   }
 
   add(c: Client) {
@@ -182,7 +215,9 @@ export class LiveGame {
 
   remove(c: Client) {
     this.clients.delete(c);
-    if (![...this.clients].some((o) => o.playerId === c.playerId)) this.cards.drop(c.playerId);
+    if (![...this.clients].some((o) => o.playerId === c.playerId)) {
+      this.attempt(c.playerId, 'cards', () => this.cards.drop(c.playerId));
+    }
     this.broadcastPresence();
   }
 
@@ -193,7 +228,7 @@ export class LiveGame {
 
   names() {
     const storyteller = this.state.storytellerId;
-    return Object.values(this.state.players).map((p) => ({
+    return [...this.state.players.values()].map((p) => ({
       id: p.id,
       name: p.name,
       isStoryteller: p.id === storyteller,
@@ -223,7 +258,7 @@ export class Games {
   /** A snapshot from another engine version, or one that fails to parse, is archived. No migration code exists. */
   restore() {
     for (const row of this.store.games()) {
-      const parsed = this.parse(row.snapshot);
+      const parsed = loadState(row.snapshot);
       if (row.engine !== ENGINE_VERSION) this.archive(row, `engine ${row.engine}`);
       else if (!parsed.state) this.archive(row, parsed.reason);
       else this.live(parsed.state, this.store.logLength(row.code), this.store.logLengthSince(row.code, STARTS_OVER));
@@ -233,17 +268,6 @@ export class Games {
   private archive(row: GameRow, reason: string) {
     this.store.archive(row, reason, this.now(), this.limits.archiveKeep);
     this.dropGameSessions(row.code);
-  }
-
-  private parse(snapshot: string): { state: GameStateT; reason?: never } | { state: null; reason: string } {
-    let json: unknown;
-    try {
-      json = JSON.parse(snapshot);
-    } catch {
-      return { state: null, reason: 'unreadable snapshot' };
-    }
-    const r = GameState.safeParse(json);
-    return r.success ? { state: r.data } : { state: null, reason: 'snapshot failed the schema' };
   }
 
   get(code: string) {
@@ -260,7 +284,7 @@ export class Games {
       (g) => g.code !== this.keep && g.clients.size === 0 && this.now() - g.lastActivity > IDLE_MS,
     );
     if (!idle) return false;
-    this.archive({ code: idle.code, engine: ENGINE_VERSION, snapshot: JSON.stringify(idle.state) }, 'idle');
+    this.archive({ code: idle.code, engine: ENGINE_VERSION, snapshot: saveState(idle.state) }, 'idle');
     this.games.delete(idle.code);
     return true;
   }
@@ -271,7 +295,7 @@ export class Games {
     if (found) return found;
     if (this.games.size >= this.limits.liveGames && !this.evictIdle()) return null;
     const state = createGame(code, this.now());
-    this.store.save(code, ENGINE_VERSION, JSON.stringify(state), 0, null);
+    this.store.save(code, ENGINE_VERSION, saveState(state), 0, null);
     return this.live(state, 0, 0);
   }
 }

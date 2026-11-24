@@ -28,6 +28,9 @@ Rules:
 - `ctx.require` is a plain function, `need()`, because TypeScript assertion signatures cannot be called through a contextually typed parameter.
 - The Resolution is never stored in state. It is memoised against the state object, and commands that cannot change it carry the memo forward.
 - `@ct/rules` depends on zod directly, for the GameState schema. `rules/test/core/schema.test.ts` hashes that schema against `ENGINE_VERSION`.
+- The tables of the game state (players, abilities and so on) are Maps, so looking up an id finds only what was put there. A plain object also finds the names every object inherits, such as `constructor`. Views stay plain JSON.
+- `JSON.stringify` drops a Map without a word, so only `saveState` and `loadState` turn state into text and back. `clone` is written by hand, as it must also copy immer drafts, which `structuredClone` refuses.
+- Ids have an exact format, checked as they arrive: 16 hex digits for a player, `a1` for an ability, `c1` for a condition. A `RoleId` or `GameId` has none, so those only refuse the inherited names.
 - Night positions are relative, with gaps. They are not the official sheet's numbers.
 
 Server:
@@ -39,6 +42,9 @@ Server:
 - A request with no password at all gets a 401 without starting the backoff, so a phone can find out it needs one.
 - A game with no sockets and six idle hours gives up its slot when a fifth game wants one. Otherwise abandoned codes would hold all four slots until a restart.
 - The welcome message carries the jinx list, for the Roles tab. Jinxes are not in the view.
+- A command's new state is kept only once every player's view of it has been built and it has been saved. Otherwise the old state stays and the sender is told something went wrong, so a state that cannot be shown is never stored.
+- A view that cannot be built or sent closes that one socket. Nothing may throw out of a socket callback or a timer, as Node exits on it. There is no `uncaughtException` handler that carries on: past that point the process is in an unknown state, so it exits and Compose restarts it.
+- An error in the rules is logged with the player id and command type. The sender sees only "Something went wrong."
 - Server messages past the socket rate limit are dropped with no ack, as the limit is there to shed work. The client treats a missing ack as a timeout.
 - The idle card game (`server/src/cards`) is not part of the game: its moves are socket messages, not commands, so nothing is stored, logged or counted against the command limit, and a restart deals new hands. The rules engine has no clock, and the tables need one.
 - At the card tables a hand belongs to its player, not to a seat. A player who leaves takes it with them and brings it back to the fullest table with room, so players share as few tables as possible; a bot with its own hand fills every other seat, and an empty table closes. No seat is sent with a name, and a phone is sent no hand but its own.

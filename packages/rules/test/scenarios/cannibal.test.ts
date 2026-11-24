@@ -3,14 +3,18 @@ import { describe, expect, it } from 'vitest';
 import { as, row, titles } from './lib';
 import { allRoles, findRole } from '../../src';
 import { scene, ST, type Scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'cannibal', bo: 'imp', cy: 'poisoner', di: 'empath', ed: 'slayer', fi: 'sailor' };
 const day1 = (chars: Record<string, string> = cast, o?: Parameters<typeof scene>[1]) => scene(chars, o).start().dawn();
 
 const gained = (s: Scene, id = 'ann') =>
-  Object.values(s.state.abilities).filter(
+  [...s.state.abilities.values()].filter(
     (a) =>
-      a.holder.kind === 'player' && a.holder.id === id && a.origin.kind !== 'character' && a.activeUntil !== 'removed',
+      a.holder.kind === 'player' &&
+      a.holder.id === pid(id) &&
+      a.origin.kind !== 'character' &&
+      a.activeUntil !== 'removed',
   );
 const eatenRoles = (s: Scene, id = 'ann') => gained(s, id).map((a) => a.roleId as string);
 /** What an evil eat gives: one good character from the script, other than the Cannibal, only believed. */
@@ -22,7 +26,8 @@ const expectFakeGood = (s: Scene, id = 'ann') => {
   expect(['townsfolk', 'outsider']).toContain(findRole(fake?.roleId as string)?.type);
   expect(fake?.roleId).not.toBe('cannibal');
 };
-const pending = (s: Scene, id: string) => s.state.pendingNotices.filter((n) => n.playerId === id).map((m) => m.title);
+const pending = (s: Scene, id: string) =>
+  s.state.pendingNotices.filter((n) => n.playerId === pid(id)).map((m) => m.title);
 const phoneText = (s: Scene, id: string) =>
   JSON.stringify({ ...s.g.view(as(id)), catalog: undefined, script: undefined });
 
@@ -83,7 +88,7 @@ describe('Cannibal eats', () => {
       .dusk();
     expect(s.row('ann')).toMatchObject({ title: 'Cannibal', roleId: role, impaired: false });
     s.dawn().dusk();
-    expect(s.res.results.some((r) => r.playerId === 'ann')).toBe(false);
+    expect(s.res.results.some((r) => r.playerId === pid('ann'))).toBe(false);
   });
 
   it('a Philosopher who chose the Cannibal eats the day after', () => {
@@ -229,7 +234,7 @@ describe('Cannibal jinxes, as they reach the phone', () => {
     expect(s.specs('di').map((x) => x.roleId)).toEqual(['juggler']);
     expect(s.specs('ann').map((x) => x.roleId)).not.toContain('juggler');
     s.submit({ di: ['di', 'juggler'] });
-    expect(s.res.results.some((r) => r.playerId === 'di' && r.roleId === 'juggler')).toBe(true);
+    expect(s.res.results.some((r) => r.playerId === pid('di') && r.roleId === 'juggler')).toBe(true);
   });
 });
 
@@ -304,12 +309,14 @@ describe('the hidden eaten ability', () => {
       .submit({ ann: ['bo', 'ed'] })
       .review();
     const review = s.g.grimoire().review;
-    expect(review?.results.find((r) => r.playerId === 'ann')).toMatchObject({
+    expect(review?.results.find((r) => r.playerId === pid('ann'))).toMatchObject({
       roleId: 'fortune_teller',
       title: 'Cannibal',
     });
-    expect(review?.actors.find((a) => a.playerId === 'ann')?.roleId).toBe('fortune_teller');
-    expect(Object.values(s.night.submissions['ann' as never]?.actions ?? {})).toEqual([{ values: ['bo', 'ed'] }]);
+    expect(review?.actors.find((a) => a.playerId === pid('ann'))?.roleId).toBe('fortune_teller');
+    expect(Object.values(s.night.submissions.get(pid('ann') as never)?.actions ?? {})).toEqual([
+      { values: [pid('bo'), pid('ed')] },
+    ]);
   });
 });
 
@@ -335,7 +342,7 @@ describe('the Cannibal is asked with unmarked fields and told bare values', () =
       ['player', 'Player 1'],
       ['player', 'Player 2'],
     ]);
-    const board = s.g.grimoire().board.find((b) => b.playerId === 'ann');
+    const board = s.g.grimoire().board.find((b) => b.playerId === pid('ann'));
     expect(board?.specs[0]?.prompt).toBe('Choose 2 players: you learn if either is a Demon.');
   });
 
@@ -355,7 +362,7 @@ describe('the Cannibal is asked with unmarked fields and told bare values', () =
     const s = ate('ravenkeeper')
       .submit({ bo: ['ann'] })
       .review();
-    const q = s.res.questions.find((x) => x.playerId === 'ann');
+    const q = s.res.questions.find((x) => x.playerId === pid('ann'));
     expect(q?.spec.prompt).toBe('You have died. Choose a player: you learn their character.');
     expect(phone(s).questions).toEqual([expect.objectContaining({ title: 'Cannibal', prompt: '' })]);
     expect(phone(s).questions[0]?.fields.map((f) => f.label)).toEqual(['Player']);
@@ -372,11 +379,11 @@ describe('the Cannibal is asked with unmarked fields and told bare values', () =
   it('a confirmation of their own choice is not sent, and what they gain through it stays hidden too', () => {
     const s = ate('philosopher').submit({ ann: ['empath'] });
     // The Empath it gained answers tonight, bare; "You chose the Empath ability" is not sent.
-    const rows = s.res.results.filter((r) => r.playerId === 'ann');
+    const rows = s.res.results.filter((r) => r.playerId === pid('ann'));
     expect(rows.map((r) => [r.roleId, r.title])).toEqual([['empath', 'Cannibal']]);
     expect(rows[0]?.truth).toEqual([expect.stringMatching(/^[0-2]$/)]);
     s.dawn();
-    const gainedEmpath = Object.values(s.state.abilities).find((a) => a.roleId === 'empath');
+    const gainedEmpath = [...s.state.abilities.values()].find((a) => a.roleId === 'empath');
     expect(gainedEmpath?.shownAs).toBe('cannibal');
   });
 
@@ -400,7 +407,7 @@ describe('the Cannibal is asked with unmarked fields and told bare values', () =
         expect(q.prompt).toBe('');
         s.answer('ann', pick(q.fields));
       }
-      for (const r of s.res.results.filter((x) => x.playerId === 'ann' && x.title === 'Cannibal')) {
+      for (const r of s.res.results.filter((x) => x.playerId === pid('ann') && x.title === 'Cannibal')) {
         expect(r.final).toHaveLength(1);
         expect(r.final[0]).not.toMatch(/\b(you|your|is|are|the)\b|[.!?]$/i);
       }

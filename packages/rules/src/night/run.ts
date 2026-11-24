@@ -1,11 +1,13 @@
 // One pass of the engine over a world. At night it walks the order on a clone and returns a Resolution, a pure function
 // of the stored game. By day it works directly on the command's draft, so a day event fires the same hooks.
 import type {
+  AbilityId,
   ActionSpec,
   ActorRow,
   Choice,
   DecisionKey,
   Malfunction,
+  Message,
   PlayerId,
   ReviewItem,
   RoleId,
@@ -186,7 +188,7 @@ export class Run {
   }
 
   private sourceWorks(id: string): boolean {
-    const source = this.world.abilities[id];
+    const source = this.world.abilities.get(id as AbilityId);
     if (!source || source.activeUntil === 'removed') return false;
     return (
       source.holder.kind !== 'player' || (this.reader.isAlive(source.holder.id) && !this.impairmentOf(source).impaired)
@@ -207,12 +209,12 @@ export class Run {
 
   recordedDecision(a: Instance, key: DecideInput<string>['key']): string | null {
     const { hash } = this.hash(a, key);
-    return this.night?.decisions[hash]?.option ?? this.dayDecisions[hash] ?? null;
+    return this.night?.decisions.get(hash)?.option ?? this.dayDecisions[hash] ?? null;
   }
 
   decide<T extends string>(a: Instance | null, input: DecideInput<T>): T {
     const { hash, full } = this.hash(a, input.key);
-    const raw = this.night?.decisions[hash]?.option ?? this.dayDecisions[hash];
+    const raw = this.night?.decisions.get(hash)?.option ?? this.dayDecisions[hash];
     const valid = input.options.some((o) => o.id === raw);
     this.decisions.set(hash, {
       key: full,
@@ -276,7 +278,8 @@ export class Run {
 
   deliver(player: PlayerId, kind: 'starting' | 'result' | 'notice', title: string, lines: string[]) {
     const w = this.world;
-    const list = (w.inbox[player] ??= []);
+    if (!w.inbox.has(player)) w.inbox.set(player, []);
+    const list = w.inbox.get(player) as Message[];
     list.push({ id: `m${w.idSeq++}`, n: this.n, kind, title, lines });
   }
 
@@ -302,7 +305,7 @@ export class Run {
     const truth = lines(input.truth);
     const suggested = lines(given);
     const key = this.acting === a.id ? `${a.id}:again` : (a.id as string);
-    const override = this.night?.overrides[key];
+    const override = this.night?.overrides.get(key);
     this.results.push({
       key,
       playerId: a.holder.id,
@@ -348,7 +351,7 @@ export class Run {
 
   ask(a: Instance, input: AskInput): string[] | null {
     const key = `${a.id}:${input.key ?? input.to}`;
-    const answer = this.night?.answers[key];
+    const answer = this.night?.answers.get(key);
     const spec = this.fullSpec(a, key, input.spec);
     // Nobody but the holder sees the name behind a hidden ability; others see the role by its own name.
     const shown = input.to === (a.holder.kind === 'player' ? a.holder.id : null) ? spec : { ...spec, roleId: a.roleId };
@@ -422,15 +425,15 @@ export class Run {
       survivesDeath: false,
       state: options.state ?? def.initialState(),
     };
-    w.abilities[a.id] = a;
+    w.abilities.set(a.id, a);
     this.dirty();
     def.ability.setup?.(this.ctx(a));
-    return this.world.abilities[a.id] as Instance;
+    return this.world.abilities.get(a.id) as Instance;
   }
 
   /** Ends an ability, what depends on it, and anything gained through it. Timed conditions run their full time. */
   revoke(id: string, keepTies = false) {
-    const a = this.world.abilities[id];
+    const a = this.world.abilities.get(id as AbilityId);
     if (!a || a.activeUntil === 'removed') return;
     a.activeUntil = 'removed';
     if (!keepTies) {
@@ -438,14 +441,14 @@ export class Run {
         (c) => !(c.source.kind === 'ability' && c.source.id === id && c.until !== 'dusk'),
       );
     }
-    for (const other of Object.values(this.world.abilities)) {
+    for (const other of [...this.world.abilities.values()]) {
       if (other.origin.kind === 'granted' && other.origin.by === id) this.revoke(other.id, keepTies);
     }
     this.dirty();
   }
 
   move(id: string, to: PlayerId) {
-    const a = this.world.abilities[id];
+    const a = this.world.abilities.get(id as AbilityId);
     if (!a) return;
     a.holder = { kind: 'player', id: to };
     this.dirty();
@@ -464,7 +467,7 @@ export class Run {
     const w = this.world;
     const p = this.reader.player(target);
     const from = p.character;
-    const mine = Object.values(w.abilities).filter(
+    const mine = [...w.abilities.values()].filter(
       (a) => a.holder.kind === 'player' && a.holder.id === target && a.activeUntil !== 'removed',
     );
     const keepGranted = o.keepGranted ?? true;
@@ -479,7 +482,7 @@ export class Run {
     p.history.push({ kind: 'character', at: this.moment, from, to: role, reason: o.reason });
     p.character = role;
     p.self.character = role && roleDef(role).believes ? null : role;
-    delete w.setup.bag[target];
+    w.setup.bag.delete(target);
     const natural = role ? roleDef(role).alignment : 'good';
     if (o.alignment === 'natural' && !this.alignmentGuarded(target, natural, o.reason)) {
       p.alignment = natural;
@@ -499,12 +502,12 @@ export class Run {
     const w = this.world;
     const p = this.reader.player(player);
     const def = p.character ? roleDef(p.character) : null;
-    for (const a of Object.values(w.abilities)) {
+    for (const a of [...w.abilities.values()]) {
       if (a.holder.kind !== 'player' || a.holder.id !== player) continue;
       if (a.origin.kind === 'character' && a.roleId !== p.character) this.revoke(a.id);
     }
     if (role) {
-      w.setup.bag[player] = role;
+      w.setup.bag.set(player, role);
       p.self.character = role;
       p.self.alignment = roleDef(role).alignment;
       this.grant(
@@ -516,7 +519,7 @@ export class Run {
         },
       );
     } else {
-      delete w.setup.bag[player];
+      w.setup.bag.delete(player);
       p.self.character = null;
       p.self.alignment = p.alignment;
     }
@@ -595,7 +598,7 @@ export class Run {
 
   attemptKill(target: PlayerId, cause: string, source: Instance | null, o: KillOptions = {}): boolean {
     const r = this.reader;
-    const p = this.world.players[target];
+    const p = this.world.players.get(target);
     if (!p || !p.life.alive) {
       this.outcome(`${r.name(target)} is already dead`);
       return false;
@@ -649,7 +652,7 @@ export class Run {
 
   revive(player: PlayerId, reason: string): boolean {
     const r = this.reader;
-    const p = this.world.players[player];
+    const p = this.world.players.get(player);
     if (!p || p.life.alive) return false;
     p.life = { alive: true, diedAt: null, cause: null, ghostVoteUsed: false };
     for (const a of r.abilitiesOf(player)) a.survivesDeath = false;
@@ -721,7 +724,7 @@ export class Run {
   choiceOf(a: Instance): Choice | null {
     if (this.currentChoice.has(a.id)) return this.currentChoice.get(a.id) ?? null;
     if (a.holder.kind !== 'player' || !this.night) return null;
-    return this.night.submissions[a.holder.id]?.actions[a.id] ?? null;
+    return this.night.submissions.get(a.holder.id)?.actions[a.id] ?? null;
   }
 
   /** Whether this instance would wake right now; the same rule for the wake list and the walk. */
@@ -787,7 +790,7 @@ export class Run {
     const choice = def.flags.wakesOnNightDeath ? null : this.choiceOf(a);
     const row: ActorRow = {
       slot: def.name,
-      playerId: pid ?? ('storyteller' as PlayerId),
+      playerId: pid,
       roleId: a.roleId,
       input: this.describe(choice),
       impaired: false,
@@ -825,7 +828,7 @@ export class Run {
     if (!draft || a.holder.kind !== 'player') return false;
     const pid = a.holder.id;
     const key = `${a.id}:${again ? 'again' : 'late'}`;
-    const answer = this.night?.answers[key];
+    const answer = this.night?.answers.get(key);
     const spec = this.fullSpec(a, key, draft);
     this.questions.push({
       key,
@@ -846,7 +849,7 @@ export class Run {
   }
 
   private isGainedTonight(a: Instance): boolean {
-    return a.activeFrom.kind === 'night' && a.activeFrom.n === this.n && !this.start.abilities[a.id];
+    return a.activeFrom.kind === 'night' && a.activeFrom.n === this.n && !this.start.abilities.get(a.id);
   }
 
   /** The chosen players' abilities hear about it (the first to choose the Goon...). */
@@ -865,7 +868,7 @@ export class Run {
 
   /** Gives an ability a fresh start: unused, with its start information due again. */
   refresh(id: string) {
-    const a = this.world.abilities[id];
+    const a = this.world.abilities.get(id as AbilityId);
     if (!a) return;
     a.used = false;
     a.startInfoPending = !!roleDef(a.roleId).flags.startInfo;
@@ -889,7 +892,7 @@ export class Run {
   private endUnclaimed(def: RoleDef, actors: Instance[]) {
     const ended = this.world.conditions.filter((c) => {
       if (c.until !== 'source_acts_again' || c.source.kind !== 'ability') return false;
-      const src = this.world.abilities[c.source.id];
+      const src = this.world.abilities.get(c.source.id);
       return src?.roleId === def.id && !actors.includes(src);
     });
     for (const c of ended) {

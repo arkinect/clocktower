@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TRAVELLER } from '../helpers/plain';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'mayor', bo: 't1', cy: 'imp', di: 't2', ed: 'm1' };
 describe('Mayor', () => {
@@ -54,7 +55,7 @@ describe('Mayor', () => {
   it('wins with 3 alive and no execution', () => {
     const s = scene(cast).start().dawn();
     s.execute('bo').dusk().dawn();
-    s.g.st({ type: 'mark_alive', playerId: 'ed' as never, alive: false });
+    s.g.st({ type: 'mark_alive', playerId: pid('ed') as never, alive: false });
     s.execute(null).dusk();
     expect(s.winners()).toContain('good');
   });
@@ -63,7 +64,7 @@ describe('Mayor', () => {
       .start()
       .dawn();
     s.execute('bo').dusk().dawn();
-    s.g.st({ type: 'mark_alive', playerId: 'ed' as never, alive: false });
+    s.g.st({ type: 'mark_alive', playerId: pid('ed') as never, alive: false });
     s.execute(null).dusk();
     expect(s.alive('vi')).toBe(true);
     expect(s.winners()).toContain('good');

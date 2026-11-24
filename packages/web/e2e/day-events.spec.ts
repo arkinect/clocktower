@@ -1,6 +1,4 @@
-// A game with every day event on the Day tab at once, for a screenshot of the list.
-// It runs with the other specs as a check of the list. The pictures are written only when asked for:
-// SHOTS=1 npx playwright test day-events (after npm run build). They go to screenshots/.
+// A game with every day event on the Day tab at once.
 import { expect, test } from '@playwright/test';
 import { WebSocket } from 'ws';
 import { BASE, ScriptedPlayer, ScriptedStoryteller } from './client';
@@ -101,12 +99,8 @@ test('the Day tab with every day event', async ({ page }) => {
   for (const title of ['Virgin', 'Golem', 'Flowergirl', 'Cannibal']) {
     await expect(events.getByRole('heading', { name: new RegExp(`^${title}`) })).toBeVisible();
   }
-  const shot = async (name: string) => {
-    if (process.env['SHOTS']) await page.screenshot({ path: `../../screenshots/${name}.png`, fullPage: true });
-  };
-  await shot('day-events');
   // The same list at phone width.
   await page.setViewportSize({ width: 390, height: 844 });
-  await shot('day-events-phone');
+  await expect(events.getByRole('article')).toHaveCount(12);
   expect(problems).toEqual([]);
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { nameOf, pid } from '../helpers/game';
 
 describe('Balloonist', () => {
   it('adds an Outsider at setup', () => {
@@ -43,10 +44,10 @@ describe('Balloonist', () => {
     s.decide('balloonist', 'bo');
     expect(s.truth('ann')).toEqual(['bo']);
     s.nextNight();
-    expect(s.decision('balloonist').options.map((o) => o.id)).toEqual(['cy']);
+    expect(s.decision('balloonist').options.map((o) => o.id)).toEqual([pid('cy')]);
     expect(s.truth('ann')).toEqual(['cy']);
     s.nextNight();
-    expect(s.decision('balloonist').options.map((o) => o.id)).toEqual(['bo', 'di']);
+    expect(s.decision('balloonist').options.map((o) => o.id)).toEqual([pid('bo'), pid('di')]);
   });
   it('when impaired, the false name is picked with the result rather than as a decision', () => {
     const s = scene(
@@ -64,13 +65,13 @@ describe('Balloonist', () => {
     // Tomorrow's type differs from whoever the answer that went out named.
     s.g.st({ type: 'override_result', resultKey: row.key, lines: ['cy'] });
     s.nextNight();
-    expect(s.decision('balloonist').options.map((o) => o.id)).toEqual(['bo', 'di', 'ed']);
+    expect(s.decision('balloonist').options.map((o) => o.id)).toEqual([pid('bo'), pid('di'), pid('ed')]);
   });
   it("counts whoever babysits Lil' Monsta as the Demon, and the Minion who chooses as a Minion", () => {
     const cast = { ann: 'lil_monsta', bo: 'balloonist', cy: 't1', di: 't2', ed: 't3', fi: 't4', gu: 't5' };
     const s = scene(cast, { fields: { lil_monsta: { minion: 'baron' }, balloonist: { outsiders: '+0' } } }).start();
     const labels = () =>
-      Object.fromEntries(s.decision('balloonist').options.map((o) => [o.id, /\((.*)\)/.exec(o.label)?.[1]]));
+      Object.fromEntries(s.decision('balloonist').options.map((o) => [nameOf(o.id), /\((.*)\)/.exec(o.label)?.[1]]));
     const night = (sitter: string) =>
       s
         .nextNight()

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TRAVELLER } from '../helpers/plain';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'witch', bo: 't1', cy: 'd1', di: 't2', ed: 't3' };
 const cursed = () =>
@@ -21,7 +22,7 @@ describe('Witch', () => {
     expect(row()).toMatchObject({ control: 'toggle', preview: true, recorded: null, order: 70 });
     s.act('witch', 'apply_curse', ['bo']);
     expect(s.alive('bo')).toBe(false);
-    expect(row()?.recorded).toEqual(['bo']);
+    expect(row()?.recorded).toEqual([pid('bo')]);
     expect(s.act('witch', 'apply_curse', ['bo']).summary).toBe('Taken back: bo is cursed again and alive.');
     expect(s.alive('bo')).toBe(true);
     expect(row()?.recorded).toBeNull();
@@ -31,11 +32,11 @@ describe('Witch', () => {
   it('shows no switch for a cursed player who is dead, until they are revived', () => {
     const s = cursed();
     const row = () => s.dayActions().find((d) => d.roleId === 'witch');
-    const mark = (alive: boolean) => s.g.st({ type: 'mark_alive', playerId: 'bo' as never, alive });
+    const mark = (alive: boolean) => s.g.st({ type: 'mark_alive', playerId: pid('bo') as never, alive });
     mark(false);
     expect(row()).toBeUndefined();
     mark(true);
-    expect(row()?.fields[0]?.options).toEqual(['bo']);
+    expect(row()?.fields[0]?.options).toEqual([pid('bo')]);
     expect(s.act('witch', 'apply_curse', ['bo']).effective).toBe(true);
   });
   it('a recorded nomination alone does nothing', () => {
@@ -57,7 +58,7 @@ describe('Witch', () => {
   });
   it('stops waking with 3 players alive', () => {
     const s = scene(cast).start().dawn();
-    s.execute('bo').g.st({ type: 'mark_alive', playerId: 'di' as never, alive: false });
+    s.execute('bo').g.st({ type: 'mark_alive', playerId: pid('di') as never, alive: false });
     s.dusk();
     expect(s.specs('ann')).toEqual([]);
   });
@@ -65,7 +66,7 @@ describe('Witch', () => {
     const s = scene({ ...cast, vi: TRAVELLER[0] as string })
       .start()
       .dawn();
-    s.execute('bo').g.st({ type: 'mark_alive', playerId: 'di' as never, alive: false });
+    s.execute('bo').g.st({ type: 'mark_alive', playerId: pid('di') as never, alive: false });
     s.dusk();
     expect(s.state.seats.filter((x) => s.alive(x.playerId))).toHaveLength(4);
     expect(s.specs('ann')).toEqual([]);

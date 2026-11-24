@@ -18,7 +18,7 @@ function assign(ctx: Pick<CmdCtx<'setup'>, 's' | 'run'>, player: PlayerId, role:
   });
   if (!live) {
     // Nothing has happened yet, so an unassigned character leaves no trace.
-    for (const a of Object.values(ctx.s.abilities)) if (a.activeUntil === 'removed') delete ctx.s.abilities[a.id];
+    for (const a of [...ctx.s.abilities.values()]) if (a.activeUntil === 'removed') ctx.s.abilities.delete(a.id);
   }
   if (live && ctx.s.settings.notifyOnRoleChange && role) {
     const def = roleDef(role);
@@ -68,7 +68,7 @@ export const setupCommands = [
     by: 'storyteller',
     phases: setupish,
     handle(ctx, cmd) {
-      const ids = cmd.order.filter((id) => ctx.s.players[id] && id !== ctx.s.storytellerId);
+      const ids = cmd.order.filter((id) => ctx.s.players.has(id) && id !== ctx.s.storytellerId);
       need(new Set(ids).size === ids.length, 'Duplicate players in seating.');
       seatPlayers(ctx.s, ids);
     },
@@ -78,7 +78,7 @@ export const setupCommands = [
     by: 'storyteller',
     phases: setupish,
     handle(ctx) {
-      const ids = Object.keys(ctx.s.players).filter((id) => id !== ctx.s.storytellerId) as PlayerId[];
+      const ids = [...ctx.s.players.keys()].filter((id) => id !== ctx.s.storytellerId);
       seatPlayers(ctx.s, ctx.rng.shuffle(ids));
     },
   }),
@@ -152,7 +152,7 @@ export const setupCommands = [
     by: 'storyteller',
     phases: LIVE_PHASES,
     handle(ctx, cmd) {
-      const p = ctx.s.players[cmd.playerId];
+      const p = ctx.s.players.get(cmd.playerId);
       need(p?.character, 'Assign a character first.');
       // A Storyteller override during the game goes in the history. No guard may stop it, so not changeAlignment.
       if ((ctx.s.phase.kind === 'night' || ctx.s.phase.kind === 'day') && p.alignment !== cmd.alignment) {
@@ -181,7 +181,7 @@ export const setupCommands = [
       }
       ctx.run().setBelieved(cmd.playerId, cmd.roleId);
       if (ctx.s.phase.kind === 'setup') {
-        for (const a of Object.values(ctx.s.abilities)) if (a.activeUntil === 'removed') delete ctx.s.abilities[a.id];
+        for (const a of [...ctx.s.abilities.values()]) if (a.activeUntil === 'removed') ctx.s.abilities.delete(a.id);
       }
     },
   }),
@@ -226,7 +226,7 @@ export const setupCommands = [
     by: 'storyteller',
     phases: LIVE_PHASES,
     handle(ctx, cmd) {
-      const a = ctx.s.abilities[cmd.abilityId];
+      const a = ctx.s.abilities.get(cmd.abilityId);
       need(a, 'No such ability.');
       const field = roleDef(a.roleId).setupFields?.find((f) => f.field === cmd.field);
       need(field, 'That role has no such setup choice.');
@@ -252,7 +252,7 @@ export const setupCommands = [
     by: 'storyteller',
     phases: LIVE_PHASES,
     handle(ctx, cmd) {
-      const a = ctx.s.abilities[cmd.abilityId];
+      const a = ctx.s.abilities.get(cmd.abilityId);
       need(a, 'No such ability.');
       const field = roleDef(a.roleId).setupFields?.find((f) => f.field === cmd.field);
       need(field?.suggest, 'That choice has no suggestion.');
@@ -292,7 +292,7 @@ export const setupCommands = [
       // Published as it now stands, whatever the phones were shown during setup.
       ctx.s.seatingPublished = true;
       ctx.s.publishedSeating = ctx.r.seated;
-      for (const p of Object.values(ctx.s.players)) p.hasSeenRole = false;
+      for (const p of [...ctx.s.players.values()]) p.hasSeenRole = false;
       const run = ctx.run({ moment: { kind: 'night', n: 0 } });
       deliverEvilInfo(run);
       for (const a of run.reader.instances) {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { RolePreference } from '@ct/protocol';
+import type { PlayerId, RolePreference } from '@ct/protocol';
 import { api, type NameRow } from '../app/http';
 import { Button, Card, Segments } from '../ui/ui';
 import styles from './player.module.css';
@@ -108,7 +108,7 @@ export function Join({
     else setError(r.error ?? 'Something went wrong.');
   };
 
-  const rejoin = async (playerId: string) => {
+  const rejoin = async (playerId: PlayerId) => {
     const r = await api.rejoin(code, { playerId, ...secret });
     if (r.ok && r.data) onJoined(r.data.playerId);
     else setError(r.error ?? 'Something went wrong.');

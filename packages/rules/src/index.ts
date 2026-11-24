@@ -4,7 +4,14 @@ export { dispatch, replay, type DispatchResult, type Inputs, type LogEntry } fro
 export { createGame } from './model/create';
 export { NAME_MAX } from './phases/lobby';
 export { allCards, catalog, playerView, project, storytellerView } from './views/project';
-export { ENGINE_VERSION, GameState, type GameState as GameStateT, type Phase } from './model/state';
+export {
+  ENGINE_VERSION,
+  GameState,
+  loadState,
+  saveState,
+  type GameState as GameStateT,
+  type Phase,
+} from './model/state';
 export { defineRole, type RoleDef, type SetupRules } from './abilities/define';
 export { defineJinx } from './jinxes/define';
 export { allJinxes, allRoles, defaultScript, findRole, registerJinx, registerRole } from './abilities/registry';

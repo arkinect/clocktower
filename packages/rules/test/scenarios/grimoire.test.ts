@@ -1,26 +1,26 @@
 // What the Grimoire's seat sheet and game controls do to the game.
 import { describe, expect, it } from 'vitest';
-import type { PlayerId } from '@ct/protocol';
 import { defaultScript } from '../../src';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'imp', bo: 'poisoner', cy: 'empath', di: 't1', ed: 't2' };
 
 describe('the Storyteller changing alignment', () => {
   it('during the game, goes in the history', () => {
     const s = scene(cast).start().dawn();
-    s.g.st({ type: 'set_alignment', playerId: 'cy' as PlayerId, alignment: 'evil' });
+    s.g.st({ type: 'set_alignment', playerId: pid('cy'), alignment: 'evil' });
     expect(s.alignment('cy')).toBe('evil');
-    expect(s.g.player('cy' as PlayerId).history.filter((h) => h.kind === 'alignment')).toEqual([
+    expect(s.g.player(pid('cy')).history.filter((h) => h.kind === 'alignment')).toEqual([
       { kind: 'alignment', at: { kind: 'day', n: 1 }, from: 'good', to: 'evil', reason: 'Storyteller' },
     ]);
   });
 
   it('during setup, is a plain set', () => {
     const s = scene(cast);
-    s.g.st({ type: 'set_alignment', playerId: 'cy' as PlayerId, alignment: 'evil' });
+    s.g.st({ type: 'set_alignment', playerId: pid('cy'), alignment: 'evil' });
     expect(s.alignment('cy')).toBe('evil');
-    expect(s.g.player('cy' as PlayerId).history.filter((h) => h.kind === 'alignment')).toEqual([]);
+    expect(s.g.player(pid('cy')).history.filter((h) => h.kind === 'alignment')).toEqual([]);
   });
 });
 
@@ -32,12 +32,12 @@ describe('New game (erase)', () => {
     s.g.st({ type: 'new_game' });
     expect(s.state).toMatchObject({
       id,
-      players: {},
+      players: new Map(),
       storytellerId: null,
       phase: { kind: 'lobby' },
       seats: [],
       events: [],
-      abilities: {},
+      abilities: new Map(),
       conditions: [],
       script: defaultScript(),
     });
@@ -47,7 +47,7 @@ describe('New game (erase)', () => {
   it('lets the next person to join claim Storyteller', () => {
     const s = scene(cast).start().dawn();
     s.g.st({ type: 'new_game' });
-    s.g.as(null, { type: 'join', id: 'zed' as PlayerId, name: 'Zed', rolePreference: 'none', wantsStoryteller: true });
-    expect(s.state.storytellerId).toBe('zed');
+    s.g.as(null, { type: 'join', id: pid('zed'), name: 'Zed', rolePreference: 'none', wantsStoryteller: true });
+    expect(s.state.storytellerId).toBe(pid('zed'));
   });
 });

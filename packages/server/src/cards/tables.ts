@@ -25,6 +25,8 @@ export interface CardsHost {
   eligible(playerId: string): boolean;
   /** Null tells the phone it has no place at a table just now. */
   send(playerId: string, table: CardsView | null): void;
+  /** An error in a timer, which nobody is waiting on. */
+  failed(error: unknown): void;
 }
 
 export interface CardsTiming {
@@ -243,7 +245,13 @@ export class Tables {
   }
 
   private after(ms: number, run: () => void) {
-    const timer = setTimeout(run, ms);
+    const timer = setTimeout(() => {
+      try {
+        run();
+      } catch (e) {
+        this.host.failed(e);
+      }
+    }, ms);
     timer.unref();
     return timer;
   }

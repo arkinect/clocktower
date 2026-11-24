@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'devils_advocate', bo: 't1', cy: 'd1', di: 't2', ed: 't3' };
 const executions = (s: ReturnType<typeof scene>) =>
@@ -13,7 +14,7 @@ describe("Devil's Advocate", () => {
       .dawn();
     expect(s.g.grimoire().dayNotices).toContain('bo does not die if executed today.');
     s.dusk();
-    expect(s.specs('ann')[0]?.fields[0]?.options).not.toContain('bo');
+    expect(s.specs('ann')[0]?.fields[0]?.options).not.toContain(pid('bo'));
   });
 
   it('the marked player is executed at dusk and does not die', () => {
@@ -24,7 +25,7 @@ describe("Devil's Advocate", () => {
       .execute('bo')
       .dusk();
     expect(s.alive('bo')).toBe(true);
-    expect(executions(s)).toEqual([['bo', false]]);
+    expect(executions(s)).toEqual([[pid('bo'), false]]);
   });
 
   it('anyone else executed dies', () => {
@@ -35,7 +36,7 @@ describe("Devil's Advocate", () => {
       .execute('di')
       .dusk();
     expect(s.alive('di')).toBe(false);
-    expect(executions(s)).toEqual([['di', true]]);
+    expect(executions(s)).toEqual([[pid('di'), true]]);
   });
 
   it('protects only the day after the choice', () => {
@@ -59,6 +60,6 @@ describe("Devil's Advocate", () => {
       .execute('bo')
       .dusk();
     expect(s.alive('bo')).toBe(true);
-    expect(Object.values(s.state.abilities).find((a) => a.roleId === ('fool' as never))?.used).toBe(false);
+    expect([...s.state.abilities.values()].find((a) => a.roleId === ('fool' as never))?.used).toBe(false);
   });
 });

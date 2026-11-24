@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { CardsAction, CardsView } from './cards';
 import { Command } from './commands';
-import { RoleId, RolePreference } from './ids';
+import { PlayerId, RoleId, RolePreference } from './ids';
 import { View, RoleCard } from './views';
 
 export const PROTOCOL_VERSION = 1;
@@ -58,7 +58,7 @@ export const JoinRequest = z.strictObject({
 export type JoinRequest = z.infer<typeof JoinRequest>;
 
 export const RejoinRequest = z.strictObject({
-  playerId: z.string().min(1).max(64),
+  playerId: PlayerId,
   password: z.string().max(200).optional(),
 });
 export type RejoinRequest = z.infer<typeof RejoinRequest>;

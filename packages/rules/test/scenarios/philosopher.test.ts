@@ -2,14 +2,15 @@
 import { describe, expect, it } from 'vitest';
 import { as, open, row, shootAs, titles } from './lib';
 import { scene, ST, type Scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'philosopher', bo: 'imp', cy: 'poisoner', di: 'butler', ed: 'virgin' };
 const ONE_STEP = ['The Demon is 1 step from its nearest Minion.'];
 const result = (s: Scene, id: string, role: string) =>
-  s.res.results.find((r) => r.playerId === id && r.roleId === role);
+  s.res.results.find((r) => r.playerId === pid(id) && r.roleId === role);
 const gained = (s: Scene, id: string, role: string) =>
-  Object.values(s.state.abilities).some(
-    (a) => a.holder.kind === 'player' && a.holder.id === id && a.roleId === role && a.activeUntil !== 'removed',
+  [...s.state.abilities.values()].some(
+    (a) => a.holder.kind === 'player' && a.holder.id === pid(id) && a.roleId === role && a.activeUntil !== 'removed',
   );
 
 /** The Philosopher waits on night 0 and chooses on night 1, with the night's other choices given. */
@@ -41,7 +42,7 @@ describe('the Philosopher choosing', () => {
       .start()
       .submit({ ann: ['fortune_teller'] })
       .review();
-    expect(s.res.questions).toMatchObject([{ playerId: 'ann', roleId: 'fortune_teller', answered: false }]);
+    expect(s.res.questions).toMatchObject([{ playerId: pid('ann'), roleId: 'fortune_teller', answered: false }]);
     expect(row(s, 'ann', 'fortune_teller')?.outcome).toMatch(/^waiting/);
     expect(result(s, 'ann', 'fortune_teller')).toBeUndefined();
     expect(s.g.tryAs(ST, { type: 'publish_dawn', force: false }).ok).toBe(false);
@@ -57,7 +58,7 @@ describe('the Philosopher choosing', () => {
       .submit({ ann: ['sailor'] })
       .review();
     const key = s.res.questions[0]?.key as string;
-    s.g.st({ type: 'answer_question_for', key, choice: { values: ['di'] } });
+    s.g.st({ type: 'answer_question_for', key, choice: { values: [pid('di')] } });
     s.decide('sailor', 'di').dawn();
     expect(s.impaired('di')).toBe(true);
   });
@@ -81,7 +82,11 @@ describe('the Philosopher choosing', () => {
       .start()
       .submit({ ann: ['fortune_teller'] })
       .review();
-    s.g.st({ type: 'answer_question_for', key: s.res.questions[0]?.key as string, choice: { values: ['ed', 'di'] } });
+    s.g.st({
+      type: 'answer_question_for',
+      key: s.res.questions[0]?.key as string,
+      choice: { values: [pid('ed'), pid('di')] },
+    });
     expect(result(s, 'ann', 'fortune_teller')?.impaired).toBe(true);
     s.dawn();
     expect(s.alignment('ed')).toBe('good');
@@ -98,7 +103,7 @@ describe('the Philosopher choosing', () => {
       .submit({ ann: ['professor'], bo: ['fi'] })
       .review();
     expect(s.res.questions[0]?.roleId).toBe('professor');
-    expect(s.res.questions[0]?.spec.fields[0]?.options).toEqual(['ed']);
+    expect(s.res.questions[0]?.spec.fields[0]?.options).toEqual([pid('ed')]);
   });
 
   it('reopening collecting clears the late answers', () => {
@@ -106,7 +111,11 @@ describe('the Philosopher choosing', () => {
       .start()
       .submit({ ann: ['fortune_teller'] })
       .review();
-    s.g.st({ type: 'answer_question_for', key: s.res.questions[0]?.key as string, choice: { values: ['bo', 'di'] } });
+    s.g.st({
+      type: 'answer_question_for',
+      key: s.res.questions[0]?.key as string,
+      choice: { values: [pid('bo'), pid('di')] },
+    });
     s.g.st({ type: 'reopen_collecting' });
     s.review();
     expect(open(s)).toHaveLength(1);
@@ -238,7 +247,7 @@ describe('start information', () => {
     const s = choosesOnNight1('grandmother', { bo: ['ed'] }).decide('grandmother_grandchild', 'ed');
     expect(result(s, 'ann', 'grandmother')?.truth).toEqual(['Your grandchild is ed, the Virgin.']);
     expect(s.hasDecision('grandmother_link')).toBe(false);
-    expect(s.res.deaths).toEqual(['ed']);
+    expect(s.res.deaths).toEqual([pid('ed')]);
     s.nextNight();
     expect(s.hasDecision('grandmother_grandchild')).toBe(false);
     const t = choosesOnNight1('grandmother')
@@ -269,16 +278,16 @@ describe('players revived at night act later that night only with no input', () 
 
   it('an Empath gets a result that night', () => {
     const s = revives('empath');
-    expect(s.res.revived).toEqual(['bo']);
+    expect(s.res.revived).toEqual([pid('bo')]);
     expect(s.res.questions).toEqual([]);
     expect(result(s, 'bo', 'empath')).toBeDefined();
   });
 
   it('a Fortune Teller gets no question, publishing does not wait, and they act the next night', () => {
     const s = revives('fortune_teller');
-    expect(s.res.revived).toEqual(['bo']);
+    expect(s.res.revived).toEqual([pid('bo')]);
     expect(s.res.questions).toEqual([]);
-    expect(s.res.actors.some((a) => a.playerId === 'bo')).toBe(false);
+    expect(s.res.actors.some((a) => a.playerId === pid('bo'))).toBe(false);
     s.g.st({ type: 'publish_dawn', force: false });
     s.dusk().submit({ bo: ['cy', 'ed'] });
     expect(result(s, 'bo', 'fortune_teller')?.final[0]).toMatch(/Yes/);
@@ -286,9 +295,9 @@ describe('players revived at night act later that night only with no input', () 
 
   it('a Sailor whose slot has passed does not act', () => {
     const s = revives('sailor');
-    expect(s.res.revived).toEqual(['bo']);
+    expect(s.res.revived).toEqual([pid('bo')]);
     expect(s.res.questions).toEqual([]);
-    expect(s.res.actors.some((a) => a.playerId === 'bo')).toBe(false);
+    expect(s.res.actors.some((a) => a.playerId === pid('bo'))).toBe(false);
   });
 
   it('the Shabaloth regurgitates a Fortune Teller, who is asked nothing that night', () => {
@@ -307,7 +316,7 @@ describe('players revived at night act later that night only with no input', () 
       .nextNight()
       .submit({ ann: ['di', 'fi'] })
       .decide('shabaloth', 'bo');
-    expect(s.res.revived).toEqual(['bo']);
+    expect(s.res.revived).toEqual([pid('bo')]);
     expect(s.res.questions).toEqual([]);
   });
 });
@@ -364,7 +373,7 @@ describe('a gained day ability works on the day after choosing', () => {
     expect(s.act('witch', 'apply_curse', ['ann'], { mode: 'preview' }).effective).toBe(false);
     s.act('witch', 'apply_curse', ['ann']);
     expect(s.alive('ann')).toBe(true);
-    expect(s.state.abilities[s.ability('fool', 'ann')]?.used).toBe(true);
+    expect(s.state.abilities.get(s.ability('fool', 'ann'))?.used).toBe(true);
   });
 
   it('the chosen Tea Lady protects a good neighbour from the curse', () => {

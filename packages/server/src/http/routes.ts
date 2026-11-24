@@ -1,6 +1,6 @@
 // The HTTP surface. Requests with neither a session nor the right password stay cheap: they are refused from memory.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { JoinRequest, RejoinRequest, type ConfigResponse, type PlayerId } from '@ct/protocol';
+import { JoinRequest, RejoinRequest, type ConfigResponse } from '@ct/protocol';
 import { ENGINE_VERSION } from '@ct/rules';
 import { cookieHeader, passwordMatches, readCookie, type Sessions } from '../auth/sessions';
 import type { Config } from '../config';
@@ -114,7 +114,7 @@ export function registerRoutes(
     if (!passes(req, reply, body.data.password)) return reply;
     const game = games.ensure(req.params.code);
     if (!game) return reply.code(503).send({ ok: false, error: 'Too many games are running.' });
-    if (Object.keys(game.state.players).length >= limits.playersPerGame) {
+    if (game.state.players.size >= limits.playersPerGame) {
       return reply.code(409).send({ ok: false, error: 'This game is full.' });
     }
     const name = cleanName(body.data.name, limits.nameLength);
@@ -138,7 +138,7 @@ export function registerRoutes(
     if (!body.success) return reply.code(400).send({ ok: false, error: 'Bad request.' });
     if (!passes(req, reply, body.data.password)) return reply;
     const game = games.get(req.params.code);
-    if (!game || !game.state.players[body.data.playerId as PlayerId]) {
+    if (!game || !game.state.players.has(body.data.playerId)) {
       return reply.code(404).send({ ok: false, error: 'No such player.' });
     }
     setSession(reply, game.code, body.data.playerId);
@@ -171,7 +171,7 @@ export function registerRoutes(
       games: all.map((g) => ({
         code: g.code,
         phase: g.state.phase.kind,
-        players: Object.keys(g.state.players).length,
+        players: g.state.players.size,
       })),
     };
   });

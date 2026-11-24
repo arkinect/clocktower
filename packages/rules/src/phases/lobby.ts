@@ -14,7 +14,7 @@ export function cleanName(raw: string): string | null {
 }
 
 const nameTaken = (s: GameState, name: string, except?: PlayerId) =>
-  Object.values(s.players).some((p) => p.id !== except && p.name.toLowerCase() === name.toLowerCase());
+  [...s.players.values()].some((p) => p.id !== except && p.name.toLowerCase() === name.toLowerCase());
 
 export function newPlayer(id: PlayerId, name: string, rolePreference: Player['rolePreference'], now: number): Player {
   return {
@@ -47,8 +47,8 @@ export const lobbyCommands = [
       const name = cleanName(cmd.name);
       need(name, `Enter a name of 1 to ${NAME_MAX} characters.`);
       need(!nameTaken(ctx.s, name), 'That name is already taken. If it is you, use "I\'m already in this game".');
-      need(!ctx.s.players[cmd.id], 'That player already exists.');
-      ctx.s.players[cmd.id] = newPlayer(cmd.id, name, cmd.rolePreference, ctx.now);
+      need(!ctx.s.players.has(cmd.id), 'That player already exists.');
+      ctx.s.players.set(cmd.id, newPlayer(cmd.id, name, cmd.rolePreference, ctx.now));
       if (cmd.wantsStoryteller && !ctx.s.storytellerId) ctx.s.storytellerId = cmd.id;
       // Opening setup seats everyone in the lobby. Someone who joins after that takes the next seat, as they would
       // have then: the console has no other way to seat one player. Once the game has started, a joiner only watches.
@@ -74,7 +74,7 @@ export const lobbyCommands = [
     by: 'storyteller',
     phases: inSetup,
     handle(ctx, cmd) {
-      const p = ctx.s.players[cmd.playerId];
+      const p = ctx.s.players.get(cmd.playerId);
       const name = cleanName(cmd.name);
       need(p && name, 'Invalid name.');
       need(!nameTaken(ctx.s, name, p.id), 'That name is taken.');
@@ -87,16 +87,14 @@ export const lobbyCommands = [
     phases: inSetup,
     handle(ctx, cmd) {
       need(cmd.playerId !== ctx.s.storytellerId, 'The Storyteller cannot be removed.');
-      need(ctx.s.players[cmd.playerId], 'No such player.');
+      need(ctx.s.players.has(cmd.playerId), 'No such player.');
       const run = ctx.run();
       for (const a of ctx.r.abilitiesOf(cmd.playerId)) run.revoke(a.id);
-      delete ctx.s.players[cmd.playerId];
-      delete ctx.s.inbox[cmd.playerId];
-      delete ctx.s.setup.bag[cmd.playerId];
-      ctx.s.abilities = Object.fromEntries(
-        Object.entries(ctx.s.abilities).filter(
-          ([, a]) => !(a.holder.kind === 'player' && a.holder.id === cmd.playerId),
-        ),
+      ctx.s.players.delete(cmd.playerId);
+      ctx.s.inbox.delete(cmd.playerId);
+      ctx.s.setup.bag.delete(cmd.playerId);
+      ctx.s.abilities = new Map(
+        [...ctx.s.abilities.entries()].filter(([, a]) => !(a.holder.kind === 'player' && a.holder.id === cmd.playerId)),
       );
       ctx.s.conditions = ctx.s.conditions.filter((c) => c.target !== cmd.playerId);
       ctx.s.seats = ctx.s.seats.filter((x) => x.playerId !== cmd.playerId);
@@ -109,7 +107,7 @@ export const lobbyCommands = [
     handle(ctx) {
       ctx.s.phase = { kind: 'setup' };
       const seated = ctx.r.seated;
-      const rest = Object.values(ctx.s.players)
+      const rest = [...ctx.s.players.values()]
         .filter((p) => p.id !== ctx.s.storytellerId && !seated.includes(p.id))
         .sort((a, b) => a.joinedAt - b.joinedAt)
         .map((p) => p.id);

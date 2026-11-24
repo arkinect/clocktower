@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RoleId } from '@ct/protocol';
-import { replay } from '../../src';
+import { replay, saveState } from '../../src';
 import { begin, cast, dawn, dusk, pid, ST, TestGame, seated } from '../helpers/game';
 import { DEMON, MINION, OUT, TOWN } from '../helpers/plain';
 
@@ -68,7 +68,7 @@ describe('a five-player game with ability-less characters', () => {
     expect(g.state.phase).toMatchObject({ kind: 'ended', winner: 'good' });
 
     expect(replay(g.code, g.createdAt, g.log)).toEqual(g.state);
-    expect(JSON.stringify(replay(g.code, g.createdAt, g.log))).toBe(JSON.stringify(g.state));
+    expect(saveState(replay(g.code, g.createdAt, g.log))).toBe(saveState(g.state));
   });
 
   it('play again keeps the players and starts fresh', () => {
@@ -77,10 +77,10 @@ describe('a five-player game with ability-less characters', () => {
     g.st({ type: 'end_game', winner: 'evil' });
     g.st({ type: 'play_again' });
     expect(g.state.phase).toEqual({ kind: 'setup' });
-    expect(Object.keys(g.state.players)).toHaveLength(6);
+    expect([...g.state.players.keys()]).toHaveLength(6);
     expect(g.state.events).toEqual([]);
     expect(g.player(pid('Ann')).character).toBeNull();
-    expect(g.state.abilities).toEqual({});
+    expect(g.state.abilities).toEqual(new Map());
     expect(g.state.seats).toHaveLength(5);
   });
 });

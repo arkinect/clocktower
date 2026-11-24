@@ -1,18 +1,18 @@
 // An execution is a choice during the day. It happens at dusk (Start Night), to whoever was chosen last, and then
 // triggers what it triggers for other characters (Cannibal, Mastermind, Mayor).
 import { describe, expect, it } from 'vitest';
-import type { PlayerId } from '@ct/protocol';
 import { scene, type Scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const eaten = (s: Scene) =>
-  Object.values(s.state.abilities)
-    .filter((a) => a.holder.kind === 'player' && a.holder.id === 'ann' && a.origin.kind !== 'character')
+  [...s.state.abilities.values()]
+    .filter((a) => a.holder.kind === 'player' && a.holder.id === pid('ann') && a.origin.kind !== 'character')
     .filter((a) => a.activeUntil !== 'removed')
     .map((a) => a.roleId as string);
 const extraDay = (s: Scene) =>
-  (s.state.abilities[s.ability('mastermind')]?.state as { extraDay: number | null }).extraDay;
+  (s.state.abilities.get(s.ability('mastermind'))?.state as { extraDay: number | null }).extraDay;
 const executions = (s: Scene) => s.state.events.filter((e) => e.kind === 'execution');
-const life = (s: Scene, id: string) => s.g.player(id as PlayerId).life;
+const life = (s: Scene, id: string) => s.g.player(pid(id)).life;
 
 describe('execution at dusk', () => {
   const cast = { ann: 'cannibal', bo: 'empath', cy: 'imp', di: 'mastermind', ed: 'oracle', fi: 't3' };
@@ -23,7 +23,7 @@ describe('execution at dusk', () => {
     expect(eaten(s)).toEqual([]);
     s.dusk();
     expect(life(s, 'bo')).toMatchObject({ alive: false, cause: 'execution', diedAt: { kind: 'day', n: 1 } });
-    expect(executions(s)).toMatchObject([{ playerId: 'bo', died: true }]);
+    expect(executions(s)).toMatchObject([{ playerId: pid('bo'), died: true }]);
     expect(eaten(s)).toEqual(['empath']);
   });
 
@@ -45,14 +45,14 @@ describe('execution at dusk', () => {
   it('executed without dying, by the Storyteller: nothing is eaten', () => {
     const s = scene(cast).start().dawn().execute('bo', false).dusk();
     expect(s.alive('bo')).toBe(true);
-    expect(executions(s)).toMatchObject([{ playerId: 'bo', died: false }]);
+    expect(executions(s)).toMatchObject([{ playerId: pid('bo'), died: false }]);
     expect(eaten(s)).toEqual([]);
   });
 
   it('a chosen player who dies another way first: the execution kills nobody', () => {
     const s = scene(cast).start().dawn().execute('bo').kill('bo').dusk();
     expect(life(s, 'bo').cause).toBe('storyteller');
-    expect(executions(s)).toMatchObject([{ playerId: 'bo', died: false }]);
+    expect(executions(s)).toMatchObject([{ playerId: pid('bo'), died: false }]);
     expect(eaten(s)).toEqual([]);
   });
 

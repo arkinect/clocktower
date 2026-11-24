@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GameState, replay } from '../../src';
+import { loadState, replay, saveState } from '../../src';
 import { assertHidden } from '../helpers/hidden';
 import { fuzzGame, seatedIds } from '../helpers/fuzz';
 import { PLAIN_SCRIPT } from '../helpers/plain';
@@ -21,7 +21,7 @@ describe('fuzz', () => {
         reached.add(p.kind === 'day' && p.n > 1 ? 'later day' : p.kind);
         if (accepted % 7 === 0) assertHidden(g);
       });
-      expect(GameState.safeParse(game.state).success).toBe(true);
+      expect(loadState(saveState(game.state)).state).toEqual(game.state);
       expect(seatedIds(game.state).length).toBeLessThanOrEqual(15);
     }
     expect(accepted).toBeGreaterThan(games * 40);
@@ -31,7 +31,7 @@ describe('fuzz', () => {
   it('replaying the command log reproduces the state byte for byte', () => {
     for (let seed = 1; seed <= 50; seed++) {
       const { game } = fuzzGame(seed, 200, PLAIN_SCRIPT, () => undefined);
-      expect(JSON.stringify(replay(game.code, game.createdAt, game.log))).toBe(JSON.stringify(game.state));
+      expect(saveState(replay(game.code, game.createdAt, game.log))).toBe(saveState(game.state));
     }
   });
 });

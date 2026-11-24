@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'flowergirl', bo: 't1', cy: 'd1', di: 't2', ed: 'm1' };
 describe('Flowergirl', () => {
@@ -40,7 +41,7 @@ describe('Flowergirl', () => {
     expect(d).toMatchObject({ required: true, chosen: null, title: 'Flowergirl: did a Demon vote on Day 1?' });
     s.g.st({ type: 'accept_all_defaults' });
     expect(s.decision('flowergirl_voted').chosen).toBeNull();
-    expect(s.g.rejected('st' as never, { type: 'publish_dawn', force: false })).toBe(
+    expect(s.g.rejected(pid('st'), { type: 'publish_dawn', force: false })).toBe(
       'Waiting for a decision: Flowergirl: did a Demon vote on Day 1? Answer it or force.',
     );
     s.decide('flowergirl_voted', 'yes');
@@ -63,8 +64,8 @@ describe('Flowergirl', () => {
       .submit({ cy: ['cy'] })
       .dawn();
     expect(row()?.prompt).toBe('Did cy or ed vote today?');
-    s.g.st({ type: 'mark_alive', playerId: 'ed' as never, alive: false });
-    s.g.st({ type: 'assign_character', playerId: 'di' as never, roleId: 'imp' as never });
+    s.g.st({ type: 'mark_alive', playerId: pid('ed') as never, alive: false });
+    s.g.st({ type: 'assign_character', playerId: pid('di') as never, roleId: 'imp' as never });
     expect(row()?.prompt).toBe('Did cy, di or ed vote today?');
   });
   it('does not act on Night 0', () => {

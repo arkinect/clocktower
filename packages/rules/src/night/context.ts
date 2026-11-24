@@ -1,6 +1,6 @@
 // The context a hook receives, scoped to one ability instance. It exposes no raw state mutation: every change goes
 // through the Run, which keeps impairment, histories and logs right.
-import type { Alignment, CharacterType, PlayerId, RoleId } from '@ct/protocol';
+import type { AbilityId, Alignment, CharacterType, PlayerId, RoleId } from '@ct/protocol';
 import { Reader } from '../derive/reader';
 import type { AbilityInstance, Condition, ConditionType } from '../model/state';
 import type { ConditionOptions, DecideInput, Registration, RegistrationQuery, SpecDraft } from '../abilities/define';
@@ -162,7 +162,7 @@ export class AbilityCtx<S> extends HookCtx<S> {
 
   /** Every instance of this role there has ever been, for a fact the role shares across holders. */
   get peers(): AbilityInstance<S>[] {
-    return Object.values(this.w.abilities).filter((a) => a.roleId === this.ability.roleId) as AbilityInstance<S>[];
+    return [...this.w.abilities.values()].filter((a) => a.roleId === this.ability.roleId) as AbilityInstance<S>[];
   }
 
   /** Lets a day action appear once, however many holders the role has. */
@@ -177,7 +177,7 @@ export class AbilityCtx<S> extends HookCtx<S> {
   }
 
   /** Alive at the start of the night. */
-  aliveAtDusk = (id: PlayerId): boolean => !!this.run.start.players[id]?.life.alive;
+  aliveAtDusk = (id: PlayerId): boolean => !!this.run.start.players.get(id)?.life.alive;
 
   /** How someone died tonight, if they did. */
   deathCauseTonight = (id: PlayerId): string | null => this.run.deathCause[id] ?? null;
@@ -221,7 +221,7 @@ export class AbilityCtx<S> extends HookCtx<S> {
 
   /** The other ability instance by id. */
   instance(id: string): AbilityInstance | undefined {
-    return this.w.abilities[id];
+    return this.w.abilities.get(id as AbilityId);
   }
 
   /** Learned the moment an ability gives nothing back. */
@@ -399,7 +399,7 @@ export class AbilityCtx<S> extends HookCtx<S> {
 
   /** A dead player gets their vote token back. */
   restoreGhostVote(player: PlayerId) {
-    const p = this.w.players[player];
+    const p = this.w.players.get(player);
     if (p) p.life.ghostVoteUsed = false;
   }
 

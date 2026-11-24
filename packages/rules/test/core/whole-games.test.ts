@@ -20,7 +20,7 @@ function setUp(rng: Rng, count: number) {
   g.st({ type: 'randomise_seating' });
   g.st({ type: 'suggest_distribution' });
   for (const [id, roles] of Object.entries(g.grimoire().setup.believedOptions)) {
-    const role = roles.find((r) => !Object.values(g.state.setup.bag).includes(r));
+    const role = roles.find((r) => ![...g.state.setup.bag.values()].includes(r));
     if (role) g.st({ type: 'set_believed', playerId: id as PlayerId, roleId: role });
   }
   for (const f of g.grimoire().setup.fields) {

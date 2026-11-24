@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { PlayerId } from '@ct/protocol';
 import { TRAVELLER } from '../helpers/plain';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'imp', bo: 'scarlet_woman', cy: 't1', di: 't2', ed: 't3', fi: 't4' };
 const mastermind = (s: ReturnType<typeof scene>) =>
-  (s.state.abilities[s.ability('mastermind')]?.state as { extraDay: number | null }).extraDay;
+  (s.state.abilities.get(s.ability('mastermind'))?.state as { extraDay: number | null }).extraDay;
 
 describe('Scarlet Woman', () => {
   it('takes over at Start Night when the Demon is executed with 5 or more alive, with nothing to confirm', () => {
@@ -28,7 +28,7 @@ describe('Scarlet Woman', () => {
   it('not when she is poisoned at Start Night', () => {
     const s = scene(cast).start().dawn();
     s.execute('ann');
-    s.g.st({ type: 'add_condition', target: 'bo' as PlayerId, condition: 'poisoned' });
+    s.g.st({ type: 'add_condition', target: pid('bo'), condition: 'poisoned' });
     s.dusk();
     expect(s.character('bo')).toBe('scarlet_woman');
   });
@@ -46,7 +46,7 @@ describe('Scarlet Woman', () => {
   });
   it('the Demon marked dead with the Dead button: the same handover at Start Night', () => {
     const s = scene(cast).start().dawn();
-    s.g.st({ type: 'mark_alive', playerId: 'ann' as PlayerId, alive: false });
+    s.g.st({ type: 'mark_alive', playerId: pid('ann'), alive: false });
     s.dusk();
     expect(s.character('bo')).toBe('imp');
   });

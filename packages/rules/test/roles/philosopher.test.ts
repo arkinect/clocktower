@@ -39,7 +39,7 @@ describe('Philosopher', () => {
       .nextNight();
     s.submit({ ann: ['empath'], ed: ['ann'] }).dawn();
     expect(s.impaired('bo')).toBe(false);
-    expect(s.state.abilities[s.ability('philosopher')]?.used).toBe(true);
+    expect(s.state.abilities.get(s.ability('philosopher'))?.used).toBe(true);
   });
   it('offers only good characters, and not itself', () => {
     const options = scene(cast).start().specs('ann')[0]?.fields[0]?.options ?? [];

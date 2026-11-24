@@ -3,15 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { roleId } from '@ct/protocol';
 import { as, open, titles } from './lib';
 import { scene, ST, type Scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'farmer', bo: 'imp', cy: 'poisoner', di: 'empath', ed: 'sailor', fi: 'butler' };
 const night1 = (chars: Record<string, string> = cast, o?: Parameters<typeof scene>[1]) =>
   scene(chars, o).start().nextNight();
-const farmers = (s: Scene) => Object.values(s.state.players).filter((p) => p.character === 'farmer');
+const farmers = (s: Scene) => [...s.state.players.values()].filter((p) => p.character === 'farmer');
 /** Only play can make a second Farmer, so a test that needs one writes it in. */
 const alsoFarmer = (s: Scene, ...ids: string[]) => {
-  const players = { ...s.state.players };
-  for (const id of ids) players[as(id)] = { ...s.g.player(as(id)), character: roleId('farmer') };
+  const players = new Map(s.state.players);
+  for (const id of ids) players.set(as(id), { ...s.g.player(as(id)), character: roleId('farmer') });
   s.g.state = { ...s.state, players };
 };
 const farmerRow = (s: Scene) => s.res.actors.find((a) => a.roleId === 'farmer');
@@ -21,10 +22,10 @@ describe('the Farmer', () => {
     const s = night1();
     expect(s.specs('ann')).toEqual([]);
     s.submit({ bo: ['ann'] }).review();
-    expect(s.res.deaths).toEqual(['ann']);
+    expect(s.res.deaths).toEqual([pid('ann')]);
     const pick = s.decision('farmer');
-    expect(pick.options.map((o) => o.id)).toEqual(['di', 'ed', 'fi', 'nobody']);
-    expect(['di', 'ed', 'fi']).toContain(pick.default);
+    expect(pick.options.map((o) => o.id)).toEqual([pid('di'), pid('ed'), pid('fi'), 'nobody']);
+    expect([pid('di'), pid('ed'), pid('fi')]).toContain(pick.default);
     s.decide('farmer', 'fi').dawn();
     expect(s.character('fi')).toBe('farmer');
     expect(s.alignment('fi')).toBe('good');
@@ -36,7 +37,7 @@ describe('the Farmer', () => {
     const s = night1()
       .submit({ bo: ['ann'], fi: ['di'] })
       .decide('farmer', 'fi');
-    expect(s.res.actors.some((a) => a.playerId === 'fi' && a.roleId === 'butler')).toBe(false);
+    expect(s.res.actors.some((a) => a.playerId === pid('fi') && a.roleId === 'butler')).toBe(false);
   });
 
   it('with only Farmers left among the good, the default is nobody', () => {
@@ -53,7 +54,7 @@ describe('the Farmer', () => {
       s.g.seed = seed * 13;
       s.dusk();
       s.submit({ bo: ['ann'] }).review();
-      expect(s.decision('farmer').default).toBe('di');
+      expect(s.decision('farmer').default).toBe(pid('di'));
     }
   });
 
@@ -80,7 +81,7 @@ describe('the Farmer', () => {
     expect(farmerRow(s)?.impaired).toBe(true);
     expect(farmerRow(s)?.outcome).toContain('drunk or poisoned when they died: nobody becomes a Farmer');
     expect(s.res.malfunctions).toContainEqual(
-      expect.objectContaining({ playerId: 'ann', detail: 'Farmer ability impaired' }),
+      expect.objectContaining({ playerId: pid('ann'), detail: 'Farmer ability impaired' }),
     );
   });
 
@@ -109,10 +110,10 @@ describe('the Farmer', () => {
 
     it('the Moonchild kills the Farmer: the same decision, once the night order has finished', () => {
       const s = moon(rest, 'di').review();
-      expect(s.res.deaths).toEqual(['di']);
+      expect(s.res.deaths).toEqual([pid('di')]);
       const pick = s.decision('farmer');
-      expect(pick.options.map((o) => o.id)).toEqual(['ed', 'fi', 'nobody']);
-      expect(['ed', 'fi']).toContain(pick.default);
+      expect(pick.options.map((o) => o.id)).toEqual([pid('ed'), pid('fi'), 'nobody']);
+      expect([pid('ed'), pid('fi')]).toContain(pick.default);
       const rows = s.res.actors.filter((a) => a.roleId === 'farmer');
       expect(rows).toHaveLength(1);
       expect(s.res.actors.at(-1)).toEqual(rows[0]);
@@ -133,17 +134,17 @@ describe('the Farmer', () => {
       const s = moon(rest, 'ed')
         .submit({ bo: ['di'] })
         .decide('farmer', 'ed');
-      const next = s.res.decisions.find((d) => d.key.kind === 'farmer' && d.key.subject !== 'di');
+      const next = s.res.decisions.find((d) => d.key.kind === 'farmer' && d.key.subject !== pid('di'));
       expect(next).toBeDefined();
-      s.g.st({ type: 'decide', key: next?.key as never, option: 'fi' });
-      expect(s.res.deaths).toEqual(['di', 'ed']);
+      s.g.st({ type: 'decide', key: next?.key as never, option: pid('fi') });
+      expect(s.res.deaths).toEqual([pid('di'), pid('ed')]);
       s.dawn();
       expect(s.character('fi')).toBe('farmer');
     });
 
     it('a Drunk who thinks they are the Farmer gets nothing after the order', () => {
       const s = moon({ di: 'drunk', ed: 'empath', fi: 'sailor' }, 'di', { believed: { di: 'farmer' } }).review();
-      expect(s.res.deaths).toEqual(['di']);
+      expect(s.res.deaths).toEqual([pid('di')]);
       expect(s.hasDecision('farmer')).toBe(false);
     });
   });
@@ -168,7 +169,7 @@ describe('the Pukka poison', () => {
   it('Pukka executed: the poison outlasts the day, ends at their slot, and the target does not die', () => {
     // The Scarlet Woman is poisoned at dusk, so she doesn't take over.
     const s = poisoned().execute('ann');
-    s.g.st({ type: 'add_condition', target: 'bo' as never, condition: 'poisoned' });
+    s.g.st({ type: 'add_condition', target: pid('bo') as never, condition: 'poisoned' });
     expect(s.impaired('cy')).toBe(true);
     s.dusk().review();
     expect(s.res.deaths).toEqual([]);
@@ -194,7 +195,7 @@ describe('the Pukka poison', () => {
       .dusk()
       .submit({ ann: ['di'] })
       .review();
-    expect(s.res.deaths).toEqual(['cy']);
+    expect(s.res.deaths).toEqual([pid('cy')]);
     s.dawn();
     expect(s.impaired('di')).toBe(true);
   });
@@ -244,7 +245,7 @@ describe('follow-up questions', () => {
 
   it('records the question and keeps the deadline', () => {
     const s = dying();
-    expect(s.res.questions[0]).toMatchObject({ playerId: 'ann', roleId: 'ravenkeeper', answered: false });
+    expect(s.res.questions[0]).toMatchObject({ playerId: pid('ann'), roleId: 'ravenkeeper', answered: false });
     expect(s.night.deadline).not.toBeNull();
   });
 
@@ -265,7 +266,7 @@ describe('follow-up questions', () => {
 
   it('the Storyteller can answer for the player', () => {
     const s = dying();
-    s.g.st({ type: 'answer_question_for', key: s.res.questions[0]?.key as string, choice: { values: ['bo'] } });
+    s.g.st({ type: 'answer_question_for', key: s.res.questions[0]?.key as string, choice: { values: [pid('bo')] } });
     expect(s.truth('ann')[0]).toMatch(/Imp/);
   });
 
@@ -273,7 +274,7 @@ describe('follow-up questions', () => {
     const s = dying();
     const key = s.res.questions[0]?.key as string;
     const send = (id: string, k: string, v: string) =>
-      s.g.tryAs(as(id), { type: 'answer_question', key: k, choice: { values: [v] } }).ok;
+      s.g.tryAs(as(id), { type: 'answer_question', key: k, choice: { values: [s.value(v)] } }).ok;
     expect(send('cy', key, 'bo')).toBe(false);
     expect(send('ann', key, 'nobody')).toBe(false);
     expect(send('ann', 'no-such-question', 'bo')).toBe(false);

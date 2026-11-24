@@ -34,7 +34,7 @@ export function randomActions(s: GameStateT, id: PlayerId, rng: Rng) {
 export function generators(g: TestGame, script: readonly RoleId[], rng: Rng): [PlayerId | null, Command][] {
   const s = g.state;
   const ids = seatedIds(s);
-  const anyone = (Object.keys(s.players) as PlayerId[]).filter((id) => id !== ST);
+  const anyone = [...s.players.keys()].filter((id) => id !== ST);
   const p = () => rng.pick(ids.length ? ids : anyone.length ? anyone : [ST]);
   const out: [PlayerId | null, Command][] = [];
   const st = (c: Command) => out.push([ST, c]);
@@ -64,7 +64,7 @@ export function generators(g: TestGame, script: readonly RoleId[], rng: Rng): [P
     const ph = s.phase as Extract<GameStateT['phase'], { kind: 'night' }>;
     st({ type: 'open_collecting' });
     for (const id of ids) {
-      if (!ph.submissions[id]) out.push([id, { type: 'submit_night', actions: randomActions(s, id, rng) }]);
+      if (!ph.submissions.get(id)) out.push([id, { type: 'submit_night', actions: randomActions(s, id, rng) }]);
     }
     st({ type: 'mark_no_action', playerId: p() });
     st({ type: 'close_collecting', force: rng.next() < 0.5 });
@@ -115,7 +115,7 @@ export function fuzzGame(
     const [actor, command] = rng.pick(generators(g, script, rng));
     const res = g.tryAs(actor, command);
     if (res.ok) check(g, command);
-    else if (res.internal) throw new Error(`seed ${seed} step ${i} ${command.type}: ${res.error}`);
+    else if (res.internal) throw new Error(`seed ${seed} step ${i} ${command.type}`, { cause: res.cause });
     else rejected += 1;
   }
   return { game: g, rejected };

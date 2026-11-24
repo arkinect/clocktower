@@ -91,7 +91,7 @@ export const dayCommands = [
     by: 'player',
     phases: ALL_PHASES,
     handle(ctx) {
-      ctx.s.players[ctx.actor as PlayerId]!.hasSeenRole = true;
+      ctx.s.players.get(ctx.actor as PlayerId)!.hasSeenRole = true;
       ctx.keepResolution();
     },
   }),
@@ -100,7 +100,7 @@ export const dayCommands = [
     by: 'player',
     phases: ['night', 'day'],
     handle(ctx) {
-      const me = ctx.s.players[ctx.actor as PlayerId]!;
+      const me = ctx.s.players.get(ctx.actor as PlayerId)!;
       need(ctx.r.isSeated(me.id) && !me.life.alive, 'Only dead players have a ghost vote.');
       me.life.ghostVoteUsed = true;
       ctx.keepResolution();
@@ -111,7 +111,7 @@ export const dayCommands = [
     by: 'storyteller',
     phases: ['night', 'day'],
     handle(ctx, cmd) {
-      const p = ctx.s.players[cmd.playerId];
+      const p = ctx.s.players.get(cmd.playerId);
       need(p && ctx.r.isSeated(cmd.playerId), 'Not a seated player.');
       need(!p.life.alive, 'Only dead players have a ghost vote to use.');
       p.life.ghostVoteUsed = cmd.used;
@@ -219,7 +219,7 @@ export const dayCommands = [
       const preview = cmd.mode === 'preview';
       const world = preview ? clone(ctx.s) : ctx.s;
       const run = ctx.run({ world, ...(cmd.decisions ? { decisions: cmd.decisions } : {}) });
-      const a = world.abilities[cmd.abilityId];
+      const a = world.abilities.get(cmd.abilityId);
       need(a && run.reader.isActive(a), 'That ability is not in play.');
       const hook = roleDef(a.roleId).ability.applyDayAction;
       const spec = dayActionsOf(run, a).find((d) => d.action === cmd.action);
@@ -250,7 +250,7 @@ export const dayCommands = [
         'That option is not available.',
       );
       ctx.s.prompts = ctx.s.prompts.filter((x) => x.id !== cmd.id);
-      const a = ctx.s.abilities[q.ability];
+      const a = ctx.s.abilities.get(q.ability);
       if (!a) return;
       const run = ctx.run();
       roleDef(a.roleId).ability.onPrompt?.(run.ctx(a), q.kind, q.subject, cmd.option);
@@ -262,7 +262,7 @@ export const dayCommands = [
     by: 'storyteller',
     phases: ['night', 'day'],
     handle(ctx, cmd) {
-      const a = ctx.s.abilities[cmd.abilityId];
+      const a = ctx.s.abilities.get(cmd.abilityId);
       need(a, 'No such ability.');
       a.used = cmd.used;
     },
@@ -300,7 +300,7 @@ export const dayCommands = [
     by: 'storyteller',
     phases: ['setup', 'night', 'day'],
     handle(ctx, cmd) {
-      const p = ctx.s.players[cmd.playerId];
+      const p = ctx.s.players.get(cmd.playerId);
       need(p, 'No such player.');
       need(cmd.playerId !== ctx.s.storytellerId, 'The Storyteller cannot be a Traveller.');
       need(!ctx.r.isSeated(cmd.playerId), 'That player is already seated.');
@@ -326,7 +326,7 @@ export const dayCommands = [
     phases: ['day'],
     handle(ctx, cmd) {
       need(ctx.r.typeOf(cmd.playerId) === 'traveller', 'Only a Traveller can be exiled.');
-      const p = ctx.s.players[cmd.playerId]!;
+      const p = ctx.s.players.get(cmd.playerId)!;
       p.removal = { kind: 'exiled', at: ctx.moment };
       ctx.s.events.push({ kind: 'exile', at: ctx.moment, playerId: cmd.playerId });
       const run = ctx.run();
@@ -341,7 +341,7 @@ export const dayCommands = [
     phases: ['setup', 'night', 'day'],
     handle(ctx, cmd) {
       need(ctx.r.typeOf(cmd.playerId) === 'traveller', 'Only a Traveller can leave.');
-      const p = ctx.s.players[cmd.playerId]!;
+      const p = ctx.s.players.get(cmd.playerId)!;
       p.removal = { kind: 'left', at: ctx.moment };
       const seat = ctx.s.seats.find((x) => x.playerId === cmd.playerId && x.left === null);
       if (seat) seat.left = ctx.moment;
@@ -394,8 +394,8 @@ export const dayCommands = [
       next.seatingPublished = s.seatingPublished;
       next.publishedSeating = s.publishedSeating.filter((id) => s.seats.some((x) => x.playerId === id && !x.left));
       next.seats = s.seats.filter((x) => x.left === null && ctx.r.typeOf(x.playerId) !== 'traveller');
-      for (const [id, p] of Object.entries(s.players)) {
-        next.players[id] = {
+      for (const [id, p] of [...s.players.entries()]) {
+        next.players.set(id, {
           ...p,
           hasSeenRole: false,
           life: { alive: true, diedAt: null, cause: null, ghostVoteUsed: false },
@@ -404,7 +404,7 @@ export const dayCommands = [
           alignment: 'good',
           self: { character: null, alignment: 'good' },
           history: [],
-        };
+        });
       }
       next.phase = { kind: 'setup' };
       Object.assign(s, next);

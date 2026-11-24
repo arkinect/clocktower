@@ -20,7 +20,7 @@ export const mathematician = defineRole({
         if (!r) return false;
         const def = ctx.role(r);
         if (def.believes) {
-          const told = ctx.w.setup.bag[id];
+          const told = ctx.w.setup.bag.get(id);
           return !!told && !!ctx.role(told).ability.resolve;
         }
         return !!def.flags.passive || !!def.ability.resolve;

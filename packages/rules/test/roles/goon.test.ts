@@ -1,6 +1,6 @@
-import type { PlayerId } from '@ct/protocol';
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'goon', bo: 'poisoner', cy: 'imp', di: 'empath', ed: 'butler' };
 describe('Goon', () => {
@@ -38,7 +38,7 @@ describe('Goon', () => {
   });
   it('is told nothing while drunk or poisoned, as they do not change sides', () => {
     const s = scene(cast).start();
-    s.g.st({ type: 'add_condition', target: 'ann' as PlayerId, condition: 'drunk' });
+    s.g.st({ type: 'add_condition', target: pid('ann'), condition: 'drunk' });
     s.submit({ bo: ['ann'] }).dawn();
     expect(s.alignment('ann')).toBe('good');
     expect(s.inbox('ann')).not.toContain('You are now');

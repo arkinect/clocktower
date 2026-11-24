@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Card, CardsView } from '@ct/protocol';
 import {
   HAND_SIZE,
@@ -283,13 +283,39 @@ function room(timing: CardsTiming, seed = 7) {
   const busy = new Set<string>();
   const seen = new Map<string, CardsView | null>();
   const tables = new Tables(
-    { eligible: (id) => !busy.has(id), send: (id, table) => seen.set(id, table) },
+    {
+      eligible: (id) => !busy.has(id),
+      send: (id, table) => seen.set(id, table),
+      failed: (e) => {
+        throw e;
+      },
+    },
     timing,
     seeded(seed),
   );
   const view = (id: string) => seen.get(id) as CardsView;
   return { busy, seen, tables, view };
 }
+
+it('an error in a table timer is reported, not thrown', async () => {
+  const failed: unknown[] = [];
+  let broken = false;
+  const tables = new Tables(
+    {
+      eligible: () => true,
+      send: () => {
+        if (broken) throw new Error('broken send');
+      },
+      failed: (e) => failed.push(e),
+    },
+    { turnMs: 20, botMinMs: 1, botMaxMs: 2, botThinkMs: 1, roundGapMs: 5 },
+  );
+  tables.handle('ann', { type: 'sit' });
+  broken = true;
+  await vi.waitFor(() => expect(failed).toContainEqual(new Error('broken send')));
+  broken = false;
+  tables.reset();
+});
 
 async function until(check: () => boolean, ms = 3000) {
   const end = Date.now() + ms;

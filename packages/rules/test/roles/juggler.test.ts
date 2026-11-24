@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
+import { pid } from '../helpers/game';
 
 const cast = { ann: 'juggler', bo: 't1', cy: 'd1', di: 't2', ed: 't3' };
 /** Day 1, with the Storyteller's answer to whether they guessed publicly, then night 1's collecting. */
@@ -11,10 +12,10 @@ const night1 = (juggled: 'yes' | 'no' | null) => {
 const submitFor = (s: ReturnType<typeof scene>, values: string[]) => {
   const spec = s.specs('ann')[0];
   if (!spec) throw new Error('ann has no picker');
-  return s.g.rejected('st' as never, {
+  return s.g.rejected(pid('st'), {
     type: 'submit_for',
-    playerId: 'ann' as never,
-    actions: { [spec.key]: { values } },
+    playerId: pid('ann') as never,
+    actions: { [spec.key]: { values: values.map(s.value) } },
   });
 };
 
@@ -75,7 +76,7 @@ describe('Juggler', () => {
 
   it('is waited for when they guessed publicly', () => {
     const s = night1('yes');
-    expect(s.g.grimoire().board?.find((r) => r.playerId === 'ann')?.expected).toBe(true);
+    expect(s.g.grimoire().board?.find((r) => r.playerId === pid('ann'))?.expected).toBe(true);
   });
 
   it('did not guess publicly: no picker, not woken, nothing learned', () => {

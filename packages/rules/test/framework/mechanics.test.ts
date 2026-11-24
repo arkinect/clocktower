@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { defineRole, note, registerRole, type RoleDef } from '../../src';
 import { scene } from '../scenario';
 import { TRAVELLER } from '../helpers/plain';
-import { ST } from '../helpers/game';
+import { pid, ST } from '../helpers/game';
 
 function fake<S>(def: Parameters<typeof defineRole<S>>[0]): RoleId {
   registerRole(defineRole<S>(def) as RoleDef);
@@ -394,24 +394,24 @@ const EARLY = fake({
   ability: {
     resolve(ctx) {
       const options = [
-        { id: 'a', label: 'a' },
-        { id: 'b', label: 'b' },
+        { id: 'x', label: 'x' },
+        { id: 'y', label: 'y' },
       ];
       const first = ctx.decide<string>({
         key: { kind: 'first' },
         title: 'First',
         description: '',
         options,
-        default: 'a',
+        default: 'x',
       });
-      if (first === 'a')
-        ctx.decide<string>({ key: { kind: 'only_a' }, title: 'A', description: '', options, default: 'a' });
+      if (first === 'x')
+        ctx.decide<string>({ key: { kind: 'only_x' }, title: 'A', description: '', options, default: 'x' });
       const later = ctx.decide<string>({
         key: { kind: 'later' },
         title: 'Later',
         description: '',
         options,
-        default: 'a',
+        default: 'x',
       });
       ctx.tell([`${first} ${later}`]);
     },
@@ -427,8 +427,8 @@ describe('mechanics', () => {
     s.dawn();
     expect(s.character('b')).toBe('x-mutant');
     expect(s.alignment('b')).toBe('evil');
-    expect(s.g.player('b' as PlayerId).history.some((h) => h.kind === 'character')).toBe(true);
-    expect(Object.values(s.state.abilities).some((x) => x.roleId === 'x-mutant' && x.activeUntil !== 'removed')).toBe(
+    expect(s.g.player(pid('b')).history.some((h) => h.kind === 'character')).toBe(true);
+    expect([...s.state.abilities.values()].some((x) => x.roleId === 'x-mutant' && x.activeUntil !== 'removed')).toBe(
       true,
     );
   });
@@ -444,15 +444,15 @@ describe('mechanics', () => {
   it('gained, hidden and moving abilities', () => {
     const s = scene({ a: GIVER, ...five }).start();
     // Hidden: a number comes bare, under the name it is shown as, and words with no value behind them not at all.
-    const row = s.res.results.find((r) => r.playerId === 'a' && r.roleId === COUNTER);
+    const row = s.res.results.find((r) => r.playerId === pid('a') && r.roleId === COUNTER);
     expect(row).toMatchObject({ truth: ['3'], title: 'Giver' });
     expect(row?.alternatives).toEqual([['0'], ['1'], ['2'], ['3'], ['4'], ['5']]);
-    expect(s.res.results.find((r) => r.playerId === 'a' && r.roleId === SEER)).toBeUndefined();
+    expect(s.res.results.find((r) => r.playerId === pid('a') && r.roleId === SEER)).toBeUndefined();
     const m = scene({ a: MOVER, ...five, c: 't4' })
       .start()
       .dawn();
-    expect(m.state.abilities[m.ability(MOVER)]?.holder).toEqual({ kind: 'player', id: 'b' });
-    expect(m.g.grimoire().players.find((p) => p.id === 'b')?.isDemon).toBe(true);
+    expect(m.state.abilities.get(m.ability(MOVER))?.holder).toEqual({ kind: 'player', id: pid('b') });
+    expect(m.g.grimoire().players.find((p) => p.id === pid('b'))?.isDemon).toBe(true);
   });
 
   it('believed-only ability', () => {
@@ -464,8 +464,8 @@ describe('mechanics', () => {
     const s = scene({ a: 't4', ...five }, scriptOf(FABLED, LORIC));
     s.g.st({ type: 'set_storyteller_characters', roleIds: [FABLED, LORIC] });
     s.start().nextNight().dawn();
-    expect((s.state.abilities[s.ability(FABLED)]?.state as { ran: number }).ran).toBe(2);
-    const error = s.g.rejected('st' as PlayerId, { type: 'set_storyteller_characters', roleIds: [FABLED] });
+    expect((s.state.abilities.get(s.ability(FABLED))?.state as { ran: number }).ran).toBe(2);
+    const error = s.g.rejected(pid('st'), { type: 'set_storyteller_characters', roleIds: [FABLED] });
     expect(error).toBe('Loric are fixed at setup.');
     s.g.st({ type: 'set_storyteller_characters', roleIds: [LORIC] });
     expect(s.state.storytellerCharacters).toEqual([LORIC]);
@@ -475,22 +475,22 @@ describe('mechanics', () => {
     const s = scene({ a: 't4', ...five }, { extra: [TRAVELLER[0] as string] })
       .start()
       .dawn();
-    s.g.as(null, { type: 'join', id: 'vi' as PlayerId, name: 'Vi', rolePreference: 'none', wantsStoryteller: false });
-    s.g.st({ type: 'add_traveller', playerId: 'vi' as PlayerId, roleId: TRAVELLER[0] as RoleId, alignment: 'evil' });
+    s.g.as(null, { type: 'join', id: pid('vi'), name: 'Vi', rolePreference: 'none', wantsStoryteller: false });
+    s.g.st({ type: 'add_traveller', playerId: pid('vi'), roleId: TRAVELLER[0] as RoleId, alignment: 'evil' });
     expect(s.alignment('vi')).toBe('evil');
     expect(s.inbox('vi').join(' ')).toContain('The Demon is: c.');
-    expect(s.g.view('a' as PlayerId).players.find((p) => p.id === 'vi')?.publicRole).toBe(TRAVELLER[0]);
-    s.execute('a').g.st({ type: 'mark_alive', playerId: 'b' as PlayerId, alive: false });
-    s.g.st({ type: 'mark_alive', playerId: 'd' as PlayerId, alive: false });
-    s.g.st({ type: 'mark_alive', playerId: 'e' as PlayerId, alive: false });
+    expect(s.g.view(pid('a')).players.find((p) => p.id === pid('vi'))?.publicRole).toBe(TRAVELLER[0]);
+    s.execute('a').g.st({ type: 'mark_alive', playerId: pid('b'), alive: false });
+    s.g.st({ type: 'mark_alive', playerId: pid('d'), alive: false });
+    s.g.st({ type: 'mark_alive', playerId: pid('e'), alive: false });
     // The Demon and a Traveller left: two residents would be three; the Traveller doesn't count. Two left is checked
     // from dusk on: by day, the last good player can still execute the Demon.
     expect(s.state.gameEnd.map((q) => q.key)).not.toContain('two_left');
     s.dusk();
     expect(s.state.gameEnd.map((q) => q.key)).toContain('two_left');
     s.dawn();
-    s.g.st({ type: 'exile_traveller', playerId: 'vi' as PlayerId });
-    expect(s.g.view('a' as PlayerId).players.find((p) => p.id === 'vi')?.exiled).toBe(true);
+    s.g.st({ type: 'exile_traveller', playerId: pid('vi') });
+    expect(s.g.view(pid('a')).players.find((p) => p.id === pid('vi'))?.exiled).toBe(true);
     expect(s.alive('vi')).toBe(false);
   });
 
@@ -516,7 +516,7 @@ describe('mechanics', () => {
     expect(s.g.grimoire().setup.bluffCandidates).not.toContain(ALWAYS_ADD);
     const b = scene({ a: BAG, ...five }, { believed: { a: 'imp' } }).start();
     expect(b.character('a')).toBe(BAG);
-    expect(b.g.view('a' as PlayerId).me.role?.name).toBe('Imp');
+    expect(b.g.view(pid('a')).me.role?.name).toBe('Imp');
   });
 
   it('evil information: the policy and modifyEvilInfo', () => {
@@ -528,8 +528,8 @@ describe('mechanics', () => {
     expect(house.inbox('a')).toContain('A secret word.');
     const official = scene(cast, { evilInfoPolicy: 'official' }).start();
     expect(official.inbox('b').join(' ')).toContain('a');
-    expect(official.g.view('b' as PlayerId).me.messages.length).toBeGreaterThanOrEqual(
-      house.g.view('b' as PlayerId).me.messages.length,
+    expect(official.g.view(pid('b')).me.messages.length).toBeGreaterThanOrEqual(
+      house.g.view(pid('b')).me.messages.length,
     );
   });
 
@@ -615,12 +615,12 @@ describe('mechanics', () => {
       .start()
       .dawn();
     s.nominate('b', 'c');
-    s.g.st({ type: 'record_vote', nominee: 'c' as PlayerId, count: 2, voters: null });
-    s.g.st({ type: 'record_statement', playerId: 'b' as PlayerId, text: 'Hello' });
+    s.g.st({ type: 'record_vote', nominee: pid('c'), count: 2, voters: null });
+    s.g.st({ type: 'record_statement', playerId: pid('b'), text: 'Hello' });
     s.execute('d');
-    s.g.as(null, { type: 'join', id: 'vi' as PlayerId, name: 'Vi', rolePreference: 'none', wantsStoryteller: false });
-    s.g.st({ type: 'add_traveller', playerId: 'vi' as PlayerId, roleId: TRAVELLER[0] as RoleId, alignment: 'good' });
-    s.g.st({ type: 'exile_traveller', playerId: 'vi' as PlayerId });
+    s.g.as(null, { type: 'join', id: pid('vi'), name: 'Vi', rolePreference: 'none', wantsStoryteller: false });
+    s.g.st({ type: 'add_traveller', playerId: pid('vi'), roleId: TRAVELLER[0] as RoleId, alignment: 'good' });
+    s.g.st({ type: 'exile_traveller', playerId: pid('vi') });
     // The execution's triggers wait for dusk.
     expect(seen).toEqual(['nomination', 'vote', 'statement', 'exile']);
     s.dusk();
@@ -651,22 +651,20 @@ describe('mechanics', () => {
 
   it('visibility grants', () => {
     const s = scene({ a: SPY, ...five }).start();
-    expect(s.g.view('a' as PlayerId).me.grants[0]?.lines[1]).toBe('b: Town 1');
-    expect(s.g.view('b' as PlayerId).me.grants).toEqual([]);
+    expect(s.g.view(pid('a')).me.grants[0]?.lines[1]).toBe('b: Town 1');
+    expect(s.g.view(pid('b')).me.grants).toEqual([]);
   });
 
   it('madness', () => {
     const s = scene({ a: 't4', ...five })
       .start()
       .dawn();
-    s.g.st({ type: 'add_condition', target: 'a' as PlayerId, condition: 'mad' });
+    s.g.st({ type: 'add_condition', target: pid('a'), condition: 'mad' });
     expect(s.impaired('a')).toBe(false);
     // A status is held once: adding it again is refused.
-    expect(s.g.rejected(ST, { type: 'add_condition', target: 'a' as PlayerId, condition: 'mad' })).toMatch(
-      /already mad/,
-    );
-    expect(s.state.conditions.filter((c) => c.target === 'a' && c.type === 'mad')).toHaveLength(1);
-    s.g.st({ type: 'record_broke_madness', playerId: 'a' as PlayerId, ruling: 'Executed for it' });
+    expect(s.g.rejected(ST, { type: 'add_condition', target: pid('a'), condition: 'mad' })).toMatch(/already mad/);
+    expect(s.state.conditions.filter((c) => c.target === pid('a') && c.type === 'mad')).toHaveLength(1);
+    s.g.st({ type: 'record_broke_madness', playerId: pid('a'), ruling: 'Executed for it' });
     expect(s.state.events.at(-1)).toMatchObject({ kind: 'broke_madness', ruling: 'Executed for it' });
     expect(s.g.grimoire().story.some((e) => JSON.stringify(e).includes('broke madness'))).toBe(true);
   });
@@ -720,10 +718,10 @@ describe('mechanics', () => {
     const s = scene({ a: QUIZ, ...five })
       .start()
       .review();
-    expect(s.res.questions.map((q) => q.playerId)).toEqual(['b']);
+    expect(s.res.questions.map((q) => q.playerId)).toEqual([pid('b')]);
     expect(s.truth('a')).toEqual(['No answer yet']);
-    expect(s.g.rejected('st' as PlayerId, { type: 'publish_dawn', force: false })).toMatch(/question|answer|waiting/i);
-    expect(s.g.view('b' as PlayerId).me.questions).toHaveLength(1);
+    expect(s.g.rejected(pid('st'), { type: 'publish_dawn', force: false })).toMatch(/question|answer|waiting/i);
+    expect(s.g.view(pid('b')).me.questions).toHaveLength(1);
     s.answer('b', ['y']);
     expect(s.truth('a')).toEqual(['They said y']);
     s.g.st({ type: 'publish_dawn', force: false });
@@ -732,9 +730,9 @@ describe('mechanics', () => {
 
   it('malfunction log', () => {
     const s = scene({ a: BROKEN, b: 'mathematician', c: 'd1', d: 't2', e: 't3' }).start().review();
-    expect(s.res.malfunctions.map((m) => `${m.playerId}:${m.detail}`)).toEqual(['a:Broke']);
+    expect(s.res.malfunctions.map((m) => `${m.playerId}:${m.detail}`)).toEqual([`${pid('a')}:Broke`]);
     expect(s.truth('b')).toEqual(["1 player's ability worked abnormally."]);
-    s.g.st({ type: 'adjust_malfunctions', add: ['d' as PlayerId, 'e' as PlayerId], remove: [] });
+    s.g.st({ type: 'adjust_malfunctions', add: [pid('d'), pid('e')], remove: [] });
     expect(s.truth('b')).toEqual(["3 players' abilities worked abnormally."]);
   });
 
@@ -770,14 +768,14 @@ describe('decisions', () => {
     const s = scene({ a: EARLY, ...five })
       .start()
       .review();
-    s.decide('later', 'b').decide('only_a', 'b').decide('first', 'b');
+    s.decide('later', 'y').decide('only_x', 'y').decide('first', 'y');
     const by = (k: string) => s.g.grimoire().review?.decisions.find((d) => d.key.kind === k);
-    expect(by('later')?.chosen).toBe('b');
-    expect(by('only_a')).toBeUndefined();
-    expect(s.truth('a')).toEqual(['b b']);
+    expect(by('later')?.chosen).toBe('y');
+    expect(by('only_x')).toBeUndefined();
+    expect(s.truth('a')).toEqual(['y y']);
     // Asked again, it comes back with the answer saved for it.
-    s.decide('first', 'a');
-    expect(by('only_a')?.chosen).toBe('b');
+    s.decide('first', 'x');
+    expect(by('only_x')?.chosen).toBe('y');
   });
 
   it('night resolution is deterministic', () => {
@@ -796,7 +794,7 @@ describe('decisions', () => {
       .nextNight()
       .submit({ c: ['a'] })
       .review();
-    expect(s.res.deaths).toEqual(['a']);
+    expect(s.res.deaths).toEqual([pid('a')]);
     expect(s.alive('a')).toBe(true);
   });
 });

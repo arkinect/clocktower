@@ -208,7 +208,8 @@ export type Malfunction = z.infer<typeof Malfunction>;
 
 export const ActorRow = z.object({
   slot: z.string(),
-  playerId: PlayerId,
+  /** Null for an ability the Storyteller holds. */
+  playerId: PlayerId.nullable(),
   roleId: RoleId,
   input: z.string(),
   impaired: z.boolean(),

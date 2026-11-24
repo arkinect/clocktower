@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AbilityId, RoleId } from './ids';
+import { AbilityId, Id, RoleId } from './ids';
 
 const text = z.string().max(500);
 const optionId = z.string().min(1).max(64);
@@ -59,7 +59,7 @@ export const Choice = z.object({
 });
 export type Choice = z.infer<typeof Choice>;
 
-export const Actions = z.record(z.string().min(1).max(64), Choice);
+export const Actions = z.record(Id, Choice);
 export type Actions = z.infer<typeof Actions>;
 
 export const DayActionSpec = ActionSpec.extend({

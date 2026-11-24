@@ -15,7 +15,7 @@ vi.mock('../src/app/store', () => ({
   useCommand: () => ({ run, pending: false }),
   useGame: () => ({ catalog, jinxes: [] }),
   useNames: () => ({
-    players: { a: 'Ann', b: 'Bo' },
+    players: { aaaaaaaaaaaaaaaa: 'Ann', bbbbbbbbbbbbbbbb: 'Bo' },
     roles: { empath: 'Empath', slayer: 'Slayer', imp: 'Imp', beggar: 'Beggar' },
   }),
 }));
@@ -30,7 +30,7 @@ afterEach(() => {
 
 const ability = (over: Record<string, unknown>) =>
   AbilityView.parse({
-    id: 'x',
+    id: 'a90',
     roleId: 'slayer',
     name: 'Slayer',
     shownAs: null,
@@ -50,7 +50,7 @@ const ability = (over: Record<string, unknown>) =>
 
 const player = (over: Record<string, unknown>) =>
   GrimoirePlayer.parse({
-    id: 'a',
+    id: 'aaaaaaaaaaaaaaaa',
     name: 'Ann',
     seat: 0,
     alive: true,
@@ -103,13 +103,13 @@ describe('the seat sheet', () => {
   });
 
   it('shows the seat, the character in its type colour and the alignment as segments', async () => {
-    seat(player({ id: 'b', name: 'Bo', seat: 1 }), [player({ seat: 0 })]);
+    seat(player({ id: 'bbbbbbbbbbbbbbbb', name: 'Bo', seat: 1 }), [player({ seat: 0 })]);
     expect(screen.getByText(/Seat 2/)).toBeTruthy();
     expect(screen.getByText('Empath').className).toContain('type-townsfolk');
     const alignment = screen.getByRole('group', { name: 'Alignment of Bo' });
     expect(within(alignment).getByRole('button', { name: 'Good' }).getAttribute('aria-pressed')).toBe('true');
     await userEvent.click(within(alignment).getByRole('button', { name: 'Evil' }));
-    expect(run).toHaveBeenCalledWith({ type: 'set_alignment', playerId: 'b', alignment: 'evil' });
+    expect(run).toHaveBeenCalledWith({ type: 'set_alignment', playerId: 'bbbbbbbbbbbbbbbb', alignment: 'evil' });
   });
 
   it('kills the living through + status, and offers no dead vote', async () => {
@@ -119,7 +119,7 @@ describe('the seat sheet', () => {
     const add = screen.getByRole('group', { name: 'Add a status to Ann' });
     expect(within(add).queryByRole('button', { name: 'dead vote used' })).toBeNull();
     await userEvent.click(within(add).getByRole('button', { name: 'dead' }));
-    expect(run).toHaveBeenCalledWith({ type: 'mark_alive', playerId: 'a', alive: false });
+    expect(run).toHaveBeenCalledWith({ type: 'mark_alive', playerId: 'aaaaaaaaaaaaaaaa', alive: false });
   });
 
   it('removing "dead" revives; a dead player with their vote shows no vote status', async () => {
@@ -127,7 +127,7 @@ describe('the seat sheet', () => {
     expect(screen.getByText(/demon kill/)).toBeTruthy();
     expect(screen.queryByText(/dead vote/)).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Revive Ann' }));
-    expect(run).toHaveBeenCalledWith({ type: 'mark_alive', playerId: 'a', alive: true });
+    expect(run).toHaveBeenCalledWith({ type: 'mark_alive', playerId: 'aaaaaaaaaaaaaaaa', alive: true });
   });
 
   it('adds "dead vote used" through + status', async () => {
@@ -135,7 +135,7 @@ describe('the seat sheet', () => {
     await userEvent.click(screen.getByRole('button', { name: '+ status' }));
     expect(screen.queryByRole('button', { name: 'dead' })).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'dead vote used' }));
-    expect(run).toHaveBeenCalledWith({ type: 'set_ghost_vote', playerId: 'a', used: true });
+    expect(run).toHaveBeenCalledWith({ type: 'set_ghost_vote', playerId: 'aaaaaaaaaaaaaaaa', used: true });
   });
 
   it('removing "dead vote used" gives the vote back', async () => {
@@ -144,7 +144,7 @@ describe('the seat sheet', () => {
     await userEvent.click(screen.getByRole('button', { name: '+ status' }));
     expect(screen.queryByRole('button', { name: 'dead vote used' })).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Give Ann their dead vote back' }));
-    expect(run).toHaveBeenCalledWith({ type: 'set_ghost_vote', playerId: 'a', used: false });
+    expect(run).toHaveBeenCalledWith({ type: 'set_ghost_vote', playerId: 'aaaaaaaaaaaaaaaa', used: false });
   });
 
   it('toggles a once-per-game ability by hand, unless the engine tracks it', async () => {
@@ -207,19 +207,19 @@ describe('the seat sheet', () => {
     // Already poisoned, so poisoned is not offered again.
     expect(screen.queryByRole('button', { name: 'poisoned' })).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'drunk' }));
-    expect(run).toHaveBeenCalledWith({ type: 'add_condition', target: 'a', condition: 'drunk' });
+    expect(run).toHaveBeenCalledWith({ type: 'add_condition', target: 'aaaaaaaaaaaaaaaa', condition: 'drunk' });
     await userEvent.click(screen.getByRole('button', { name: 'Remove poisoned from Ann' }));
     expect(run).toHaveBeenCalledWith({ type: 'remove_condition', conditionId: 'c1' });
   });
 
   it('tags a player a setup field names', () => {
     const field = {
-      abilityId: 'f',
+      abilityId: 'a6',
       field: 'redHerring',
       title: 'Red herring',
       kind: 'player',
       options: [],
-      value: 'a',
+      value: 'aaaaaaaaaaaaaaaa',
       suggestible: true,
     };
     seat(player({}), [], { setup: { bluffs: [], fields: [field] } });
@@ -230,7 +230,7 @@ describe('the seat sheet', () => {
 describe('changing a character', () => {
   it('offers a character only the dead hold', () => {
     const ann = player({});
-    const bo = player({ id: 'b', name: 'Bo', seat: 1, character: 'imp', alive: false });
+    const bo = player({ id: 'bbbbbbbbbbbbbbbb', name: 'Bo', seat: 1, character: 'imp', alive: false });
     render(<ChangeCharacter view={view([ann, bo])} p={ann} onDone={() => {}} />);
     expect((screen.getByRole('option', { name: 'Imp' }) as HTMLOptionElement).disabled).toBe(false);
   });
@@ -238,7 +238,7 @@ describe('changing a character', () => {
   it('sends nothing until Confirm is held, and holds back roles already in play', async () => {
     const onDone = vi.fn();
     const ann = player({});
-    const bo = player({ id: 'b', name: 'Bo', seat: 1, character: 'imp' });
+    const bo = player({ id: 'bbbbbbbbbbbbbbbb', name: 'Bo', seat: 1, character: 'imp' });
     render(<ChangeCharacter view={view([ann, bo])} p={ann} onDone={onDone} />);
     const select = screen.getByLabelText('New character for Ann') as HTMLSelectElement;
     expect((screen.getByRole('option', { name: 'Imp (in play)' }) as HTMLOptionElement).disabled).toBe(true);
@@ -249,7 +249,7 @@ describe('changing a character', () => {
     expect(screen.getByText(/told 'Your role has changed'/)).toBeTruthy();
     expect(run).not.toHaveBeenCalled();
     hold('Confirm');
-    expect(run).toHaveBeenCalledWith({ type: 'assign_character', playerId: 'a', roleId: 'slayer' });
+    expect(run).toHaveBeenCalledWith({ type: 'assign_character', playerId: 'aaaaaaaaaaaaaaaa', roleId: 'slayer' });
   });
 
   it('names the impairment on a seat token, never a bare "impaired"', () => {
@@ -263,7 +263,7 @@ describe('changing a character', () => {
     });
     const ann = player({ impaired: true, causes: ['drunk:storyteller'], conditions: [drunk] });
     // Bo is poisoned by a cause with no status row of its own, such as the No Dashii's.
-    const bo = player({ id: 'b', name: 'Bo', seat: 1, impaired: true, causes: ['poisoned:No Dashii'] });
+    const bo = player({ id: 'bbbbbbbbbbbbbbbb', name: 'Bo', seat: 1, impaired: true, causes: ['poisoned:No Dashii'] });
     render(<Grimoire view={view([ann, bo])} />);
     expect(screen.getByRole('button', { name: /^Seat 1: / }).getAttribute('title')).toBe('Empath, good, drunk');
     expect(screen.getByRole('button', { name: /^Seat 2: / }).getAttribute('title')).toBe('Empath, good, poisoned');
@@ -298,12 +298,12 @@ describe('game facts and controls', () => {
 
   it('lists the setup fields in words', () => {
     const field = {
-      abilityId: 'f',
+      abilityId: 'a6',
       field: 'redHerring',
       title: 'Red herring',
       kind: 'player',
       options: [],
-      value: 'b',
+      value: 'bbbbbbbbbbbbbbbb',
       suggestible: true,
     };
     render(<Grimoire view={view([], { setup: { bluffs: ['slayer'], fields: [field] } })} />);
