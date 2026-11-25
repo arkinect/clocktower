@@ -5,14 +5,14 @@ import userEvent from '@testing-library/user-event';
 import type { StorytellerView } from '@ct/protocol';
 
 const navigate = vi.hoisted(() => vi.fn());
-vi.mock('../src/app/router', () => ({ navigate }));
-vi.mock('../src/app/store', () => ({
+vi.mock('../../src/app/router', () => ({ navigate }));
+vi.mock('../../src/app/store', () => ({
   useGame: () => ({ catalog: [], jinxes: [] }),
   useCommand: () => ({ run: vi.fn(async () => ({ ok: true })), pending: false }),
   useNames: () => ({ players: {}, roles: {} }),
 }));
 
-import Console from '../src/storyteller/Console';
+import Console from '../../src/storyteller/Console';
 
 afterEach(() => {
   cleanup();

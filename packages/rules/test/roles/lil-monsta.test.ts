@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { roleId } from '@ct/protocol';
+import type { GameStateT } from '../../src';
+import { Run } from '../../src/night/run';
+import { clone } from '../../src/util/clone';
 import { pid, ST } from '../helpers/game';
 import { scene, type Scene } from '../scenario';
 
@@ -36,15 +40,17 @@ describe("Lil' Monsta", () => {
       });
     expect(set('marionette').ok).toBe(false);
   });
+  it('learns the Minions, who learn only each other', () => {
+    const s = scene({ ...cast, cy: 'm2' }, opts).start();
+    expect(s.inbox('ann').join(' ')).toMatch(/Minions/);
+    expect(s.g.view(pid('cy')).me.messages.map((m) => m.title)).toEqual(['Your fellow Minions']);
+  });
   it('comes with no bluffs: none asked for at setup, none shown', () => {
     const s = scene(cast, opts);
     expect(s.g.grimoire().setup.checklist.some((c) => c.id === 'bluffs')).toBe(false);
     s.g.st({ type: 'suggest_bluffs' });
     s.start();
     expect(s.inbox('ann').join(' ')).not.toMatch(/bluffs/);
-  });
-  it('the extra Minion is that player, so the counts do not change', () => {
-    expect(scene(cast).g.grimoire().setup.counts.target[2]).toBe(1);
   });
   it('becomes the chosen Minion at the first dawn, babysitting the token and keeping the choice of who does', () => {
     const s = scene(cast, opts).start().dawn();
@@ -74,8 +80,10 @@ describe("Lil' Monsta", () => {
     s.submit({ ann: ['cy'] })
       .decide('lil_monsta', 'none')
       .dawn();
+    expect(Object.keys(cast).every((id) => s.alive(id))).toBe(true);
     expect(s.alignment('cy')).toBe('good');
     expect(told(s, 'cy')).toBe(true);
+    expect(s.inbox('di').join(' ')).not.toMatch(/Monsta|babysit/);
     s.dusk();
     expect(s.specs('cy')).toEqual([]);
     s.submit({ ann: ['ann'] })
@@ -84,13 +92,6 @@ describe("Lil' Monsta", () => {
     expect(babysitter(s)).toEqual({ kind: 'player', id: pid('ann') });
     // Nothing more: a good player is never told where the token went.
     expect(s.inbox('cy').filter((x) => /babysit/.test(x))).toHaveLength(1);
-  });
-  it('a good player who does not babysit is told nothing', () => {
-    const s = scene(cast, opts).start().nextNight();
-    s.submit({ ann: ['cy'] })
-      .decide('lil_monsta', 'none')
-      .dawn();
-    expect(s.inbox('di').join(' ')).not.toMatch(/Monsta|babysit/);
   });
   it('the evil team is told who babysits, and an evil babysitter that it is them', () => {
     const s = scene(cast, opts).start().nextNight();
@@ -107,7 +108,7 @@ describe("Lil' Monsta", () => {
     // The keeper chose it, so is not told.
     expect(s.inbox('ann').join(' ')).not.toMatch(/is babysitting|are babysitting/);
   });
-  it('a Marionette is not told who babysits, and one who babysits is told just what a good player is', () => {
+  it('a Marionette is not told who babysits; one who babysits kills, told just what a good player is', () => {
     const s = scene({ ...cast, bo: 'marionette', gu: 'm2' }, { ...opts, believed: { bo: 'empath' } })
       .start()
       .nextNight();
@@ -118,7 +119,10 @@ describe("Lil' Monsta", () => {
     expect(s.inbox('bo').join(' ')).not.toMatch(/Monsta|babysit/);
     s.dusk()
       .submit({ ann: ['bo'] })
-      .dawn();
+      .decide('lil_monsta', 'di');
+    expect(s.impaired('bo')).toBe(true);
+    s.dawn();
+    expect(s.alive('di')).toBe(false);
     const notice = (id: string) => s.g.view(pid(id)).me.messages.findLast((m) => m.title === "Lil' Monsta");
     expect(notice('bo')?.lines).toEqual(TOLD);
     expect(notice('bo')?.lines).toEqual(notice('cy')?.lines);
@@ -132,13 +136,6 @@ describe("Lil' Monsta", () => {
     expect(ids).not.toContain(pid('bo'));
     expect(ids).toContain(pid('ann'));
   });
-  it('nobody may die', () => {
-    const s = scene(cast, opts).start().nextNight();
-    s.submit({ ann: ['ann'] })
-      .decide('lil_monsta', 'none')
-      .dawn();
-    expect(Object.keys(cast).every((id) => s.alive(id))).toBe(true);
-  });
   it('cannot be poisoned: a poisoned babysitter still kills, and only their own ability fails', () => {
     const s = scene({ ...cast, bo: 'poisoner', cy: 'empath' }, opts)
       .start()
@@ -147,15 +144,6 @@ describe("Lil' Monsta", () => {
     expect(s.row('cy').impaired).toBe(true);
     s.dawn();
     expect(s.impaired('cy')).toBe(true);
-    expect(s.alive('di')).toBe(false);
-  });
-  it('a Marionette who babysits kills too', () => {
-    const s = scene({ ...cast, bo: 'marionette' }, { ...opts, believed: { bo: 'empath' } })
-      .start()
-      .nextNight();
-    s.submit({ ann: ['bo'] }).decide('lil_monsta', 'di');
-    expect(s.impaired('bo')).toBe(true);
-    s.dawn();
     expect(s.alive('di')).toBe(false);
   });
   it('a poisoned keeper still chooses, and the Review row does not call it poisoned', () => {
@@ -176,6 +164,19 @@ describe("Lil' Monsta", () => {
     // cy is a plain Townsfolk with nothing to go wrong.
     s.submit({ bo: ['cy'], ann: ['cy'] }).decide('lil_monsta', 'none');
     expect(s.truth('gu')).toEqual(["0 players' abilities worked abnormally."]);
+  });
+  it('a Fortune Teller reads whoever babysits as the Demon', () => {
+    const s = scene(
+      { ...cast, cy: 'fortune_teller' },
+      { fields: { ...opts.fields, fortune_teller: { herring: 'di' } } },
+    )
+      .start()
+      .nextNight();
+    s.submit({ ann: ['bo'], cy: ['bo', 'ed'] }).decide('lil_monsta', 'none');
+    expect(s.truth('cy')[0]).toMatch(/Yes/);
+    s.nextNight();
+    s.submit({ ann: ['gu'], cy: ['bo', 'ed'] }).decide('lil_monsta', 'none');
+    expect(s.truth('cy')[0]).toMatch(/No/);
   });
   it('a dead babysitter kills nobody', () => {
     const s = scene(cast, opts).start().nextNight();
@@ -219,5 +220,16 @@ describe("Lil' Monsta", () => {
       .dawn();
     expect(s.alignment('cy')).toBe('evil');
     expect(isDemon(s, 'cy')).toBe(true);
+  });
+  it('the token stays when its babysitter becomes the Farmer', () => {
+    // Found by the whole autoplay games: the token went, and with it the Demon, so the game could never end.
+    const world = clone(scene({ ...cast, bo: 'farmer' }, opts).state) as GameStateT;
+    const run = new Run({ world, moment: { kind: 'night', n: 0 }, seed: 1, now: 0 });
+    run.grant({ kind: 'player', id: pid('cy') }, roleId('lil_monsta'), { kind: 'granted', by: 'test' } as never, {
+      state: { part: 'token', heir: null },
+    });
+    expect(run.reader.isDemon(pid('cy'))).toBe(true);
+    run.changeCharacter(pid('cy'), roleId('farmer'), { reason: 'became a Farmer', keepGranted: false });
+    expect(run.reader.isDemon(pid('cy'))).toBe(true);
   });
 });

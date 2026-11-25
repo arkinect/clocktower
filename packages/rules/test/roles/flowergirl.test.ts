@@ -5,14 +5,12 @@ import { pid } from '../helpers/game';
 const cast = { ann: 'flowergirl', bo: 't1', cy: 'd1', di: 't2', ed: 'm1' };
 describe('Flowergirl', () => {
   it('learns whether a Demon voted, as recorded today', () => {
-    const s = scene(cast).start().dawn();
+    const s = scene(cast).start();
+    expect(s.truth('ann')).toEqual([]);
+    s.dawn();
     s.act('flowergirl', 'demon_voted', ['yes']);
     s.dusk();
     expect(s.truth('ann')).toEqual(['Yes, a Demon voted today.']);
-  });
-  it('defaults to no', () => {
-    const s = scene(cast).start().nextNight();
-    expect(s.truth('ann')).toEqual(['No, a Demon did not vote today.']);
   });
   it('shows the answer recorded today, and needs one tonight', () => {
     const s = scene(cast).start().dawn();
@@ -49,11 +47,6 @@ describe('Flowergirl', () => {
     s.g.st({ type: 'publish_dawn', force: false });
     expect(s.state.phase.kind).toBe('day');
   });
-  it('publish anyway goes through without the answer', () => {
-    const s = scene(cast).start().dawn().dusk().review();
-    s.g.st({ type: 'publish_dawn', force: true });
-    expect(s.state.phase.kind).toBe('day');
-  });
   it('asks about the Demon by name, and about a dead Demon too, without naming the Flowergirl', () => {
     const s = scene({ ...cast, cy: 'imp', ed: 'poisoner' })
       .start()
@@ -68,7 +61,14 @@ describe('Flowergirl', () => {
     s.g.st({ type: 'assign_character', playerId: pid('di') as never, roleId: 'imp' as never });
     expect(row()?.prompt).toBe('Did cy, di or ed vote today?');
   });
-  it('does not act on Night 0', () => {
-    expect(scene(cast).start().truth('ann')).toEqual([]);
+  it('when Review asks, it says that a dead Demon counts', () => {
+    const s = scene({ ...cast, ann: 'philosopher' })
+      .start()
+      .dawn()
+      .kill('cy')
+      .dusk()
+      .submit({ ann: ['flowergirl'] })
+      .review();
+    expect(s.decision('flowergirl_voted').description).toBe('Not recorded during the day. Dead Demons count: cy.');
   });
 });

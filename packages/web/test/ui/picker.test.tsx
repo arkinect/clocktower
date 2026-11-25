@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ActionField, ActionSpec, Choice } from '@ct/protocol';
-import { Picker, choiceComplete, optionText, type Names } from '../src/ui/Picker';
+import { Picker, choiceComplete, optionText, type Names } from '../../src/ui/Picker';
 
 afterEach(cleanup);
 

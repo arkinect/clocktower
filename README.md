@@ -142,7 +142,9 @@ npm run build
 docker build -t clocktower:local .
 ```
 
-`FUZZ_GAMES` sets how many random games `npm test` plays. It is 500 by default, and 10,000 in the nightly CI run.
+`FUZZ_GAMES` sets how many random games each of the fuzz tests plays: 100 by default, and 2,000 in the nightly CI run.
+`FUZZ_SEED` sets the first game's seed: 1 by default, and new every night. A failure names its seed, so
+`FUZZ_SEED=<seed> FUZZ_GAMES=1 npm test` plays that game alone.
 
 | Path                | What                                                                  |
 | ------------------- | --------------------------------------------------------------------- |

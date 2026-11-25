@@ -23,4 +23,23 @@ describe('Grandmother', () => {
     s.execute('bo').dusk().dawn();
     expect(s.alive('ann')).toBe(true);
   });
+  it('not when an Assassin kills them', () => {
+    const s = scene({ ...cast, di: 'assassin' })
+      .start()
+      .decide('grandmother_grandchild', 'bo')
+      .nextNight()
+      .submit({ di: ['bo'] })
+      .review();
+    expect(s.res.deaths).toEqual([pid('bo')]);
+  });
+  it('poisoned on night 0, they get false information and no link', () => {
+    const s = scene({ ann: 'grandmother', bo: 'empath', cy: 'imp', di: 'poisoner', ed: 'butler' })
+      .start()
+      .submit({ di: ['ann'] });
+    expect(s.row('ann').impaired).toBe(true);
+    s.nextNight()
+      .submit({ cy: ['bo'] })
+      .review();
+    expect(s.res.deaths).toEqual([pid('bo')]);
+  });
 });

@@ -1,7 +1,7 @@
 // The connection a tab keeps: what it says on opening, how an ack finds its command, and how it comes back.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PROTOCOL_VERSION, type ServerMessage } from '@ct/protocol';
-import { GameSocket, type SocketEvents } from '../src/app/socket';
+import { GameSocket, type SocketEvents } from '../../src/app/socket';
 
 /** A socket the test opens, answers and drops by hand. */
 class FakeSocket {

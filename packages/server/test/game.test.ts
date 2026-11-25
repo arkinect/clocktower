@@ -159,7 +159,7 @@ describe('restart', () => {
   it('archives a game from another engine version and starts a fresh lobby', async () => {
     const h = await tamper(testConfig(), (s, snap) => s.save('default', ENGINE_VERSION + 1, snap, 2, null));
     expect(h.app.store.archived()).toEqual([{ code: 'default', reason: `engine ${ENGINE_VERSION + 1}` }]);
-    expect(Object.keys(h.app.games.get('default')!.state.players)).toEqual([]);
+    expect(h.app.games.get('default')!.state.players.size).toBe(0);
     expect(h.app.store.log('default')).toEqual([]);
   });
 

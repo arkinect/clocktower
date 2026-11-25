@@ -9,9 +9,7 @@ describe('Moonchild', () => {
   it('executed: learns it the next morning, chooses then, and a good target dies that night', () => {
     const s = scene(cast).start().dawn().execute('ann');
     expect(fact(s)).toBeUndefined();
-    s.dusk().review();
-    expect(s.hasDecision('moonchild_target')).toBe(false);
-    s.dawn();
+    s.dusk().dawn();
     expect(s.alive('ann')).toBe(false);
     s.act('moonchild', 'target', ['bo']);
     s.dusk().dawn();
@@ -23,7 +21,6 @@ describe('Moonchild', () => {
     expect(fact(s)?.blocksNight).toBeFalsy();
     expect(fact(s)?.fields[0]?.options[0]).toBe('none');
     s.dusk().review();
-    expect(s.hasDecision('moonchild_target')).toBe(false);
     expect(s.state.abilities.get(s.ability('moonchild'))?.used).toBe(true);
     s.dawn();
     expect(s.alive('bo')).toBe(true);
@@ -35,6 +32,7 @@ describe('Moonchild', () => {
     expect(fact(s)?.recorded).toEqual(['none']);
     expect(s.state.abilities.get(s.ability('moonchild'))?.used).toBe(true);
     s.act('moonchild', 'target', ['bo']);
+    expect(fact(s)?.recorded).toEqual([pid('bo')]);
     expect(s.state.abilities.get(s.ability('moonchild'))?.used).toBe(false);
   });
   it('an evil target lives', () => {
@@ -65,13 +63,7 @@ describe('Moonchild', () => {
     expect(s.alive('ann')).toBe(true);
     expect(fact(s)).toBeUndefined();
   });
-  it('shows the recorded choice', () => {
-    const s = scene(cast).start().dawn().execute('ann').dusk().dawn();
-    expect(fact(s)?.recorded).toBeNull();
-    s.act('moonchild', 'target', ['bo']);
-    expect(fact(s)?.recorded).toEqual([pid('bo')]);
-  });
-  it('killed at night: chosen the next day, and Review never asks', () => {
+  it('killed at night: chosen the next day, and spent', () => {
     const s = scene(cast)
       .start()
       .nextNight()
@@ -79,9 +71,7 @@ describe('Moonchild', () => {
       .dawn();
     expect(s.alive('ann')).toBe(false);
     s.act('moonchild', 'target', ['bo']);
-    s.dusk().review();
-    expect(s.hasDecision('moonchild_target')).toBe(false);
-    s.dawn();
+    s.dusk().dawn();
     expect(s.alive('bo')).toBe(false);
     // Spent: nothing to choose the next day.
     expect(fact(s)).toBeUndefined();
@@ -92,8 +82,19 @@ describe('Moonchild', () => {
     s.dusk().dawn();
     expect(s.alive('bo')).toBe(false);
   });
-  it('offers the choice only once they are dead', () => {
-    const s = scene(cast).start().dawn();
-    expect(s.dayActions()).toEqual([]);
+  it('impaired when they died, but brought back and killed again healthy: works', () => {
+    const s = scene({ ...cast, di: 'poisoner' })
+      .start()
+      .submit({ di: ['ann'] })
+      .dawn()
+      .execute('ann')
+      .dusk()
+      .dawn();
+    s.g.st({ type: 'mark_alive', playerId: pid('ann'), alive: true });
+    expect(fact(s)).toBeUndefined();
+    s.kill('ann');
+    s.act('moonchild', 'target', ['bo']);
+    s.dusk().dawn();
+    expect(s.alive('bo')).toBe(false);
   });
 });

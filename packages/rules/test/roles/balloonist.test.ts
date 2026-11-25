@@ -3,23 +3,12 @@ import { scene } from '../scenario';
 import { nameOf, pid } from '../helpers/game';
 
 describe('Balloonist', () => {
-  it('adds an Outsider at setup', () => {
-    const s = scene({ ann: 'balloonist', bo: 't1', cy: 'd1', di: 't2', ed: 'm1' });
-    expect(s.g.grimoire().setup.counts.target).toEqual([2, 1, 1, 1]);
-  });
-  it('adds no Outsider when the Storyteller chooses +0', () => {
-    const s = scene(
-      { ann: 'balloonist', bo: 't1', cy: 'd1', di: 't2', ed: 'm1' },
-      { fields: { balloonist: { outsiders: '+0' } } },
-    );
-    expect(s.g.grimoire().setup.counts.target).toEqual([3, 0, 1, 1]);
-  });
-  it('adds one when the Storyteller chooses +1', () => {
-    const s = scene(
-      { ann: 'balloonist', bo: 't1', cy: 'd1', di: 't2', ed: 'm1' },
-      { fields: { balloonist: { outsiders: '+1' } } },
-    );
-    expect(s.g.grimoire().setup.counts.target).toEqual([2, 1, 1, 1]);
+  it('adds an Outsider at setup, unless the Storyteller chooses +0', () => {
+    const counts = (o?: Parameters<typeof scene>[1]) =>
+      scene({ ann: 'balloonist', bo: 't1', cy: 'd1', di: 't2', ed: 'm1' }, o).g.grimoire().setup.counts.target;
+    expect(counts()).toEqual([2, 1, 1, 1]);
+    expect(counts({ fields: { balloonist: { outsiders: '+1' } } })).toEqual([2, 1, 1, 1]);
+    expect(counts({ fields: { balloonist: { outsiders: '+0' } } })).toEqual([3, 0, 1, 1]);
   });
   it('holds setup until the choice is made', () => {
     const item = (s: ReturnType<typeof scene>) => s.g.grimoire().setup.checklist.find((c) => c.id === 'balloonist');
@@ -91,19 +80,5 @@ describe('Balloonist', () => {
     night('di');
     expect(labels()).toMatchObject({ di: 'demon', cy: 'townsfolk' });
     expect(labels()).not.toHaveProperty('ann');
-  });
-  it('flags a written answer as out of date when a decision changes the true answer under it', () => {
-    const s = scene(
-      { ann: 'balloonist', bo: 't1', cy: 'd1', di: 't2', ed: 'm1' },
-      { fields: { balloonist: { outsiders: '+0' } } },
-    )
-      .start()
-      .review();
-    const d = s.decision('balloonist');
-    s.g.st({ type: 'override_result', resultKey: s.row('ann').key, lines: ['A written answer'] });
-    expect(s.row('ann').staleOverride).toBe(false);
-    const other = d.options.find((o) => o.id !== d.default)?.id as string;
-    s.decide('balloonist', other);
-    expect(s.row('ann')).toMatchObject({ final: ['A written answer'], staleOverride: true });
   });
 });

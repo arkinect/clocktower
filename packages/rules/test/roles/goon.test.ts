@@ -12,7 +12,17 @@ describe('Goon', () => {
     expect(s.alignment('ann')).toBe('evil');
     expect(s.impaired('bo')).toBe(true);
     expect(s.impaired('ed')).toBe(false);
+    // The drunk Poisoner's choice does nothing.
     expect(s.impaired('ann')).toBe(false);
+  });
+  it('a Fortune Teller who chose them hears the opposite', () => {
+    const s = scene({ ...cast, di: 'fortune_teller' })
+      .start()
+      .submit({ di: ['ann', 'cy'] })
+      .review();
+    expect(s.row('di').causes.join(' ')).toMatch(/Goon/);
+    expect(s.row('di').truth[0]).toMatch(/Yes/);
+    expect(s.row('di').suggested[0]).toMatch(/No/);
   });
   it('is told at dawn that they changed sides, each time they do', () => {
     const s = scene(cast)

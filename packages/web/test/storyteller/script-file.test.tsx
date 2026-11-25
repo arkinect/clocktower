@@ -5,13 +5,13 @@ import { RoleCard, SetScript, SetSettings, type RoleId, type StorytellerView } f
 
 const run = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
 const store = vi.hoisted(() => ({ catalog: [] as unknown[] }));
-vi.mock('../src/app/store', () => ({
+vi.mock('../../src/app/store', () => ({
   useCommand: () => ({ run, pending: false }),
   useGame: () => ({ catalog: store.catalog, jinxes: [] }),
   useNames: () => ({ players: {}, roles: { imp: 'Imp' } }),
 }));
 
-import { ScriptTransfer } from '../src/storyteller/ScriptTransfer';
+import { ScriptTransfer } from '../../src/storyteller/ScriptTransfer';
 import {
   MAX_BYTES,
   MAX_ENTRIES,
@@ -20,7 +20,7 @@ import {
   parseScript,
   settingChanges,
   type GameSettings,
-} from '../src/storyteller/scriptFile';
+} from '../../src/storyteller/scriptFile';
 
 const role = (roleId: string, type: string, over: Record<string, unknown> = {}) =>
   RoleCard.parse({
@@ -109,13 +109,12 @@ describe('reading a script file', () => {
     expect(parse([evil])).toEqual({ ok: true, roles: ['imp'], ignored: 0, settings: null });
   });
 
-  it.each(['__proto__', 'constructor', 'toString', 'hasOwnProperty', '', '   ', '<img src=x onerror=alert(1)>'])(
-    'finds no character called %j',
-    (id) => {
-      expect(parse([id, 'imp'])).toMatchObject({ roles: ['imp'], ignored: 1 });
-      expect(parse([id])).toMatchObject({ ok: false });
-    },
-  );
+  it('finds no character by an inherited name, an empty one or markup', () => {
+    for (const id of ['__proto__', 'constructor', 'toString', 'hasOwnProperty', '', '   ', '<img src=x>']) {
+      expect(parse([id, 'imp']), id).toMatchObject({ roles: ['imp'], ignored: 1 });
+      expect(parse([id]), id).toMatchObject({ ok: false });
+    }
+  });
 
   it('is not fooled by a __proto__ key', () => {
     const text =
@@ -127,25 +126,27 @@ describe('reading a script file', () => {
     expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
   });
 
-  it.each([
-    ['not JSON', 'imp, empath'],
-    ['empty', ''],
-    ['an object', '{"roles":["imp"]}'],
-    ['a string', '"imp"'],
-    ['null', 'null'],
-    ['an entry that is null', '["imp",null]'],
-    ['an entry that is a number', '["imp",1]'],
-    ['an entry that is a list', '["imp",["imp"]]'],
-    ['an id that is an object', '["imp",{"id":{"toString":"imp"}}]'],
-    ['an entry with no id', '["imp",{"name":"Imp"}]'],
-    ['two _meta entries', '[{"id":"_meta"},{"id":"_meta"},"imp"]'],
-    ['no characters', '[]'],
-    ['only characters this app does not have', '["legion"]'],
-    ['deep nesting', '['.repeat(100_000)],
-    ['too many entries', JSON.stringify(Array(MAX_ENTRIES + 1).fill('imp'))],
-    ['too much text', JSON.stringify(['imp', 'x'.repeat(MAX_BYTES)])],
-  ])('refuses %s', (_name, text) => {
-    expect(parseScript(text, catalog).ok).toBe(false);
+  it('refuses a file that is not a script', () => {
+    for (const [name, text] of [
+      ['not JSON', 'imp, empath'],
+      ['empty', ''],
+      ['an object', '{"roles":["imp"]}'],
+      ['a string', '"imp"'],
+      ['null', 'null'],
+      ['an entry that is null', '["imp",null]'],
+      ['an entry that is a number', '["imp",1]'],
+      ['an entry that is a list', '["imp",["imp"]]'],
+      ['an id that is an object', '["imp",{"id":{"toString":"imp"}}]'],
+      ['an entry with no id', '["imp",{"name":"Imp"}]'],
+      ['two _meta entries', '[{"id":"_meta"},{"id":"_meta"},"imp"]'],
+      ['no characters', '[]'],
+      ['only characters this app does not have', '["legion"]'],
+      ['deep nesting', '['.repeat(100_000)],
+      ['too many entries', JSON.stringify(Array(MAX_ENTRIES + 1).fill('imp'))],
+      ['too much text', JSON.stringify(['imp', 'x'.repeat(MAX_BYTES)])],
+    ] as const) {
+      expect(parseScript(text, catalog).ok, name).toBe(false);
+    }
   });
 
   it('says when a file comes from a newer version', () => {
@@ -155,26 +156,30 @@ describe('reading a script file', () => {
     });
   });
 
-  it.each([[0], [-1], [1.5], ['1'], [null], [undefined]])('refuses version %j', (version) => {
-    expect(parse([meta({ version, settings }), 'imp']).ok).toBe(false);
+  it('refuses a version that is not a whole number from 1', () => {
+    for (const version of [0, -1, 1.5, '1', null, undefined]) {
+      expect(parse([meta({ version, settings }), 'imp']).ok, String(version)).toBe(false);
+    }
   });
 
-  it.each([
-    { countdownSeconds: SECONDS.min - 1 },
-    { countdownSeconds: SECONDS.max + 1 },
-    { countdownSeconds: 60.5 },
-    { countdownSeconds: '60' },
-    { countdownSeconds: 1e99 },
-    { followUpExtensionSeconds: null },
-    { announceDeaths: 'true' },
-    { notifyOnRoleChange: 1 },
-    { evilInfoPolicy: 'constructor' },
-    { evilInfoPolicy: ['house'] },
-    [],
-    'x',
-    null,
-  ])('refuses settings %j', (s) => {
-    expect(parse(withSettings(s)).ok).toBe(false);
+  it('refuses settings the server would not take', () => {
+    for (const s of [
+      { countdownSeconds: SECONDS.min - 1 },
+      { countdownSeconds: SECONDS.max + 1 },
+      { countdownSeconds: 60.5 },
+      { countdownSeconds: '60' },
+      { countdownSeconds: 1e99 },
+      { followUpExtensionSeconds: null },
+      { announceDeaths: 'true' },
+      { notifyOnRoleChange: 1 },
+      { evilInfoPolicy: 'constructor' },
+      { evilInfoPolicy: ['house'] },
+      [],
+      'x',
+      null,
+    ]) {
+      expect(parse(withSettings(s)).ok, JSON.stringify(s)).toBe(false);
+    }
   });
 
   it('takes only the settings it knows, and allows some to be missing', () => {

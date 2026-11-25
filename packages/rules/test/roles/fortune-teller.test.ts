@@ -1,26 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
 
-const cast = { ann: 'fortune_teller', bo: 't1', cy: 'd1', di: 't2', ed: 'm1' };
-const opts = { fields: { fortune_teller: { herring: 'di' } } };
+const cast = { ann: 'fortune_teller', bo: 't1', cy: 'd1', di: 't2', ed: 'poisoner' };
+const asks = (...pair: string[]) =>
+  scene(cast, { fields: { fortune_teller: { herring: 'di' } } })
+    .start()
+    .submit({ ann: pair });
 describe('Fortune Teller', () => {
-  it('sees a Demon', () => {
-    const s = scene(cast, opts)
-      .start()
-      .submit({ ann: ['cy', 'bo'] });
-    expect(s.truth('ann')).toEqual(['cy and bo: Yes, one of them is a Demon.']);
+  it('sees a Demon, reads the red herring as one, and sees none otherwise', () => {
+    expect(asks('cy', 'bo').truth('ann')).toEqual(['cy and bo: Yes, one of them is a Demon.']);
+    expect(asks('di', 'bo').truth('ann')).toEqual(['di and bo: Yes, one of them is a Demon.']);
+    expect(asks('bo', 'ed').truth('ann')).toEqual(['bo and ed: No, neither is a Demon.']);
   });
-  it('the red herring reads as a Demon', () => {
-    const s = scene(cast, opts)
-      .start()
-      .submit({ ann: ['di', 'bo'] });
-    expect(s.truth('ann')).toEqual(['di and bo: Yes, one of them is a Demon.']);
-  });
-  it('sees no Demon', () => {
-    const s = scene(cast, opts)
-      .start()
-      .submit({ ann: ['bo', 'ed'] });
-    expect(s.truth('ann')).toEqual(['bo and ed: No, neither is a Demon.']);
+  it('impaired, they are given the opposite', () => {
+    const s = asks('bo', 'ed').submit({ ed: ['ann'] });
+    expect(s.truth('ann')[0]).toMatch(/No/);
+    expect(s.row('ann').suggested[0]).toMatch(/Yes/);
   });
   it('the setup checklist blocks until a red herring is set', () => {
     const s = scene(cast);

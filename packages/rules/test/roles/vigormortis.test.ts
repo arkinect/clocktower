@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { pid } from '../helpers/game';
 import { scene } from '../scenario';
 
 const cast = { ann: 'vigormortis', bo: 'empath', cy: 'poisoner', di: 'oracle', ed: 't3', fi: 't4', gu: 't5' };
@@ -28,10 +29,6 @@ describe('Vigormortis', () => {
     s.execute('ann').dusk();
     expect(s.impaired('bo')).toBe(false);
   });
-  it('warns about the Scarlet Woman', () => {
-    const s = scene({ ...cast, cy: 'scarlet_woman' });
-    expect(s.g.grimoire().setup.warnings.join(' ')).toContain('Scarlet Woman');
-  });
   it('a killed Townsfolk gets nothing', () => {
     const s = scene(cast)
       .start()
@@ -53,5 +50,15 @@ describe('Vigormortis', () => {
     expect(s.character('di')).toBe('vigormortis');
     expect(s.impaired('bo')).toBe(true);
     expect(s.specs('cy')).toHaveLength(1);
+  });
+  it('the poisoned neighbour is either closest Townsfolk, alive or dead', () => {
+    const s = scene({ ann: 'vigormortis', bo: 'empath', cy: 'poisoner', di: 'butler', ed: 'sailor', fi: 'oracle' })
+      .start()
+      .dawn()
+      .kill('bo')
+      .dusk()
+      .submit({ ann: ['cy'] })
+      .review();
+    expect(s.decision('vigormortis').options.map((o) => o.id)).toEqual([pid('bo'), pid('ed')]);
   });
 });

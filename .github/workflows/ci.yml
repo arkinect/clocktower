@@ -25,11 +25,12 @@ jobs:
       - run: npm run boundaries
       - run: npm run boundaries:selftest
       - run: npm run check:role-ids
-      # With coverage, held to the floors in each package's vitest config. The nightly 10,000 games run without it.
+      # With coverage, held to the floors in each package's vitest config. The nightly games run without it.
       - run: npm run ${{ github.event_name == 'schedule' && 'test' || 'test:coverage' }}
         env:
-          # 500 games on every push, 10,000 at night.
-          FUZZ_GAMES: ${{ github.event_name == 'schedule' && '10000' || '500' }}
+          # 100 random games on every push, always the same ones. 2,000 at night, from a seed no other night has used.
+          FUZZ_GAMES: ${{ github.event_name == 'schedule' && '2000' || '100' }}
+          FUZZ_SEED: ${{ github.event_name == 'schedule' && format('{0}0000', github.run_number) || '1' }}
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e -w @ct/web

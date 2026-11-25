@@ -67,7 +67,7 @@ are well again that night. Alive, sober and healthy then, there is one, even if 
 
 The Al-Hadikhia's jinx is decided at the same moment, as it stands in for the extra day. In it they must choose 3 good
 players. 3 not being chosen is not "all 3 choose to live", so good wins. They may choose no one only if there are fewer
-than 3 good players, living or dead. Tests: `scenarios/al-hadikhia.test.ts`, `roles/mastermind.test.ts`.
+than 3 good players, living or dead. Tests: `roles/al-hadikhia.test.ts`, `roles/mastermind.test.ts`.
 
 ## Two players left
 
@@ -89,7 +89,7 @@ Test: `roles/moonchild.test.ts`.
 The Cannibal is poisoned, and believes they ate a good player. They get a Townsfolk or Outsider from the script,
 other than the Cannibal, as a believed-only ability: they wake as it and get false information. While an evil player is
 set to be executed, the Day tab asks which one, with a random one preselected; dusk uses whatever is selected. What
-a Cannibal ate cannot be changed afterwards. Test: `scenarios/cannibal.test.ts`.
+a Cannibal ate cannot be changed afterwards. Test: `roles/cannibal.test.ts`.
 
 ## The Juggler enters their own guesses
 
@@ -176,7 +176,7 @@ collecting is reopened and closed again. Tests: `framework/mechanics.test.ts`, "
 ## Lil' Monsta's token outlasts a character change
 
 A babysitter whose character changes (a Farmer's heir) keeps the token, as it is not theirs: it belongs to no player.
-Otherwise the game would go on with no Demon. Test: `autoplay/whole-games.test.ts`.
+Otherwise the game would go on with no Demon. Test: `roles/lil-monsta.test.ts`, `games/autoplay-games.test.ts`.
 
 ## The Mathematician and a true answer
 

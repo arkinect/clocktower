@@ -2,7 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AbilityView, ConditionView, GrimoirePlayer, type StorytellerView } from '@ct/protocol';
+import type { GrimoirePlayer, StorytellerView } from '@ct/protocol';
+import { ability, condition, player as anyone } from '../views';
 
 const run = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
 const catalog = vi.hoisted(() => [
@@ -11,7 +12,7 @@ const catalog = vi.hoisted(() => [
   { roleId: 'imp', name: 'Imp', type: 'demon' },
   { roleId: 'beggar', name: 'Beggar', type: 'traveller' },
 ]);
-vi.mock('../src/app/store', () => ({
+vi.mock('../../src/app/store', () => ({
   useCommand: () => ({ run, pending: false }),
   useGame: () => ({ catalog, jinxes: [] }),
   useNames: () => ({
@@ -20,7 +21,7 @@ vi.mock('../src/app/store', () => ({
   }),
 }));
 
-import { ChangeCharacter, Grimoire, NewGameButton, Seat } from '../src/storyteller/Grimoire';
+import { ChangeCharacter, Grimoire, NewGameButton, Seat } from '../../src/storyteller/Grimoire';
 
 afterEach(() => {
   cleanup();
@@ -28,48 +29,8 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const ability = (over: Record<string, unknown>) =>
-  AbilityView.parse({
-    id: 'a90',
-    roleId: 'slayer',
-    name: 'Slayer',
-    shownAs: null,
-    origin: 'character',
-    perceivedOnly: false,
-    used: false,
-    active: true,
-    oncePerGame: true,
-    usageAuto: false,
-    reminder: null,
-    dayReminder: false,
-    from: 'Night 0',
-    survivesDeath: false,
-    summary: [],
-    ...over,
-  });
-
 const player = (over: Record<string, unknown>) =>
-  GrimoirePlayer.parse({
-    id: 'aaaaaaaaaaaaaaaa',
-    name: 'Ann',
-    seat: 0,
-    alive: true,
-    deathCause: null,
-    character: 'empath',
-    alignment: 'good',
-    self: { character: 'empath', alignment: 'good' },
-    abilities: [],
-    conditions: [],
-    impaired: false,
-    causes: [],
-    ghostVoteUsed: false,
-    hasSeenRole: true,
-    rolePreference: 'none',
-    connected: true,
-    departed: false,
-    isDemon: false,
-    ...over,
-  });
+  anyone({ character: 'empath', self: { character: 'empath', alignment: 'good' }, hasSeenRole: true, ...over });
 
 const view = (players: GrimoirePlayer[], over: Record<string, unknown> = {}) =>
   ({
@@ -96,11 +57,6 @@ function hold(name: string) {
 describe('the seat sheet', () => {
   const seat = (p: GrimoirePlayer, others: GrimoirePlayer[] = [], over: Record<string, unknown> = {}) =>
     render(<Seat view={view([p, ...others], over)} p={p} onChangeCharacter={vi.fn()} />);
-
-  it('shows no online or offline status', () => {
-    seat(player({ connected: false }));
-    expect(screen.queryByText(/offline|online/)).toBeNull();
-  });
 
   it('shows the seat, the character in its type colour and the alignment as segments', async () => {
     seat(player({ id: 'bbbbbbbbbbbbbbbb', name: 'Bo', seat: 1 }), [player({ seat: 0 })]);
@@ -192,7 +148,7 @@ describe('the seat sheet', () => {
     seat(
       player({
         conditions: [
-          ConditionView.parse({
+          condition({
             id: 'c1',
             type: 'poisoned',
             name: null,
@@ -253,7 +209,7 @@ describe('changing a character', () => {
   });
 
   it('names the impairment on a seat token, never a bare "impaired"', () => {
-    const drunk = ConditionView.parse({
+    const drunk = condition({
       id: 'c1',
       type: 'drunk',
       name: null,
@@ -309,12 +265,6 @@ describe('game facts and controls', () => {
     render(<Grimoire view={view([], { setup: { bluffs: ['slayer'], fields: [field] } })} />);
     expect(screen.getByText('Red herring: Bo')).toBeTruthy();
     expect(screen.getByText('Demon bluffs: Slayer')).toBeTruthy();
-  });
-
-  it('New game (erase) sits with the endings, above Force a phase', () => {
-    render(<Grimoire view={view([])} />);
-    const row = screen.getByText('Good wins').closest('.row');
-    expect(row?.textContent).toContain('New game (erase)');
   });
 
   it('New game (erase) is a hold button', () => {

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { PlayerId } from '@ct/protocol';
 import { defaultScript } from '../../src';
 import { makeRng, type Rng } from '../../src/util/rng';
-import { randomActions, seatedIds } from '../helpers/fuzz';
+import { eachSeed, randomActions, seatedIds } from '../helpers/fuzz';
 import { pid, ST, TestGame } from '../helpers/game';
 
 function setUp(rng: Rng, count: number) {
@@ -82,19 +82,23 @@ function checkPhones(g: TestGame, ids: PlayerId[]) {
   }
 }
 
-describe('randomised whole games', () => {
-  it.each(Array.from({ length: 60 }, (_, i) => i + 1))('seed %i', (seed) => {
-    const rng = makeRng(seed);
-    const { g, ids } = setUp(rng, 5 + (seed % 11));
-    for (let n = 0; n <= 4; n++) {
-      if (n > 0) {
-        g.st({ type: 'start_night' });
-        if (g.state.phase.kind === 'night' && g.state.phase.stage !== 'collecting') g.st({ type: 'open_collecting' });
-      }
-      playNight(g, seatedIds(g.state), rng);
-      expect(g.state.phase.kind).toBe('day');
-      playDay(g, ids, rng);
-      checkPhones(g, ids);
-    }
-  });
+describe('whole games with a Storyteller', () => {
+  it('60 random games are played to their fifth day', () => {
+    eachSeed(60, playGame);
+  }, 120_000);
 });
+
+function playGame(seed: number) {
+  const rng = makeRng(seed);
+  const { g, ids } = setUp(rng, 5 + (seed % 11));
+  for (let n = 0; n <= 4; n++) {
+    if (n > 0) {
+      g.st({ type: 'start_night' });
+      if (g.state.phase.kind === 'night' && g.state.phase.stage !== 'collecting') g.st({ type: 'open_collecting' });
+    }
+    playNight(g, seatedIds(g.state), rng);
+    expect(g.state.phase.kind).toBe('day');
+    playDay(g, ids, rng);
+    checkPhones(g, ids);
+  }
+}

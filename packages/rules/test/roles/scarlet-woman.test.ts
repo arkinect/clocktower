@@ -11,26 +11,13 @@ describe('Scarlet Woman', () => {
   it('takes over at Start Night when the Demon is executed with 5 or more alive, with nothing to confirm', () => {
     const s = scene(cast).start().dawn();
     s.execute('ann');
-    expect(s.state.prompts).toEqual([]);
+    expect(s.state.gameEnd).toEqual([]);
     expect(s.character('bo')).toBe('scarlet_woman');
     s.dusk();
     expect(s.character('bo')).toBe('imp');
     expect(s.inbox('bo')).toContain('You are now the Imp');
     expect(s.specs('bo')[0]?.roleId).toBe('imp');
-    s.review();
-    expect(s.hasDecision('scarlet_woman')).toBe(false);
-  });
-  it('holds the game end for the rest of the day', () => {
-    const s = scene(cast).start().dawn();
-    s.execute('ann');
-    expect(s.state.gameEnd).toEqual([]);
-  });
-  it('not when she is poisoned at Start Night', () => {
-    const s = scene(cast).start().dawn();
-    s.execute('ann');
-    s.g.st({ type: 'add_condition', target: pid('bo'), condition: 'poisoned' });
-    s.dusk();
-    expect(s.character('bo')).toBe('scarlet_woman');
+    expect(s.review().res.decisions).toEqual([]);
   });
   it("not when the Demon's execution is called off before Start Night", () => {
     const s = scene(cast).start().dawn();
@@ -38,11 +25,6 @@ describe('Scarlet Woman', () => {
     s.dusk();
     expect(s.character('bo')).toBe('scarlet_woman');
     expect(s.character('ann')).toBe('imp');
-  });
-  it('not with fewer than 5 alive', () => {
-    const s = scene({ ann: 'imp', bo: 'scarlet_woman', cy: 't1', di: 't2' }).start().dawn();
-    s.execute('ann').dusk();
-    expect(s.character('bo')).toBe('scarlet_woman');
   });
   it('the Demon marked dead with the Dead button: the same handover at Start Night', () => {
     const s = scene(cast).start().dawn();
@@ -58,32 +40,14 @@ describe('Scarlet Woman', () => {
     expect(s.character('bo')).toBe('imp');
     expect(mastermind(s)).toBeNull();
   });
-  it('does not count Travellers towards the 5', () => {
-    const s = scene({ ann: 'imp', bo: 'scarlet_woman', cy: 't1', di: 't2', vi: TRAVELLER[0] as string })
-      .start()
-      .dawn();
-    expect(s.state.seats.filter((x) => s.alive(x.playerId))).toHaveLength(5);
-    s.execute('ann').dusk();
+  it.each([
+    ['4 alive', { ann: 'imp', bo: 'scarlet_woman', cy: 't1', di: 't2' }],
+    ['4 alive and a Traveller', { ann: 'imp', bo: 'scarlet_woman', cy: 't1', di: 't2', vi: TRAVELLER[0] as string }],
+  ])('not with %s', (_name, chars) => {
+    const s = scene(chars).start().dawn().execute('ann').dusk();
     expect(s.character('bo')).toBe('scarlet_woman');
   });
-  it('still counts every non-Traveller, with a Traveller at the table', () => {
-    const s = scene({ ...cast, vi: TRAVELLER[0] as string })
-      .start()
-      .dawn();
-    s.execute('ann').dusk();
-    expect(s.character('bo')).toBe('imp');
-  });
-  it('catches a night kill of the Demon without asking', () => {
-    const s = scene({ ...cast, cy: 'assassin' })
-      .start()
-      .nextNight()
-      .submit({ cy: ['ann'] })
-      .review();
-    expect(s.hasDecision('scarlet_woman')).toBe(false);
-    s.dawn();
-    expect(s.character('bo')).toBe('imp');
-  });
-  it('a Scarlet Woman poisoned when the Demon dies does nothing', () => {
+  it('not when she is poisoned as the Demon dies', () => {
     const s = scene({ ...cast, cy: 'poisoner' })
       .start()
       .submit({ cy: ['bo'] })

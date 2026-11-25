@@ -15,19 +15,20 @@ const deals = (g: AutoGame, n: number) =>
 const inPlay = (s: AutoGame['state']) => [...s.players.values()].map((p) => p.character as string);
 
 describe('the deal', () => {
-  it.each(Array.from({ length: 11 }, (_, i) => i + 5))('is complete and legal for %i players', (n) => {
-    for (const s of deals(table(n), 15)) {
-      expect(setupChecklist(s).filter((c) => !c.done)).toEqual([]);
-      expect(setupWarnings(s)).toEqual([]);
-      expect(actualCounts(s)).toEqual(
-        targetCounts(
-          s,
-          n,
-          inPlay(s).map((x) => roleId(x)),
-        ).counts,
-      );
+  it('is complete and legal for every number of players', () => {
+    for (let n = 5; n <= 15; n++) {
+      for (const s of deals(table(n), 15)) {
+        const label = `${n} players`;
+        const roles = inPlay(s).map((x) => roleId(x));
+        expect(
+          setupChecklist(s).filter((c) => !c.done),
+          label,
+        ).toEqual([]);
+        expect(setupWarnings(s), label).toEqual([]);
+        expect(actualCounts(s), label).toEqual(targetCounts(s, n, roles).counts);
+      }
     }
-  });
+  }, 60_000);
 
   it('draws the characters evenly, whoever asked for what', () => {
     // With an Outsider in the chart: the Vigormortis takes one away.

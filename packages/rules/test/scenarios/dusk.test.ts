@@ -1,5 +1,5 @@
 // An execution is a choice during the day. It happens at dusk (Start Night), to whoever was chosen last, and then
-// triggers what it triggers for other characters (Cannibal, Mastermind, Mayor).
+// triggers what it triggers for other characters (here the Cannibal).
 import { describe, expect, it } from 'vitest';
 import { scene, type Scene } from '../scenario';
 import { pid } from '../helpers/game';
@@ -9,8 +9,6 @@ const eaten = (s: Scene) =>
     .filter((a) => a.holder.kind === 'player' && a.holder.id === pid('ann') && a.origin.kind !== 'character')
     .filter((a) => a.activeUntil !== 'removed')
     .map((a) => a.roleId as string);
-const extraDay = (s: Scene) =>
-  (s.state.abilities.get(s.ability('mastermind'))?.state as { extraDay: number | null }).extraDay;
 const executions = (s: Scene) => s.state.events.filter((e) => e.kind === 'execution');
 const life = (s: Scene, id: string) => s.g.player(pid(id)).life;
 
@@ -54,23 +52,5 @@ describe('execution at dusk', () => {
     expect(life(s, 'bo').cause).toBe('storyteller');
     expect(executions(s)).toMatchObject([{ playerId: pid('bo'), died: false }]);
     expect(eaten(s)).toEqual([]);
-  });
-
-  it('the Demon executed with a Mastermind: the extra day starts at dusk', () => {
-    const s = scene(cast).start().dawn().execute('cy');
-    expect(s.alive('cy')).toBe(true);
-    s.dusk();
-    expect(s.alive('cy')).toBe(false);
-    expect(extraDay(s)).toBe(2);
-    expect(s.state.gameEnd).toEqual([]);
-  });
-
-  it('no execution with 3 alive and a Mayor: the night starts, and the win is stored but not shown', () => {
-    const s = scene({ ann: 'mayor', bo: 't1', cy: 'imp', di: 't2', ed: 'm1' }).start().dawn();
-    s.execute('bo').dusk().dawn();
-    s.kill('ed');
-    s.dusk();
-    expect(s.state.phase.kind).toBe('night');
-    expect(s.state.gameEnd.find((g) => g.key === 'mayor')?.winner).toBe('good');
   });
 });

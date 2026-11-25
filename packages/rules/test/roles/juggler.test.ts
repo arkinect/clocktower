@@ -32,6 +32,7 @@ describe('Juggler', () => {
 
   it('enters their own guesses that night, and learns how many were right', () => {
     const s = night1('yes');
+    expect(s.g.grimoire().board?.find((r) => r.playerId === pid('ann'))?.expected).toBe(true);
     const spec = s.specs('ann')[0];
     expect(spec).toMatchObject({ roleId: 'juggler', maxRows: 5, distinct: true });
     expect(spec?.fields.map((f) => f.kind)).toEqual(['player', 'role']);
@@ -72,11 +73,6 @@ describe('Juggler', () => {
         .review();
       expect(s.truth('ann')).toEqual(['You guessed 0 correctly.']);
     });
-  });
-
-  it('is waited for when they guessed publicly', () => {
-    const s = night1('yes');
-    expect(s.g.grimoire().board?.find((r) => r.playerId === pid('ann'))?.expected).toBe(true);
   });
 
   it('did not guess publicly: no picker, not woken, nothing learned', () => {

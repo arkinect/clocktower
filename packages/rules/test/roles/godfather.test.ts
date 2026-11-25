@@ -20,9 +20,10 @@ describe('Godfather', () => {
       .dawn();
     expect(s.alive('ed')).toBe(false);
   });
-  it('sleeps otherwise, unless the Storyteller says so', () => {
+  it('sleeps otherwise, unless the Storyteller says so; they can still submit, which records nothing', () => {
     const s = scene(cast, opts).start().nextNight();
     expect(s.specs('ann')).toEqual([]);
+    s.g.as(s.ids[0] as never, { type: 'submit_night', actions: {} });
     expect(s.decision('godfather_trigger').default).toBe('no');
   });
   it('changes the Outsider count by the setup field', () => {

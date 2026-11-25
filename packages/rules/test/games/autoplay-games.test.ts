@@ -1,16 +1,12 @@
 // Whole autoplay games from deal to winner, with random play and no Storyteller command. Every one must end, and what
 // the steward and the phones are shown must never move with anything hidden.
 import { describe, expect, it } from 'vitest';
-import { roleId, type PlayerId, type StewardView } from '@ct/protocol';
+import type { PlayerId, StewardView } from '@ct/protocol';
 import { project, resolveNight, stewardView, type GameStateT } from '../../src';
 import { setupChecklist, setupWarnings } from '../../src/setup/rules';
 import { makeRng, type Rng } from '../../src/util/rng';
-import { Run } from '../../src/night/run';
-import { clone } from '../../src/util/clone';
-import { autoCast, autoScript, table, type AutoGame } from '../helpers/autoplay';
-import { pid } from '../helpers/game';
-
-const GAMES = Number(process.env['FUZZ_GAMES'] ?? 100);
+import { autoScript, table, type AutoGame } from '../helpers/autoplay';
+import { eachSeed, FUZZ_GAMES } from '../helpers/fuzz';
 
 /** The same game with every hidden fact but the steward's own rewritten. */
 function blanked(s: GameStateT, me: PlayerId): GameStateT {
@@ -111,59 +107,47 @@ function playDay(g: AutoGame, rng: Rng, step: () => void) {
 }
 
 describe('whole autoplay games', () => {
-  it("keeps Lil' Monsta's token when its babysitter becomes the Farmer", () => {
-    // Found by these games: the token went, and with it the Demon, so the game could never end.
-    const g = autoCast({
-      ann: roleId('empath'),
-      bo: roleId('lil_monsta'),
-      cy: roleId('farmer'),
-      di: roleId('clockmaker'),
-      ed: roleId('seamstress'),
-    });
-    const st = g.state;
-    const token = { kind: 'player' as const, id: pid('di') };
-    const run = new Run({ world: clone(st) as GameStateT, moment: { kind: 'night', n: 0 }, seed: 1, now: 0 });
-    run.grant(token, roleId('lil_monsta'), { kind: 'granted', by: 'test' } as never, {
-      state: { part: 'token', heir: null },
-    });
-    expect(run.reader.isDemon(pid('di'))).toBe(true);
-    run.changeCharacter(pid('di'), roleId('farmer'), { reason: 'became a Farmer', keepGranted: false });
-    expect(run.reader.isDemon(pid('di'))).toBe(true);
-  });
-
-  it.each(Array.from({ length: GAMES }, (_, i) => i + 1))('seed %i', (seed) => {
-    const rng = makeRng(seed * 31);
-    const script = seed % 3 ? autoScript() : rng.shuffle(autoScript()).slice(0, 42);
-    const count = 5 + (seed % 11);
-    const g = table(count, script, seed * 1009);
-    const step = () => checkHidden(g);
-    step();
-    const res = g.tryAs(g.steward, { type: 'deal' });
-    if (!res.ok) {
-      // Only a script too short of something for this table.
-      expect(res.error).toMatch(/Not enough|No legal/);
-      expect(script.length).toBe(42);
-      return;
-    }
-    expect(setupChecklist(g.state).every((c) => c.done)).toBe(true);
-    expect(setupWarnings(g.state)).toEqual([]);
-    step();
-    for (let n = 0; n < 60 && g.state.phase.kind !== 'ended'; n++) {
-      if (g.console().phase.stage === 'briefing') g.sw({ type: 'open_night' });
-      g.submitAll(rng);
-      step();
-      g.answerAll(rng);
-      step();
-      expect(resolveNight(g.state).decisions.filter((d) => d.required && d.chosen === null)).toEqual([]);
-      g.wait(31).sw({ type: 'call_dawn' });
-      step();
-      if (!g.console().over) playDay(g, rng, step);
-      if (g.console().over) g.sw({ type: 'announce_end' });
-      else g.sw({ type: 'begin_night' });
-      step();
-    }
-    expect(g.state.phase.kind).toBe('ended');
-    const end = project(g.state, g.steward, { now: g.now });
-    expect(end.kind === 'steward' && end.revealed?.players.length).toBe(count);
-  });
+  it(
+    `${FUZZ_GAMES} random games all end`,
+    () => {
+      eachSeed(FUZZ_GAMES, playGame);
+    },
+    60_000 + FUZZ_GAMES * 1000,
+  );
 });
+
+function playGame(seed: number) {
+  const rng = makeRng(seed * 31);
+  const script = seed % 3 ? autoScript() : rng.shuffle(autoScript()).slice(0, 42);
+  const count = 5 + (seed % 11);
+  const g = table(count, script, seed * 1009);
+  const step = () => checkHidden(g);
+  step();
+  const res = g.tryAs(g.steward, { type: 'deal' });
+  if (!res.ok) {
+    // Only a script too short of something for this table.
+    expect(res.error).toMatch(/Not enough|No legal/);
+    expect(script.length).toBe(42);
+    return;
+  }
+  expect(setupChecklist(g.state).every((c) => c.done)).toBe(true);
+  expect(setupWarnings(g.state)).toEqual([]);
+  step();
+  for (let n = 0; n < 60 && g.state.phase.kind !== 'ended'; n++) {
+    if (g.console().phase.stage === 'briefing') g.sw({ type: 'open_night' });
+    g.submitAll(rng);
+    step();
+    g.answerAll(rng);
+    step();
+    expect(resolveNight(g.state).decisions.filter((d) => d.required && d.chosen === null)).toEqual([]);
+    g.wait(31).sw({ type: 'call_dawn' });
+    step();
+    if (!g.console().over) playDay(g, rng, step);
+    if (g.console().over) g.sw({ type: 'announce_end' });
+    else g.sw({ type: 'begin_night' });
+    step();
+  }
+  expect(g.state.phase.kind).toBe('ended');
+  const end = project(g.state, g.steward, { now: g.now });
+  expect(end.kind === 'steward' && end.revealed?.players.length).toBe(count);
+}

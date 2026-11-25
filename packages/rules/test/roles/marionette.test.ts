@@ -7,7 +7,9 @@ describe('Marionette', () => {
   it('is drunk, believes a good character and is left out of the Minion info', () => {
     const s = scene(cast, { believed: { bo: 'empath' } }).start();
     expect(s.impaired('bo')).toBe(true);
-    expect(s.g.view(pid('bo') as never).me.role?.name).toBe('Empath');
+    const { me } = s.g.view(pid('bo') as never);
+    expect(me.role?.name).toBe('Empath');
+    expect(JSON.stringify(me)).not.toMatch(/marionette/i);
     expect(s.inbox('di').join(' ')).not.toContain('bo');
     expect(s.inbox('ann')).toContain('The Marionette is: bo');
   });

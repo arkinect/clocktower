@@ -30,16 +30,42 @@ describe('Imp', () => {
     expect(s.alive('ann')).toBe(false);
     expect(s.inbox('ed')).toContain('You are now the Imp');
   });
-  it('the Storyteller picks when the Scarlet Woman is poisoned', () => {
-    const s = scene({ ...cast, bo: 'poisoner' })
+  it('the Storyteller picks a living Minion when the Scarlet Woman is poisoned, and the new Imp is told', () => {
+    const s = scene({ ...cast, bo: 'poisoner', fi: 'm2', gu: 't3' })
       .start()
-      .nextNight()
+      .dawn()
+      .kill('fi')
+      .dusk()
       .submit({ ann: ['ann'], bo: ['ed'] })
       .review();
     expect(s.decision('starpass').options.map((o) => o.id)).toEqual([pid('bo'), pid('ed')]);
+    expect(s.decision('starpass').default).toBe(pid('ed'));
     s.decide('starpass', 'bo').dawn();
     expect(s.character('bo')).toBe('imp');
+    expect(s.alignment('bo')).toBe('evil');
     expect(s.character('ed')).toBe('scarlet_woman');
+    expect(s.inbox('bo')).toContain('You are now the Imp');
+  });
+  it('with no living Minion nobody becomes the Imp, and the row says so', () => {
+    const s = scene(cast)
+      .start()
+      .dawn()
+      .kill('bo')
+      .kill('ed')
+      .dusk()
+      .submit({ ann: ['ann'] })
+      .review();
+    expect(s.hasDecision('starpass')).toBe(false);
+    expect(s.res.actors.find((a) => a.playerId === pid('ann'))?.outcome).toContain('starpass: no living Minion');
+    s.dawn();
+    expect([...s.state.players.values()].filter((p) => p.character === 'imp')).toHaveLength(1);
+  });
+  it('a chosen player who is already dead is no death', () => {
+    const s = scene(cast).start().dawn().kill('cy').dusk();
+    expect(s.specs('ann')[0]?.fields[0]?.options).toContain(pid('cy'));
+    s.submit({ ann: ['cy'] }).review();
+    expect(s.res.deaths).toEqual([]);
+    expect(s.res.log.join('\n')).toMatch(/already dead/);
   });
   it('the Storyteller picks with fewer than 5 alive', () => {
     const s = scene({ ann: 'imp', bo: 'm1', cy: 't1', ed: 'scarlet_woman' })
@@ -50,16 +76,6 @@ describe('Imp', () => {
     expect(s.decision('starpass')).toMatchObject({ default: pid('ed') });
     s.decide('starpass', 'bo').dawn();
     expect(s.character('bo')).toBe('imp');
-  });
-  it('the Storyteller picks the Minion', () => {
-    const s = scene({ ...cast, ed: 'm2' })
-      .start()
-      .nextNight()
-      .submit({ ann: ['ann'] })
-      .decide('starpass', 'bo')
-      .dawn();
-    expect(s.character('bo')).toBe('imp');
-    expect(s.alignment('bo')).toBe('evil');
   });
   it('a starpass pick is dropped when the Imp chooses someone else after all', () => {
     const s = scene({ ...cast, ed: 'm2' })

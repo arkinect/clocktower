@@ -1,6 +1,6 @@
-// Small helpers shared by the scenario tests.
+// Small helpers shared by the rules tests.
 import { roleId, type DecisionKey, type RoleId } from '@ct/protocol';
-import { pid } from '../helpers/game';
+import { pid } from './game';
 import type { Scene } from '../scenario';
 
 /** A player id from its short name. */

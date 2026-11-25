@@ -4,10 +4,10 @@ import { pid } from '../helpers/game';
 
 const cast = { ann: 'damsel', bo: 'm1', cy: 'imp', di: 't1', ed: 't3' };
 describe('Damsel', () => {
-  it('all Minions learn one is in play', () => {
-    const s = scene(cast).start();
-    expect(s.inbox('bo')).toContain('A Damsel is in play.');
-    expect(s.inbox('di')).not.toContain('A Damsel is in play.');
+  it('all Minions learn one is in play, but not the Demon or the Marionette', () => {
+    const s = scene({ ...cast, di: 'marionette' }, { believed: { di: 'empath' } }).start();
+    const told = Object.keys(cast).filter((id) => s.inbox(id).includes('A Damsel is in play.'));
+    expect(told).toEqual(['bo']);
   });
   it('a right guess offers evil the win', () => {
     const s = scene(cast).start().dawn();

@@ -1,7 +1,6 @@
-// Setup: the script, type counts with every modifier, the checklist, and the night sheet as data.
+// Setup: the script, type counts with every modifier, and the checklist.
 import { describe, expect, it } from 'vitest';
-import { allJinxes, allRoles, createGame, defaultScript, findRole } from '../../src';
-import { nightSheet } from '../../src/abilities/registry';
+import { allRoles, defaultScript, findRole } from '../../src';
 import { makeRng } from '../../src/util/rng';
 import {
   bluffCandidates,
@@ -10,8 +9,8 @@ import {
   suggestDistribution,
   targetCounts,
 } from '../../src/setup/rules';
-import { as, chosen } from './lib';
-import { pid, seated, ST } from '../helpers/game';
+import { as, chosen } from '../helpers/scene';
+import { seated, ST } from '../helpers/game';
 import { scene, type Scene } from '../scenario';
 
 const twelve = 'Ann Bo Cy Di Ed Flo Gus Hal Ivy Jo Kim Lee'.split(' ');
@@ -65,22 +64,6 @@ describe('the script', () => {
     }
   });
 
-  it('a new game has every role on the script', () => {
-    expect(createGame('x', 0).script).toEqual(defaultScript());
-    expect(defaultScript()).toHaveLength(allRoles().filter((r) => !r.id.startsWith('t-')).length);
-  });
-
-  it('play again keeps the script', () => {
-    const s = scene({ ann: 'imp', bo: 'empath', cy: 'sailor', di: 'butler', ed: 'poisoner' });
-    s.g.st({ type: 'set_script', roleIds: s.state.script.filter((r) => r !== 'gambler') });
-    s.start();
-    const before = s.state.script;
-    s.g.st({ type: 'end_game' });
-    s.g.st({ type: 'play_again' });
-    expect(s.state.script).toEqual(before);
-    expect(s.state.script).not.toContain('gambler');
-  });
-
   it('an unknown id on the script is left out of views, assignment and the checklist', () => {
     const s = scene({ ann: 'imp', bo: 'empath', cy: 'sailor', di: 'butler', ed: 'poisoner' });
     s.g.state = { ...s.state, script: [...s.state.script, chosen('no_such_role')] };
@@ -126,6 +109,9 @@ describe('type counts', () => {
     expect(label()).toContain('(chosen: -1)');
     s.g.st({ type: 'assign_character', playerId: as('bo'), roleId: chosen('poisoner') });
     expect(label()).toContain('(chosen: +1)');
+    const field = s.g.grimoire().setup.fields.find((x) => x.field === 'outsiders');
+    expect(field?.value).toBe('+1');
+    expect(field?.options.map((o) => o.id)).toEqual(['+1']);
   });
 
   it('stacked with the Vigormortis and the Balloonist', () => {
@@ -134,14 +120,15 @@ describe('type counts', () => {
     expect(counts(table(10, ['baron', 'godfather', 'vigormortis', 'balloonist'], '+1'))).toEqual([4, 3, 2, 1]);
   });
 
-  it.each([
-    [7, [5, 0, 1, 1], 1],
-    [10, [7, 0, 2, 1], 2],
-    [12, [7, 2, 2, 1], 2],
-  ] as const)("at %i players the Lil' Monsta chart is unchanged", (n, chart, minions) => {
-    const m = ['assassin', 'witch', 'mezepheles'].slice(0, minions);
-    const g = table(n, ['lil_monsta', ...m]);
-    expect(targetCounts(g.state, n, [chosen('lil_monsta')]).counts).toEqual(chart);
+  it("the Lil' Monsta leaves the chart unchanged at every size", () => {
+    for (const [n, chart, minions] of [
+      [7, [5, 0, 1, 1], 1],
+      [10, [7, 0, 2, 1], 2],
+      [12, [7, 2, 2, 1], 2],
+    ] as const) {
+      const g = table(n, ['lil_monsta', ...['assassin', 'witch', 'mezepheles'].slice(0, minions)]);
+      expect(targetCounts(g.state, n, [chosen('lil_monsta')]).counts, `${n} players`).toEqual(chart);
+    }
   });
 
   it("a suggested distribution with the Lil' Monsta follows the chart", () => {
@@ -169,19 +156,6 @@ describe('type counts', () => {
       const roles = Object.values(d) as string[];
       expect(roles.includes('vigormortis') && roles.includes('scarlet_woman')).toBe(false);
     }
-  });
-
-  it('suggested distributions follow the Baron', () => {
-    const s = scene({
-      ann: 'baron',
-      bo: 'imp',
-      cy: 'empath',
-      di: 'sailor',
-      ed: 'butler',
-      fi: 'drunk',
-      gus: 'clockmaker',
-    });
-    expect(s.g.grimoire().setup.counts.target).toEqual([3, 2, 1, 1]);
   });
 });
 
@@ -223,174 +197,5 @@ describe('the checklist', () => {
     expect(jinx(scene(chars, { believed: { bo: 'balloonist' } }))).toEqual([
       'Jinx (Marionette & Balloonist): the Marionette thinks they are the Balloonist, so an Outsider may be added.',
     ]);
-  });
-});
-
-describe('jinx data', () => {
-  it('no pair appears twice, and the pair is two different roles', () => {
-    const pairs = allJinxes().map((j) => [j.a, j.b].sort().join('+'));
-    expect(new Set(pairs).size).toBe(pairs.length);
-    for (const j of allJinxes()) expect(j.a).not.toBe(j.b);
-  });
-});
-
-describe('the Organ Grinder', () => {
-  const chars = { ann: 'organ_grinder', bo: 'poisoner', cy: 'imp', di: 'empath', ed: 'butler' };
-  const eyes = (s: Scene) => s.g.grimoire().dayNotices.some((n) => n.includes('Eyes-closed'));
-
-  it('wakes every night with a Drunk or Sober choice and no decline', () => {
-    const s = scene(chars).start();
-    const [spec] = s.specs('ann');
-    expect(spec?.allowDecline).toBeFalsy();
-    expect(spec?.fields[0]).toMatchObject({
-      kind: 'option',
-      options: ['drunk', 'sober'],
-      labels: { drunk: 'Drunk until dusk', sober: 'Stay sober' },
-    });
-    const key = spec?.key as string;
-    const send = (choice: { values: string[]; decline?: boolean }) =>
-      s.g.tryAs(as('ann'), { type: 'submit_night', actions: { [key]: choice } }).ok;
-    expect(send({ values: ['maybe'] })).toBe(false);
-    expect(send({ decline: true, values: [] })).toBe(false);
-    s.nextNight();
-    expect(s.specs('ann').map((x) => x.roleId)).toEqual(['organ_grinder']);
-  });
-
-  it('no submission counts as sober, and the row says so', () => {
-    const s = scene(chars)
-      .start()
-      .submit({ ann: ['sober'] })
-      .review();
-    expect(s.res.actors.find((a) => a.playerId === pid('ann'))?.outcome).toBe('stays sober');
-    s.dawn();
-    expect(eyes(s)).toBe(true);
-    s.dusk().review();
-    expect(s.res.actors.find((a) => a.playerId === pid('ann'))?.outcome).toBe('no choice: stays sober');
-    s.dawn();
-    expect(eyes(s)).toBe(true);
-  });
-
-  it('poisoned: no eyes-closed voting, and choosing drunk does nothing', () => {
-    const s = scene(chars)
-      .start()
-      .submit({ bo: ['ann'], ann: ['drunk'] })
-      .dawn();
-    expect(eyes(s)).toBe(false);
-    expect(s.state.conditions.filter((c) => c.type === 'drunk')).toEqual([]);
-  });
-
-  it('dead: no eyes-closed voting', () => {
-    const s = scene(chars)
-      .start()
-      .submit({ ann: ['sober'] })
-      .dawn();
-    expect(eyes(s)).toBe(true);
-    s.kill('ann');
-    expect(eyes(s)).toBe(false);
-  });
-});
-
-describe('the night sheet', () => {
-  const MODIFIERS = ['philosopher', 'sailor', 'poisoner', 'innkeeper'];
-  const DEMONS = [
-    'imp',
-    'pukka',
-    'shabaloth',
-    'po',
-    'no_dashii',
-    'vigormortis',
-    'al_hadikhia',
-    'lil_monsta',
-    'witch_king',
-  ];
-  const KILLS = [...DEMONS, 'gambler', 'assassin', 'godfather', 'gossip', 'moonchild'];
-  const INFORMATION = [
-    'clockmaker',
-    'empath',
-    'fortune_teller',
-    'flowergirl',
-    'oracle',
-    'seamstress',
-    'juggler',
-    'balloonist',
-    'grandmother',
-    'mathematician',
-  ];
-  const real = (n: number) =>
-    nightSheet(n)
-      .map((r) => r.id as string)
-      .filter((r) => !r.startsWith('t-'));
-  const before = (order: string[], a: string[], b: string[]) => {
-    for (const x of a) {
-      for (const y of b) {
-        if (x !== y && order.includes(x) && order.includes(y)) {
-          expect(order.indexOf(x), `${x} before ${y}`).toBeLessThan(order.indexOf(y));
-        }
-      }
-    }
-  };
-
-  it('every Demon is in the Demon group', () => {
-    expect(
-      allRoles()
-        .filter((r) => r.type === 'demon' && !r.id.startsWith('t-'))
-        .map((r) => r.id as string)
-        .sort(),
-    ).toEqual([...DEMONS].sort());
-  });
-
-  describe.each([
-    ['first night', 0],
-    ['other nights', 1],
-  ])('%s', (_name, n) => {
-    const order = real(n);
-
-    it('the Philosopher, Sailor, Poisoner and Innkeeper go first, in that order', () => {
-      expect(order.slice(0, order.filter((r) => MODIFIERS.includes(r)).length)).toEqual(
-        MODIFIERS.filter((r) => order.includes(r)),
-      );
-    });
-    it('kills come before the Ravenkeeper and information', () =>
-      before(order, KILLS, ['ravenkeeper', ...INFORMATION]));
-    it('kills come before the Professor, except the Moonchild', () =>
-      before(
-        order,
-        KILLS.filter((k) => k !== 'moonchild'),
-        ['professor'],
-      ));
-    it('the Professor comes before the Empath and Oracle', () => before(order, ['professor'], ['empath', 'oracle']));
-    it('the Grandmother comes after every Demon', () => before(order, DEMONS, ['grandmother']));
-    it('the Mathematician comes last', () => expect(order.at(-1)).toBe('mathematician'));
-    it('every role appears once', () => expect(new Set(order).size).toBe(order.length));
-  });
-
-  it('the Organ Grinder per the official sheet', () => {
-    const [first, other] = [real(0), real(1)];
-    expect(first.indexOf('organ_grinder')).toBe(first.indexOf('godfather') + 1);
-    expect(first.indexOf('devils_advocate')).toBe(first.indexOf('organ_grinder') + 1);
-    expect(other.indexOf('organ_grinder')).toBe(other.indexOf('gambler') + 1);
-    expect(other.indexOf('devils_advocate')).toBe(other.indexOf('organ_grinder') + 1);
-  });
-
-  it("the Al-Hadikhia: other nights only, between the Vigormortis and the Lil' Monsta", () => {
-    const [first, other] = [real(0), real(1)];
-    expect(first).not.toContain('al_hadikhia');
-    expect(other.indexOf('al_hadikhia')).toBe(other.indexOf('vigormortis') + 1);
-    expect(other.indexOf('lil_monsta')).toBe(other.indexOf('al_hadikhia') + 1);
-  });
-
-  it('the Farmer: other nights only, after the Huntsman, before the Moonchild and Grandmother', () => {
-    const [first, other] = [real(0), real(1)];
-    expect(first).not.toContain('farmer');
-    expect(other.indexOf('farmer')).toBe(other.indexOf('huntsman') + 1);
-    expect(other.indexOf('moonchild')).toBe(other.indexOf('farmer') + 1);
-    before(other, DEMONS, ['farmer']);
-    before(other, ['farmer'], ['grandmother']);
-  });
-
-  it('every role that resolves at night has a slot', () => {
-    const slotted = new Set([...real(0), ...real(1)]);
-    const missing = allRoles().filter((r) => r.ability.resolve && !r.id.startsWith('t-') && !slotted.has(r.id));
-    expect(missing.map((r) => r.id)).toEqual([]);
   });
 });

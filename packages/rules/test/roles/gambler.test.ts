@@ -28,4 +28,19 @@ describe('Gambler', () => {
     s.submit({ ann: ['di', 'oracle'], bo: ['ann'] }).dawn();
     expect(s.alive('ann')).toBe(true);
   });
+  it('can choose themselves, and guessing their own role right does nothing', () => {
+    const s = scene(cast).start().nextNight();
+    expect(s.specs('ann')[0]?.fields[0]?.options).toContain(pid('ann'));
+    s.submit({ ann: ['ann', 'gambler'] }).review();
+    expect(s.res.deaths).toEqual([]);
+  });
+  it('a Drunk who believes they are the Gambler guesses Gambler: wrong, and impaired means no death', () => {
+    const s = scene({ ...cast, ann: 'drunk' }, { believed: { ann: 'gambler' } })
+      .start()
+      .nextNight()
+      .submit({ ann: ['ann', 'gambler'] })
+      .review();
+    expect(s.res.deaths).toEqual([]);
+    expect(s.res.actors.find((a) => a.playerId === pid('ann'))?.outcome).toContain('impaired: does not die');
+  });
 });

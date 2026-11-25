@@ -39,7 +39,7 @@ export const tableDead = (run: Run): PlayerId[] =>
  *
  * Only the fields copied below come over from the resolved night; results and notices are sent from here. Whatever
  * else a night hook writes on its copy of the game (the inbox, pending notices, the published seating, prompts,
- * events) is dropped. The "dawn carries over" test in test/invariants/real-roles.test.ts fails when a role does.
+ * events) is dropped. The "dawn carries over" test in test/games/fuzz.test.ts fails when a role does.
  */
 export function publish(s: GameState, res: Resolution, n: number, seed: number, now: number): Run {
   const before = new Set(s.seats.map((x) => x.playerId).filter((id) => s.players.get(id)?.life.alive));

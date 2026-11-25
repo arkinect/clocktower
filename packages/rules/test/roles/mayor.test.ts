@@ -52,29 +52,52 @@ describe('Mayor', () => {
       .dawn();
     expect(s.alive('bo')).toBe(false);
   });
-  it('wins with 3 alive and no execution', () => {
-    const s = scene(cast).start().dawn();
-    s.execute('bo').dusk().dawn();
-    s.g.st({ type: 'mark_alive', playerId: pid('ed') as never, alive: false });
-    s.execute(null).dusk();
-    expect(s.winners()).toContain('good');
-  });
-  it('does not count Travellers: 3 residents and a Traveller alive still wins', () => {
-    const s = scene({ ...cast, vi: TRAVELLER[0] as string })
+  it.each([
+    ['nobody else', {}],
+    ['a Traveller, who does not count', { vi: TRAVELLER[0] as string }],
+  ])('wins with 3 alive and no execution: 3 and %s', (_name, extra) => {
+    const s = scene({ ...cast, ...extra })
       .start()
       .dawn();
-    s.execute('bo').dusk().dawn();
-    s.g.st({ type: 'mark_alive', playerId: pid('ed') as never, alive: false });
+    s.execute('bo').dusk().dawn().kill('ed');
     s.execute(null).dusk();
-    expect(s.alive('vi')).toBe(true);
+    // The win is stored, and the night starts all the same.
+    expect(s.state.phase.kind).toBe('night');
     expect(s.winners()).toContain('good');
+  });
+  it('not with an attack on someone else', () => {
+    const s = scene(cast)
+      .start()
+      .nextNight()
+      .submit({ cy: ['bo'] })
+      .review();
+    expect(s.hasDecision('mayor')).toBe(false);
+    expect(s.res.deaths).toEqual([pid('bo')]);
   });
   it('not with a day kill', () => {
     const s = scene({ ...cast, bo: 'slayer' })
       .start()
       .dawn();
     s.act('slayer', 'shoot', ['ann'], { mode: 'force_success' });
-    expect(s.state.prompts).toEqual([]);
     expect(s.alive('ann')).toBe(false);
+  });
+  it('a random bounce is recommended, and may land on a protected player', () => {
+    let found = false;
+    for (let seed = 1; seed < 60 && !found; seed++) {
+      const s = scene({ ...cast, di: 'innkeeper', ed: 'empath', fi: 't3' })
+        .start()
+        .dawn();
+      s.g.seed = seed * 31;
+      s.dusk()
+        .submit({ cy: ['ann'], di: ['bo', 'ed'] })
+        .review();
+      if (s.decision('mayor').default === 'die') continue;
+      found = true;
+      s.decide('mayor', 'bo');
+      expect(s.res.deaths).toEqual([]);
+      s.decide('mayor', 'die');
+      expect(s.res.deaths).toEqual([pid('ann')]);
+    }
+    expect(found).toBe(true);
   });
 });

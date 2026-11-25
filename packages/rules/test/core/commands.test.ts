@@ -79,24 +79,18 @@ describe('a type-count override', () => {
   const counts = (g: TestGame) => g.grimoire().setup.counts;
   const total = (g: TestGame) => counts(g).target.reduce((a, b) => a + b, 0);
 
-  it('goes back to the default when a late joiner is seated', () => {
-    const g = overridden();
-    join(g, 'Hal');
-    expect(counts(g).source).toBe('default');
-    expect(total(g)).toBe(8);
-  });
-
-  it('goes back to the default when a player is removed', () => {
-    const g = overridden();
-    g.st({ type: 'remove_player', playerId: pid('Gus') });
-    expect(counts(g).source).toBe('default');
-    expect(total(g)).toBe(6);
-  });
-
-  it('goes back to the default when the seating leaves someone out', () => {
-    const g = overridden();
-    g.st({ type: 'set_seating', order: names.slice(0, 6).map(pid) });
-    expect(counts(g).source).toBe('default');
+  it('goes back to the default when a player is seated, removed or left out', () => {
+    const joined = overridden();
+    join(joined, 'Hal');
+    expect(counts(joined).source).toBe('default');
+    expect(total(joined)).toBe(8);
+    const removed = overridden();
+    removed.st({ type: 'remove_player', playerId: pid('Gus') });
+    expect(counts(removed).source).toBe('default');
+    expect(total(removed)).toBe(6);
+    const left = overridden();
+    left.st({ type: 'set_seating', order: names.slice(0, 6).map(pid) });
+    expect(counts(left).source).toBe('default');
   });
 
   it('stays when the same players only change seats', () => {
@@ -137,21 +131,18 @@ describe('the night countdown', () => {
     expect(deadline()).toBe(g.now + 30_000);
   });
 
-  it('clear_submission lets a player choose again, while choices are still being collected', () => {
+  it('clear_submission takes back a choice, while choices are collected and in review', () => {
     const g = begin(cast(FIVE));
+    const submitted = () => g.view(pid('Ann')).me.submitted;
     g.as(pid('Ann'), { type: 'submit_night', actions: {} });
-    expect(g.view(pid('Ann')).me.submitted).toBe(true);
+    expect(submitted()).toBe(true);
     g.st({ type: 'clear_submission', playerId: pid('Ann') });
-    expect(g.view(pid('Ann')).me.submitted).toBe(false);
-  });
-
-  it('clear_submission works in review too, to take back a choice the Storyteller entered there', () => {
-    const g = begin(cast(FIVE));
+    expect(submitted()).toBe(false);
     g.st({ type: 'close_collecting', force: true });
     g.st({ type: 'submit_for', playerId: pid('Ann'), actions: {} });
-    expect(g.view(pid('Ann')).me.submitted).toBe(true);
+    expect(submitted()).toBe(true);
     g.st({ type: 'clear_submission', playerId: pid('Ann') });
-    expect(g.view(pid('Ann')).me.submitted).toBe(false);
+    expect(submitted()).toBe(false);
   });
 });
 

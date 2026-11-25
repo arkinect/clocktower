@@ -9,17 +9,17 @@ const { run, navigate, state } = vi.hoisted(() => ({
   navigate: vi.fn(),
   state: { catalog: [] as unknown[] },
 }));
-vi.mock('../src/app/router', () => ({ navigate }));
-vi.mock('../src/app/store', () => ({
+vi.mock('../../src/app/router', () => ({ navigate }));
+vi.mock('../../src/app/store', () => ({
   useGame: () => ({ catalog: state.catalog, jinxes: [] }),
   useCommand: () => ({ run, pending: false }),
   useNames: () => ({ players: {}, roles: { imp: 'Imp', artist: 'Artist', empath: 'Empath' } }),
 }));
 
-import { MyRole, TableNotes } from '../src/player/autoplay';
-import Console from '../src/steward/Console';
-import { nominationWarnings, voteWarnings } from '../src/steward/Day';
-import { AutoplayToggle } from '../src/storyteller/Setup';
+import { MyRole, TableNotes } from '../../src/player/autoplay';
+import Console from '../../src/steward/Console';
+import { nominationWarnings, voteWarnings } from '../../src/steward/Day';
+import { AutoplayToggle } from '../../src/storyteller/Setup';
 
 const id = (s: string) => s as PlayerId;
 const role = (s: string) => s as RoleId;

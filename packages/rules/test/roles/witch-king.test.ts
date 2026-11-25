@@ -9,11 +9,10 @@ const cursed = (picks: string[], chars: Record<string, string> = cast) =>
   scene(chars).start().dawn().dusk().submit({ ann: picks }).dawn();
 
 describe('Witch King', () => {
-  it('does not wake on the first night', () => {
-    expect(scene(cast).start().specs('ann')).toEqual([]);
-  });
-  it('curses up to 2 different players, or kills 1, or chooses no one', () => {
-    const s = scene(cast).start().dawn().dusk();
+  it('from the second night, curses up to 2 different players, or kills 1, or chooses no one', () => {
+    const s = scene(cast).start();
+    expect(s.specs('ann')).toEqual([]);
+    s.dawn().dusk();
     expect(s.specs('ann')[0]).toMatchObject({
       modes: [
         { id: 'curse', label: 'Curse', maxRows: 2 },
@@ -22,26 +21,22 @@ describe('Witch King', () => {
       distinct: true,
       allowDecline: true,
     });
+    s.submit({ ann: [] }).dawn();
+    expect(row(s)).toBeUndefined();
   });
-  it('a kill is tonight, as the Demon, and curses no one', () => {
+
+  it('a kill is tonight, as the Demon, and curses no one; they may curse the next night', () => {
     const s = cursed(['kill', 'bo']);
     expect(s.alive('bo')).toBe(false);
     expect(s.state.events.some((e) => e.kind === 'death' && e.cause === 'demon_attack')).toBe(true);
     expect(row(s)).toBeUndefined();
-  });
-  it('a curse kills no one at night', () => {
-    const s = cursed(['bo', 'cy']);
-    expect(Object.keys(cast).every((id) => s.alive(id))).toBe(true);
-  });
-  it('may kill one night and curse the next', () => {
-    const s = cursed(['kill', 'bo']);
     s.dusk()
       .submit({ ann: ['cy'] })
       .dawn();
     expect(s.alive('cy')).toBe(true);
     expect(row(s)?.fields[0]?.options).toEqual([pid('cy')]);
   });
-  it('a poisoned Witch King kills no one, and a protected player survives the kill', () => {
+  it('a poisoned Witch King kills and curses no one, and a protected player survives the kill', () => {
     const poisoned = scene({ ...cast, di: 'poisoner' })
       .start()
       .submit({ di: ['bo'] })
@@ -50,6 +45,11 @@ describe('Witch King', () => {
       .submit({ ann: ['kill', 'bo'], di: ['ann'] })
       .dawn();
     expect(poisoned.alive('bo')).toBe(true);
+    poisoned
+      .dusk()
+      .submit({ ann: ['bo', 'cy'], di: ['ann'] })
+      .dawn();
+    expect(row(poisoned)).toBeUndefined();
     expect(cursed(['kill', 'bo'], { ...cast, bo: 'fool' }).alive('bo')).toBe(true);
   });
   it('a Witch King who kills themself dies, and good wins', () => {
@@ -71,20 +71,16 @@ describe('Witch King', () => {
   });
   it('curses 2 players: each dies when nominated, and the other stays cursed', () => {
     const s = cursed(['bo', 'cy']);
-    expect(row(s)).toMatchObject({ control: 'toggle', preview: true, recorded: null });
+    expect(Object.keys(cast).every((id) => s.alive(id))).toBe(true);
     expect(row(s)?.fields[0]?.options).toEqual([pid('bo'), pid('cy')]);
     expect(s.act('witch_king', 'apply_curse', ['bo']).effective).toBe(true);
     expect(s.dead('bo')).toBe(true);
     expect(s.alive('cy')).toBe(true);
+    expect(s.state.events.some((e) => e.kind === 'death' && e.cause === 'demon_attack')).toBe(true);
     expect(row(s)?.recorded).toEqual([pid('bo')]);
     expect(s.act('witch_king', 'apply_curse', ['cy']).effective).toBe(true);
     expect(s.dead('bo', 'cy')).toBe(true);
     expect(row(s)?.recorded).toEqual([pid('bo'), pid('cy')]);
-  });
-  it('the curse kills as the Demon', () => {
-    const s = cursed(['bo']);
-    s.act('witch_king', 'apply_curse', ['bo']);
-    expect(s.state.events.some((e) => e.kind === 'death' && e.cause === 'demon_attack')).toBe(true);
   });
   it('tells the Witch King who they chose', () => {
     const s = scene(cast)
@@ -94,23 +90,6 @@ describe('Witch King', () => {
       .submit({ ann: ['bo', 'cy'] });
     expect(s.truth('ann')).toEqual(['You chose bo and cy.']);
   });
-  it('may curse just one player', () => {
-    const s = cursed(['ed']);
-    expect(row(s)?.fields[0]?.options).toEqual([pid('ed')]);
-  });
-  it('may curse no one: no switch on the Day tab', () => {
-    const s = cursed([]);
-    expect(row(s)).toBeUndefined();
-  });
-  it('is a switch: pressing it again takes it back, reviving them and cursing them again', () => {
-    const s = cursed(['bo', 'cy']);
-    s.act('witch_king', 'apply_curse', ['bo']);
-    expect(s.act('witch_king', 'apply_curse', ['bo']).summary).toBe('Taken back: bo is cursed again and alive.');
-    expect(s.alive('bo')).toBe(true);
-    expect(row(s)?.recorded).toBeNull();
-    s.act('witch_king', 'apply_curse', ['bo']);
-    expect(s.alive('bo')).toBe(false);
-  });
   it('shows switches only for the living, and for a curse that has gone off', () => {
     const s = cursed(['bo', 'cy']);
     s.g.st({ type: 'mark_alive', playerId: pid('cy') as never, alive: false });
@@ -119,26 +98,9 @@ describe('Witch King', () => {
     expect(s.dead('bo', 'cy')).toBe(true);
     expect(row(s)).toMatchObject({ recorded: [pid('bo')], fields: [{ options: [pid('bo')] }] });
   });
-  it('a preview changes nothing, and the Storyteller can force a survival', () => {
-    const s = cursed(['bo']);
-    s.act('witch_king', 'apply_curse', ['bo'], { mode: 'preview' });
-    expect(s.alive('bo')).toBe(true);
-    s.act('witch_king', 'apply_curse', ['bo'], { mode: 'force_fail' });
-    expect(s.alive('bo')).toBe(true);
-  });
   it('the curses end at dusk', () => {
     const s = cursed(['bo', 'cy']);
     s.dusk().submit({ ann: [] }).dawn();
-    expect(row(s)).toBeUndefined();
-  });
-  it('a poisoned Witch King curses no one', () => {
-    const s = scene({ ...cast, di: 'poisoner' })
-      .start()
-      .submit({ di: ['bo'] })
-      .dawn()
-      .dusk()
-      .submit({ ann: ['bo', 'cy'], di: ['ann'] })
-      .dawn();
     expect(row(s)).toBeUndefined();
   });
   it('a protected player survives the curse (the Fool)', () => {

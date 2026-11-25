@@ -125,14 +125,11 @@ describe('Strict-Transport-Security', () => {
     return (await fetch(`${h.base}/healthz`)).headers.get('strict-transport-security');
   };
 
-  it('is absent by default, even behind HTTPS', async () => {
+  it('is sent only when HSTS turns it on, and never for subdomains', async () => {
     expect(await header()).toBeNull();
     expect(await header(testConfig({ secureCookies: true }))).toBeNull();
     expect(loadConfig({}).hsts).toBe(false);
     expect(loadConfig({ HSTS: '0' }).hsts).toBe(false);
-  });
-
-  it('is sent only when HSTS turns it on, and never for subdomains', async () => {
     expect(loadConfig({ HSTS: '1' }).hsts).toBe(true);
     expect(loadConfig({ HSTS: 'true' }).hsts).toBe(true);
     expect(await header(testConfig({ hsts: true }))).toBe('max-age=15552000');

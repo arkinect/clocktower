@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RoleId } from '@ct/protocol';
 import { replay, saveState } from '../../src';
-import { begin, cast, dawn, dusk, pid, ST, TestGame, seated } from '../helpers/game';
+import { begin, cast, pid, ST, TestGame, seated } from '../helpers/game';
 import { DEMON, MINION, OUT, TOWN } from '../helpers/plain';
 
 const FIVE = {
@@ -69,19 +69,6 @@ describe('a five-player game with ability-less characters', () => {
 
     expect(replay(g.code, g.createdAt, g.log)).toEqual(g.state);
     expect(saveState(replay(g.code, g.createdAt, g.log))).toBe(saveState(g.state));
-  });
-
-  it('play again keeps the players and starts fresh', () => {
-    const g = begin(cast(FIVE));
-    dawn(g);
-    g.st({ type: 'end_game', winner: 'evil' });
-    g.st({ type: 'play_again' });
-    expect(g.state.phase).toEqual({ kind: 'setup' });
-    expect([...g.state.players.keys()]).toHaveLength(6);
-    expect(g.state.events).toEqual([]);
-    expect(g.player(pid('Ann')).character).toBeNull();
-    expect(g.state.abilities).toEqual(new Map());
-    expect(g.state.seats).toHaveLength(5);
   });
 });
 
@@ -175,19 +162,5 @@ describe('setup', () => {
     g.st({ type: 'assign_character', playerId: pid('Bo'), roleId: OUT[0]! });
     g.st({ type: 'assign_character', playerId: pid('Bo'), roleId: MINION[0]! });
     expect(g.player(pid('Bo')).alignment).toBe('evil');
-  });
-});
-
-describe('deaths and revivals in the day', () => {
-  it('records them and tells the table only at dawn', () => {
-    const g = begin(cast(FIVE));
-    dawn(g);
-    g.st({ type: 'mark_alive', playerId: pid('Bo'), alive: false });
-    expect(g.player(pid('Bo')).life).toMatchObject({ alive: false, cause: 'storyteller' });
-    g.st({ type: 'mark_alive', playerId: pid('Bo'), alive: true });
-    expect(g.player(pid('Bo')).life.alive).toBe(true);
-    dusk(g);
-    dawn(g);
-    expect(g.state.phase).toEqual({ kind: 'day', n: 2 });
   });
 });

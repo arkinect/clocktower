@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { as, open } from './lib';
+import { as, open } from '../helpers/scene';
 import { ST } from '../scenario';
 import { scene } from '../scenario';
 import { pid } from '../helpers/game';

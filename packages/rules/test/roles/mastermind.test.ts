@@ -8,6 +8,7 @@ describe('Mastermind', () => {
     s.execute('cy').dusk();
     expect(s.state.gameEnd).toEqual([]);
     expect(s.state.phase).toMatchObject({ kind: 'night', n: 1 });
+    expect(s.state.abilities.get(s.ability('mastermind'))?.state).toMatchObject({ extraDay: 2 });
   });
   it('the next execution decides it', () => {
     const s = scene(cast).start().dawn();

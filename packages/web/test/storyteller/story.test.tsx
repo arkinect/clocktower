@@ -4,13 +4,13 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { StorytellerView } from '@ct/protocol';
 
-vi.mock('../src/app/store', () => ({
+vi.mock('../../src/app/store', () => ({
   useGame: () => ({ catalog: [{ roleId: 'empath', name: 'Empath', type: 'townsfolk' }], jinxes: [] }),
   useCommand: () => ({ run: vi.fn(async () => ({ ok: true })), pending: false }),
   useNames: () => ({ players: { a: 'Ann', b: 'Bo' }, roles: { empath: 'Empath', imp: 'Imp' } }),
 }));
 
-import { Story } from '../src/storyteller/Story';
+import { Story } from '../../src/storyteller/Story';
 
 afterEach(cleanup);
 

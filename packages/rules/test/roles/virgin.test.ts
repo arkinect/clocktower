@@ -54,14 +54,11 @@ describe('Virgin', () => {
     expect(virgin(s)[0]?.recorded).toBeNull();
     expect(s.state.abilities.get(s.ability('virgin'))?.used).toBe(false);
   });
-  it('a preview changes nothing', () => {
-    const s = scene(cast).start().dawn();
-    s.act('virgin', 'nominated', ['bo'], { mode: 'preview' });
-    expect(s.alive('bo')).toBe(true);
-    expect(executions(s)).toEqual([]);
-    expect(virgin(s)).toHaveLength(1);
-  });
-  it('the Storyteller can force either way', () => {
+  it('a preview changes nothing, and the Storyteller can force either way', () => {
+    const p = scene(cast).start().dawn();
+    p.act('virgin', 'nominated', ['bo'], { mode: 'preview' });
+    expect(executions(p)).toEqual([]);
+    expect(virgin(p)).toHaveLength(1);
     const s = scene(cast).start().dawn();
     s.act('virgin', 'nominated', ['di'], { mode: 'force_success' });
     s.dusk();

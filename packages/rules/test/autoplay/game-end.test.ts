@@ -35,7 +35,6 @@ describe('the Demon dead', () => {
     const s = auto({ ...base, bo: 't4', flo: 'm1' })
       .night()
       .dusk();
-    s.g.state.players.get(s.g.ids[0] as never);
     // The only Minion dies, then the Imp kills themself.
     s.night({ ann: ['flo'] })
       .dusk()

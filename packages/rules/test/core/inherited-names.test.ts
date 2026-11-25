@@ -80,61 +80,58 @@ function checkViews(s: GameStateT) {
 }
 
 describe('inherited names', () => {
-  for (const [phase, make] of Object.entries(PHASES)) {
-    it(`no command takes one as an id in ${phase}`, () => {
-      const { state } = make();
-      for (const schema of Command.options) {
-        for (const bad of NAMES) {
-          const command = fill(schema as unknown as Schema, bad);
-          const label = `${schema.shape.type.value} ${bad}`;
-          const actor = schema.shape.type.value === 'join' ? null : ST;
-          const res = dispatch(state, actor, command, inputs);
-          const polluted = Object.getOwnPropertyNames(Object.prototype);
-          clean();
-          expect(polluted, label).toEqual(NAMES);
-          if (res.ok) expect(() => checkViews(res.state), label).not.toThrow();
-          else expect(res.internal, label).toBeUndefined();
-        }
+  it.each(Object.entries(PHASES))('no command takes one as an id in %s', (_phase, make) => {
+    const { state } = make();
+    for (const schema of Command.options) {
+      for (const bad of NAMES) {
+        const command = fill(schema as unknown as Schema, bad);
+        const label = `${schema.shape.type.value} ${bad}`;
+        const actor = schema.shape.type.value === 'join' ? null : ST;
+        const res = dispatch(state, actor, command, inputs);
+        const polluted = Object.getOwnPropertyNames(Object.prototype);
+        clean();
+        expect(polluted, label).toEqual(NAMES);
+        if (res.ok) expect(() => checkViews(res.state), label).not.toThrow();
+        else expect(res.internal, label).toBeUndefined();
       }
-    });
-  }
-
-  it.each(NAMES)('%s is refused as an id on arrival', (bad) => {
-    const commands = [
-      { type: 'set_seating', order: [bad] },
-      { type: 'rename_player', playerId: bad, name: 'Zed' },
-      { type: 'set_ability_used', abilityId: bad, used: true },
-      { type: 'add_traveller', playerId: bad, roleId: 'imp', alignment: 'good' },
-      { type: 'set_setup_field', abilityId: bad, field: 'x', value: null },
-      { type: 'suggest_setup_field', abilityId: bad, field: 'x' },
-      { type: 'day_action', abilityId: bad, action: 'x', values: [], mode: 'accept' },
-      { type: 'remove_condition', conditionId: bad },
-    ];
-    for (const c of commands) expect(Command.safeParse(c).success, c.type).toBe(false);
-    expect(PlayerId.safeParse(bad).success).toBe(false);
+    }
   });
 
-  it.each(NAMES)('%s is never kept as the key of a table sent by a client', (bad) => {
-    const raw: unknown = JSON.parse(`{"${bad}":{"values":[]}}`);
-    const actions = Actions.safeParse(raw);
-    expect(actions.success && Object.hasOwn(actions.data, bad)).toBe(false);
-    const many = Command.safeParse(JSON.parse(`{"type":"assign_many","assignments":{"${bad}":"imp"}}`));
-    expect(
-      many.success && Object.hasOwn((many.data as Extract<CommandT, { type: 'assign_many' }>).assignments, bad),
-    ).toBe(false);
+  it('none is an id on arrival, an actor or a role', () => {
+    for (const bad of NAMES) {
+      const commands = [
+        { type: 'set_seating', order: [bad] },
+        { type: 'rename_player', playerId: bad, name: 'Zed' },
+        { type: 'set_ability_used', abilityId: bad, used: true },
+        { type: 'add_traveller', playerId: bad, roleId: 'imp', alignment: 'good' },
+        { type: 'set_setup_field', abilityId: bad, field: 'x', value: null },
+        { type: 'suggest_setup_field', abilityId: bad, field: 'x' },
+        { type: 'day_action', abilityId: bad, action: 'x', values: [], mode: 'accept' },
+        { type: 'remove_condition', conditionId: bad },
+      ];
+      for (const c of commands) expect(Command.safeParse(c).success, `${c.type} ${bad}`).toBe(false);
+      expect(PlayerId.safeParse(bad).success, bad).toBe(false);
+      const res = dispatch(game().state, bad as PlayerId, { type: 'seen_role' }, inputs);
+      expect(res, bad).toMatchObject({ ok: false, error: 'Unknown player.' });
+      expect(findRole(bad), bad).toBeUndefined();
+    }
   });
 
-  it.each(NAMES)('%s is not an actor', (bad) => {
-    const res = dispatch(game().state, bad as PlayerId, { type: 'seen_role' }, inputs);
-    expect(res).toMatchObject({ ok: false, error: 'Unknown player.' });
-    expect(findRole(bad)).toBeUndefined();
+  it('none is kept as the key of a table sent by a client', () => {
+    for (const bad of NAMES) {
+      const raw: unknown = JSON.parse(`{"${bad}":{"values":[]}}`);
+      const actions = Actions.safeParse(raw);
+      expect(actions.success && Object.hasOwn(actions.data, bad), bad).toBe(false);
+      const many = Command.safeParse(JSON.parse(`{"type":"assign_many","assignments":{"${bad}":"imp"}}`));
+      expect(
+        many.success && Object.hasOwn((many.data as Extract<CommandT, { type: 'assign_many' }>).assignments, bad),
+        bad,
+      ).toBe(false);
+    }
   });
 
-  it('a name that only resembles one is an ordinary id', () => {
+  it('an id has the exact format it is minted in, and a name that only resembles an inherited one is fine', () => {
     expect(RoleId.safeParse('Constructor').success).toBe(true);
-  });
-
-  it('an id has the exact format it is minted in', () => {
     for (const [schema, good, bad] of [
       [
         PlayerId,

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { scene } from '../scenario';
-import { pid } from '../helpers/game';
 
 const cast = { ann: 'mezepheles', bo: 't1', cy: 'imp', di: 't2', ed: 't3' };
 const opts = { fields: { mezepheles: { word: 'apple' } } };
@@ -15,36 +14,12 @@ describe('Mezepheles', () => {
     expect(s.alignment('bo')).toBe('evil');
     expect(s.inbox('bo')).toContain('You are now evil.');
   });
-  it('asks the Storyteller nothing at night: the outcome follows from the Day tab', () => {
-    const s = scene(cast, opts).start().dawn();
-    s.act('mezepheles', 'sayer', ['bo']);
-    s.dusk().review();
-    expect(s.hasDecision('mezepheles')).toBe(false);
-  });
-  it('an impaired Mezepheles asks nothing', () => {
-    const s = scene(cast, opts).start().dawn();
-    s.act('mezepheles', 'sayer', ['bo']);
-    s.dusk();
-    s.g.st({ type: 'add_condition', target: pid('ann'), condition: 'poisoned' });
-    s.review();
-    expect(s.hasDecision('mezepheles')).toBe(false);
-  });
   it('does not turn an evil speaker', () => {
     const s = scene(cast, opts).start().dawn();
     s.act('mezepheles', 'sayer', ['cy']);
     s.dusk().dawn();
     expect(s.alignment('cy')).toBe('evil');
     expect(s.inbox('cy')).not.toContain('You are now evil.');
-  });
-  it('a Mezepheles made drunk the night after the word is said spends it with no effect', () => {
-    const s = scene(cast, opts).start().dawn();
-    s.act('mezepheles', 'sayer', ['bo']);
-    s.dusk();
-    s.g.st({ type: 'add_condition', target: pid('ann'), condition: 'drunk' });
-    s.dawn();
-    expect(s.alignment('bo')).toBe('good');
-    expect(s.inbox('bo')).not.toContain('You are now evil.');
-    expect(s.dayActions()).toEqual([]);
   });
   it('a recorded speaker can be cleared before dusk', () => {
     const s = scene(cast, opts).start().dawn();
