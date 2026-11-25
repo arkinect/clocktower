@@ -5,6 +5,7 @@ export const oracle = defineRole({
   id: roleId('oracle'),
   name: 'Oracle',
   type: 'townsfolk',
+  autoplay: true,
   abilityText: 'Each night*, you learn how many dead players are evil.',
   night: { other: 320 },
   ability: {

@@ -6,6 +6,7 @@ export const drunk = defineRole({
   id: roleId('drunk'),
   name: 'Drunk',
   type: 'outsider',
+  autoplay: true,
   abilityText: 'You do not know you are the Drunk. You think you are a Townsfolk character, but you are not.',
   believes: { allowed: (r) => r.type === 'townsfolk', label: "the Drunk's believed Townsfolk" },
   ability: {

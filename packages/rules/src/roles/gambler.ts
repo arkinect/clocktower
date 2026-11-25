@@ -5,6 +5,7 @@ export const gambler = defineRole({
   id: roleId('gambler'),
   name: 'Gambler',
   type: 'townsfolk',
+  autoplay: true,
   abilityText: 'Each night*, choose a player & guess their character: if you guess wrong, you die.',
   night: { other: 50 },
   ability: {

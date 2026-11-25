@@ -9,6 +9,7 @@ export const gossip = defineRole<State>({
   id: roleId('gossip'),
   name: 'Gossip',
   type: 'townsfolk',
+  autoplay: { unfit: 'The Storyteller has to judge what they said.' },
   abilityText: 'Each day, you may make a public statement. Tonight, if it was true, a player dies.',
   reminder: 'On the Day tab, answer Yes if the statement was true.',
   night: { other: 210, note: 'Only if the statement was true' },

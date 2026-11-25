@@ -6,6 +6,7 @@ export const imp = defineRole({
   id: roleId('imp'),
   name: 'Imp',
   type: 'demon',
+  autoplay: true,
   abilityText: 'Each night*, choose a player: they die. If you kill yourself this way, a Minion becomes the Imp.',
   night: { other: 110 },
   ability: {
@@ -47,7 +48,7 @@ export const imp = defineRole({
         title: 'Starpass: which Minion becomes the Imp?',
         description: `${ctx.name(me)} killed themselves.`,
         options: minions.map((m) => ({ id: m, label: `${ctx.name(m)} (${ctx.roleName(ctx.character(m))})` })),
-        default: heir ?? ctx.rng('heir').pick(minions),
+        default: (!ctx.autoplay && heir) || ctx.rng('heir').pick(minions),
       });
       handOverDemon(ctx, chosen, me);
       ctx.outcome(`${ctx.name(chosen)} becomes the Imp`);

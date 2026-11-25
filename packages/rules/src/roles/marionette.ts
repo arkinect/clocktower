@@ -6,6 +6,7 @@ export const marionette = defineRole({
   id: roleId('marionette'),
   name: 'Marionette',
   type: 'minion',
+  autoplay: true,
   abilityText:
     'You think you are a good character but you are not. The Demon knows who you are. [You neighbour the Demon]',
   believes: { allowed: (r) => r.alignment === 'good', label: "the Marionette's believed good role" },

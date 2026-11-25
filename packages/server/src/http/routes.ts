@@ -1,7 +1,7 @@
 // The HTTP surface. Requests with neither a session nor the right password stay cheap: they are refused from memory.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { JoinRequest, RejoinRequest, type ConfigResponse } from '@ct/protocol';
-import { ENGINE_VERSION } from '@ct/rules';
+import { ENGINE_VERSION, type GameStateT } from '@ct/rules';
 import { cookieHeader, passwordMatches, readCookie, type Sessions } from '../auth/sessions';
 import type { Config } from '../config';
 import { newPlayerId, type Games } from '../games/manager';
@@ -20,6 +20,9 @@ const cleanName = (raw: string, max: number) =>
     .join('')
     .trim()
     .slice(0, max);
+
+/** Who runs this game: its Storyteller, or in autoplay its steward. */
+const runner = (s: GameStateT) => s.storytellerId ?? s.stewardId;
 
 export function registerRoutes(
   app: FastifyInstance,
@@ -99,7 +102,7 @@ export function registerRoutes(
     const game = games.get(req.params.code);
     // A game that does not exist yet is simply empty: the first person to join creates it.
     if (!game) return { ok: true, players: [], hasStoryteller: false };
-    return { ok: true, players: game.names(), hasStoryteller: game.state.storytellerId !== null };
+    return { ok: true, players: game.names(), hasStoryteller: runner(game.state) !== null };
   });
 
   app.get<{ Params: { code: string } }>('/api/g/:code/session', (req) => {
@@ -149,7 +152,9 @@ export function registerRoutes(
   app.get<{ Params: { code: string } }>('/api/g/:code/export', (req, reply) => {
     const s = sessionOf(req);
     const game = games.get(req.params.code);
-    if (!s || !game || s.code !== game.code || game.state.storytellerId !== s.playerId) {
+    // It holds every choice and seed, so it replays the whole game: not for the steward, who plays in it, until the end.
+    const may = game?.state.phase.kind === 'ended' ? runner(game.state) : game?.state.storytellerId;
+    if (!s || !game || s.code !== game.code || may !== s.playerId) {
       return reply.code(403).send({ ok: false, error: 'Only the Storyteller can export.' });
     }
     return {

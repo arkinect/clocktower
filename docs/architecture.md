@@ -7,7 +7,7 @@ Four packages with one-way dependencies, under `packages/`, in one npm workspace
 | `@ct/protocol` | Zod schemas for commands, views and socket messages; branded id types | zod                          |
 | `@ct/rules`    | Game model, phases, commands, ability framework, night, roles, jinxes | protocol, immer, zod         |
 | `@ct/server`   | HTTP and sockets, sessions, password gate, game manager, SQLite store | rules, protocol, fastify, ws |
-| `@ct/web`      | Player and Storyteller apps                                           | protocol, react              |
+| `@ct/web`      | Player, Storyteller and steward apps                                  | protocol, react              |
 
 Principles:
 
@@ -32,6 +32,9 @@ Rules:
 - `JSON.stringify` drops a Map without a word, so only `saveState` and `loadState` turn state into text and back. `clone` is written by hand, as it must also copy immer drafts, which `structuredClone` refuses.
 - Ids have an exact format, checked as they arrive: 16 hex digits for a player, `a1` for an ability, `c1` for a condition. A `RoleId` or `GameId` has none, so those only refuse the inherited names.
 - Night positions are relative, with gaps. They are not the official sheet's numbers.
+- In autoplay `storytellerId` is null and `stewardId` is set, so every Storyteller command is refused and nobody is sent a Storyteller's view. The steward's commands are their own list (`by: 'steward'`), and none takes a `force`.
+- `StewardView` is built up from public facts and the steward's own player view. It is never a Storyteller's view with fields taken out, as a field added later would leak. `state.autoplay` holds the public record, as `events` mixes public and hidden ones.
+- A steward's command must not fail, or word its refusal, by anything hidden. Dawn says the same thing for the first 30 seconds whatever the night is doing.
 
 Server:
 
@@ -50,9 +53,12 @@ Server:
 - At the card tables a hand belongs to its player, not to a seat. A player who leaves takes it with them and brings it back to the fullest table with room, so players share as few tables as possible; a bot with its own hand fills every other seat, and an empty table closes. No seat is sent with a name, and a phone is sent no hand but its own.
 - Per-request logging is off, so addresses and URLs stay out of the logs. Each command logs the player id and command type.
 - `@fastify/static` is imported only when there is a client directory. Its dependencies are ES modules that `require` cannot load on some Node 22 releases. The esbuild bundle is unaffected.
+- In autoplay the server takes the steps nobody should take by hand. After every command, at startup, and when a time is reached, it asks the rules for the next one (`autopilotStep`) and sends it as a system command, through the same queue and log. A night that throws is reported to the steward as stuck, never why.
+- The export of an autoplay game is refused to everyone until it has ended, as it replays the whole game.
 
 Web:
 
+- The steward's console (`web/src/steward`) shares parts with the other two. Announcements are on the Day tab, and the steward's own character and results on My role only, covered, so they are never read out by mistake. What their character asks of them is on Actions.
 - Player phones follow the phone's setting. The Storyteller console is always dark, as it was before 0.5.0.
 - Game-end suggestions are computed by the rules but hidden in the console (`SHOW_GAME_END_CARDS`) until a later release.
 - The idle games keep one plain stylesheet, `games/games.css`, which loads only with their chunk.

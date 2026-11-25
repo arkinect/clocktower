@@ -6,6 +6,7 @@ export const butler = defineRole({
   id: roleId('butler'),
   name: 'Butler',
   type: 'outsider',
+  autoplay: { reminder: 'You may only vote if your master is voting too. Nobody will stop you: keep to it yourself.' },
   abilityText: 'Each night, choose a player (not yourself): tomorrow, you may only vote if they are voting too.',
   reminder: 'Voting restriction is not enforced.',
   night: { first: 180, other: 360 },

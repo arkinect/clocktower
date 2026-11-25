@@ -1,5 +1,6 @@
 import { roleId, type PlayerId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
+import type { AbilityCtx } from '../night/context';
 import { confirmKill, confirmedToday, dayKill, takeBack, type Confirmed } from './lib';
 
 interface State {
@@ -9,10 +10,29 @@ interface State {
   chose?: Confirmed | null;
 }
 
+function choose(ctx: AbilityCtx<State>, target: PlayerId, force: 'none' | 'success' | 'fail') {
+  if (ctx.impaired) ctx.malfunctionIfExternal('Psychopath ability impaired');
+  const { outcome, confirmed } = confirmKill(ctx, target, () => {
+    if (force === 'none' && ctx.impaired) {
+      return { summary: 'The Psychopath is drunk or poisoned: nothing happens.', effective: false };
+    }
+    // Through the protections (the Tea Lady, the Fool), unlike a death marked by hand.
+    return dayKill(ctx, target, 'ability_kill', force);
+  });
+  ctx.setState({ day: ctx.n, chose: confirmed });
+  return outcome;
+}
+
 export const psychopath = defineRole<State>({
   id: roleId('psychopath'),
   name: 'Psychopath',
   type: 'minion',
+  autoplay: {
+    claims: [
+      { claim: 'kill', title: 'Psychopath kill', fields: ['Claimant', 'Target'], says: '{0} chooses {1} to die' },
+    ],
+    execution: 'Did they claim to be the Psychopath and win roshambo?',
+  },
   abilityText:
     'Each day, before nominations, you may publicly choose a player: they die. If executed, you only die if you lose roshambo.',
   initialState: () => ({ day: null, chose: null }),
@@ -42,17 +62,13 @@ export const psychopath = defineRole<State>({
         ctx.setState({ day: null, chose: null });
         return outcome;
       }
-      const target = values[0] as PlayerId;
-      if (ctx.impaired) ctx.malfunctionIfExternal('Psychopath ability impaired');
-      const { outcome, confirmed } = confirmKill(ctx, target, () => {
-        if (force === 'none' && ctx.impaired) {
-          return { summary: 'The Psychopath is drunk or poisoned: nothing happens.', effective: false };
-        }
-        // Through the protections (the Tea Lady, the Fool), unlike a death marked by hand.
-        return dayKill(ctx, target, 'ability_kill', force);
-      });
-      ctx.setState({ day: ctx.n, chose: confirmed });
-      return outcome;
+      return choose(ctx, values[0] as PlayerId, force);
     },
+    onClaim(ctx, { values: [claimant, target] }) {
+      if (!target || claimant !== ctx.holder || !ctx.isAlive(ctx.holder) || ctx.state.day === ctx.n) return;
+      choose(ctx, target, 'none');
+    },
+    // The jinx with Lil' Monsta: whoever babysits it dies.
+    survivesExecution: (ctx, player) => player === ctx.holder && !ctx.impaired && !ctx.isDemon(player),
   },
 });

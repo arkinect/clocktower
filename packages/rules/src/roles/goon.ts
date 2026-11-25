@@ -6,6 +6,7 @@ export const goon = defineRole({
   id: roleId('goon'),
   name: 'Goon',
   type: 'outsider',
+  autoplay: true,
   abilityText:
     'Each night, the 1st player to choose you with their ability is drunk until dusk. You become their alignment.',
   flags: { passive: true },

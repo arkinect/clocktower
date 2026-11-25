@@ -1,4 +1,4 @@
-import { roleId, type PlayerId } from '@ct/protocol';
+import { roleId, type PlayerId, type RoleId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
 import { note, playerCharacter } from '../night/info';
 
@@ -10,6 +10,7 @@ export const grandmother = defineRole<State>({
   id: roleId('grandmother'),
   name: 'Grandmother',
   type: 'townsfolk',
+  autoplay: true,
   abilityText: 'You start knowing a good player & their character. If the Demon kills them, you die too.',
   night: { first: 190, other: 260, note: 'Only if the Demon killed the grandchild, or the ability was just gained' },
   flags: { startInfo: true },
@@ -28,9 +29,20 @@ export const grandmother = defineRole<State>({
           const rng = ctx.rng('false');
           ctx.setState({ grandchild: null });
           const fakeChild = rng.pick(others);
+          const goodRole = (r: RoleId) => ctx.role(r).alignment === 'good' && r !== ctx.ability.roleId;
+          const kin = others
+            .filter((x) => ctx.alignmentOf(x) === 'good')
+            .map((x) => playerCharacter(x, ctx.character(x)));
           ctx.inform({
             truth: note(['(impaired: no grandchild is recorded)']),
             fake: playerCharacter(fakeChild, rng.pick(ctx.script)),
+            // A good player and their character, linked to nobody. False is another good character for any player.
+            real: kin.length ? ctx.rng('real').pick(kin) : null,
+            lies: others.flatMap((x) =>
+              ctx.script
+                .filter((r) => goodRole(r) && !kin.some((k) => k.player === x && k.role === r))
+                .map((r) => playerCharacter(x, r)),
+            ),
             say,
           });
           ctx.outcome('impaired: false grandchild, no link');
@@ -50,7 +62,7 @@ export const grandmother = defineRole<State>({
           title: `Grandmother ${ctx.name(me)}: who is the grandchild?`,
           description: 'Any good player. She learns their actual character.',
           options: goods.map((x) => ({ id: x, label: `${ctx.name(x)} (${ctx.roleName(ctx.character(x))})` })),
-          default: ctx.rng('child').pick(pool.length ? pool : goods),
+          default: ctx.rng('child').pick(pool.length && !ctx.autoplay ? pool : goods),
         });
         ctx.setState({ grandchild: child });
         ctx.outcome(`grandchild: ${ctx.name(child)}`);

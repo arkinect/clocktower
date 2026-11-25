@@ -1,11 +1,15 @@
 import type { PlayerId, RoleId } from '@ct/protocol';
 import { findRole, roleDef } from '../abilities/registry';
 import { deliverEvilInfo } from '../night/evil-info';
+import type { Phase, Settings } from '../model/state';
 import { newNightPhase } from '../night/phase';
 import { HookCtx } from '../night/context';
 import { believedOptions, bluffCandidates, setupChecklist, suggestBluffs, suggestDistribution } from '../setup/rules';
 import { defineCommand, LIVE_PHASES, type CmdCtx, need } from './define';
 import { seatPlayers } from './lobby';
+
+/** Anything with the game draft and what reads it: a command's context, whatever its phases. */
+type Ctx = Pick<CmdCtx<Phase['kind']>, 's' | 'r' | 'run' | 'rng' | 'seed'>;
 
 const setupish = ['lobby', 'setup'] as const;
 
@@ -26,18 +30,64 @@ function assign(ctx: Pick<CmdCtx<'setup'>, 's' | 'run'>, player: PlayerId, role:
   }
 }
 
+export function setScript(ctx: Ctx, roles: readonly RoleId[]) {
+  need(
+    roles.every((r) => findRole(r)),
+    'Unknown role.',
+  );
+  ctx.s.script = [...new Set(roles)];
+}
+
+export function setSeating(ctx: Ctx, order: readonly PlayerId[]) {
+  const ids = order.filter((id) => ctx.s.players.has(id) && id !== ctx.s.storytellerId);
+  need(new Set(ids).size === ids.length, 'Duplicate players in seating.');
+  seatPlayers(ctx.s, ids);
+}
+
+export function shuffleSeating(ctx: Ctx) {
+  const ids = [...ctx.s.players.keys()].filter((id) => id !== ctx.s.storytellerId);
+  seatPlayers(ctx.s, ctx.rng.shuffle(ids));
+}
+
+export function publishSeating(ctx: Ctx) {
+  ctx.s.seatingPublished = true;
+  ctx.s.publishedSeating = ctx.r.seated;
+}
+
+export function setCounts(ctx: Ctx, counts: number[] | null) {
+  if (counts) {
+    const n = ctx.r.seated.length;
+    need(counts.reduce((a, b) => a + b, 0) === n, `Counts must add up to the player count (${n}).`);
+  }
+  ctx.s.setup.rules.countsOverride = counts;
+}
+
+export function applySettings(ctx: Ctx, changes: { [K in keyof Settings]?: Settings[K] | undefined }) {
+  for (const [k, v] of Object.entries(changes)) {
+    if (v !== undefined) (ctx.s.settings as Record<string, unknown>)[k] = v;
+  }
+}
+
+/** Night 0: everyone sees their role, and what they start knowing. */
+export function beginFirstNight(ctx: Ctx) {
+  ctx.s.phase = newNightPhase(0, ctx.seed, 'briefing', null);
+  // Published as it now stands, whatever the phones were shown during setup.
+  publishSeating(ctx);
+  for (const p of [...ctx.s.players.values()]) p.hasSeenRole = false;
+  const run = ctx.run({ moment: { kind: 'night', n: 0 } });
+  deliverEvilInfo(run);
+  for (const a of run.reader.instances) {
+    const hook = roleDef(a.roleId).ability.briefing;
+    if (hook) hook(run.ctx(a));
+  }
+}
+
 export const setupCommands = [
   defineCommand({
     type: 'set_script',
     by: 'storyteller',
     phases: setupish,
-    handle(ctx, cmd) {
-      need(
-        cmd.roleIds.every((r) => findRole(r)),
-        'Unknown role.',
-      );
-      ctx.s.script = [...new Set(cmd.roleIds)];
-    },
+    handle: (ctx, cmd) => setScript(ctx, cmd.roleIds),
   }),
   defineCommand({
     type: 'set_storyteller_characters',
@@ -67,29 +117,19 @@ export const setupCommands = [
     type: 'set_seating',
     by: 'storyteller',
     phases: setupish,
-    handle(ctx, cmd) {
-      const ids = cmd.order.filter((id) => ctx.s.players.has(id) && id !== ctx.s.storytellerId);
-      need(new Set(ids).size === ids.length, 'Duplicate players in seating.');
-      seatPlayers(ctx.s, ids);
-    },
+    handle: (ctx, cmd) => setSeating(ctx, cmd.order),
   }),
   defineCommand({
     type: 'randomise_seating',
     by: 'storyteller',
     phases: setupish,
-    handle(ctx) {
-      const ids = [...ctx.s.players.keys()].filter((id) => id !== ctx.s.storytellerId);
-      seatPlayers(ctx.s, ctx.rng.shuffle(ids));
-    },
+    handle: shuffleSeating,
   }),
   defineCommand({
     type: 'publish_seating',
     by: 'storyteller',
     phases: setupish,
-    handle(ctx) {
-      ctx.s.seatingPublished = true;
-      ctx.s.publishedSeating = ctx.r.seated;
-    },
+    handle: publishSeating,
   }),
   defineCommand({
     type: 'assign_character',
@@ -189,13 +229,7 @@ export const setupCommands = [
     type: 'set_type_counts',
     by: 'storyteller',
     phases: ['setup'],
-    handle(ctx, cmd) {
-      if (cmd.counts) {
-        const n = ctx.r.seated.length;
-        need(cmd.counts.reduce((a, b) => a + b, 0) === n, `Counts must add up to the player count (${n}).`);
-      }
-      ctx.s.setup.rules.countsOverride = cmd.counts;
-    },
+    handle: (ctx, cmd) => setCounts(ctx, cmd.counts),
   }),
   defineCommand({
     type: 'set_bluffs',
@@ -268,9 +302,7 @@ export const setupCommands = [
     phases: ['lobby', 'setup', 'night', 'day'],
     handle(ctx, cmd) {
       const { type: _type, ...changes } = cmd;
-      for (const [k, v] of Object.entries(changes)) {
-        if (v !== undefined) (ctx.s.settings as Record<string, unknown>)[k] = v;
-      }
+      applySettings(ctx, changes);
       const p = ctx.s.phase;
       if (cmd.countdownSeconds !== undefined && p.kind === 'night' && p.stage === 'collecting') {
         p.deadline = ctx.now + cmd.countdownSeconds * 1000;
@@ -288,17 +320,7 @@ export const setupCommands = [
         need(!missing.length, `Setup is incomplete: ${missing.map((m) => m.label).join('; ')}`);
         need(ctx.r.scriptOfType('demon').length, 'No Demon is enabled.');
       }
-      ctx.s.phase = newNightPhase(0, ctx.seed, 'briefing', null);
-      // Published as it now stands, whatever the phones were shown during setup.
-      ctx.s.seatingPublished = true;
-      ctx.s.publishedSeating = ctx.r.seated;
-      for (const p of [...ctx.s.players.values()]) p.hasSeenRole = false;
-      const run = ctx.run({ moment: { kind: 'night', n: 0 } });
-      deliverEvilInfo(run);
-      for (const a of run.reader.instances) {
-        const hook = roleDef(a.roleId).ability.briefing;
-        if (hook) hook(run.ctx(a));
-      }
+      beginFirstNight(ctx);
     },
   }),
 ];

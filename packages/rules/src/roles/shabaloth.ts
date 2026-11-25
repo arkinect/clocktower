@@ -10,6 +10,7 @@ export const shabaloth = defineRole<State>({
   id: roleId('shabaloth'),
   name: 'Shabaloth',
   type: 'demon',
+  autoplay: true,
   abilityText: 'Each night*, choose 2 players: they die. A dead player you chose last night might be regurgitated.',
   night: { other: 130 },
   initialState: () => ({ kills: [] }),

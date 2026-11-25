@@ -51,6 +51,13 @@ export interface InformInput<A extends Answer = Answer> {
   fake?: A | Note | null;
   /** Every answer the Storyteller can pick. */
   alternatives?: A[];
+  /** Autoplay: the true answer an impaired holder may be told, when `truth` is only a note. */
+  real?: A | null;
+  /**
+   * Autoplay: every false answer the ability could give, for one whose `alternatives` are not just that. Default: the
+   * alternatives but the true one.
+   */
+  lies?: A[];
   /** The role's words around an answer. Without them the bare answer is the whole result. */
   say?: (a: A) => string[];
 }
@@ -270,6 +277,11 @@ export class AbilityCtx<S> extends HookCtx<S> {
     });
   }
 
+  /** Autoplay: something the Storyteller calls out, for the steward to tell the table at dawn, or at once by day. */
+  announce(line: string) {
+    this.run.announced.push(line);
+  }
+
   /** A result in words only, with no value to give: a confirmation, or why there is nothing to tell. */
   tell(lines: string[]) {
     this.inform({ truth: note(lines) });
@@ -414,8 +426,9 @@ export class AbilityCtx<S> extends HookCtx<S> {
     this.run.malfunctionIfExternal(player, detail);
   }
 
-  suggestGameEnd(key: string, winner: Alignment | null, reason: string) {
-    this.run.suggestGameEnd(key, winner, reason);
+  /** `afterDemon`: it still counts once the Demon is dead with nobody to take over. */
+  suggestGameEnd(key: string, winner: Alignment | null, reason: string, o: { afterDemon?: boolean } = {}) {
+    this.run.suggestGameEnd(key, winner, reason, o);
   }
 
   /** Stop the core's or another role's suggestion (a role that changes when the game ends). */

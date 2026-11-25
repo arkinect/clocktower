@@ -1,0 +1,33 @@
+.tellHead {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  color: var(--gold);
+}
+
+.tell {
+  margin: 4px 0;
+  font-size: 1.25rem;
+}
+
+/* In a sheet, the buttons under it stay on the screen. */
+.seats {
+  max-width: min(640px, 60vh);
+}
+
+.tokenOn {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px var(--gold);
+}
+
+.number {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.covered {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+}

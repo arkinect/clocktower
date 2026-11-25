@@ -32,6 +32,16 @@ export const moonchild = defineRole<State>({
   id: roleId('moonchild'),
   name: 'Moonchild',
   type: 'outsider',
+  autoplay: {
+    claims: [
+      {
+        claim: 'chose',
+        title: "Moonchild's choice",
+        fields: ['Claimant', 'Chosen'],
+        says: '{0} chooses {1}, as the Moonchild',
+      },
+    ],
+  },
   abilityText:
     'When you learn that you died, publicly choose 1 alive player. Tonight, if it was a good player, they die.',
   reminder:
@@ -74,6 +84,12 @@ export const moonchild = defineRole<State>({
           ],
         },
       ];
+    },
+    onClaim(ctx, { values: [claimant, chosen] }) {
+      // The first choice stands, and the dead cannot be chosen.
+      if (!chosen || claimant !== ctx.holder || answer(ctx) || ctx.ability.used) return;
+      if (ctx.isAlive(ctx.holder) || learnedOn(ctx) !== ctx.n || !ctx.isAlive(chosen)) return;
+      ctx.setState({ target: { day: ctx.n, player: chosen } });
     },
     applyDayAction(ctx, _action, values) {
       const player = values[0] === NO_ONE ? null : (values[0] as PlayerId);

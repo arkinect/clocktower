@@ -6,6 +6,7 @@ export const innkeeper = defineRole({
   id: roleId('innkeeper'),
   name: 'Innkeeper',
   type: 'townsfolk',
+  autoplay: true,
   abilityText: "Each night*, choose 2 players: they can't die tonight, but 1 is drunk until dusk.",
   night: { other: 40 },
   flags: { interceptPriority: 20 },

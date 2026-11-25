@@ -173,6 +173,20 @@ Tests: `roles/witch.test.ts` and `roles/mayor.test.ts`, "does not count Travelle
 `followUpExtensionSeconds` is added the first time a night has questions, whatever brought them, and only once, even if
 collecting is reopened and closed again. Tests: `framework/mechanics.test.ts`, "follow-up questions".
 
+## Lil' Monsta's token outlasts a character change
+
+A babysitter whose character changes (a Farmer's heir) keeps the token, as it is not theirs: it belongs to no player.
+Otherwise the game would go on with no Demon. Test: `autoplay/whole-games.test.ts`.
+
+## The Mathematician and a true answer
+
+A drunk or poisoned player who is told the truth anyway has had nothing go wrong, so the Mathematician does not count
+them. In autoplay that is 1 impaired answer in 4. Test: `autoplay/odds.test.ts`.
+
+## Autoplay
+
+The rulings the app makes by itself, and their odds, are in [autoplay.md](autoplay.md).
+
 ## Messages
 
 A player's inbox keeps the full history of the game. It is not cleared at dusk.

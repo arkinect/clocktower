@@ -5,6 +5,7 @@ export const philosopher = defineRole({
   id: roleId('philosopher'),
   name: 'Philosopher',
   type: 'townsfolk',
+  autoplay: true,
   abilityText:
     'Once per game, at night, choose a good character: gain that ability. If this character is in play, they are drunk.',
   night: { first: 10, other: 10 },

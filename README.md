@@ -22,6 +22,8 @@ who is drunk or poisoned and what everyone learns, and the Storyteller reviews e
 - **Storyteller console**: setup checklist (distribution, bluffs, Drunk/Marionette, red herring…), live
   submission board, a review screen where every result can be edited before it's sent, a day panel, a grimoire,
   a circle view of the table, a per-night story of the game and an event log.
+- **Autoplay**: a second way to host, switched on in Setup. Whoever runs the game also plays it, and sees only what the
+  table knows. The app sets up, makes the rulings, runs the nights and calls the end ([docs/autoplay.md](docs/autoplay.md)).
 - **Script files**: the script and settings export to a file and import again. Scripts from the official script tool
   import too; characters this app does not have are left out.
 - **Robust**: no accounts; players rejoin by tapping their name; all state is saved to SQLite on every change.
@@ -147,7 +149,7 @@ docker build -t clocktower:local .
 | `packages/protocol` | Schemas for commands, views and socket messages                       |
 | `packages/rules`    | The pure game engine. Each character is one file in `src/roles`       |
 | `packages/server`   | HTTP and sockets, sessions, password gate, game manager, SQLite store |
-| `packages/web`      | Player and Storyteller apps                                           |
+| `packages/web`      | Player, Storyteller and steward apps                                  |
 
 To add a character, follow [docs/adding-a-role.md](docs/adding-a-role.md).
 

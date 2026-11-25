@@ -38,7 +38,7 @@ export interface CmdCtx<P extends Kind> {
 
 export interface CommandDef<T extends CommandType = CommandType, P extends Kind = Kind> {
   type: T;
-  by: 'player' | 'storyteller' | 'any' | 'system';
+  by: 'player' | 'storyteller' | 'steward' | 'any' | 'system';
   phases: readonly P[];
   handle(ctx: CmdCtx<P>, cmd: CommandOf<T>): void;
 }

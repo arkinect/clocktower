@@ -8,6 +8,7 @@ export const vigormortis = defineRole({
   id: roleId('vigormortis'),
   name: 'Vigormortis',
   type: 'demon',
+  autoplay: true,
   abilityText:
     'Each night*, choose a player: they die. Minions you kill keep their ability & poison 1 Townsfolk neighbour. [-1 Outsider]',
   night: { other: 160 },

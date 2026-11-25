@@ -2,7 +2,7 @@
 import type { Alignment, CharacterType, PlayerId, RoleId } from '@ct/protocol';
 import { allRoles, findRole, makesDemon, roleDef } from '../abilities/registry';
 import type { GameEvent, GameState, Moment, Player } from '../model/state';
-import { momentOrder } from '../model/state';
+import { isAutoplay, momentOrder } from '../model/state';
 import type { Instance, RoleDef } from '../abilities/define';
 
 export class Reader {
@@ -19,6 +19,14 @@ export class Reader {
   get alive(): PlayerId[] {
     return this.seated.filter((id) => this.isAlive(id));
   }
+
+  /** The app runs the game: rulings are drawn, rather than suggested to a Storyteller. */
+  get autoplay(): boolean {
+    return isAutoplay(this.w);
+  }
+
+  /** Whether a Demon voted that day, as far as the votes were recorded. */
+  demonVoted = (day: number): boolean => !!this.w.autoplay?.nominations.some((x) => x.day === day && x.vote?.demon);
 
   player(id: PlayerId): Player {
     const p = this.w.players.get(id);

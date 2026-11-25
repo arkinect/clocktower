@@ -5,6 +5,7 @@ export const farmer = defineRole({
   id: roleId('farmer'),
   name: 'Farmer',
   type: 'townsfolk',
+  autoplay: true,
   abilityText: 'When you die at night, an alive good player becomes a Farmer.',
   night: { other: 240, note: 'Only if the Farmer died tonight: an alive good player becomes a Farmer' },
   flags: { worksWhileDead: true, wakesOnNightDeath: true, afterOrder: true },

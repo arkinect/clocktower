@@ -5,6 +5,7 @@ export const organGrinder = defineRole({
   id: roleId('organ_grinder'),
   name: 'Organ Grinder',
   type: 'minion',
+  autoplay: { unfit: 'Their votes are secret, and the steward would be counting them.' },
   abilityText:
     'All players keep their eyes closed when voting and the vote tally is secret. Each night, choose if you are drunk until dusk.',
   reminder: 'Eyes-closed voting and a secret tally while they are alive and sober; the tally is not tracked here.',

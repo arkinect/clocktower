@@ -6,6 +6,7 @@ export const mathematician = defineRole({
   id: roleId('mathematician'),
   name: 'Mathematician',
   type: 'townsfolk',
+  autoplay: true,
   abilityText:
     "Each night, you learn how many players' abilities worked abnormally (since dawn) due to another character's ability.",
   night: { first: 200, other: 370 },

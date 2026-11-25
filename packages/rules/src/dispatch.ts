@@ -7,6 +7,7 @@ import { lobbyCommands } from './phases/lobby';
 import { setupCommands } from './phases/setup';
 import { nightCommands } from './phases/night';
 import { dayCommands } from './phases/day';
+import { autoplayCommands } from './phases/autoplay';
 import { createGame } from './model/create';
 import type { GameState } from './model/state';
 import { carryResolution } from './night/wake';
@@ -16,7 +17,7 @@ import { dropStaleCounts } from './setup/rules';
 enableMapSet();
 
 const registry = new Map<string, CommandDef>(
-  [...lobbyCommands, ...setupCommands, ...nightCommands, ...dayCommands].map((c) => [c.type, c]),
+  [...lobbyCommands, ...setupCommands, ...nightCommands, ...dayCommands, ...autoplayCommands].map((c) => [c.type, c]),
 );
 
 export interface Inputs {
@@ -48,6 +49,9 @@ export function dispatch(state: GameState, actor: PlayerId | null, input: unknow
     if (actor === null || !state.players.has(actor)) return { ok: false, error: 'Unknown player.' };
     if (def.by === 'storyteller' && state.storytellerId !== actor) {
       return { ok: false, error: 'Only the Storyteller can do that.' };
+    }
+    if (def.by === 'steward' && state.stewardId !== actor) {
+      return { ok: false, error: 'Only the steward can do that.' };
     }
   }
   if (!def.phases.includes(state.phase.kind)) return { ok: false, error: 'You cannot do that right now.' };

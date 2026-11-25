@@ -1,11 +1,12 @@
 import { roleId, type PlayerId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
-import { applyCurse, choosePlayers, confirmChoice, curse, curseSwitches, type CurseState } from './lib';
+import { applyCurse, choosePlayers, confirmChoice, curse, curseSwitches, setOffCurse, type CurseState } from './lib';
 
 export const witch = defineRole<CurseState>({
   id: roleId('witch'),
   name: 'Witch',
   type: 'minion',
+  autoplay: true,
   abilityText:
     'Each night, choose a player: if they nominate tomorrow, they die. If just 3 players live, you lose this ability.',
   reminder: 'If the cursed player nominates, apply the curse in the Day panel.',
@@ -35,5 +36,9 @@ export const witch = defineRole<CurseState>({
     // A switch: the second press on the same player takes it back, reviving them if it killed them.
     applyDayAction: (ctx, _action, values, force) =>
       applyCurse(ctx, values[0] as PlayerId, 'witch', force, 'Witch curse'),
+    onNomination(ctx, { nominator }) {
+      if (!ctx.canAct || ctx.impaired || ctx.aliveResidents.length <= 3) return;
+      setOffCurse(ctx, nominator, 'witch', 'Witch curse');
+    },
   },
 });

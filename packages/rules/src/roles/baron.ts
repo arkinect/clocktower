@@ -5,6 +5,7 @@ export const baron = defineRole({
   id: roleId('baron'),
   name: 'Baron',
   type: 'minion',
+  autoplay: true,
   abilityText: 'There are extra Outsiders in play. [+2 Outsiders]',
   setupRules: {
     counts(c) {

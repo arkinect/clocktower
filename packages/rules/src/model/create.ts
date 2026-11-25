@@ -13,6 +13,8 @@ export function createGame(code: string, now: number): GameState {
     phase: { kind: 'lobby' },
     players: new Map(),
     storytellerId: null,
+    stewardId: null,
+    autoplay: null,
     seats: [],
     seatingPublished: false,
     publishedSeating: [],

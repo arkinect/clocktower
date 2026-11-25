@@ -7,19 +7,21 @@ import { navigate, parseRoute, usePath, type Route } from './router';
 import { GameProvider, ToastProvider, useGame } from './store';
 
 const Console = lazy(() => import('../storyteller/Console'));
+const StewardConsole = lazy(() => import('../steward/Console'));
 
 function Screens({ route, onSignedOut }: { route: Route; onSignedOut: () => void }) {
   const { view, status, reload, signedOut } = useGame();
   useEffect(() => {
     if (signedOut) onSignedOut();
   }, [signedOut, onSignedOut]);
-  const isStoryteller = view?.kind === 'storyteller';
+  const mine = view && view.kind !== 'player' ? view.kind : null;
   useEffect(() => {
     if (!view) return;
     const base = `/g/${encodeURIComponent(route.code)}`;
-    if (isStoryteller && !route.storyteller) navigate(`${base}/storyteller`, true);
-    if (!isStoryteller && route.storyteller) navigate(base, true);
-  }, [view, isStoryteller, route]);
+    if (mine === route.console) return;
+    // Switched between the two in Setup, they stay on that tab.
+    navigate([base, mine, mine && route.tab].filter(Boolean).join('/'), true);
+  }, [view, mine, route]);
   return (
     <>
       {status === 'offline' && <Banner tone="warn">Reconnecting…</Banner>}
@@ -29,6 +31,11 @@ function Screens({ route, onSignedOut }: { route: Route; onSignedOut: () => void
       {view?.kind === 'storyteller' && (
         <Suspense fallback={<p className="pad muted">Loading…</p>}>
           <Console view={view} tab={route.tab} />
+        </Suspense>
+      )}
+      {view?.kind === 'steward' && (
+        <Suspense fallback={<p className="pad muted">Loading…</p>}>
+          <StewardConsole view={view} tab={route.tab} />
         </Suspense>
       )}
     </>

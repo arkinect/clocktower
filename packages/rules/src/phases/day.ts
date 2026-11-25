@@ -2,10 +2,10 @@ import { clone } from '../util/clone';
 import type { ActionSpec, PlayerId } from '@ct/protocol';
 import { roleDef } from '../abilities/registry';
 import type { DayActionDraft, DayEventInfo, Instance } from '../abilities/define';
-import type { GameState } from '../model/state';
+import { newAutoplay, type GameState } from '../model/state';
 import type { Run } from '../night/run';
 import { validateChoice } from '../night/wake';
-import { ALL_PHASES, defineCommand, need } from './define';
+import { ALL_PHASES, defineCommand, need, type CmdCtx } from './define';
 import { createGame } from '../model/create';
 
 /** Day events fire every active ability's onDayEvent, then the game-end check. */
@@ -85,6 +85,53 @@ export function unansweredBeforeNight(run: Run): string[] {
   );
 }
 
+/** A fresh game under this code, in the same running count of ids. */
+function fresh(s: GameState): GameState {
+  const next = createGame(s.code, s.createdAt);
+  next.id = s.id;
+  next.seq = s.seq;
+  next.idSeq = s.idSeq;
+  next.settings = { ...s.settings };
+  return next;
+}
+
+/** The same people, script and seats, back in setup. An autoplay game stays one. */
+export function playAgain(ctx: Pick<CmdCtx<'ended'>, 's' | 'r'>) {
+  const s = ctx.s;
+  const next = fresh(s);
+  next.storytellerId = s.storytellerId;
+  next.stewardId = s.stewardId;
+  if (s.stewardId && s.autoplay) next.autoplay = { ...newAutoplay(), dropped: [...s.autoplay.dropped] };
+  next.script = [...s.script];
+  next.seatingPublished = s.seatingPublished;
+  next.publishedSeating = s.publishedSeating.filter((id) => s.seats.some((x) => x.playerId === id && !x.left));
+  next.seats = s.seats.filter(
+    (x) => x.left === null && x.playerId !== s.storytellerId && ctx.r.typeOf(x.playerId) !== 'traveller',
+  );
+  for (const [id, p] of [...s.players.entries()]) {
+    next.players.set(id, {
+      ...p,
+      hasSeenRole: false,
+      life: { alive: true, diedAt: null, cause: null, ghostVoteUsed: false },
+      removal: null,
+      character: null,
+      alignment: 'good',
+      self: { character: null, alignment: 'good' },
+      history: [],
+    });
+  }
+  next.phase = { kind: 'setup' };
+  Object.assign(s, next);
+}
+
+/**
+ * Everyone goes, the Storyteller too: the server signs out every removed player, and the next to join may claim
+ * Storyteller. Only the settings carry over.
+ */
+export function newGame(ctx: Pick<CmdCtx<'ended'>, 's'>) {
+  Object.assign(ctx.s, fresh(ctx.s));
+}
+
 export const dayCommands = [
   defineCommand({
     type: 'seen_role',
@@ -100,6 +147,8 @@ export const dayCommands = [
     by: 'player',
     phases: ['night', 'day'],
     handle(ctx) {
+      // In autoplay the app spends a vote as it is counted.
+      need(!ctx.r.autoplay, 'You cannot do that now.');
       const me = ctx.s.players.get(ctx.actor as PlayerId)!;
       need(ctx.r.isSeated(me.id) && !me.life.alive, 'Only dead players have a ghost vote.');
       me.life.ghostVoteUsed = true;
@@ -382,49 +431,13 @@ export const dayCommands = [
     type: 'play_again',
     by: 'storyteller',
     phases: ['night', 'day', 'ended'],
-    handle(ctx) {
-      const s = ctx.s;
-      const next = createGame(s.code, s.createdAt);
-      next.id = s.id;
-      next.seq = s.seq;
-      next.idSeq = s.idSeq;
-      next.storytellerId = s.storytellerId;
-      next.script = [...s.script];
-      next.settings = { ...s.settings };
-      next.seatingPublished = s.seatingPublished;
-      next.publishedSeating = s.publishedSeating.filter((id) => s.seats.some((x) => x.playerId === id && !x.left));
-      next.seats = s.seats.filter((x) => x.left === null && ctx.r.typeOf(x.playerId) !== 'traveller');
-      for (const [id, p] of [...s.players.entries()]) {
-        next.players.set(id, {
-          ...p,
-          hasSeenRole: false,
-          life: { alive: true, diedAt: null, cause: null, ghostVoteUsed: false },
-          removal: null,
-          character: null,
-          alignment: 'good',
-          self: { character: null, alignment: 'good' },
-          history: [],
-        });
-      }
-      next.phase = { kind: 'setup' };
-      Object.assign(s, next);
-    },
+    handle: playAgain,
   }),
   defineCommand({
     type: 'new_game',
     by: 'storyteller',
     phases: ALL_PHASES,
-    handle(ctx) {
-      // Everyone goes, the Storyteller too: the server signs out every removed player, and the next to join may
-      // claim Storyteller. Only the settings carry over.
-      const s = ctx.s;
-      const next = createGame(s.code, s.createdAt);
-      next.id = s.id;
-      next.seq = s.seq;
-      next.idSeq = s.idSeq;
-      next.settings = { ...s.settings };
-      Object.assign(s, next);
-    },
+    handle: newGame,
   }),
   defineCommand({
     type: 'force_phase',

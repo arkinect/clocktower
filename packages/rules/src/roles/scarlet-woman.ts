@@ -11,6 +11,7 @@ export const scarletWoman = defineRole<State>({
   id: roleId('scarlet_woman'),
   name: 'Scarlet Woman',
   type: 'minion',
+  autoplay: true,
   abilityText: "If there are 5 or more players alive & the Demon dies, you become the Demon. (Travellers don't count)",
   flags: { demonHeir: true },
   initialState: () => ({ heir: null }),

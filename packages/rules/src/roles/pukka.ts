@@ -6,6 +6,7 @@ export const pukka = defineRole({
   id: roleId('pukka'),
   name: 'Pukka',
   type: 'demon',
+  autoplay: true,
   abilityText:
     'Each night, choose a player: they are poisoned. The previously poisoned player dies then becomes healthy.',
   night: { first: 100, other: 120 },

@@ -6,6 +6,7 @@ export const poisoner = defineRole({
   id: roleId('poisoner'),
   name: 'Poisoner',
   type: 'minion',
+  autoplay: true,
   abilityText: 'Each night, choose a player: they are poisoned tonight and tomorrow day.',
   night: { first: 40, other: 30 },
   ability: {

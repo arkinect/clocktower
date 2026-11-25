@@ -1,12 +1,20 @@
 import { useEffect, useState } from 'react';
-import type { Alignment, GrimoirePlayer, RoleCard, RoleId, SetupFieldSpec, StorytellerView } from '@ct/protocol';
+import type {
+  Alignment,
+  GrimoirePlayer,
+  PlayerId,
+  RoleCard,
+  RoleId,
+  SetupFieldSpec,
+  StorytellerView,
+} from '@ct/protocol';
 import { useCommand, useGame, useNames } from '../app/store';
 import { typeName } from '../player/parts';
 import { Button, Card, HoldButton, HoverTip, Info, Segments } from '../ui/ui';
 import { GROUPS, Section, useSeats, useTypeOf } from './common';
 import { ScriptTransfer } from './ScriptTransfer';
 import styles from './console.module.css';
-import { EVIL_INFO, SCRIPT_TYPES, SECONDS, SETTING_LABELS } from './scriptFile';
+import { EVIL_INFO, SCRIPT_TYPES, SECONDS, SETTING_LABELS, type GameSettings } from './scriptFile';
 
 const TABLE_TYPES = ['fabled', 'loric'] as const;
 const COUNT_LABELS = ['Townsfolk', 'Outsiders', 'Minions', 'Demons'];
@@ -35,6 +43,7 @@ export function Setup({ view }: { view: StorytellerView }) {
   const live = view.phase.kind !== 'lobby' && view.phase.kind !== 'setup';
   return (
     <div>
+      {!live && <AutoplayToggle on={false} />}
       {live && <Card tone="warn">The game is running. Changes here apply at once.</Card>}
       <div className={styles['columns']}>
         <div>
@@ -95,49 +104,68 @@ function Checklist({ view }: { view: StorytellerView }) {
   );
 }
 
-function Seating({ view }: { view: StorytellerView }) {
-  const { run, pending } = useCommand();
-  const { seated } = useSeats(view);
+/** The seats in order, to be moved by dragging or by the arrows. */
+export function SeatOrder({
+  seated,
+  meId,
+  pending,
+  onOrder,
+}: {
+  seated: readonly { id: PlayerId; name: string }[];
+  /** The one looking, when they have a seat. */
+  meId?: PlayerId;
+  pending: boolean;
+  onOrder: (order: PlayerId[]) => void;
+}) {
   const [dragging, setDragging] = useState<number | null>(null);
   const move = (from: number, to: number) => {
     if (to < 0 || to >= seated.length || from === to) return;
     const order = seated.map((p) => p.id);
     const [row] = order.splice(from, 1);
     if (row) order.splice(to, 0, row);
-    void run({ type: 'set_seating', order });
+    onOrder(order);
   };
+  return (
+    <ol className={styles['rows']}>
+      {seated.map((p, i) => (
+        <li
+          key={p.id}
+          draggable
+          onDragStart={() => setDragging(i)}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={() => {
+            if (dragging !== null) move(dragging, i);
+            setDragging(null);
+          }}
+        >
+          <span className={styles['grow']}>
+            {i + 1}. {p.name}
+            {p.id === meId ? ' (you)' : ''}
+          </span>
+          <Button tiny aria-label={`Move ${p.name} up`} disabled={i === 0 || pending} onClick={() => move(i, i - 1)}>
+            ↑
+          </Button>
+          <Button
+            tiny
+            aria-label={`Move ${p.name} down`}
+            disabled={i === seated.length - 1 || pending}
+            onClick={() => move(i, i + 1)}
+          >
+            ↓
+          </Button>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Seating({ view }: { view: StorytellerView }) {
+  const { run, pending } = useCommand();
+  const { seated } = useSeats(view);
   const unseated = view.players.filter((p) => p.seat === null);
   return (
     <Section title="Seating">
-      <ol className={styles['rows']}>
-        {seated.map((p, i) => (
-          <li
-            key={p.id}
-            draggable
-            onDragStart={() => setDragging(i)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => {
-              if (dragging !== null) move(dragging, i);
-              setDragging(null);
-            }}
-          >
-            <span className={styles['grow']}>
-              {i + 1}. {p.name}
-            </span>
-            <Button tiny aria-label={`Move ${p.name} up`} disabled={i === 0 || pending} onClick={() => move(i, i - 1)}>
-              ↑
-            </Button>
-            <Button
-              tiny
-              aria-label={`Move ${p.name} down`}
-              disabled={i === seated.length - 1 || pending}
-              onClick={() => move(i, i + 1)}
-            >
-              ↓
-            </Button>
-          </li>
-        ))}
-      </ol>
+      <SeatOrder seated={seated} pending={pending} onOrder={(order) => void run({ type: 'set_seating', order })} />
       {unseated.length > 0 && <p className="muted small">Not seated: {unseated.map((p) => p.name).join(', ')}</p>}
       <div className="row">
         <Button disabled={pending} onClick={() => void run({ type: 'randomise_seating' })}>
@@ -366,6 +394,31 @@ export function TypeCounts({ view }: { view: StorytellerView }) {
   const { run } = useCommand();
   const { seated } = useSeats(view);
   const { target, actual, source } = view.setup.counts;
+  return (
+    <CountsForm
+      target={target}
+      actual={actual}
+      overridden={source === 'override'}
+      players={seated.length}
+      onCounts={(counts) => run({ type: 'set_type_counts', counts })}
+    />
+  );
+}
+
+/** `actual` is how many of each are assigned. The steward's console, which must not know, leaves it out. */
+export function CountsForm({
+  target,
+  actual,
+  overridden,
+  players,
+  onCounts,
+}: {
+  target: readonly number[];
+  actual?: readonly number[];
+  overridden: boolean;
+  players: number;
+  onCounts: (counts: number[] | null) => Promise<{ ok: boolean }>;
+}) {
   // The four counts must add up to the player count, and changing one of them never does. So edits are held here
   // and sent once the row adds up again.
   const [draft, setDraft] = useState<number[] | null>(null);
@@ -376,7 +429,6 @@ export function TypeCounts({ view }: { view: StorytellerView }) {
     if (saved) setDraft(null);
   }, [saved]);
   // A held edit was built towards the old player count. Once that changes it can never add up, so it goes.
-  const players = seated.length;
   useEffect(() => setDraft(null), [players]);
   const held = draft !== null && !saved && draft.reduce((a, b) => a + b, 0) !== players;
   const set = (i: number, n: number) => {
@@ -385,7 +437,7 @@ export function TypeCounts({ view }: { view: StorytellerView }) {
     // Back to what is already in force: there is nothing to send.
     if (counts.every((x, j) => x === target[j])) return;
     if (counts.reduce((a, b) => a + b, 0) !== players) return;
-    void run({ type: 'set_type_counts', counts }).then((ack) => {
+    void onCounts([...counts]).then((ack) => {
       if (!ack.ok) setDraft(null);
     });
   };
@@ -394,9 +446,7 @@ export function TypeCounts({ view }: { view: StorytellerView }) {
       <div className={styles['counts']}>
         {COUNT_LABELS.map((label, i) => (
           <label key={label}>
-            <span>
-              {label} ({actual[i] ?? 0} assigned)
-            </span>
+            <span>{actual ? `${label} (${actual[i] ?? 0} assigned)` : label}</span>
             <input
               type="number"
               min={0}
@@ -409,18 +459,63 @@ export function TypeCounts({ view }: { view: StorytellerView }) {
         ))}
       </div>
       {SHOW_COUNTS_HINT && held && <p className="muted small">{countsHint(shown, players)}</p>}
-      {source === 'override' && (
+      {overridden && (
         <Button
           tiny
           onClick={() => {
             setDraft(null);
-            void run({ type: 'set_type_counts', counts: null });
+            void onCounts(null);
           }}
         >
           Back to the default
         </Button>
       )}
     </Section>
+  );
+}
+
+export function EvilInfo({
+  value,
+  onChange,
+}: {
+  value: GameSettings['evilInfoPolicy'];
+  onChange: (v: GameSettings['evilInfoPolicy']) => void;
+}) {
+  return (
+    <div className={styles['field']}>
+      <span>
+        {SETTING_LABELS.evilInfoPolicy}
+        <Info label="About the evil information rules">
+          <b>House:</b> the Minions learn each other, but not the Demon. The Demon learns its Minions and reveals itself
+          to them at the table.
+          <br />
+          <b>Official:</b> with 7 or more living players (Travellers aside), the Minions are also told who the Demon is.
+          With fewer, they learn as under House.
+          <br />
+          <b>Teensyville:</b> as Official, but with 6 or fewer players (Travellers aside), the Demon and Minions do not
+          learn each other. The Demon still learns its bluffs.
+          <br />
+          Under every rule, an evil Traveller is told who the Demon is.
+        </Info>
+      </span>
+      <Segments label={SETTING_LABELS.evilInfoPolicy} options={EVIL_INFO} value={value} onChange={onChange} />
+    </div>
+  );
+}
+
+/** Who runs the game: its Storyteller, or with autoplay a steward who plays it too. It can change until the deal. */
+export function AutoplayToggle({ on }: { on: boolean }) {
+  const { run, pending } = useCommand();
+  return (
+    <label className={styles['check']}>
+      <input
+        type="checkbox"
+        checked={on}
+        disabled={pending}
+        onChange={() => void run({ type: on ? 'leave_autoplay' : 'choose_autoplay' })}
+      />
+      Autoplay
+    </label>
   );
 }
 
@@ -439,29 +534,10 @@ export function Settings({ view }: { view: StorytellerView }) {
   });
   return (
     <Section title="Settings">
-      <div className={styles['field']}>
-        <span>
-          {SETTING_LABELS.evilInfoPolicy}
-          <Info label="About the evil information rules">
-            <b>House:</b> the Minions learn each other, but not the Demon. The Demon learns its Minions and reveals
-            itself to them at the table.
-            <br />
-            <b>Official:</b> with 7 or more living players (Travellers aside), the Minions are also told who the Demon
-            is. With fewer, they learn as under House.
-            <br />
-            <b>Teensyville:</b> as Official, but with 6 or fewer players (Travellers aside), the Demon and Minions do
-            not learn each other. The Demon still learns its bluffs.
-            <br />
-            Under every rule, an evil Traveller is told who the Demon is.
-          </Info>
-        </span>
-        <Segments
-          label={SETTING_LABELS.evilInfoPolicy}
-          options={EVIL_INFO}
-          value={s.evilInfoPolicy}
-          onChange={(evilInfoPolicy) => void run({ type: 'set_settings', evilInfoPolicy })}
-        />
-      </div>
+      <EvilInfo
+        value={s.evilInfoPolicy}
+        onChange={(evilInfoPolicy) => void run({ type: 'set_settings', evilInfoPolicy })}
+      />
       <label className={styles['inline']}>
         <span>{SETTING_LABELS.countdownSeconds}</span>
         <input key={s.countdownSeconds} {...seconds('countdownSeconds')} />
@@ -494,24 +570,28 @@ export function RoleChecks({
   roles,
   on,
   onToggle,
+  unfit,
 }: {
   roles: RoleCard[];
   on: readonly string[];
   onToggle: (id: RoleId, checked: boolean) => void;
+  /** Why a role cannot be chosen, if it cannot. */
+  unfit?: (role: RoleCard) => string | undefined;
 }) {
   return (
     <div className={styles['roleChecks']}>
       {[...roles]
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((r) => (
-          <HoverTip key={r.roleId} text={r.abilityText}>
+          <HoverTip key={r.roleId} text={unfit?.(r) ?? r.abilityText}>
             <label className={styles['check']}>
               <input
                 type="checkbox"
                 checked={on.includes(r.roleId)}
+                disabled={!!unfit?.(r)}
                 onChange={(e) => onToggle(r.roleId, e.target.checked)}
               />
-              <span className={`type-${r.type}`}>{r.name}</span>
+              <span className={unfit?.(r) ? 'muted' : `type-${r.type}`}>{r.name}</span>
             </label>
           </HoverTip>
         ))}

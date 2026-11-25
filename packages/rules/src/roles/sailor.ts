@@ -6,6 +6,7 @@ export const sailor = defineRole({
   id: roleId('sailor'),
   name: 'Sailor',
   type: 'townsfolk',
+  autoplay: true,
   abilityText: "Each night, choose an alive player: either you or they are drunk until dusk. You can't die.",
   night: { first: 30, other: 20 },
   flags: { interceptPriority: 10, passive: true },

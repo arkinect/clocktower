@@ -7,7 +7,7 @@ import { Button, HoldButton } from '../ui/ui';
 import { InputSheet, Section } from './common';
 import styles from './console.module.css';
 
-function JoinQr({ code }: { code: string }) {
+export function JoinQr({ code }: { code: string }) {
   const [url, setUrl] = useState('');
   const [image, setImage] = useState('');
   useEffect(() => {

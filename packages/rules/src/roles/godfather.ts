@@ -1,4 +1,4 @@
-import { roleId, type PlayerId } from '@ct/protocol';
+import { roleId, type PlayerId, type RoleId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
 import type { Reader } from '../derive/reader';
 import type { AbilityCtx } from '../night/context';
@@ -25,14 +25,24 @@ function triggered(ctx: AbilityCtx<unknown>): boolean {
   return c === 'no' ? false : outsiderDiedToday(ctx);
 }
 
+/** Every list of as many Outsiders, or 1 more or fewer, that could be in play and is not the true one. */
+function wrongLists(ctx: AbilityCtx<unknown>, truth: RoleId[]): RoleId[][] {
+  let lists: RoleId[][] = [[]];
+  for (const r of ctx.scriptOfType('outsider')) lists = [...lists, ...lists.map((x) => [...x, r])];
+  const isTrue = (x: RoleId[]) => x.length === truth.length && x.every((r) => truth.includes(r));
+  return lists.filter((x) => Math.abs(x.length - truth.length) <= 1 && !isTrue(x));
+}
+
 export const godfather = defineRole({
   id: GODFATHER,
   name: 'Godfather',
   type: 'minion',
+  autoplay: true,
   abilityText:
     'You start knowing which Outsiders are in play. If 1 died today, choose a player tonight: they die. [-1 or +1 Outsider]',
   night: { first: 50, other: 200, note: 'Only if an Outsider died today' },
   setupRules: {
+    choice: { field: 'outsiders', options: ['+1', '-1'] },
     late: true,
     counts(c, q) {
       if (!q.roles.includes(GODFATHER)) return;
@@ -123,7 +133,12 @@ export const godfather = defineRole({
           if (fake.length) fake[rng.int(fake.length)] = rng.pick(spare);
           else fake = [rng.pick(spare)];
         }
-        ctx.inform({ truth: characters(listed), fake: characters(fake), say: (a) => fmt(a.roles) });
+        ctx.inform({
+          truth: characters(listed),
+          fake: characters(fake),
+          lies: wrongLists(ctx, listed).map((x) => characters(x)),
+          say: (a) => fmt(a.roles),
+        });
         return;
       }
       const [t] = ctx.choice as PlayerId[];

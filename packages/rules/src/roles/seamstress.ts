@@ -6,6 +6,7 @@ export const seamstress = defineRole({
   id: roleId('seamstress'),
   name: 'Seamstress',
   type: 'townsfolk',
+  autoplay: true,
   abilityText: 'Once per game, at night, choose 2 players (not yourself): you learn if they are the same alignment.',
   night: { first: 160, other: 330 },
   flags: { oncePerGame: 'auto' },

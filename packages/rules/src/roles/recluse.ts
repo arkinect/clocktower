@@ -5,6 +5,7 @@ export const recluse = defineRole({
   id: roleId('recluse'),
   name: 'Recluse',
   type: 'outsider',
+  autoplay: { unfit: 'The Storyteller has to choose what they register as.' },
   abilityText: 'You might register as evil & as a Minion or Demon, even if dead.',
   flags: { passive: true },
   ability: {
