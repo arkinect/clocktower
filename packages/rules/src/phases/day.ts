@@ -139,7 +139,6 @@ export const dayCommands = [
     phases: ALL_PHASES,
     handle(ctx) {
       ctx.s.players.get(ctx.actor as PlayerId)!.hasSeenRole = true;
-      ctx.keepResolution();
     },
   }),
   defineCommand({
@@ -152,7 +151,6 @@ export const dayCommands = [
       const me = ctx.s.players.get(ctx.actor as PlayerId)!;
       need(ctx.r.isSeated(me.id) && !me.life.alive, 'Only dead players have a ghost vote.');
       me.life.ghostVoteUsed = true;
-      ctx.keepResolution();
     },
   }),
   defineCommand({
@@ -164,7 +162,6 @@ export const dayCommands = [
       need(p && ctx.r.isSeated(cmd.playerId), 'Not a seated player.');
       need(!p.life.alive, 'Only dead players have a ghost vote to use.');
       p.life.ghostVoteUsed = cmd.used;
-      ctx.keepResolution();
     },
   }),
   defineCommand({

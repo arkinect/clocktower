@@ -32,7 +32,10 @@ export interface CmdCtx<P extends Kind> {
   run(options?: { moment?: Moment; decisions?: Decisions; world?: GameState }): Run;
   /** Returned to the sender. */
   reply(data: unknown): void;
-  /** Keep the night's computed resolution; nothing this command did can change it. */
+  /**
+   * Keep the night's computed resolution. Only for a command that writes nothing the night reads and nothing dawn
+   * copies back from it (the players, abilities, conditions, seats and setup): dawn would undo it.
+   */
   keepResolution(): void;
 }
 

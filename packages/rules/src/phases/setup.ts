@@ -71,6 +71,8 @@ export function applySettings(ctx: Ctx, changes: { [K in keyof Settings]?: Setti
 /** Night 0: everyone sees their role, and what they start knowing. */
 export function beginFirstNight(ctx: Ctx) {
   ctx.s.phase = newNightPhase(0, ctx.seed, 'briefing', null);
+  // A game forced back to setup starts over: its old Day 1 must not be taken for the new one.
+  ctx.s.events = [];
   // Published as it now stands, whatever the phones were shown during setup.
   publishSeating(ctx);
   for (const p of [...ctx.s.players.values()]) p.hasSeenRole = false;
