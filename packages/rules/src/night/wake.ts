@@ -4,6 +4,7 @@ import { inMode, type ActionSpec, type Actions, type Choice, type PlayerId } fro
 import { nightSheet } from '../abilities/registry';
 import type { Instance } from '../abilities/define';
 import type { GameState, NightPhase } from '../model/state';
+import type { Rng } from '../util/rng';
 import { Run, type Resolution } from './run';
 
 const moment = (p: NightPhase) => ({ kind: 'night' as const, n: p.n });
@@ -82,6 +83,23 @@ export function validateChoice(asked: ActionSpec, choice: Choice | undefined): s
     if (new Set(picked).size !== picked.length) return `${spec.title}: choose different players.`;
   }
   return null;
+}
+
+/**
+ * An answer for someone who gives none: a decline if they may, otherwise a legal answer at random. One row, for a
+ * question of several. No values when nothing legal is left to choose.
+ */
+export function answerAtRandom(asked: ActionSpec, rng: Rng): Choice {
+  if (asked.allowDecline) return { decline: true, values: [] };
+  const mode = asked.modes ? rng.pick(asked.modes).id : undefined;
+  const spec = inMode(asked, mode);
+  const values: string[] = [];
+  for (const f of spec.fields) {
+    const free = spec.distinct && f.kind === 'player' ? f.options.filter((o) => !values.includes(o)) : f.options;
+    if (!free.length) return { decline: true, values: [] };
+    values.push(rng.pick(free));
+  }
+  return { values, ...(mode ? { mode } : {}) };
 }
 
 export type Validated = { ok: true; actions: Actions } | { ok: false; error: string };

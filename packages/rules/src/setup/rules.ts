@@ -4,7 +4,7 @@ import type { Counts, SetupQuery } from '../abilities/define';
 import { allJinxes, findRole, PLAYER_TYPES, roleDef } from '../abilities/registry';
 import { Reader } from '../derive/reader';
 import type { GameState } from '../model/state';
-import { SETUP_MOMENT } from '../model/state';
+import { isAutoplay, SETUP_MOMENT } from '../model/state';
 import { HookCtx } from '../night/context';
 import type { Rng } from '../util/rng';
 
@@ -32,11 +32,21 @@ function clampChart(n: number): Counts {
   return base;
 }
 
-function query(s: GameState, playerCount: number, roles: readonly RoleId[]): SetupQuery {
+/** Where the counts start: the chart, or in autoplay the steward's own, which the characters still change. */
+export function baseCounts(s: GameState, playerCount: number): Counts {
+  const own = s.setup.rules.countsOverride;
+  return isAutoplay(s) && own ? ([...own] as Counts) : clampChart(playerCount);
+}
+
+/** What a count rule's setup field is taken to be, instead of what is stored. */
+export type Chosen = (role: RoleId, field: string) => string | null;
+
+function query(s: GameState, playerCount: number, roles: readonly RoleId[], chosen?: Chosen): SetupQuery {
   return {
     roles,
     playerCount,
     field(role, field) {
+      if (chosen) return chosen(role, field);
       const a = [...s.abilities.values()].find(
         (x) => x.roleId === role && x.activeUntil !== 'removed' && x.origin.kind === 'character',
       );
@@ -47,19 +57,25 @@ function query(s: GameState, playerCount: number, roles: readonly RoleId[]): Set
 }
 
 /** The chart plus each role's count rules. Late rules see the result of the others. */
-export function modifiedCounts(s: GameState, playerCount: number, roles: readonly RoleId[], late: boolean): Counts {
-  const c = clampChart(playerCount);
-  const q = query(s, playerCount, roles);
+export function modifiedCounts(
+  s: GameState,
+  playerCount: number,
+  roles: readonly RoleId[],
+  late: boolean,
+  chosen?: Chosen,
+): Counts {
+  const c = baseCounts(s, playerCount);
+  const q = query(s, playerCount, roles, chosen);
   const rules = roles.flatMap((r) => findRole(r)?.setupRules ?? []);
   for (const rule of rules) if (!rule.late) rule.counts?.(c, q);
   if (late) for (const rule of rules) if (rule.late) rule.counts?.(c, q);
   return c;
 }
 
-export function targetCounts(s: GameState, playerCount: number, roles: readonly RoleId[]) {
+export function targetCounts(s: GameState, playerCount: number, roles: readonly RoleId[], chosen?: Chosen) {
   const override = s.setup.rules.countsOverride;
-  if (override) return { counts: [...override] as Counts, source: 'override' as const };
-  const c = modifiedCounts(s, playerCount, roles, true);
+  if (override && !isAutoplay(s)) return { counts: [...override] as Counts, source: 'override' as const };
+  const c = modifiedCounts(s, playerCount, roles, true, chosen);
   return { counts: c.map((x) => Math.max(0, x)) as Counts, source: 'default' as const };
 }
 

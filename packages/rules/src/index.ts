@@ -3,7 +3,11 @@ import './roles';
 export { dispatch, replay, type DispatchResult, type Inputs, type LogEntry } from './dispatch';
 export { createGame } from './model/create';
 export { NAME_MAX } from './phases/lobby';
-export { allCards, catalog, playerView, project, storytellerView } from './views/project';
+export { allCards, catalog, playerView, storytellerView } from './views/project';
+export { nextChangeAt, stewardView } from './views/steward';
+export { project } from './views/view';
+export { autopilotStep } from './phases/autoplay';
+export { deal, scriptFit } from './setup/deal';
 export {
   ENGINE_VERSION,
   GameState,

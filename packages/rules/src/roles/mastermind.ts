@@ -12,6 +12,7 @@ export const mastermind = defineRole<State>({
   id: roleId('mastermind'),
   name: 'Mastermind',
   type: 'minion',
+  autoplay: true,
   abilityText:
     'If the Demon dies by execution (ending the game), play for 1 more day. If a player is then executed, their team loses.',
   reminder:
@@ -32,6 +33,7 @@ export const mastermind = defineRole<State>({
           'mastermind',
           loser === 'good' ? 'evil' : 'good',
           `${ctx.name(e.playerId)} was executed on the extra day.`,
+          { afterDemon: true },
         );
       }
     },

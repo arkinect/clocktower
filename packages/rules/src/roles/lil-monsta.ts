@@ -91,6 +91,7 @@ export const lilMonsta = defineRole<State>({
   id: LIL_MONSTA,
   name: "Lil' Monsta",
   type: 'demon',
+  autoplay: true,
   abilityText:
     'Each night, Minions choose who babysits Lil\' Monsta\'s token & "is the Demon". A player dies each night*. [+1 Minion]',
   night: { other: 180, note: 'The keeper chooses the babysitter; you choose who dies' },

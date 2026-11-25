@@ -1,4 +1,5 @@
-// Tabs are URLs, so they survive reloads. /g/:code is the player app, /g/:code/storyteller/* the console.
+// Tabs are URLs, so they survive reloads. /g/:code is the player app, /g/:code/storyteller/* and
+// /g/:code/steward/* the consoles.
 import { useSyncExternalStore } from 'react';
 
 const listeners = new Set<() => void>();
@@ -23,12 +24,12 @@ export function navigate(path: string, replace = false) {
 
 export interface Route {
   code: string;
-  storyteller: boolean;
+  console: 'storyteller' | 'steward' | null;
   tab: string | null;
 }
 
 export function parseRoute(path: string): Route | null {
-  const m = /^\/g\/([^/]+)(?:\/(storyteller)(?:\/([^/]+))?)?\/?$/.exec(path);
+  const m = /^\/g\/([^/]+)(?:\/(storyteller|steward)(?:\/([^/]+))?)?\/?$/.exec(path);
   if (!m) return null;
-  return { code: decodeURIComponent(m[1] as string), storyteller: !!m[2], tab: m[3] ?? null };
+  return { code: decodeURIComponent(m[1] as string), console: (m[2] as Route['console']) ?? null, tab: m[3] ?? null };
 }

@@ -8,6 +8,7 @@ export const fortuneTeller = defineRole({
   id: FT,
   name: 'Fortune Teller',
   type: 'townsfolk',
+  autoplay: true,
   abilityText:
     'Each night, choose 2 players: you learn if either is a Demon. There is a good player that registers as a Demon to you.',
   night: { first: 150, other: 300 },
@@ -16,6 +17,7 @@ export const fortuneTeller = defineRole({
       field: 'herring',
       title: "Fortune Teller's red herring",
       kind: 'player',
+      drawnWhenGained: true,
       options: (r) => r.seated.filter((id) => r.alignmentOf(id) === 'good').map((id) => ({ id, label: r.name(id) })),
       suggest(r, pick) {
         const c = r.seated.filter((id) => {

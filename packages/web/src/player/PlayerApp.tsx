@@ -4,7 +4,8 @@ import type { ActionSpec, Choice, PlayerView } from '@ct/protocol';
 import { useCommand, useGame, useNames } from '../app/store';
 import { Picker, choiceComplete } from '../ui/Picker';
 import { Button, Card, Countdown, Sheet, SheetActions } from '../ui/ui';
-import { Messages, NightOrder, RoleCardView, RoleList, Seating } from './parts';
+import { MyRole, TableNotes } from './autoplay';
+import { Messages, NightOrder, RoleList, Seating } from './parts';
 import styles from './player.module.css';
 
 const NightGames = lazy(() => import('../games/NightGames'));
@@ -14,7 +15,6 @@ type Tab = 'home' | 'role' | 'roles' | 'order' | 'seats';
 export function PlayerApp({ view }: { view: PlayerView }) {
   const [tab, setTab] = useState<Tab>('home');
   const { catalog, jinxes } = useGame();
-  const starting = view.me.messages.filter((m) => m.kind === 'starting');
   const kind = view.phase.kind;
   const night = kind === 'night';
   const collectingOrLater = night && view.phase.stage !== 'briefing';
@@ -28,28 +28,12 @@ export function PlayerApp({ view }: { view: PlayerView }) {
   return (
     <div className={styles['player']}>
       <main className={tab === 'home' && collectingOrLater ? styles['full'] : styles['main']}>
+        {tab === 'home' && <TableNotes view={view} />}
         {tab === 'home' && <Home view={view} />}
         {tab === 'role' && (
           <div className="pad">
             <h2>My role</h2>
-            <RoleCardView
-              role={view.me.role}
-              secret={
-                (starting.length > 0 || view.me.grants.length > 0) && (
-                  <>
-                    <Messages messages={starting} />
-                    {view.me.grants.map((g) => (
-                      <Card key={g.title}>
-                        <b>{g.title}</b>
-                        {g.lines.map((l, i) => (
-                          <p key={i}>{l}</p>
-                        ))}
-                      </Card>
-                    ))}
-                  </>
-                )
-              }
-            />
+            <MyRole view={view} />
           </div>
         )}
         {tab === 'roles' && (
@@ -96,11 +80,15 @@ function Home({ view }: { view: PlayerView }) {
   if (!view.me.seated) {
     return (
       <div className="pad">
-        <Card>You are watching this game. The Storyteller can seat you for the next one.</Card>
+        <Card>
+          {view.steward
+            ? 'You are watching this game. You can play in the next one.'
+            : 'You are watching this game. The Storyteller can seat you for the next one.'}
+        </Card>
       </div>
     );
   }
-  if (kind === 'night') return stage === 'briefing' ? <RoleReveal /> : <Night view={view} />;
+  if (kind === 'night') return stage === 'briefing' ? <RoleReveal auto={!!view.steward} /> : <Night view={view} />;
   return <Day view={view} />;
 }
 
@@ -112,7 +100,11 @@ function Lobby({ view }: { view: PlayerView }) {
       <h2>Welcome, {view.me.name}</h2>
       <Card>
         <p>
-          {view.phase.kind === 'setup' ? 'The Storyteller is setting up the game.' : 'Waiting for the Storyteller.'}
+          {view.steward
+            ? 'Waiting for the game to start.'
+            : view.phase.kind === 'setup'
+              ? 'The Storyteller is setting up the game.'
+              : 'Waiting for the Storyteller.'}
         </p>
         {!view.hasStoryteller && (
           <>
@@ -137,13 +129,15 @@ function Lobby({ view }: { view: PlayerView }) {
 }
 
 /** The first night's opening screen. The role itself lives on the My role tab, which has it as soon as it is published. */
-function RoleReveal() {
+function RoleReveal({ auto }: { auto: boolean }) {
   return (
     <div className="pad">
       <h2>Night 0 begins</h2>
       <Card>
         <p>Your role is on the My role tab.</p>
-        <p>Wait for the Storyteller to start the night.</p>
+        <p>
+          {auto ? 'Look at it. The night starts once everyone has.' : 'Wait for the Storyteller to start the night.'}
+        </p>
       </Card>
     </div>
   );
@@ -296,6 +290,8 @@ function Day({ view }: { view: PlayerView }) {
           <p>You keep your role list, the night order and your role card.</p>
           {view.me.ghostVoteUsed ? (
             <p className="muted">You have used your vote.</p>
+          ) : view.steward ? (
+            <p>You have one vote left.</p>
           ) : (
             <div className="row">
               <span>You have one vote left.</span>
@@ -324,6 +320,7 @@ export function Ended({ view }: { view: PlayerView }) {
     <div className="pad">
       <h2>Game over</h2>
       {winner && <Card tone="notice">{winner === 'good' ? 'Good wins.' : 'Evil wins.'}</Card>}
+      {endedReason === 'steward' && !winner && <Card tone="notice">The game ended with no winner.</Card>}
       {endedReason === 'update' && <Card tone="notice">The game ended for an app update.</Card>}
       <p>Thanks for playing, {view.me.name}. Waiting for the next game.</p>
       <Messages messages={view.me.messages} />

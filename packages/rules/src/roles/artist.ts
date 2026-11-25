@@ -5,6 +5,7 @@ export const artist = defineRole({
   id: roleId('artist'),
   name: 'Artist',
   type: 'townsfolk',
+  autoplay: { unfit: 'The Storyteller has to answer their question.' },
   abilityText: 'Once per game, during the day, privately ask the Storyteller any yes/no question.',
   reminder: 'Day ability. Mark used in the Ability tracker.',
   flags: { oncePerGame: 'manual' },

@@ -14,7 +14,7 @@ function DeadNames({ ids, none }: { ids: PlayerId[]; none: string }) {
   return <span className={styles['dead']}>{ids.map((id) => names.players[id] ?? id).join(', ')}</span>;
 }
 
-function DayCard({ day }: { day: StoryDay }) {
+export function DayCard({ day }: { day: StoryDay }) {
   const names = useNames();
   const who = (id: PlayerId) => names.players[id] ?? id;
   let execution: ReactNode = 'none';
@@ -164,7 +164,7 @@ export function reportProblem(code: string, data: unknown) {
 }
 
 // The log is not in the view, on purpose: it grows through the night. It comes from the same export a bug report uses.
-export function Log({ view }: { view: StorytellerView }) {
+export function Log({ view }: { view: { code: string } }) {
   const names = useNames();
   const [data, setData] = useState<Exported | null>(null);
   const [error, setError] = useState<string | null>(null);

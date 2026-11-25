@@ -79,6 +79,12 @@ export interface Resolution {
   malfunctions: Malfunction[];
   gameEnd: { key: string; winner: 'good' | 'evil' | null; reason: string }[];
   log: string[];
+  /** What the steward tells the table at dawn, besides who died and who came back. */
+  announced: string[];
+  /** The Demon died in the night with nobody to take over, whatever has happened since. */
+  demonFell: boolean;
+  /** The suggested ends that still count once the Demon is dead. */
+  afterDemon: string[];
   /** The world after the night, committed at dawn. */
   after: GameState;
 }
@@ -119,6 +125,11 @@ export class Run {
   readonly gameEnd = new Map<string, { key: string; winner: 'good' | 'evil' | null; reason: string }>();
   readonly suppressed = new Set<string>();
   readonly log: string[] = [];
+  readonly announced: string[] = [];
+  readonly afterDemon = new Set<string>();
+  private demonFell = false;
+  /** Autoplay: the impaired who were told the truth, by result key. */
+  private readonly toldTruly = new Set<string>();
   readonly deathCause: Record<string, string> = {};
   readonly acted = new Set<string>();
   /** Given a new role tonight: they act from the next night, except for start information. */
@@ -256,7 +267,8 @@ export class Run {
     return set;
   }
 
-  suggestGameEnd(key: string, winner: 'good' | 'evil' | null, reason: string) {
+  suggestGameEnd(key: string, winner: 'good' | 'evil' | null, reason: string, o: { afterDemon?: boolean } = {}) {
+    if (o.afterDemon) this.afterDemon.add(key);
     this.gameEnd.set(key, { key, winner, reason });
   }
 
@@ -298,13 +310,15 @@ export class Run {
     const dark = masked(a);
     const imp = this.impairmentOf(a);
     const fake = input.fake ?? null;
-    const given = imp.impaired && fake ? fake : input.truth;
+    const key = this.acting === a.id ? `${a.id}:again` : (a.id as string);
+    const drawn = imp.impaired && fake && this.reader.autoplay ? this.drawAnswer(key, input) : null;
+    const given = drawn ?? (imp.impaired && fake ? fake : input.truth);
     if (dark && given.kind === 'note') return;
     const lines = (x: A | Note): string[] =>
       x.kind === 'note' ? x.lines : !dark && input.say ? input.say(x) : bare(x, this.reader);
-    const truth = lines(input.truth);
+    // What the impaired were told truly is the truth, for a result whose own truth is only a note.
+    const truth = lines(drawn && this.toldTruly.has(key) ? drawn : input.truth);
     const suggested = lines(given);
-    const key = this.acting === a.id ? `${a.id}:again` : (a.id as string);
     const override = this.night?.overrides.get(key);
     this.results.push({
       key,
@@ -322,6 +336,24 @@ export class Run {
       alternatives: (input.alternatives ?? []).map(lines),
       confirmation: !fake,
     });
+  }
+
+  /**
+   * Autoplay: what an impaired holder is told. 1 time in 4 the truth, so they can be sure of nothing either way.
+   * Otherwise one of the false answers the ability could give, at even odds. Drawn from the night's seed, so each night
+   * draws afresh and nothing can be drawn again.
+   */
+  private drawAnswer<A extends Answer>(key: string, input: InformInput<A>): A | null {
+    const same = (x: A, y: A) => JSON.stringify(x) === JSON.stringify(y);
+    const truth = input.truth.kind === 'note' ? (input.real ?? null) : (input.truth as A);
+    const lies = (input.lies ?? input.alternatives ?? []).filter((x) => !truth || !same(x, truth));
+    const rng = this.rng(`${key}:impaired`);
+    const honest = rng.int(4) === 0;
+    if (truth && (honest || !lies.length)) {
+      this.toldTruly.add(key);
+      return truth;
+    }
+    return lies.length ? rng.pick(lies) : null;
   }
 
   /** A picker or question with its words, as the Storyteller sees it. Unlabelled fields are called by their kind. */
@@ -427,8 +459,21 @@ export class Run {
     };
     w.abilities.set(a.id, a);
     this.dirty();
+    this.drawGainedFields(a, def);
     def.ability.setup?.(this.ctx(a));
     return this.world.abilities.get(a.id) as Instance;
+  }
+
+  /** Autoplay: a choice the Storyteller would make as the ability is gained, such as a red herring. */
+  private drawGainedFields(a: Instance, def: RoleDef) {
+    if (!this.reader.autoplay || this.n < 0) return;
+    for (const f of def.setupFields ?? []) {
+      if (!f.drawnWhenGained || this.reader.setupValue(def.id, f.field)) continue;
+      const options = f.options(this.reader);
+      if (!options.length) continue;
+      const value = this.rng(`${a.id}:${f.field}`).pick(options).id;
+      a.state = { ...(a.state as object), setup: { [f.field]: value } };
+    }
   }
 
   /** Ends an ability, what depends on it, and anything gained through it. Timed conditions run their full time. */
@@ -477,7 +522,9 @@ export class Run {
       roleDef(a.roleId).ability.onCharacterChange?.(this.ctx(a), { from, to: role });
     }
     for (const a of mine) {
-      if (a.origin.kind === 'character' || !keepGranted) this.revoke(a.id, !!o.keepTies);
+      // An ability that belongs to no player (a token being looked after) stays with whoever holds it.
+      const theirs = !roleDef(a.roleId).flags.neverImpaired;
+      if (a.origin.kind === 'character' || (!keepGranted && theirs)) this.revoke(a.id, !!o.keepTies);
     }
     p.history.push({ kind: 'character', at: this.moment, from, to: role, reason: o.reason });
     p.character = role;
@@ -809,16 +856,28 @@ export class Run {
       row.impaired = imp.impaired;
       row.causes = imp.causes;
       const declined = this.choiceOf(a)?.decline;
-      if (pid && imp.impaired && !declined && !def.flags.wakesOnNightDeath) {
-        this.malfunctionIfExternal(pid, `${def.name} ability impaired`);
-      }
+      const fails = pid && imp.impaired && !declined && !def.flags.wakesOnNightDeath;
+      const detail = `${def.name} ability impaired`;
+      const auto = this.reader.autoplay;
+      const causes = fails && auto ? externalImpairment(this.world, this.moment, pid) : [];
+      if (fails && !auto) this.malfunctionIfExternal(pid, detail);
       const ctx = this.ctx(a);
       if (!this.jinx(ctx, 'replaceResolve')) def.ability.resolve?.(ctx);
+      // True information is not a malfunction, and in autoplay the impaired are sometimes told the truth.
+      const key = again ? `${a.id}:again` : (a.id as string);
+      if (pid && causes.length && !this.toldTruly.has(key)) this.addMalfunction(pid, causes.join(','), detail);
+      this.watchDemon();
       if (a.startInfoPending && def.flags.startInfo) a.startInfoPending = false;
     } finally {
       this.currentRow = null;
       this.acting = null;
     }
+  }
+
+  /** The Demon is dead and no ability has made another, as this act ends: whatever comes later is too late. */
+  private watchDemon() {
+    const { demons, isAlive } = this.reader;
+    if (demons.length && !demons.some(isAlive)) this.demonFell = true;
   }
 
   /** An ability gained after collecting closed has no submission, so it asks now, as a question. */
@@ -979,6 +1038,7 @@ export class Run {
   finish(): Resolution {
     this.transform();
     this.checkGameEnd();
+    this.watchDemon();
     return {
       actors: this.actors,
       results: this.results,
@@ -990,6 +1050,9 @@ export class Run {
       malfunctions: this.malfunctions,
       gameEnd: this.gameEndRows(),
       log: this.log,
+      announced: this.announced,
+      demonFell: this.demonFell,
+      afterDemon: [...this.afterDemon],
       after: this.world,
     };
   }

@@ -13,6 +13,16 @@ export const damsel = defineRole<State>({
   id: DAMSEL,
   name: 'Damsel',
   type: 'outsider',
+  autoplay: {
+    claims: [
+      {
+        claim: 'guess',
+        title: 'Damsel guess',
+        fields: ['Guesser', 'Guessed'],
+        says: '{0} guesses that {1} is the Damsel',
+      },
+    ],
+  },
   abilityText: 'All Minions know a Damsel is in play. If a Minion publicly guesses you (once), your team loses.',
   reminder: 'If a Minion publicly guesses the Damsel correctly, record it on the Day tab. A wrong guess needs nothing.',
   flags: { oncePerGame: 'auto' },
@@ -52,6 +62,13 @@ export const damsel = defineRole<State>({
           fields: [{ kind: 'option', label: 'Guessed', options: ['yes'], labels: { yes: 'Yes, correctly' } }],
         },
       ];
+    },
+    // Only the first guess by a Minion counts, so a wrong one spends it. Anyone else's is a bluff.
+    onClaim(ctx, { values: [guesser, guessed] }) {
+      if (!guesser || !guessed || !ctx.firstPeer || ctx.peers.some((a) => a.used)) return;
+      if (ctx.typeOf(guesser) !== 'minion') return;
+      if (ctx.character(guessed) === DAMSEL) ctx.role(DAMSEL).ability.applyDayAction?.(ctx, 'guess', ['yes'], 'none');
+      else ctx.markUsed();
     },
     // Only a right guess is recorded. A wrong one changes nothing, so the Day tab has nothing to say about it.
     applyDayAction(ctx, _action, values) {

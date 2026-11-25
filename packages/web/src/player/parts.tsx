@@ -26,12 +26,28 @@ export function RoleIcon({ id }: { id: string }) {
  * `secret` is everything else the player learned with the role (fellow Minions, bluffs, grants): it is
  * left out of the page entirely until the card is revealed, and goes again when it is hidden.
  */
-export function RoleCardView({ role, secret }: { role: RoleCard | null; secret?: ReactNode }) {
+export function RoleCardView({
+  role,
+  secret,
+  onReveal,
+}: {
+  role: RoleCard | null;
+  secret?: ReactNode;
+  onReveal?: (() => void) | undefined;
+}) {
   const [shown, setShown] = useState(false);
   if (!role) return <div className={styles['roleCard']}>No role yet.</div>;
   return (
     <div className={styles['roleCard']}>
-      <button type="button" className={styles['roleToggle']} aria-expanded={shown} onClick={() => setShown(!shown)}>
+      <button
+        type="button"
+        className={styles['roleToggle']}
+        aria-expanded={shown}
+        onClick={() => {
+          if (!shown) onReveal?.();
+          setShown(!shown);
+        }}
+      >
         <span className={`${styles['roleFace']} ${shown ? '' : styles['offFace']}`} aria-hidden={!shown || undefined}>
           <span className={`${styles['roleType']} type-${role.type}`}>{typeName(role.type)}</span>
           <RoleIcon id={role.roleId} />

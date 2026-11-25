@@ -56,6 +56,8 @@ export interface DayActionDraft extends SpecDraft {
   clearable?: boolean;
   /** The select's "nothing happened" option. */
   emptyLabel?: string;
+  /** Autoplay: the holder answers this themself, in private. Their words for it. */
+  asksHolder?: string;
 }
 
 export interface DayActionOutcome {
@@ -170,6 +172,8 @@ export interface SetupField {
    * Character setup list.
    */
   rowLabel?: string;
+  /** Autoplay: also drawn when the ability is gained during the game, if nobody has a value yet. */
+  drawnWhenGained?: boolean;
 }
 
 export interface SetupQuery {
@@ -181,6 +185,8 @@ export interface SetupQuery {
 }
 
 export interface SetupRules {
+  /** The setup field that `counts` reads, and its values. Autoplay draws one, evenly. */
+  choice?: { field: string; options: readonly string[] };
   /** Adjust the [townsfolk, outsiders, minions, demons] target. */
   counts?(c: Counts, q: SetupQuery): void;
   /** Runs after every other count rule (a choice that depends on them). */
@@ -245,6 +251,18 @@ export interface Hooks<S> {
     values: string[],
     force: 'none' | 'success' | 'fail',
   ): DayActionOutcome;
+  /**
+   * Autoplay: a nomination was just made. For what a nomination itself sets off, which in a Storyteller's game is a
+   * day action used when it happens. Share that action's code, so both modes do the same.
+   */
+  onNomination?(ctx: AbilityCtx<S>, nomination: { nominator: PlayerId; nominee: PlayerId }): void;
+  /**
+   * Autoplay: one of this role's claims (see AutoplaySupport) was made in public. Called on every instance of the role,
+   * so it must check the claimant is the one it means. Whatever it does not recognise, it ignores.
+   */
+  onClaim?(ctx: AbilityCtx<S>, claim: { claim: string; values: readonly PlayerId[] }): void;
+  /** Autoplay: the question at an execution was a yes, for this player. True: they do not die. */
+  survivesExecution?(ctx: AbilityCtx<S>, player: PlayerId): boolean;
   /** A prompt raised at day was answered. */
   onPrompt?(ctx: AbilityCtx<S>, kind: string, subject: string | null, option: string): void;
   registersAs?(ctx: AbilityCtx<S>, query: RegistrationQuery): Registration | null;
@@ -301,7 +319,10 @@ export interface RoleFlags {
   asksOnDeath?: boolean;
   /** Shown in the day screen's reminders. */
   dayReminder?: boolean;
-  /** The ability belongs to no player: whoever holds it being drunk or poisoned does not affect it. */
+  /**
+   * The ability belongs to no player: whoever holds it being drunk or poisoned does not affect it, and it stays with
+   * them if their character changes.
+   */
   neverImpaired?: boolean;
   /** Interception order; lower runs first. */
   interceptPriority?: number;
@@ -311,6 +332,32 @@ export interface RoleFlags {
   demonHeir?: boolean;
   /** In play, the evil team gets no Demon bluffs. */
   noBluffs?: boolean;
+}
+
+/** Something a character does by saying it in public. Offered whenever the role is on the script. */
+export interface ClaimDef {
+  claim: string;
+  /** "Slayer shot" */
+  title: string;
+  /** A player each, the claimant first: "Shooter", "Target". */
+  fields: readonly string[];
+  /** The check before it is recorded: "{0} shoots {1}". */
+  says: string;
+}
+
+/** What a role needs of autoplay, for one that can be used in it. */
+export interface AutoplaySupport {
+  /** What can be claimed while it is on the script. `onClaim` judges it. */
+  claims?: readonly ClaimDef[];
+  /** Asked at every execution while it is on the script. `survivesExecution` judges a yes. */
+  execution?: string;
+  /** A rule nobody enforces, told to the holder in private. */
+  reminder?: string;
+}
+
+/** Why a role cannot be used in autoplay, when it is for a better reason than that nobody has said it can. */
+export interface AutoplayUnfit {
+  unfit: string;
 }
 
 export interface RoleDef<S = unknown> {
@@ -324,6 +371,8 @@ export interface RoleDef<S = unknown> {
   reminder?: string;
   night?: { first?: number; other?: number; note?: string };
   flags: RoleFlags;
+  /** Whether autoplay can use it, and how. A role that does not say cannot be used. */
+  autoplay?: true | AutoplaySupport | AutoplayUnfit;
   setupRules?: SetupRules;
   setupFields?: SetupField[];
   believes?: Believes;
@@ -341,6 +390,8 @@ export interface RoleInput<S> {
   reminder?: string;
   night?: { first?: number; other?: number; note?: string };
   flags?: RoleFlags;
+  /** Whether autoplay can use it, and how. A role that does not say cannot be used. */
+  autoplay?: true | AutoplaySupport | AutoplayUnfit;
   setupRules?: SetupRules;
   setupFields?: SetupField[];
   believes?: Believes;
@@ -363,7 +414,18 @@ export function defineRole<S = Record<never, never>>(input: RoleInput<S>): RoleD
   return def as unknown as RoleDef;
 }
 
+/** Why an autoplay script cannot have this role, or null when it can. */
+export function notInAutoplay(def: RoleDef): string | null {
+  if (!def.autoplay) return 'Not made ready for autoplay yet.';
+  return def.autoplay !== true && 'unfit' in def.autoplay ? def.autoplay.unfit : null;
+}
+
+/** What autoplay needs of this role. Nothing, for one it cannot use. */
+export const autoplaySupport = (def: RoleDef): AutoplaySupport =>
+  def.autoplay && def.autoplay !== true && !('unfit' in def.autoplay) ? def.autoplay : {};
+
 export function roleCard(def: RoleDef): RoleCard {
+  const unfit = notInAutoplay(def);
   return {
     roleId: def.id,
     name: def.name,
@@ -373,6 +435,7 @@ export function roleCard(def: RoleDef): RoleCard {
     firstNight: def.night?.first ?? null,
     otherNight: def.night?.other ?? null,
     homebrew: def.homebrew ?? false,
+    ...(unfit ? { notInAutoplay: unfit } : {}),
   };
 }
 

@@ -182,6 +182,12 @@ export function applyCurse(
   return outcome;
 }
 
+/** Autoplay: the curse on this player goes off, if there is one still waiting. */
+export function setOffCurse(ctx: AbilityCtx<CurseState>, target: PlayerId, cause: string, what: string) {
+  if (!ctx.isAlive(target) || !cursesOn(ctx).some((c) => c.target === target)) return;
+  applyCurse(ctx, target, cause, 'none', what);
+}
+
 /** Takes a confirmed day action back: whoever died of it lives again. */
 export function takeBack(ctx: AbilityCtx<unknown>, c: Confirmed | null, what: string): DayActionOutcome {
   if (!c) return { summary: 'Nothing to take back.', effective: false };

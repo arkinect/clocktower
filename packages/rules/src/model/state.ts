@@ -16,7 +16,7 @@ import {
 import { z } from 'zod';
 
 /** Bumped by hand when the state schema changes. */
-export const ENGINE_VERSION = 6;
+export const ENGINE_VERSION = 7;
 
 /** A table by id: a Map in memory, so a lookup finds only what was put there, and a plain object when saved. */
 const ids = <K extends z.ZodType<string, string>, V extends z.ZodType>(key: K, value: V) =>
@@ -165,7 +165,7 @@ export const Phase = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('day'), n: z.number() }),
   z.object({
     kind: z.literal('ended'),
-    reason: z.enum(['storyteller', 'update']),
+    reason: z.enum(['storyteller', 'update', 'steward']),
     winner: Alignment.nullable(),
   }),
 ]);
@@ -233,6 +233,75 @@ export type GameEndCandidate = z.infer<typeof GameEndCandidate>;
 
 export const PendingNotice = z.object({ playerId: PlayerId, title: z.string(), lines: z.array(z.string()) });
 
+/** A nomination the table saw, and the vote on it. */
+export const Nomination = z.object({
+  id: z.number(),
+  day: z.number(),
+  nominator: PlayerId,
+  nominee: PlayerId,
+  /** What the table saw come of it. */
+  lines: z.array(z.string()),
+  vote: z
+    .object({
+      voters: z.array(PlayerId),
+      /** The dead whose vote token this spent, so a correction can give it back. */
+      spent: z.array(PlayerId),
+      /** Votes it took, as many were alive then. */
+      needed: z.number(),
+      /** Hidden: a voter was a Demon as they voted. */
+      demon: z.boolean(),
+    })
+    .nullable(),
+  /** Hidden: what it changed, to put back if it is undone. */
+  before: z.object({
+    abilities: z.array(z.object({ id: AbilityId, used: z.boolean(), state: z.unknown() })),
+    conditions: z.array(Condition),
+    events: z.number(),
+  }),
+});
+export type Nomination = z.infer<typeof Nomination>;
+
+/** What the table was told, or saw entered, in order. Nothing hidden may ever go in here. */
+export const PublicRecord = z.object({
+  at: Moment,
+  kind: z.enum(['dawn', 'nomination', 'undone', 'claim', 'execution']),
+  /** The nomination this entry is. */
+  nomination: z.number().nullable(),
+  /** What was entered ("Bo shoots Cy"), for a nomination or a claim. */
+  text: z.string(),
+  /** The announcement. */
+  lines: z.array(z.string()),
+});
+export type PublicRecord = z.infer<typeof PublicRecord>;
+
+/** Everything an autoplay game keeps that a Storyteller's does not. */
+export const Autoplay = z.object({
+  idSeq: z.number(),
+  /** Roles the script lost when the mode was chosen. */
+  dropped: z.array(RoleId),
+  nominations: z.array(Nomination),
+  record: z.array(PublicRecord),
+  /** Who the last night killed, as the table was told. */
+  lastNight: z.array(PlayerId),
+  /** The day's execution is done. */
+  dayClosed: z.boolean(),
+  /** When the night closed. */
+  closedAt: z.number().nullable(),
+  /** Not here: their nights are skipped. */
+  away: z.array(PlayerId),
+  /** Away when the night closed. Marking someone away after that must not say whether they were asked anything. */
+  awayTonight: z.array(PlayerId),
+  /** Hidden: the Demon is dead with nobody to take over, so the game is settled. */
+  demonDead: z.boolean(),
+  /** Decided, and waiting for the steward to announce it. */
+  over: z.object({ winner: Alignment.nullable() }).nullable(),
+  /** Asked to stop playing and become the Storyteller. */
+  offered: PlayerId.nullable(),
+  /** Took over as the Storyteller. One way. */
+  handedTo: PlayerId.nullable(),
+});
+export type Autoplay = z.infer<typeof Autoplay>;
+
 export const GameState = z.object({
   version: z.number(),
   id: GameId,
@@ -243,6 +312,9 @@ export const GameState = z.object({
   phase: Phase,
   players: ids(PlayerId, Player),
   storytellerId: PlayerId.nullable(),
+  /** Runs an autoplay game, and plays in it. While there is a steward there is no Storyteller. */
+  stewardId: PlayerId.nullable(),
+  autoplay: Autoplay.nullable(),
   seats: z.array(Seat),
   seatingPublished: z.boolean(),
   publishedSeating: z.array(PlayerId),
@@ -285,6 +357,25 @@ export function loadState(saved: string): { state: GameState; reason?: never } |
   const r = GameState.safeParse(json);
   return r.success ? { state: r.data } : { state: null, reason: 'snapshot failed the schema' };
 }
+
+export const newAutoplay = (): Autoplay => ({
+  idSeq: 1,
+  dropped: [],
+  nominations: [],
+  record: [],
+  lastNight: [],
+  dayClosed: false,
+  closedAt: null,
+  away: [],
+  awayTonight: [],
+  demonDead: false,
+  over: null,
+  offered: null,
+  handedTo: null,
+});
+
+/** Whether the app runs this game. Not once it has been handed to a Storyteller. */
+export const isAutoplay = (s: { stewardId: PlayerId | null }): boolean => s.stewardId !== null;
 
 export const SETUP_MOMENT: Moment = { kind: 'night', n: -1 };
 

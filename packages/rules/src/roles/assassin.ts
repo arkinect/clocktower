@@ -6,6 +6,7 @@ export const assassin = defineRole({
   id: roleId('assassin'),
   name: 'Assassin',
   type: 'minion',
+  autoplay: true,
   abilityText: 'Once per game, at night*, choose a player: they die, even if for some reason they could not.',
   night: { other: 190 },
   flags: { oncePerGame: 'auto' },

@@ -116,6 +116,74 @@ export const PlayAgain = c('play_again', {});
 export const NewGame = c('new_game', {});
 export const ForcePhase = c('force_phase', { phase: z.enum(['lobby', 'setup', 'day', 'ended']) });
 
+// ---- autoplay ----
+// The steward's own list: nothing here is shared with the Storyteller, and none of it takes a `force`.
+const StewardSettings = {
+  countdownSeconds: Seconds.optional(),
+  followUpExtensionSeconds: Seconds.optional(),
+  announceDeaths: z.boolean().optional(),
+  evilInfoPolicy: z.enum(['house', 'official', 'teensyville']).optional(),
+};
+/** Before the deal: the Storyteller becomes the steward, who plays too, and the app runs the game. */
+export const ChooseAutoplay = c('choose_autoplay', {});
+/** Before the deal: back to a Storyteller game. */
+export const LeaveAutoplay = c('leave_autoplay', {});
+export const StewardRename = c('steward_rename', { playerId: PlayerId, name: Name });
+export const StewardRemove = c('steward_remove', { playerId: PlayerId });
+export const StewardOpenSetup = c('steward_open_setup', {});
+export const StewardScript = c('steward_script', { roleIds: Roles });
+export const StewardSeating = c('steward_seating', { order: Players });
+export const StewardShuffle = c('steward_shuffle', {});
+export const StewardPublishSeating = c('steward_publish_seating', {});
+/** Where the deal starts from. The characters dealt may still change it. */
+export const StewardCounts = c('steward_counts', {
+  counts: z.array(z.number().int().min(0).max(40)).length(4).nullable(),
+});
+export const StewardSet = c('steward_settings', StewardSettings);
+/** A complete random setup, unseen, and straight to the phones. There is no second deal. */
+export const Deal = c('deal', {});
+export const OpenNight = c('open_night', {});
+export const AddTime = c('add_time', { seconds: z.number().int().min(10).max(3600) });
+/** Once the countdown is over: plays on without a player's choice. */
+export const SkipPlayer = c('skip_player', { playerId: PlayerId });
+/** Once their time is over: plays on without the answers to the night's questions. */
+export const SkipQuestions = c('skip_questions', {});
+export const RetryNight = c('retry_night', {});
+export const CallDawn = c('call_dawn', {});
+export const Nominate = c('nominate', { nominator: PlayerId, nominee: PlayerId });
+/** Takes back the last nomination, while nothing public has come of it. */
+export const UndoNomination = c('undo_nomination', { id: z.number().int() });
+/** Who voted, entered once or corrected. */
+export const CountVote = c('count_vote', { id: z.number().int(), voters: Players });
+/** What a player said in public. The app decides whether it meant anything. */
+export const MakeClaim = c('make_claim', {
+  roleId: RoleId,
+  claim: z.string().min(1).max(64),
+  values: Players.max(8),
+});
+/** Today's execution, or none, which happens at once. `yes`: the roles whose question at the execution was a yes. */
+export const Execute = c('execute', { playerId: PlayerId.nullable(), yes: Roles.max(8) });
+export const BeginNight = c('begin_night', {});
+/** The game is over and the app has said who won: the phones end now. */
+export const AnnounceEnd = c('announce_end', {});
+export const SetAway = c('set_away', { playerId: PlayerId, away: z.boolean() });
+export const HandSteward = c('hand_steward', { playerId: PlayerId });
+/** Asks a player to stop playing and become the Storyteller. Null takes the offer back. */
+export const OfferStoryteller = c('offer_storyteller', { playerId: PlayerId.nullable() });
+export const Abandon = c('abandon', {});
+export const StewardPlayAgain = c('steward_play_again', {});
+export const StewardNewGame = c('steward_new_game', {});
+/** A player's own: something their ability asks them by day, in private. No values takes it back. */
+export const AnswerDayPrompt = c('answer_day_prompt', {
+  key: Key,
+  values: z.array(z.string().min(1).max(64)).max(16),
+});
+export const AcceptStoryteller = c('accept_storyteller', {});
+/** The server's own: everyone has chosen, so the night is worked out. */
+export const AutoClose = c('auto_close', {});
+/** The server's own: a question to a player who was away when the night closed. */
+export const AutoAnswer = c('auto_answer', {});
+
 export const Command = z.discriminatedUnion('type', [
   Join,
   ClaimStoryteller,
@@ -180,6 +248,41 @@ export const Command = z.discriminatedUnion('type', [
   PlayAgain,
   NewGame,
   ForcePhase,
+  ChooseAutoplay,
+  LeaveAutoplay,
+  StewardRename,
+  StewardRemove,
+  StewardOpenSetup,
+  StewardScript,
+  StewardSeating,
+  StewardShuffle,
+  StewardPublishSeating,
+  StewardCounts,
+  StewardSet,
+  Deal,
+  OpenNight,
+  AddTime,
+  SkipPlayer,
+  SkipQuestions,
+  RetryNight,
+  CallDawn,
+  Nominate,
+  UndoNomination,
+  CountVote,
+  MakeClaim,
+  Execute,
+  BeginNight,
+  AnnounceEnd,
+  SetAway,
+  HandSteward,
+  OfferStoryteller,
+  Abandon,
+  StewardPlayAgain,
+  StewardNewGame,
+  AnswerDayPrompt,
+  AcceptStoryteller,
+  AutoClose,
+  AutoAnswer,
 ]);
 export type Command = z.infer<typeof Command>;
 export type CommandType = Command['type'];

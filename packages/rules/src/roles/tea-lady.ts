@@ -5,6 +5,7 @@ export const teaLady = defineRole({
   id: roleId('tea_lady'),
   name: 'Tea Lady',
   type: 'townsfolk',
+  autoplay: true,
   abilityText: "If both your alive neighbours are good, they can't die.",
   reminder: 'Protects night kills automatically. Apply to executions yourself.',
   flags: { dayReminder: true, interceptPriority: 30, passive: true },

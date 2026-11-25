@@ -53,7 +53,7 @@ export const alHadikhiaMastermind = defineJinx({
       const ts = ctx.choice as PlayerId[];
       if (ts.length !== 3) {
         ctx.outcome(`${LABEL}: 3 good players were not chosen, good wins. Apply this at the table.`);
-        ctx.suggestGameEnd('al_hadikhia_mastermind', 'good', LABEL);
+        ctx.suggestGameEnd('al_hadikhia_mastermind', 'good', LABEL, { afterDemon: true });
         return true;
       }
       announce(ctx, ts);
@@ -63,7 +63,7 @@ export const alHadikhiaMastermind = defineJinx({
       if (answers.every(Boolean)) {
         const evil = answers.every((x) => x === 'live');
         ctx.outcome(`${LABEL}: ${evil ? 'evil wins' : 'good wins'}. Apply this at the table.`);
-        ctx.suggestGameEnd('al_hadikhia_mastermind', evil ? 'evil' : 'good', LABEL);
+        ctx.suggestGameEnd('al_hadikhia_mastermind', evil ? 'evil' : 'good', LABEL, { afterDemon: true });
       } else {
         ctx.outcome(`${LABEL}: waiting for all three answers`);
       }

@@ -30,6 +30,10 @@ const collecting = (p: NightPhase) => p.stage === 'collecting' || p.stage === 'b
 const appearsDead = (run: Run, id: PlayerId) =>
   run.reader.abilitiesOf(id).some((a) => roleDef(a.roleId).ability.appearsDead?.(run.ctx(a)));
 
+/** Who the table sees dead. */
+export const tableDead = (run: Run): PlayerId[] =>
+  run.reader.seated.filter((id) => !run.reader.isAlive(id) || appearsDead(run, id));
+
 /**
  * One atomic step that commits the night and sends everyone to the day.
  *
@@ -37,7 +41,7 @@ const appearsDead = (run: Run, id: PlayerId) =>
  * else a night hook writes on its copy of the game (the inbox, pending notices, the published seating, prompts,
  * events) is dropped. The "dawn carries over" test in test/invariants/real-roles.test.ts fails when a role does.
  */
-function publish(s: GameState, res: Resolution, n: number, seed: number, now: number) {
+export function publish(s: GameState, res: Resolution, n: number, seed: number, now: number): Run {
   const before = new Set(s.seats.map((x) => x.playerId).filter((id) => s.players.get(id)?.life.alive));
   const rows = nightStory(s, res, n);
   const after = res.after;
@@ -79,11 +83,39 @@ function publish(s: GameState, res: Resolution, n: number, seed: number, now: nu
   for (const pid of run.reader.seated) {
     if (!told.has(pid)) say(pid, 'result', 'Tonight', ['You learned nothing.']);
   }
-  s.publicDead = run.reader.seated.filter((id) => !run.reader.isAlive(id) || appearsDead(run, id));
+  s.publicDead = tableDead(run);
   for (const g of res.gameEnd) {
     if (!s.dismissedGameEnd.includes(g.key) && !s.gameEnd.some((x) => x.key === g.key)) s.gameEnd.push(g);
   }
   run.commitDay();
+  return run;
+}
+
+/** Everything the day's end settles: the execution, then what it decides. */
+export function sundown(ctx: CmdCtx<'day'>): Run {
+  const n = ctx.phase.n;
+  // The execution first, while today's conditions (the Devil's Advocate's mark, today's poison) still hold. Then
+  // the dusk hooks, so an heir (the Scarlet Woman) is the Demon before the execution's triggers ask.
+  const dusk = ctx.run();
+  // Before the execution, which can change who holds what (the Cannibal), so the answers are today's.
+  recordDayDefaults(dusk);
+  executeAtDusk(dusk, n);
+  for (const a of ctx.r.instances) roleDef(a.roleId).ability.onDusk?.(dusk.ctx(a));
+  fireExecutionAtDusk(dusk, n);
+  dusk.commitDay({ dusk: true });
+  return dusk;
+}
+
+/** Night falls: the day's conditions end, and whatever waited for the night is told. */
+export function nightfall(ctx: CmdCtx<'day'>) {
+  const s = ctx.s;
+  const n = ctx.phase.n;
+  s.conditions = s.conditions.filter((c) => c.until !== 'dusk');
+  const notices = s.pendingNotices;
+  s.pendingNotices = [];
+  s.phase = newNightPhase(n, ctx.seed, 'collecting', ctx.now + s.settings.countdownSeconds * 1000);
+  const run = new Run({ world: s, moment: { kind: 'night', n }, seed: ctx.seed, now: ctx.now });
+  for (const x of notices) run.deliver(x.playerId, 'notice', x.title, x.lines);
 }
 
 export const nightCommands = [
@@ -308,25 +340,13 @@ export const nightCommands = [
     by: 'storyteller',
     phases: ['day'],
     handle(ctx, cmd) {
-      const s = ctx.s;
-      const n = ctx.phase.n;
-      const open = cmd.force ? [] : unansweredBeforeNight(ctx.run());
-      need(!open.length, `Answer this on the Day tab first, or force: ${open.join('; ')}.`);
-      // The execution first, while today's conditions (the Devil's Advocate's mark, today's poison) still hold. Then
-      // the dusk hooks, so an heir (the Scarlet Woman) is the Demon before the execution's triggers ask.
-      const dusk = ctx.run();
-      // Before the execution, which can change who holds what (the Cannibal), so the answers are today's.
-      recordDayDefaults(dusk);
-      executeAtDusk(dusk, n);
-      for (const a of ctx.r.instances) roleDef(a.roleId).ability.onDusk?.(dusk.ctx(a));
-      fireExecutionAtDusk(dusk, n);
-      dusk.commitDay({ dusk: true });
-      s.conditions = s.conditions.filter((c) => c.until !== 'dusk');
-      const notices = s.pendingNotices;
-      s.pendingNotices = [];
-      s.phase = newNightPhase(n, ctx.seed, 'collecting', ctx.now + s.settings.countdownSeconds * 1000);
-      const run = new Run({ world: s, moment: { kind: 'night', n }, seed: ctx.seed, now: ctx.now });
-      for (const x of notices) run.deliver(x.playerId, 'notice', x.title, x.lines);
+      // An autoplay game handed over with its execution done has had its sundown.
+      if (!ctx.s.autoplay?.dayClosed) {
+        const open = cmd.force ? [] : unansweredBeforeNight(ctx.run());
+        need(!open.length, `Answer this on the Day tab first, or force: ${open.join('; ')}.`);
+        sundown(ctx);
+      } else ctx.s.autoplay.dayClosed = false;
+      nightfall(ctx);
     },
   }),
 ];

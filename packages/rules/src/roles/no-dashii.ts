@@ -6,6 +6,7 @@ export const noDashii = defineRole({
   id: roleId('no_dashii'),
   name: 'No Dashii',
   type: 'demon',
+  autoplay: true,
   abilityText: 'Each night*, choose a player: they die. Your 2 Townsfolk neighbours are poisoned.',
   night: { other: 150 },
   ability: {

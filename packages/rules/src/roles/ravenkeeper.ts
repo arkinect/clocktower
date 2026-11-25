@@ -7,6 +7,7 @@ export const ravenkeeper = defineRole({
   id: roleId('ravenkeeper'),
   name: 'Ravenkeeper',
   type: 'townsfolk',
+  autoplay: true,
   abilityText: 'If you die at night, you are woken to choose a player: you learn their character.',
   night: { other: 280, note: 'Only if killed tonight' },
   flags: { worksWhileDead: true, wakesOnNightDeath: true, asksOnDeath: true },
@@ -36,6 +37,7 @@ export const ravenkeeper = defineRole({
       ctx.inform({
         truth: character(truth),
         fake: character(fake),
+        lies: others.map((r) => character(r)),
         say: (a) => [`${ctx.name(t)} is the ${ctx.roleName(a.role)}.`],
       });
     },

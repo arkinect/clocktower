@@ -10,6 +10,7 @@ export const devilsAdvocate = defineRole<State>({
   id: roleId('devils_advocate'),
   name: "Devil's Advocate",
   type: 'minion',
+  autoplay: true,
   abilityText: "Each night, choose a living player (different to last night): if executed tomorrow, they don't die.",
   reminder: 'The marked player survives an execution today automatically.',
   night: { first: 70, other: 70 },

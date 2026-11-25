@@ -2,7 +2,7 @@
 // Or, instead of cursing, a plain Demon kill.
 import { roleId, type PlayerId } from '@ct/protocol';
 import { defineRole } from '../abilities/define';
-import { applyCurse, curse, curseSwitches, type CurseState } from './lib';
+import { applyCurse, curse, curseSwitches, setOffCurse, type CurseState } from './lib';
 
 const KILL = 'kill';
 
@@ -10,6 +10,7 @@ export const witchKing = defineRole<CurseState>({
   id: roleId('witch_king'),
   name: 'Witch King',
   type: 'demon',
+  autoplay: true,
   homebrew: true,
   abilityText:
     'Each night*, choose up to 2 players: if they are nominated tomorrow, they die. Or, choose 1 player: they die.',
@@ -60,5 +61,8 @@ export const witchKing = defineRole<CurseState>({
     // A switch: the second press on the same player takes it back, reviving them if it killed them.
     applyDayAction: (ctx, _action, values, force) =>
       applyCurse(ctx, values[0] as PlayerId, 'demon_attack', force, 'Witch King curse'),
+    onNomination(ctx, { nominee }) {
+      if (ctx.canAct && !ctx.impaired) setOffCurse(ctx, nominee, 'demon_attack', 'Witch King curse');
+    },
   },
 });

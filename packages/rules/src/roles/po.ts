@@ -10,6 +10,7 @@ export const po = defineRole<State>({
   id: roleId('po'),
   name: 'Po',
   type: 'demon',
+  autoplay: true,
   abilityText:
     'Each night*, you may choose a player: they die. If your last choice was no-one, choose 3 players tonight.',
   night: { other: 140 },

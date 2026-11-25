@@ -5,6 +5,7 @@ export const clockmaker = defineRole({
   id: roleId('clockmaker'),
   name: 'Clockmaker',
   type: 'townsfolk',
+  autoplay: true,
   abilityText: 'You start knowing how many steps from the Demon to its nearest Minion.',
   night: { first: 130, other: 270, note: 'Only if the ability was just gained' },
   flags: { startInfo: true },

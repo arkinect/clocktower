@@ -3,6 +3,7 @@
 import { clone } from '../util/clone';
 import type {
   AbilityView,
+  ActionSpec,
   ConditionView,
   DayActionSpec,
   PhaseView,
@@ -14,7 +15,7 @@ import type {
   StoryNight,
   StorytellerView,
 } from '@ct/protocol';
-import { roleCard } from '../abilities/define';
+import { autoplaySupport, roleCard } from '../abilities/define';
 import type { Instance } from '../abilities/define';
 import { allRoles, findRole, roleDef, scriptOrder } from '../abilities/registry';
 import { computeImpairment } from '../derive/impairment';
@@ -25,6 +26,7 @@ import { HookCtx } from '../night/context';
 import { Run } from '../night/run';
 import { nightStory } from '../night/story';
 import { actionSpecs, expectedActors, resolveNight, wakingAbilities } from '../night/wake';
+import { dayPrompts } from '../phases/autoplay';
 import { setupFields } from '../phases/setup';
 import {
   actualCounts,
@@ -38,9 +40,11 @@ import {
 export interface ProjectOptions {
   now: number;
   presence?: Record<string, boolean>;
+  /** Autoplay: the server could not take its next step. */
+  stuck?: boolean;
 }
 
-function phaseView(s: GameState): PhaseView {
+export function phaseView(s: GameState): PhaseView {
   const p = s.phase;
   return {
     kind: p.kind,
@@ -63,6 +67,37 @@ export function catalog(s: GameState): RoleCard[] {
 /** Every role the app knows, for choosing a script. */
 export const allCards = (): RoleCard[] => allRoles().map(roleCard);
 
+/** Autoplay: a picker for whoever has no night action, so that nobody takes longer than anybody else. */
+const decoy = (r: Reader): ActionSpec => ({
+  key: 'decoy',
+  roleId: null,
+  title: 'No night action tonight',
+  prompt: 'Choose any player, so that everyone takes as long. It does nothing.',
+  fields: [{ kind: 'player', label: 'Player', options: r.seated }],
+  distinct: false,
+  allowDecline: false,
+});
+
+/** Autoplay: what the app tells and asks this player in place of a Storyteller. */
+function autoplayPart(s: GameState, r: Reader, id: PlayerId, shown: RoleId | null, now: number) {
+  const open = s.phase.kind === 'day' && !s.autoplay?.dayClosed && !s.autoplay?.over;
+  const run = open ? new Run({ world: clone(s) as GameState, moment: phaseMoment(s), seed: 0, now }) : null;
+  const prompts = run ? dayPrompts(run, id) : [];
+  const reminder = shown && r.isSeated(id) ? autoplaySupport(roleDef(shown)).reminder : null;
+  return {
+    ...(prompts.length
+      ? {
+          dayPrompts: prompts.map(({ a, d, spec }) => ({
+            ...(run as Run).phoneSpec(a, spec, id),
+            recorded: d.recorded ?? null,
+          })),
+        }
+      : {}),
+    ...(reminder ? { reminder } : {}),
+    ...(s.autoplay?.offered === id ? { offeredStoryteller: true } : {}),
+  };
+}
+
 export function playerView(s: GameState, id: PlayerId, now: number): PlayerView {
   const me = s.players.get(id);
   if (!me) throw new Error(`No player ${id}`);
@@ -79,6 +114,15 @@ export function playerView(s: GameState, id: PlayerId, now: number): PlayerView 
           .map((q) => q.phone)
       : [];
   const sub = p.kind === 'night' ? (p.submissions.get(id) ?? null) : null;
+  const auto = r.autoplay;
+  const picking = collecting && seated;
+  const specs = picking ? actionSpecs(s, id) : [];
+  const phase = phaseView(s);
+  if (auto && p.kind === 'night' && p.stage !== 'briefing' && (!picking || sub)) {
+    // One screen from a player's own submission to dawn. The stage would show when questions are out.
+    phase.stage = null;
+    phase.deadline = null;
+  }
   const hidden = r.instances.some((a) => roleDef(a.roleId).ability.hidesCharacter?.(new HookCtx(r, a), id));
   const shown = started && !hidden ? me.self.character : null;
   const grants = started
@@ -87,7 +131,7 @@ export function playerView(s: GameState, id: PlayerId, now: number): PlayerView 
   return {
     kind: 'player',
     code: s.code,
-    phase: phaseView(s),
+    phase,
     serverNow: now,
     me: {
       id,
@@ -99,10 +143,11 @@ export function playerView(s: GameState, id: PlayerId, now: number): PlayerView 
       role: shown ? card(shown) : null,
       submitted: !!sub,
       submission: sub?.actions ?? null,
-      actions: collecting && seated ? actionSpecs(s, id) : [],
+      actions: auto && picking && !specs.length ? [decoy(r)] : specs,
       questions,
       messages: started ? (s.inbox.get(id) ?? []) : [],
       grants,
+      ...(auto ? autoplayPart(s, r, id, shown, now) : {}),
     },
     players: [...s.players.values()].map((x) => {
       const seat = s.seatingPublished ? s.publishedSeating.indexOf(x.id) : -1;
@@ -118,9 +163,14 @@ export function playerView(s: GameState, id: PlayerId, now: number): PlayerView 
     }),
     seatingPublished: s.seatingPublished,
     deadAtDawn: started ? s.publicDead.slice() : [],
-    announcedDeaths: s.settings.announceDeaths && started ? s.publicDead.slice() : null,
+    announcedDeaths:
+      s.settings.announceDeaths && started ? ((auto ? s.autoplay?.lastNight : s.publicDead)?.slice() ?? null) : null,
     script: s.script.filter((id) => findRole(id)),
-    hasStoryteller: !!s.storytellerId,
+    hasStoryteller: !!s.storytellerId || auto,
+    ...(s.stewardId ? { steward: s.stewardId } : {}),
+    ...(s.autoplay?.handedTo
+      ? { tableNotes: [`${r.name(s.autoplay.handedTo)} has stopped playing, and is the Storyteller now.`] }
+      : {}),
   };
 }
 
@@ -181,7 +231,7 @@ function storyNight(n: number, rows: StoryRow[], deaths: PlayerId[], revived: Pl
   };
 }
 
-function story(s: GameState, r: Reader): StoryEntry[] {
+export function story(s: GameState, r: Reader): StoryEntry[] {
   const out: StoryEntry[] = [];
   for (const e of s.events) {
     if (e.kind !== 'night_record') continue;
@@ -191,6 +241,7 @@ function story(s: GameState, r: Reader): StoryEntry[] {
   const days = new Set(s.events.filter((e) => e.at.kind === 'day').map((e) => e.at.n));
   for (const e of out) if (e.n >= 1) days.add(e.n);
   if (s.phase.kind === 'day') days.add(s.phase.n);
+  for (const x of s.autoplay?.record ?? []) if (x.at.kind === 'day' && x.lines.length) days.add(x.at.n);
   for (const n of [...days].sort((x, y) => x - y)) {
     const today = s.events.filter((e) => e.at.kind === 'day' && e.at.n === n);
     const execution = today.findLast((e) => e.kind === 'execution');
@@ -200,9 +251,12 @@ function story(s: GameState, r: Reader): StoryEntry[] {
       n,
       execution: execution?.kind === 'execution' ? { playerId: execution.playerId, died: execution.died } : null,
       deaths: today.flatMap((e) => (e.kind === 'death' ? [{ playerId: e.playerId, cause: e.cause }] : [])),
-      other: dayLines(s, r, n)
-        .filter((d) => d.kind !== 'execution' && d.kind !== 'death')
-        .map((d) => d.text),
+      other: [
+        ...autoplayLines(s, r, n),
+        ...dayLines(s, r, n)
+          .filter((d) => d.kind !== 'execution' && d.kind !== 'death')
+          .map((d) => d.text),
+      ],
       notes: note?.kind === 'note' ? note.text : '',
     };
     const at = out.findIndex((x) => x.kind === 'night' && x.n === n);
@@ -210,6 +264,18 @@ function story(s: GameState, r: Reader): StoryEntry[] {
     else out.push(entry);
   }
   return out;
+}
+
+/** Autoplay: the nominations, votes and claims the steward recorded that day. */
+function autoplayLines(s: GameState, r: Reader, n: number): string[] {
+  return (s.autoplay?.record ?? []).flatMap((x) => {
+    if (x.at.n !== n || (x.kind !== 'nomination' && x.kind !== 'undone' && x.kind !== 'claim')) return [];
+    const vote = s.autoplay?.nominations.find((y) => y.id === x.nomination)?.vote;
+    const votes = vote
+      ? `${vote.voters.length} voted${vote.voters.length ? `: ${vote.voters.map((id) => r.name(id)).join(', ')}` : ''}.`
+      : '';
+    return [[x.text, ...x.lines, votes].filter(Boolean).join(' ')];
+  });
 }
 
 function dayLines(s: GameState, r: Reader, n: number) {
@@ -388,8 +454,4 @@ export function storytellerView(s: GameState, id: PlayerId, options: ProjectOpti
     dayNotices,
     story: story(s, r),
   };
-}
-
-export function project(s: GameState, viewer: PlayerId, options: ProjectOptions): PlayerView | StorytellerView {
-  return viewer === s.storytellerId ? storytellerView(s, viewer, options) : playerView(s, viewer, options.now);
 }

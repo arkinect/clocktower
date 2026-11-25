@@ -1,7 +1,17 @@
 // Live games in memory. Each game runs one command at a time from a bounded queue, persists it, then broadcasts.
 import { createHash, randomInt, randomUUID } from 'node:crypto';
 import type { Command, PlayerId, ServerMessage, View } from '@ct/protocol';
-import { ENGINE_VERSION, createGame, dispatch, loadState, project, saveState, type GameStateT } from '@ct/rules';
+import {
+  ENGINE_VERSION,
+  autopilotStep,
+  createGame,
+  dispatch,
+  loadState,
+  nextChangeAt,
+  project,
+  saveState,
+  type GameStateT,
+} from '@ct/rules';
 import { Tables } from '../cards/tables';
 import type { Limits } from '../config';
 import type { GameRow, Store } from '../store/store';
@@ -34,13 +44,17 @@ interface Job {
 /**
  * Commands that start the game over. The command limit counts from the last one, and never refuses one, so a full
  * game can always be left. The bound is on each game, by design: the log as a whole grows by one game's share every
- * time the Storyteller starts over, and only the Storyteller can.
+ * time the Storyteller starts over, and only the Storyteller can (or in autoplay the steward).
  */
-const STARTS_OVER: readonly string[] = ['new_game', 'play_again'];
+const STARTS_OVER: readonly string[] = ['new_game', 'play_again', 'steward_new_game', 'steward_play_again'];
+
+/** Steps the autopilot may take on one command. Each closes something, so more would be a loop. */
+const AUTOPILOT_STEPS = 5;
 
 const viewHash = (view: View) => {
+  const still = view.kind === 'steward' ? { ...view, me: { ...view.me, serverNow: 0 } } : view;
   return createHash('sha1')
-    .update(JSON.stringify({ ...view, serverNow: 0 }))
+    .update(JSON.stringify({ ...still, serverNow: 0 }))
     .digest('base64');
 };
 
@@ -52,6 +66,10 @@ export class LiveGame {
   logLength: number;
   /** Commands since the game last started over. The log itself keeps every game played under this code. */
   private sinceFresh: number;
+  /** Autoplay: the next step failed. It is tried again after the next command. */
+  private stuck = false;
+  /** Autoplay: wakes when a view changes with time alone. */
+  private timer: NodeJS.Timeout | null = null;
   /** The idle card tables. They live and die with the process: nothing about them is stored. */
   readonly cards = new Tables({
     eligible: (playerId) => this.attempt(playerId, 'cards', () => this.idleAtNight(playerId)) ?? false,
@@ -105,12 +123,13 @@ export class LiveGame {
     }
     let outcome: Outcome;
     try {
-      outcome = this.run(job);
+      outcome = this.run(job.actor, job.command);
     } catch (e) {
       this.audit.failed(job.actor, job.command.type, e);
       outcome = { ok: false, error: 'Something went wrong.' };
     }
     job.done(outcome);
+    if (outcome.ok) this.wake();
     setImmediate(() => this.drain());
   }
 
@@ -125,27 +144,66 @@ export class LiveGame {
   }
 
   /** The new state is kept only once every view of it has been built and it has been saved. */
-  private run(job: Job): Outcome {
+  private run(actor: PlayerId | null, command: Command): Outcome {
     const now = Date.now();
-    const res = dispatch(this.state, job.actor, job.command, { now, seed: randomInt(2 ** 31) });
-    this.audit.command(job.actor, job.command.type);
+    const res = dispatch(this.state, actor, command, { now, seed: randomInt(2 ** 31) });
+    this.audit.command(actor, command.type);
     if (!res.ok) {
-      if (res.internal) this.audit.failed(job.actor, job.command.type, res.cause);
+      if (res.internal) this.audit.failed(actor, command.type, res.cause);
       return { ok: false, error: res.error };
     }
     // Every player's view, connected or not: one that cannot be built would fail whenever its player next connects.
     const presence = this.presence();
     const views: Views = new Map(
-      [...res.state.players.keys()].map((id) => [id, project(res.state, id, { now, presence })]),
+      [...res.state.players.keys()].map((id) => [id, project(res.state, id, { now, presence, stuck: this.stuck })]),
     );
     this.store.save(this.code, ENGINE_VERSION, saveState(res.state), this.logLength + 1, res.entry);
     const before = this.state;
     this.state = res.state;
     this.logLength += 1;
-    this.sinceFresh = STARTS_OVER.includes(job.command.type) ? 0 : this.sinceFresh + 1;
+    this.sinceFresh = STARTS_OVER.includes(command.type) ? 0 : this.sinceFresh + 1;
     this.lastActivity = now;
     this.afterChange(before, views);
     return { ok: true, data: res.data };
+  }
+
+  /**
+   * Autoplay: takes every step that is due and that nobody should take by hand, then waits for the next moment a view
+   * changes with time alone. Called after each command and at startup. A step that fails changes nothing, and the
+   * steward is told only that the app could not finish.
+   */
+  wake() {
+    const was = this.stuck;
+    this.stuck = false;
+    for (let i = 0; i < AUTOPILOT_STEPS; i++) {
+      const step = this.attempt(null, 'autopilot', () => autopilotStep(this.state));
+      if (step === null) break;
+      const outcome = step && this.attempt(null, step.type, () => this.run(null, step));
+      this.stuck = !outcome?.ok;
+      if (this.stuck) break;
+    }
+    if (this.stuck !== was) this.broadcast();
+    this.watchClock();
+  }
+
+  private watchClock() {
+    this.dispose();
+    const at = this.attempt(null, 'clock', () => nextChangeAt(this.state, Date.now()));
+    if (!at) return;
+    this.timer = setTimeout(
+      () => {
+        this.broadcast();
+        this.watchClock();
+      },
+      Math.max(0, at - Date.now()) + 20,
+    );
+    this.timer.unref();
+  }
+
+  /** Stops waiting. The game is going away. */
+  dispose() {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
   }
 
   private afterChange(before: GameStateT, views: Views) {
@@ -170,7 +228,8 @@ export class LiveGame {
 
   /** The same test the phone uses to unlock its night games, and nothing waiting to be answered. */
   private idleAtNight(playerId: string) {
-    const view = this.viewFor(playerId);
+    const full = this.viewFor(playerId);
+    const view = full?.kind === 'steward' ? full.me : full;
     if (view?.kind !== 'player' || !view.me.seated) return false;
     const { kind, stage } = view.phase;
     if (kind !== 'night' || stage === 'briefing' || view.me.questions.length) return false;
@@ -184,7 +243,7 @@ export class LiveGame {
   viewFor(playerId: string): View | null {
     const id = playerId as PlayerId;
     if (!this.state.players.has(id)) return null;
-    return project(this.state, id, { now: Date.now(), presence: this.presence() });
+    return project(this.state, id, { now: Date.now(), presence: this.presence(), stuck: this.stuck });
   }
 
   /** A view that cannot be built or sent closes that socket, and no other. */
@@ -221,9 +280,10 @@ export class LiveGame {
     this.broadcastPresence();
   }
 
-  /** Presence reaches the Storyteller only. */
+  /** Presence reaches the Storyteller, or the steward, only. */
   private broadcastPresence() {
-    for (const c of this.clients) if (c.playerId === this.state.storytellerId) this.sendView(c);
+    const { storytellerId, stewardId } = this.state;
+    for (const c of this.clients) if (c.playerId === storytellerId || c.playerId === stewardId) this.sendView(c);
   }
 
   names() {
@@ -261,7 +321,10 @@ export class Games {
       const parsed = loadState(row.snapshot);
       if (row.engine !== ENGINE_VERSION) this.archive(row, `engine ${row.engine}`);
       else if (!parsed.state) this.archive(row, parsed.reason);
-      else this.live(parsed.state, this.store.logLength(row.code), this.store.logLengthSince(row.code, STARTS_OVER));
+      else {
+        const { code } = row;
+        this.live(parsed.state, this.store.logLength(code), this.store.logLengthSince(code, STARTS_OVER)).wake();
+      }
     }
   }
 
@@ -285,6 +348,7 @@ export class Games {
     );
     if (!idle) return false;
     this.archive({ code: idle.code, engine: ENGINE_VERSION, snapshot: saveState(idle.state) }, 'idle');
+    idle.dispose();
     this.games.delete(idle.code);
     return true;
   }

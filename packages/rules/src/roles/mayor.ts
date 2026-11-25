@@ -5,6 +5,7 @@ export const mayor = defineRole({
   id: roleId('mayor'),
   name: 'Mayor',
   type: 'townsfolk',
+  autoplay: true,
   abilityText:
     'If only 3 players live & no execution occurs, your team wins. If you die at night, another player might die instead.',
   reminder: 'If the day ends with exactly 3 alive and no execution, good wins: end the game from the Grimoire.',

@@ -8,6 +8,7 @@ export const huntsman = defineRole({
   id: roleId('huntsman'),
   name: 'Huntsman',
   type: 'townsfolk',
+  autoplay: true,
   abilityText:
     'Once per game, at night, choose a living player: the Damsel, if chosen, becomes a not-in-play Townsfolk. [+the Damsel]',
   night: { first: 110, other: 230 },

@@ -44,10 +44,26 @@ function guessesOf(ctx: AbilityCtx<State>): { player: PlayerId; role: RoleId }[]
   return out;
 }
 
+/** They have just guessed publicly: a guess is checked against everyone's character now. */
+const guessedToday = (ctx: AbilityCtx<State>): State => ({
+  juggled: true,
+  characters: Object.fromEntries(ctx.seated.map((id) => [id, ctx.character(id)])),
+});
+
 export const juggler = defineRole<State>({
   id: roleId('juggler'),
   name: 'Juggler',
   type: 'townsfolk',
+  autoplay: {
+    claims: [
+      {
+        claim: 'juggled',
+        title: "Juggler's guesses",
+        fields: ['Claimant'],
+        says: "{0} guesses players' characters, as the Juggler",
+      },
+    ],
+  },
   abilityText:
     "On your 1st day, publicly guess up to 5 players' characters. That night, you learn how many you got correct.",
   reminder:
@@ -96,14 +112,17 @@ export const juggler = defineRole<State>({
     },
     applyDayAction(ctx, _action, values) {
       const value = values[0] === 'yes';
-      const characters = Object.fromEntries(ctx.seated.map((id) => [id, ctx.character(id)]));
-      ctx.setState({ juggled: value, characters: value ? characters : null });
+      ctx.setState(value ? guessedToday(ctx) : { juggled: false, characters: null });
       return {
         summary: value
           ? 'Recorded: they guessed publicly. Tonight they enter their guesses.'
           : 'Recorded: they did not guess publicly.',
         effective: true,
       };
+    },
+    onClaim(ctx, { values }) {
+      if (ctx.n !== 1 || values[0] !== ctx.holder) return;
+      ctx.setState(guessedToday(ctx));
     },
     resolve(ctx) {
       if (!ctx.canAct) {
@@ -112,7 +131,8 @@ export const juggler = defineRole<State>({
       }
       const guesses = guessesOf(ctx);
       const truth = guesses.filter((g) => whenGuessed(ctx, g.player) === g.role).length;
-      ctx.informNumber(truth, 0, 5, (n) => [`You guessed ${n} correctly.`]);
+      // No more can be right than were guessed, and in autoplay nobody is there to see that.
+      ctx.informNumber(truth, 0, ctx.autoplay ? guesses.length : 5, (n) => [`You guessed ${n} correctly.`]);
     },
   },
 });

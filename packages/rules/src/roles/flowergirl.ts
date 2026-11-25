@@ -27,6 +27,7 @@ export const flowergirl = defineRole<State>({
   id: roleId('flowergirl'),
   name: 'Flowergirl',
   type: 'townsfolk',
+  autoplay: true,
   abilityText: 'Each night*, you learn if a Demon voted today.',
   night: { other: 310 },
   initialState: () => ({ voted: null }),
@@ -45,7 +46,7 @@ export const flowergirl = defineRole<State>({
           recorded: voted ? [voted.value ? 'yes' : 'no'] : null,
           // "No" unless changed: dusk records it. Review only asks when nobody held the ability today (a Philosopher
           // who chooses it tonight).
-          default: ['no'],
+          default: [ctx.demonVoted(ctx.n) ? 'yes' : 'no'],
           neededTonight: ctx.peers.some((a) => a.holder.kind === 'player' && ctx.isAlive(a.holder.id)),
           fields: [
             {
@@ -65,19 +66,21 @@ export const flowergirl = defineRole<State>({
     resolve(ctx) {
       const recorded = recordedToday(ctx);
       // Not recorded during the day: the Storyteller must answer it before dawn (or force).
-      const voted = recorded
-        ? recorded.value
-        : ctx.decide({
-            key: { kind: 'flowergirl_voted', ability: null },
-            title: `Flowergirl: did a Demon vote on Day ${ctx.n}?`,
-            description: `Not recorded during the day.${deadDemons(ctx)}`,
-            options: [
-              { id: 'yes', label: 'Yes' },
-              { id: 'no', label: 'No' },
-            ],
-            default: 'no',
-            required: true,
-          }) === 'yes';
+      const voted = ctx.autoplay
+        ? ctx.demonVoted(ctx.n)
+        : recorded
+          ? recorded.value
+          : ctx.decide({
+              key: { kind: 'flowergirl_voted', ability: null },
+              title: `Flowergirl: did a Demon vote on Day ${ctx.n}?`,
+              description: `Not recorded during the day.${deadDemons(ctx)}`,
+              options: [
+                { id: 'yes', label: 'Yes' },
+                { id: 'no', label: 'No' },
+              ],
+              default: 'no',
+              required: true,
+            }) === 'yes';
       ctx.informYesNo(voted, (v) => [`${v ? 'Yes' : 'No'}, a Demon ${v ? 'voted' : 'did not vote'} today.`]);
     },
   },

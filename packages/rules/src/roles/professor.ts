@@ -6,6 +6,7 @@ export const professor = defineRole({
   id: roleId('professor'),
   name: 'Professor',
   type: 'townsfolk',
+  autoplay: true,
   abilityText: 'Once per game, at night*, choose a dead player: if they are a Townsfolk, they are resurrected.',
   night: { other: 220 },
   flags: { oncePerGame: 'auto' },

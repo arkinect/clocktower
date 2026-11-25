@@ -52,10 +52,14 @@ function planned(ctx: AbilityCtx<State>, executee: PlayerId): RoleId | null {
   return ok ? plan.role : null;
 }
 
-/** A random good character, preselected on the Day tab. It comes out the same every time, so dusk uses what was shown. */
+/**
+ * A random good character, preselected on the Day tab. It comes out the same every time, so dusk uses what was shown.
+ * Autoplay shows nothing beforehand, and draws it at dusk.
+ */
 function suggestion(ctx: AbilityCtx<State>, executee: PlayerId): RoleId | null {
   const options = fakes(ctx);
-  return options.length ? ctx.stableRng(`fake:${ctx.n}:${executee}`).pick(options) : null;
+  const key = `fake:${ctx.n}:${executee}`;
+  return options.length ? (ctx.autoplay ? ctx.rng(key) : ctx.stableRng(key)).pick(options) : null;
 }
 
 /** Today's execution, when it would feed this Cannibal an evil player. */
@@ -71,6 +75,7 @@ export const cannibal = defineRole<State>({
   id: CANNIBAL,
   name: 'Cannibal',
   type: 'townsfolk',
+  autoplay: true,
   abilityText:
     'You have the ability of the recently killed executee. If they are evil, you are poisoned until a good player dies by execution.',
   reminder:

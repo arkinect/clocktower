@@ -5,6 +5,7 @@ export const fisherman = defineRole({
   id: roleId('fisherman'),
   name: 'Fisherman',
   type: 'townsfolk',
+  autoplay: { unfit: 'The Storyteller has to give them advice.' },
   abilityText: 'Once per game, during the day, visit the Storyteller for some advice to help your team win.',
   reminder: 'Day ability: give advice in person. Mark used in the Ability tracker.',
   flags: { oncePerGame: 'manual', dayReminder: true },

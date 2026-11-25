@@ -5,6 +5,7 @@ export const fool = defineRole({
   id: roleId('fool'),
   name: 'Fool',
   type: 'townsfolk',
+  autoplay: true,
   abilityText: "The first time you die, you don't.",
   reminder: 'First death is prevented, by night or by execution.',
   flags: { oncePerGame: 'manual', interceptPriority: 40, passive: true },

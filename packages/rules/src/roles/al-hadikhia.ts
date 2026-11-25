@@ -25,6 +25,7 @@ export function liveOrDie(ctx: AbilityCtx<unknown>, t: PlayerId, ts: PlayerId[])
 /** All players learn who was chosen. */
 export function announce(ctx: AbilityCtx<unknown>, ts: PlayerId[]) {
   const [x, y, z] = ts.map(ctx.name);
+  ctx.announce(`The Al-Hadikhia chose ${x}, ${y} and ${z}.`);
   for (const id of ctx.seated) ctx.notify(id, 'Al-Hadikhia', [`The Al-Hadikhia chose ${x}, ${y} and ${z}.`]);
 }
 
@@ -32,6 +33,7 @@ export const alHadikhia = defineRole({
   id: roleId('al_hadikhia'),
   name: 'Al-Hadikhia',
   type: 'demon',
+  autoplay: true,
   abilityText:
     'Each night*, you may choose 3 players (all players learn who): each silently chooses to live or die, but if all live, all die.',
   night: { other: 170, note: 'The 3 chosen players each choose to live or die' },

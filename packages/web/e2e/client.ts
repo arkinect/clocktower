@@ -11,6 +11,7 @@ import {
 import { WebSocket } from 'ws';
 
 export const BASE = 'http://127.0.0.1:4173';
+export const STEWARD_BASE = 'http://127.0.0.1:4174';
 
 class Scripted<V extends View> {
   view: V | null = null;
@@ -50,15 +51,15 @@ class Scripted<V extends View> {
   }
 }
 
-async function open(code: string, name: string, wantsStoryteller: boolean) {
-  const res = await fetch(`${BASE}/api/g/${code}/join`, {
+async function open(code: string, name: string, wantsStoryteller: boolean, base = BASE) {
+  const res = await fetch(`${base}/api/g/${code}/join`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ name, wantsStoryteller }),
   });
   const body = (await res.json()) as { playerId: string };
   const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0] as string;
-  const ws = new WebSocket(`${BASE.replace('http', 'ws')}/ws`, { headers: { origin: BASE, cookie } });
+  const ws = new WebSocket(`${base.replace('http', 'ws')}/ws`, { headers: { origin: base, cookie } });
   return { ws, id: body.playerId };
 }
 
@@ -90,8 +91,8 @@ export class ScriptedStoryteller extends Scripted<StorytellerView> {
 }
 
 export class ScriptedPlayer extends Scripted<PlayerView> {
-  static async join(code: string, name: string) {
-    const { ws, id } = await open(code, name, false);
+  static async join(code: string, name: string, base = BASE) {
+    const { ws, id } = await open(code, name, false, base);
     const client = new ScriptedPlayer(ws, id);
     await opened(ws);
     return client;

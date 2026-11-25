@@ -11,6 +11,18 @@
 5. A jinx with a role already in the app is one file under `packages/rules/src/jinxes/`, added to the list in
    `jinxes/index.ts`.
 
+6. Say whether autoplay can use it, with the role's `autoplay` field. Without one it cannot, and its checkbox is greyed
+   out for the steward. See [autoplay.md](autoplay.md). It can once nothing is left to a Storyteller:
+   - every decision it raises has a fair random default, and every setup field can be drawn (`setupRules.choice` for one
+     the counts depend on, `drawnWhenGained` for one needed when the ability is gained during the game)
+   - its false answers are all ones the ability could give
+   - what it does by day comes from a nomination (`onNomination`), something said in public (`claims` and `onClaim`), an
+     execution (`execution` and `survivesExecution`) or a private question (`asksHolder` on a day action). Share the code
+     with its day action, so both modes do the same
+   - a rule nobody enforces has a `reminder`
+
+   A role that needs a Storyteller's judgement gets `{ unfit: 'why' }`.
+
 Then update the counts written down by hand:
 
 - the number of roles in `packages/rules/test/roles/jinxes.test.ts`, `README.md` and [role-panels.md](role-panels.md)

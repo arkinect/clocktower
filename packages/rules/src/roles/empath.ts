@@ -5,6 +5,7 @@ export const empath = defineRole({
   id: roleId('empath'),
   name: 'Empath',
   type: 'townsfolk',
+  autoplay: true,
   abilityText: 'Each night, you learn how many of your 2 alive neighbours are evil.',
   night: { first: 140, other: 290 },
   ability: {
