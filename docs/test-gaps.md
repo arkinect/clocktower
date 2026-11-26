@@ -47,6 +47,7 @@ the code whose result no test checks. Use both.
 - **Do not grow the suite for its own sake.** The owner found a suite of over 1,000 tests too big. Prefer, in this order: a
   stronger assertion in an existing test, one more case in an existing table or loop, a new `it`. A looped case must
   name itself when it fails: give `expect` a label.
+  Note from the owner: I'm agnostic to test count. I just want the suite to be well designed. Part of that does mean enough tests, but enough well constructed tests.
 - **A test states behaviour.** It should read as a rule of the game or of the app. Never copy the implementation into
   the expected value, never export something only for a test, and don't chase one mutant with one test. A group of
   survivors in one function usually shows one missing rule.
